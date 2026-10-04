@@ -4,7 +4,7 @@ import Providers from './Provider';
 
 export const metadata: Metadata = {
   title: 'Caresia',
-  description: 'Proveyendo salud de calidad',
+  description: 'Pacientes, citas e historiales clínicos en un solo lugar. Para clínicas dentales y consultorios médicos.',
 }
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body>
         <Providers>
           {children}

@@ -1,6 +1,6 @@
 # Caresia
 
-Plataforma de gestión para clínicas quiroprácticas: pacientes, citas e historiales médicos.
+Plataforma de gestión para clínicas dentales y consultorios médicos: pacientes, citas e historiales clínicos.
 
 ## Empezar
 
