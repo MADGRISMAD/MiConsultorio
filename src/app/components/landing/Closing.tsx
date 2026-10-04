@@ -64,7 +64,7 @@ function PlanCard({ p, i }: { p: (typeof plans)[number]; i: number }) {
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background: `radial-gradient(320px circle at var(--x) var(--y), ${dark ? "rgba(232,85,61,0.22)" : "rgba(232,85,61,0.10)"}, transparent 70%)` }}
+        style={{ background: `radial-gradient(320px circle at var(--x) var(--y), ${dark ? "rgba(22,115,209,0.22)" : "rgba(22,115,209,0.10)"}, transparent 70%)` }}
       />
       <div className="relative flex items-center justify-between">
         <h3 className="font-display text-4xl">{p.name}</h3>

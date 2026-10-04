@@ -34,7 +34,7 @@ const NOW = 10.6;
 function AppWindow() {
   const reduce = useReducedMotion();
   return (
-    <div className="overflow-hidden rounded-[22px] bg-white shadow-[0_2px_4px_rgba(20,33,29,0.04),0_40px_80px_-24px_rgba(20,33,29,0.35)] ring-1 ring-ink/10">
+    <div className="overflow-hidden rounded-[22px] bg-white shadow-[0_2px_4px_rgba(11,37,64,0.04),0_40px_80px_-24px_rgba(11,37,64,0.35)] ring-1 ring-ink/10">
       <div className="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
         <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
         <span className="h-2.5 w-2.5 rounded-full bg-ink/10" />
@@ -146,7 +146,7 @@ function Float({
   );
 }
 
-const chip = "rounded-2xl bg-white/90 shadow-[0_24px_48px_-16px_rgba(20,33,29,0.3)] ring-1 ring-ink/10 backdrop-blur";
+const chip = "rounded-2xl bg-white/90 shadow-[0_24px_48px_-16px_rgba(11,37,64,0.3)] ring-1 ring-ink/10 backdrop-blur";
 
 export default function Hero() {
   const reduce = useReducedMotion();
@@ -181,7 +181,7 @@ export default function Hero() {
       }}
     >
       {/* soft light behind the headline */}
-      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[60rem] w-[90rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(232,85,61,0.10),transparent)]" />
+      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[60rem] w-[90rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(22,115,209,0.10),transparent)]" />
 
       <motion.div style={{ y: textY, opacity: textO }} className="mx-auto max-w-6xl px-5 sm:px-8">
         <motion.div
@@ -252,7 +252,7 @@ export default function Hero() {
                 <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Expediente · 34 años</span>
               </span>
             </div>
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-signal-soft px-3 py-2 text-[12px] font-medium text-signal">
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/15">
               <Icon className="h-3.5 w-3.5" strokeWidth={2.2}><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></Icon>
               Alergia a penicilina
             </div>
@@ -283,7 +283,7 @@ export default function Hero() {
         </Float>
 
         <Float depth={2.6} progress={heroP} mx={mx} my={my} delay={2.1} className="-bottom-10 right-6 hidden md:block lg:-right-6">
-          <div className="w-52 rotate-[5deg] bg-[#F5E7A0] p-4 pb-6 font-hand text-[24px] leading-[1.05] text-ink shadow-[0_20px_40px_-14px_rgba(20,33,29,0.4)]">
+          <div className="w-52 rotate-[5deg] bg-[#F5E7A0] p-4 pb-6 font-hand text-[24px] leading-[1.05] text-ink shadow-[0_20px_40px_-14px_rgba(11,37,64,0.4)]">
             ¡Adiós a la agenda de papel!
           </div>
         </Float>

@@ -136,7 +136,7 @@ function Row({ base, items, outline }: { base: number; items: string[]; outline?
 
   const content = items.map((s, i) => (
     <span key={i} className="flex items-center">
-      <span className={`px-6 sm:px-10 ${i % 2 ? "italic" : ""} ${outline ? "text-transparent [-webkit-text-stroke:1.2px_#14211D]" : ""}`}>{s}</span>
+      <span className={`px-6 sm:px-10 ${i % 2 ? "italic" : ""} ${outline ? "text-transparent [-webkit-text-stroke:1.2px_#0B2540]" : ""}`}>{s}</span>
       <svg viewBox="0 0 24 24" className="h-6 w-6 flex-none text-signal sm:h-9 sm:w-9" aria-hidden="true"><path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
     </span>
   ));

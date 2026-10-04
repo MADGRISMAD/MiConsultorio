@@ -162,7 +162,7 @@ export const arrow = <path d="M5 12h14M13 6l6 6-6 6" />;
 export const Mark = ({ className = "h-7 w-7", light = false }: { className?: string; light?: boolean }) => (
   <svg viewBox="0 0 32 32" aria-hidden="true" className={className}>
     <rect width="32" height="32" rx="9" className={light ? "fill-paper" : "fill-ink"} />
-    <path d="M16 8v16M8 16h16" stroke={light ? "#14211D" : "#F4F1EA"} strokeWidth="3.2" strokeLinecap="round" />
+    <path d="M16 8v16M8 16h16" stroke={light ? "#0B2540" : "#F4F8FB"} strokeWidth="3.2" strokeLinecap="round" />
     <circle cx="23.5" cy="8.5" r="2.5" className="fill-signal" />
   </svg>
 );

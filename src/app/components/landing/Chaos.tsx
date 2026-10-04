@@ -17,9 +17,9 @@ const scraps: { messy: string; kind: Kind; label: string; title: string; meta: s
 ];
 
 const paper: Record<Kind, string> = {
-  sticky: "bg-[#F5E7A0] shadow-[0_14px_28px_-12px_rgba(20,33,29,0.45)]",
-  card: "bg-[#FBFAF6] shadow-[0_14px_28px_-12px_rgba(20,33,29,0.4)] bg-[repeating-linear-gradient(transparent,transparent_23px,rgba(70,110,170,0.18)_24px)]",
-  folder: "bg-[#E4CF9E] shadow-[0_14px_28px_-12px_rgba(20,33,29,0.45)] rounded-tr-xl",
+  sticky: "bg-[#F5E7A0] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.45)]",
+  card: "bg-[#FBFAF6] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.4)] bg-[repeating-linear-gradient(transparent,transparent_23px,rgba(70,110,170,0.18)_24px)]",
+  folder: "bg-[#E4CF9E] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.45)] rounded-tr-xl",
 };
 
 function Scrap({ s, p, i }: { s: (typeof scraps)[number]; p: MotionValue<number>; i: number }) {
@@ -59,7 +59,7 @@ export default function Chaos() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   const p = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.3 });
 
-  const bg = useTransform(p, [0.1, 0.65], ["#E6DFCE", "#F4F1EA"]);
+  const bg = useTransform(p, [0.1, 0.65], ["#DDE7EE", "#F4F8FB"]);
   const before = useTransform(p, [0.3, 0.42], [1, 0]);
   const beforeY = useTransform(p, [0.3, 0.42], ["0%", "-30%"]);
   const after = useTransform(p, [0.42, 0.55], [0, 1]);
