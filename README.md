@@ -11,6 +11,12 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000) en el navegador.
 
+## Deploy
+
+Caresia solo tiene **producción**. No hay preview, staging ni deploys por pull request.
+
+Cada push a `main` publica en [caresia.vercel.app](https://caresia.vercel.app). Vercel no genera previews: los deploys automáticos por Git están desactivados y el CI usa siempre `--prod`.
+
 ## Origen
 
 La idea inicial nació de [MedX](https://github.com/JulyAn1234/MedX), de [Julian (JulyAn1234)](https://github.com/JulyAn1234).

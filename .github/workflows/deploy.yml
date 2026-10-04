@@ -1,4 +1,5 @@
-name: Deploy
+# Caresia no tiene preview ni staging. Este workflow solo publica producción.
+name: Deploy production
 
 on:
   push:
@@ -6,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  vercel:
+  production:
     runs-on: ubuntu-latest
     env:
       VERCEL_ORG_ID: team_zTGwYKWZiYNP6cXzPReKRjpF
