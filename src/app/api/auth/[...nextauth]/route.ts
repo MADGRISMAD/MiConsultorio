@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { loginHandler } from "@/app/handlers/user";
 
 const signInHandler = NextAuth({
+    secret: process.env.NEXTAUTH_SECRET,
     providers:[
         //Setting up my own credentials auth mechanism
         CredentialsProvider({

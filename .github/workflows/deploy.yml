@@ -12,6 +12,8 @@ jobs:
       VERCEL_ORG_ID: team_zTGwYKWZiYNP6cXzPReKRjpF
       VERCEL_PROJECT_ID: prj_QlRAHPaibDuo2UVqYW27cOqkrGK7
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEXTAUTH_URL: https://caresia.vercel.app
+      NEXTAUTH_SECRET: caresia-build-placeholder
     steps:
       - uses: actions/checkout@v4
       - run: npm install --global vercel@latest
