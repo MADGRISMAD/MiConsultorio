@@ -34,7 +34,7 @@ export default function Nav() {
       >
         <nav
           className={`mx-auto flex h-14 max-w-6xl items-center justify-between rounded-full pl-4 pr-2 transition-[background-color,box-shadow,backdrop-filter] duration-500 ${
-            solid ? "bg-paper/75 shadow-[0_1px_0_rgba(20,33,29,0.06),0_12px_32px_-12px_rgba(20,33,29,0.18)] ring-1 ring-ink/5 backdrop-blur-xl" : ""
+            solid ? "bg-paper/75 shadow-[0_1px_0_rgba(11,37,64,0.06),0_12px_32px_-12px_rgba(11,37,64,0.18)] ring-1 ring-ink/5 backdrop-blur-xl" : ""
           }`}
         >
           <a href="#inicio" aria-label="Caresia, inicio" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">

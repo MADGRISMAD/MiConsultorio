@@ -11,11 +11,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: '#F4F1EA',
-        desk: '#E6DFCE',
-        ink: { DEFAULT: '#14211D', soft: '#4A5853', faint: '#8A948F' },
-        signal: { DEFAULT: '#E8553D', soft: '#F9DCD3' },
-        mint: { DEFAULT: '#2F8F6B', soft: '#D4EBDF' },
+        paper: '#F4F8FB',
+        desk: '#DDE7EE',
+        ink: { DEFAULT: '#0B2540', soft: '#4B6177', faint: '#8A9BAD' },
+        signal: { DEFAULT: '#1673D1', soft: '#DCEAFB' },
+        mint: { DEFAULT: '#0F9E8E', soft: '#D3F0EC' },
       },
       fontFamily: {
         display: ['var(--font-display)', 'Georgia', 'serif'],

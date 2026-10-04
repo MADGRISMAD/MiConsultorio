@@ -209,7 +209,7 @@ function Step({ s, i, onActive, active }: { s: (typeof steps)[number]; i: number
         </ul>
       </motion.div>
       {/* small screens: the screen follows its text */}
-      <div className="mt-8 rounded-[22px] bg-white p-5 shadow-[0_30px_60px_-30px_rgba(20,33,29,0.35)] ring-1 ring-ink/10 lg:hidden" aria-hidden="true">
+      <div className="mt-8 rounded-[22px] bg-white p-5 shadow-[0_30px_60px_-30px_rgba(11,37,64,0.35)] ring-1 ring-ink/10 lg:hidden" aria-hidden="true">
         <Screen />
       </div>
     </div>
@@ -236,7 +236,7 @@ export default function Features() {
             <div className="sticky top-0 flex h-screen items-center">
               <div className="relative w-full">
                 <div className="absolute -inset-6 -z-10 rounded-[40px] bg-gradient-to-br from-mint-soft via-transparent to-signal-soft opacity-70 blur-2xl" />
-                <div className="relative h-[29rem] overflow-hidden rounded-[26px] bg-white p-7 shadow-[0_40px_80px_-30px_rgba(20,33,29,0.4)] ring-1 ring-ink/10">
+                <div className="relative h-[29rem] overflow-hidden rounded-[26px] bg-white p-7 shadow-[0_40px_80px_-30px_rgba(11,37,64,0.4)] ring-1 ring-ink/10">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={active}
