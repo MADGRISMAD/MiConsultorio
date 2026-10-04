@@ -10,6 +10,19 @@ const config: Config = {
   future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
+      colors: {
+        paper: '#F4F1EA',
+        desk: '#E6DFCE',
+        ink: { DEFAULT: '#14211D', soft: '#4A5853', faint: '#8A948F' },
+        signal: { DEFAULT: '#E8553D', soft: '#F9DCD3' },
+        mint: { DEFAULT: '#2F8F6B', soft: '#D4EBDF' },
+      },
+      fontFamily: {
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        body: ['var(--font-body)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        hand: ['var(--font-hand)', 'cursive'],
+      },
       transitionTimingFunction: {
         'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)',
       },
