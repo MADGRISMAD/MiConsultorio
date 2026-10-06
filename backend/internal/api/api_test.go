@@ -759,6 +759,26 @@ func TestAccount(t *testing.T) {
 	e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": "doc_a", "password": "new-password-1"})
 }
 
+func TestResetPassword(t *testing.T) {
+	e := setup(t)
+	c := e.login("admin_a")
+	c.expect(200, "GET", "/api/session", nil)
+
+	if _, err := db.ResetPassword(context.Background(), e.pool, "Admin_A@clinic.mx", "brand-new-pass-1"); err != nil { // by e-mail, any case
+		t.Fatal(err)
+	}
+	c.expect(401, "GET", "/api/session", nil) // open sessions end
+	e.anon().expect(401, "POST", "/api/login", map[string]string{"identifier": "admin_a", "password": pw})
+	e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": "admin_a", "password": "brand-new-pass-1"})
+
+	if _, err := db.ResetPassword(context.Background(), e.pool, "root", "short"); err == nil {
+		t.Fatal("weak passwords must be refused")
+	}
+	if _, err := db.ResetPassword(context.Background(), e.pool, "nobody", "long-enough-pw"); err == nil {
+		t.Fatal("unknown accounts must be reported")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Migration of data created before roles existed
 // ---------------------------------------------------------------------------

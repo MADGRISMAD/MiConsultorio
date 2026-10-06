@@ -28,10 +28,7 @@ func LoadDotEnv() (path string) {
 			if !ok || key == "" {
 				continue
 			}
-			val = strings.TrimSpace(val)
-			if n := len(val); n >= 2 && (val[0] == '"' && val[n-1] == '"' || val[0] == '\'' && val[n-1] == '\'') {
-				val = val[1 : n-1]
-			}
+			val = parseValue(strings.TrimSpace(val))
 			if _, set := os.LookupEnv(key); !set {
 				os.Setenv(key, val)
 			}
@@ -39,4 +36,27 @@ func LoadDotEnv() (path string) {
 		return p
 	}
 	return ""
+}
+
+// parseValue interprets what follows "KEY=":
+//   - "double" or 'single' quoted values keep everything inside the quotes (even a '#');
+//     anything after the closing quote, such as a comment, is ignored;
+//   - unquoted values end at a '#' that follows whitespace, so
+//     `PASSWORD=secret   # at least 8 characters` is just "secret";
+//     a '#' glued to the text (`abc#123`) is part of the value.
+func parseValue(v string) string {
+	if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') {
+		if end := strings.IndexByte(v[1:], v[0]); end >= 0 {
+			return v[1 : 1+end]
+		}
+	}
+	if strings.HasPrefix(v, "#") {
+		return ""
+	}
+	for i := 1; i < len(v); i++ {
+		if v[i] == '#' && (v[i-1] == ' ' || v[i-1] == '\t') {
+			return strings.TrimSpace(v[:i])
+		}
+	}
+	return v
 }

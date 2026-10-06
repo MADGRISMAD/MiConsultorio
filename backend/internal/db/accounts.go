@@ -209,3 +209,24 @@ func EnsureFirstPlatformAdmin(ctx context.Context, pool *pgxpool.Pool, u UserPar
 	_, err = CreatePlatformUser(ctx, pool, u)
 	return err == nil, err
 }
+
+// ResetPassword sets a new password for the account whose e-mail or username is identifier,
+// ending all of that account's sessions. It returns the account's name.
+func ResetPassword(ctx context.Context, pool *pgxpool.Pool, identifier, password string) (string, error) {
+	if msg := ValidatePassword(password); msg != "" {
+		return "", errors.New(msg)
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return "", err
+	}
+	var name string
+	err = pool.QueryRow(ctx, `
+		UPDATE users SET password_hash = $2, token_version = token_version + 1
+		WHERE lower(email) = lower($1) OR lower(username) = lower($1)
+		RETURNING name`, strings.TrimSpace(identifier), hash).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("no existe ninguna cuenta con el correo o usuario %q", identifier)
+	}
+	return name, err
+}
