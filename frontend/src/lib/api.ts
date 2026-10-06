@@ -40,6 +40,8 @@ const seg = encodeURIComponent;
 export const api = {
   login: (email: string, username: string, password: string) =>
     request<{ session: SessionInfo }>('POST', '/login', { email, username, password }).then((r) => r.session),
+  register: (r: { clinic_name: string; kind: string; phone: string; email: string; username: string; password: string }) =>
+    request<{ session: SessionInfo }>('POST', '/register', r).then((x) => x.session),
   logout: () => request<void>('POST', '/logout'),
   session: () => request<{ session: SessionInfo }>('GET', '/session').then((r) => r.session),
   clinic: () => request<{ clinic: Clinic }>('GET', '/clinic').then((r) => r.clinic),

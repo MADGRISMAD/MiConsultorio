@@ -5,6 +5,6 @@
 
 <svelte:head><title>Administrar citas · Caresia</title></svelte:head>
 
-<Guard permissions={['adminAppointments']}>
+<Guard title="Administrar citas" permissions={['adminAppointments']}>
   <AppointmentsPanel admin/>
 </Guard>

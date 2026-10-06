@@ -3,12 +3,16 @@
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
+  import { toast } from '$lib/toast.svelte';
   import { emptyAppointment, PERMISSIONS, type Appointment, type AppointmentInput, type Expedient } from '$lib/types';
   import AppointmentForm from './AppointmentForm.svelte';
   import ConfirmModal from './ConfirmModal.svelte';
   import ExpedientView from './ExpedientView.svelte';
   import Modal from './Modal.svelte';
-  import Notice from './Notice.svelte';
+  import EmptyState from './ui/EmptyState.svelte';
+  import Icon from './ui/Icon.svelte';
+  import LoadingRows from './ui/LoadingRows.svelte';
+  import PageHeader from './ui/PageHeader.svelte';
 
   let { admin = false }: { admin?: boolean } = $props();
 
@@ -27,6 +31,9 @@
     }
   }
   onMount(load);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const longDate = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   // ----- details modal -----
   let viewing = $state<Appointment | null>(null);
@@ -67,13 +74,10 @@
   async function submitForm(e: SubmitEvent) {
     e.preventDefault();
     const id = editingId;
-    const ok = await formOp.run(() => (id ? api.updateAppointment(id, form) : api.createAppointment(form)), id ? 'Cita actualizada exitosamente' : 'Cita creada exitosamente');
-    if (!ok) return;
+    if (!(await formOp.run(() => (id ? api.updateAppointment(id, form) : api.createAppointment(form))))) return;
+    formOpen = false;
+    toast.show(id ? 'Cita actualizada' : 'Cita creada');
     await load();
-    setTimeout(() => {
-      formOpen = false;
-      formOp.reset();
-    }, 800);
   }
 
   // ----- delete -----
@@ -84,49 +88,56 @@
     if (!target) return;
     if (await deleteOp.run(() => api.deleteAppointment(target.id))) {
       deleting = null;
-      deleteOp.reset();
+      toast.show('Cita eliminada');
       await load();
     }
   }
 </script>
 
-<div class="mx-auto max-w-6xl px-4 py-8">
-  <div class="flex items-center justify-between gap-4">
-    <h1 class="font-display text-4xl">{admin ? 'Administrar citas' : 'Citas'}</h1>
-    {#if admin}<button type="button" class="btn-primary" onclick={openCreate}>Nueva cita</button>{/if}
-  </div>
+<PageHeader title={admin ? 'Administrar citas' : 'Citas'} subtitle={admin ? 'Crea, reprograma y cancela citas.' : 'Consulta la agenda del consultorio.'}>
+  {#snippet actions()}
+    {#if admin}<button type="button" class="btn-primary" onclick={openCreate}><Icon name="plus" size={18} stroke={2.2} />Nueva cita</button>{/if}
+  {/snippet}
+</PageHeader>
 
-  <div class="mt-6 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-ink/10">
-    {#if loading}
-      <p class="p-8 text-center text-ink-soft">Cargando...</p>
-    {:else if loadError}
-      <p class="p-8 text-center text-red-600" role="alert">{loadError}</p>
-    {:else if items.length === 0}
-      <p class="p-8 text-center text-ink-soft">No hay citas registradas.</p>
-    {:else}
-      <table class="w-full min-w-max">
-        <thead class="border-b border-ink/10 bg-paper">
+<div class="card overflow-hidden">
+  {#if loading}
+    <LoadingRows />
+  {:else if loadError}
+    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+  {:else if items.length === 0}
+    <EmptyState icon="calendar" title="Aún no hay citas" text={admin ? 'Agenda la primera cita de tu consultorio.' : 'Cuando se agenden citas aparecerán aquí.'}>
+      {#if admin}<button type="button" class="btn-primary" onclick={openCreate}><Icon name="plus" size={18} stroke={2.2} />Nueva cita</button>{/if}
+    </EmptyState>
+  {:else}
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[40rem]">
+        <thead class="border-b border-app-ink/10 bg-app-elevated">
           <tr>
-            <th class="th">Nombre completo</th>
+            <th class="th">Paciente</th>
             <th class="th">Fecha</th>
-            <th class="th">Hora de inicio</th>
-            <th class="th">Hora de finalización</th>
+            <th class="th">Horario</th>
             <th class="th"><span class="sr-only">Acciones</span></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-ink/5">
+        <tbody class="divide-y divide-app-ink/8">
           {#each items as a (a.id)}
-            <tr>
-              <td class="td whitespace-nowrap">{a.names} {a.last_names}</td>
-              <td class="td whitespace-nowrap">{a.date}</td>
-              <td class="td whitespace-nowrap">{a.startHour}</td>
-              <td class="td whitespace-nowrap">{a.endHour}</td>
+            <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td">
-                <div class="flex justify-end gap-2">
-                  <button type="button" class="icon-btn" title="Ver detalles" aria-label="Ver detalles de la cita de {a.names} {a.last_names}" onclick={() => openDetails(a)}><img src="/watch.png" alt="" class="h-5 w-5" /></button>
+                <span class="block font-bold">{a.names} {a.last_names}</span>
+                <span class="block font-mono text-xs text-app-muted">{a.CURP}</span>
+              </td>
+              <td class="td whitespace-nowrap">
+                {longDate(a.date)}
+                {#if a.date === today}<span class="badge ml-2">Hoy</span>{/if}
+              </td>
+              <td class="td whitespace-nowrap font-semibold tabular-nums">{a.startHour} – {a.endHour}</td>
+              <td class="td">
+                <div class="flex justify-end gap-1">
+                  <button type="button" class="icon-btn" title="Ver detalles" aria-label="Ver detalles de la cita de {a.names} {a.last_names}" onclick={() => openDetails(a)}><Icon name="eye" size={19} /></button>
                   {#if admin}
-                    <button type="button" class="icon-btn" title="Eliminar" aria-label="Eliminar la cita de {a.names} {a.last_names}" onclick={() => { deleteOp.reset(); deleting = a; }}><img src="/delete.png" alt="" class="h-5 w-5" /></button>
-                    <button type="button" class="icon-btn" title="Editar" aria-label="Editar la cita de {a.names} {a.last_names}" onclick={() => openEdit(a)}><img src="/edit.png" alt="" class="h-5 w-5" /></button>
+                    <button type="button" class="icon-btn" title="Editar" aria-label="Editar la cita de {a.names} {a.last_names}" onclick={() => openEdit(a)}><Icon name="edit" size={19} /></button>
+                    <button type="button" class="icon-btn danger" title="Eliminar" aria-label="Eliminar la cita de {a.names} {a.last_names}" onclick={() => { deleteOp.reset(); deleting = a; }}><Icon name="trash" size={19} /></button>
                   {/if}
                 </div>
               </td>
@@ -134,26 +145,26 @@
           {/each}
         </tbody>
       </table>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>
 
-<Modal open={viewing !== null} title="Detalles de cita" wide onclose={() => (viewing = null)}>
+<Modal open={viewing !== null} title="Detalles de la cita" wide onclose={() => (viewing = null)}>
   {#if viewing}
-    <dl class="grid gap-4 rounded-xl bg-paper p-4 text-left sm:grid-cols-3">
-      <div><dt class="text-xs font-semibold uppercase text-ink-faint">Paciente</dt><dd>{viewing.names} {viewing.last_names}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-ink-faint">CURP</dt><dd>{viewing.CURP}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-ink-faint">Fecha</dt><dd>{viewing.date}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-ink-faint">Hora de inicio</dt><dd>{viewing.startHour}</dd></div>
-      <div><dt class="text-xs font-semibold uppercase text-ink-faint">Hora de finalización</dt><dd>{viewing.endHour}</dd></div>
-      <div class="sm:col-span-3"><dt class="text-xs font-semibold uppercase text-ink-faint">Detalles de la cita</dt><dd class="whitespace-pre-wrap">{viewing.details || '—'}</dd></div>
+    <dl class="grid gap-4 rounded-xl bg-app-elevated p-4 text-left sm:grid-cols-3">
+      <div><dt class="section-title">Paciente</dt><dd class="mt-1 font-semibold">{viewing.names} {viewing.last_names}</dd></div>
+      <div><dt class="section-title">CURP</dt><dd class="mt-1 font-mono text-sm">{viewing.CURP}</dd></div>
+      <div><dt class="section-title">Fecha</dt><dd class="mt-1 font-semibold">{longDate(viewing.date)}</dd></div>
+      <div><dt class="section-title">Hora de inicio</dt><dd class="mt-1 font-semibold">{viewing.startHour}</dd></div>
+      <div><dt class="section-title">Hora de finalización</dt><dd class="mt-1 font-semibold">{viewing.endHour}</dd></div>
+      <div class="sm:col-span-3"><dt class="section-title">Detalles</dt><dd class="mt-1 whitespace-pre-wrap">{viewing.details || '—'}</dd></div>
     </dl>
     {#if canSeeExpedients}
-      <h3 class="py-4 text-center text-lg font-semibold">Historial asociado</h3>
+      <h3 class="mb-3 mt-6 text-base font-extrabold">Historial asociado</h3>
       {#if viewingExpedient}
         <ExpedientView expedient={viewingExpedient} />
       {:else}
-        <p class="rounded-lg bg-red-50 p-4 text-center text-red-700">No se encontró un historial asociado con la CURP {viewing.CURP}</p>
+        <p class="alert"><Icon name="info" size={18} />No se encontró un historial asociado con la CURP {viewing.CURP}</p>
       {/if}
     {/if}
   {/if}
@@ -164,22 +175,18 @@
   <form id="appointment-form" onsubmit={submitForm}>
     <AppointmentForm bind:data={form} />
   </form>
-  {#if formOp.phase !== 'idle'}
-    <div class="mt-4"><Notice kind={formOp.phase} message={formOp.phase === 'loading' ? 'Cargando...' : formOp.message} /></div>
+  {#if formOp.phase === 'error'}
+    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{formOp.message}</p>
   {/if}
   {#snippet footer()}
+    <button type="button" class="btn-ghost mr-auto" onclick={() => (form = emptyAppointment())}>Limpiar</button>
     <button type="button" class="btn-secondary" onclick={() => (formOpen = false)}>Cancelar</button>
-    <button type="button" class="btn-secondary" onclick={() => (form = emptyAppointment())}>Limpiar</button>
-    <button type="submit" form="appointment-form" class="btn-primary" disabled={formOp.phase === 'loading'}>Aceptar</button>
+    <button type="submit" form="appointment-form" class="btn-primary" disabled={formOp.phase === 'loading'}>
+      {#if formOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar
+    </button>
   {/snippet}
 </Modal>
 
-<ConfirmModal
-  open={deleting !== null}
-  title="¿Seguro que quieres eliminar esta cita?"
-  op={deleteOp}
-  onconfirm={confirmDelete}
-  onclose={() => (deleting = null)}
->
-  <p class="text-ink-soft">Esto eliminará la cita de {deleting?.names} {deleting?.last_names} del {deleting?.date}.</p>
+<ConfirmModal open={deleting !== null} title="¿Eliminar esta cita?" confirmLabel="Eliminar" op={deleteOp} onconfirm={confirmDelete} onclose={() => (deleting = null)}>
+  <p>Se eliminará la cita de <strong class="text-app-ink">{deleting?.names} {deleting?.last_names}</strong> del {deleting ? longDate(deleting.date) : ''}.</p>
 </ConfirmModal>

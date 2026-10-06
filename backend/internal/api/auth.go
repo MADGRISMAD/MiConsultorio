@@ -139,55 +139,54 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-// loginLimiter allows maxFailures failed attempts per key per window.
-type loginLimiter struct {
-	mu       sync.Mutex
-	failures map[string][]time.Time
+// rateLimiter allows `max` recorded events per key within `window`.
+type rateLimiter struct {
+	mu     sync.Mutex
+	events map[string][]time.Time
+	max    int
+	window time.Duration
 }
 
-const (
-	maxFailures   = 8
-	limiterWindow = 15 * time.Minute
-)
+func newRateLimiter(max int, window time.Duration) *rateLimiter {
+	return &rateLimiter{events: map[string][]time.Time{}, max: max, window: window}
+}
 
-func newLoginLimiter() *loginLimiter { return &loginLimiter{failures: map[string][]time.Time{}} }
-
-func (l *loginLimiter) prune(key string, now time.Time) []time.Time {
-	kept := l.failures[key][:0]
-	for _, t := range l.failures[key] {
-		if now.Sub(t) < limiterWindow {
+func (l *rateLimiter) prune(key string, now time.Time) []time.Time {
+	kept := l.events[key][:0]
+	for _, t := range l.events[key] {
+		if now.Sub(t) < l.window {
 			kept = append(kept, t)
 		}
 	}
 	if len(kept) == 0 {
-		delete(l.failures, key)
+		delete(l.events, key)
 	} else {
-		l.failures[key] = kept
+		l.events[key] = kept
 	}
 	return kept
 }
 
-func (l *loginLimiter) allow(key string) bool {
+func (l *rateLimiter) allow(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return len(l.prune(key, time.Now())) < maxFailures
+	return len(l.prune(key, time.Now())) < l.max
 }
 
-func (l *loginLimiter) fail(key string) {
+func (l *rateLimiter) fail(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := time.Now()
-	if len(l.failures) > 10000 { // bound memory under key-spraying
-		for k := range l.failures {
+	if len(l.events) > 10000 { // bound memory under key-spraying
+		for k := range l.events {
 			l.prune(k, now)
 		}
 	}
 	l.prune(key, now)
-	l.failures[key] = append(l.failures[key], now)
+	l.events[key] = append(l.events[key], now)
 }
 
-func (l *loginLimiter) reset(key string) {
+func (l *rateLimiter) reset(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	delete(l.failures, key)
+	delete(l.events, key)
 }

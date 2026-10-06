@@ -14,8 +14,18 @@ export interface SessionInfo {
   permissions: string[];
 }
 
+export const CLINIC_KINDS = {
+  GENERAL_MEDICAL: { label: 'Medicina general', hint: 'Consultorio médico' },
+  DENTAL: { label: 'Odontología', hint: 'Clínica dental' },
+  VETERINARY: { label: 'Veterinaria', hint: 'Clínica veterinaria' },
+  CHIROPRACTIC: { label: 'Quiropráctica', hint: 'Quiropráctica y fisioterapia' }
+} as const;
+
+export type ClinicKind = keyof typeof CLINIC_KINDS;
+
 export interface Clinic {
   id: string;
+  kind: ClinicKind;
   name: string;
   phone_number: string;
   address: string;

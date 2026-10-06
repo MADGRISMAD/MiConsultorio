@@ -116,6 +116,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 // ClinicParams describes a clinic and its first administrator.
 type ClinicParams struct {
 	Name, Email, Phone, Address, ImageURL string
+	Kind                                  string // GENERAL_MEDICAL when empty
 	Username, Password                    string
 }
 
@@ -136,10 +137,14 @@ func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (stri
 		return "", err
 	}
 	defer tx.Rollback(ctx)
+	kind := p.Kind
+	if kind == "" {
+		kind = "GENERAL_MEDICAL"
+	}
 	var id string
 	if err := tx.QueryRow(ctx,
-		`INSERT INTO clinics (name, email, phone_number, address, image_url) VALUES ($1, lower($2), $3, $4, $5) RETURNING id`,
-		p.Name, p.Email, p.Phone, p.Address, p.ImageURL).Scan(&id); err != nil {
+		`INSERT INTO clinics (name, email, phone_number, address, image_url, kind) VALUES ($1, lower($2), $3, $4, $5, $6) RETURNING id`,
+		p.Name, p.Email, p.Phone, p.Address, p.ImageURL, kind).Scan(&id); err != nil {
 		return "", fmt.Errorf("create clinic: %w", err)
 	}
 	if _, err := tx.Exec(ctx,

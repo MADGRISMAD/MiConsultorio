@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icon from './ui/Icon.svelte';
+
   let { onsearch, onclear }: { onsearch: (text: string) => void; onclear: () => void } = $props();
   let value = $state('');
 
@@ -10,13 +12,7 @@
   }
 </script>
 
-<form class="mx-auto flex max-w-md items-center gap-2 rounded-lg bg-white px-4 shadow-sm ring-1 ring-ink/10 focus-within:ring-2 focus-within:ring-signal" role="search" onsubmit={submit}>
-  <img src="/search.png" alt="" class="h-5 w-5 opacity-50" />
-  <input
-    type="search"
-    class="h-12 w-full bg-transparent text-sm outline-none"
-    placeholder="Escribe una CURP y presiona Enter..."
-    aria-label="Buscar por CURP"
-    bind:value
-  />
+<form class="relative w-full max-w-md" role="search" onsubmit={submit}>
+  <Icon name="search" size={18} class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-app-muted" />
+  <input type="search" class="field pl-10" placeholder="Buscar por CURP y presionar Enter…" aria-label="Buscar por CURP" bind:value />
 </form>

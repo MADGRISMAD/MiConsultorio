@@ -33,7 +33,7 @@ El frontend espera a que el backend esté listo; si el backend falla (por ejempl
 
 Otros comandos desde la raíz: `npm run build` (compila la interfaz), `npm start` (compila y sirve todo en <http://localhost:8080>, como en producción), `npm run test:api` y `npm run check`.
 
-Para crear más clínicas: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
+Cualquiera puede crear su propio consultorio desde <http://localhost:5173/register> (elige el giro: medicina general, odontología, veterinaria o quiropráctica). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
 ## Producción con Docker
 
@@ -45,6 +45,12 @@ docker compose up --build
 La clínica y el administrador se crean solos en el primer arranque.
 
 Una sola imagen sirve la API (`/api/*`) y el frontend compilado en `:8080`. Pon un proxy con HTTPS delante (la cookie de sesión es `Secure`).
+
+## Pantallas
+
+- **Acceso:** `/login`, `/register` (crear consultorio), `/forgot` (recuperar contraseña) y los placeholders `/terminos` y `/privacidad`.
+- **Panel:** inicio, citas, historiales, administración de citas/historiales y usuarios y permisos, con tema claro/oscuro.
+- **Cobros (pendiente):** `/pos/cobros`, `/pos/caja`, `/pos/servicios`, `/pos/inventario`, `/pos/facturacion` y `/pos/reportes` ya están en el menú como ventanas "Próximamente"; su contenido está en `frontend/src/lib/pos.ts`.
 
 ## Pruebas
 
@@ -61,7 +67,8 @@ Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"messa
 
 | Ruta | Permiso requerido |
 | --- | --- |
-| `POST /login`, `POST /logout`, `GET /session`, `GET /clinic` | — / sesión |
+| `POST /login`, `POST /register`, `POST /logout` | — (público; el registro tiene límite por IP) |
+| `GET /session`, `GET /clinic` | sesión |
 | `GET/POST /users`, `PUT /users/permissions`, `PUT/DELETE /users/{username}` | `adminUsers` |
 | `GET /expedients`, `GET /expedients/{curp}` | `navHistorials` o `adminHistorials` |
 | `POST/PUT/DELETE /expedients[/{curp}]` | `adminHistorials` |

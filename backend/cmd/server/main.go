@@ -38,7 +38,7 @@ func main() {
 
 	if cfg.AdminEmail != "" && cfg.AdminPassword != "" {
 		created, err := db.EnsureFirstClinic(ctx, pool, db.ClinicParams{
-			Name: cfg.ClinicName, Email: cfg.AdminEmail, Username: cfg.AdminUsername, Password: cfg.AdminPassword,
+			Name: cfg.ClinicName, Kind: cfg.ClinicKind, Email: cfg.AdminEmail, Username: cfg.AdminUsername, Password: cfg.AdminPassword,
 		})
 		if err != nil {
 			log.Fatalf("first-run setup: %v", err)

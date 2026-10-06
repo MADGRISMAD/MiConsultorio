@@ -5,6 +5,6 @@
 
 <svelte:head><title>Citas · Caresia</title></svelte:head>
 
-<Guard permissions={['navAppointments']}>
+<Guard title="Citas" permissions={['navAppointments']}>
   <AppointmentsPanel />
 </Guard>

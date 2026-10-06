@@ -308,3 +308,53 @@ func TestDeletedUserSessionRevoked(t *testing.T) {
 	admin.expect(204, "DELETE", "/api/users/doc", nil)
 	doc.expect(401, "GET", "/api/session", nil)
 }
+
+func TestRegister(t *testing.T) {
+	e := setup(t)
+	anon := &client{e: e, c: func() *http.Client { jar, _ := cookiejar.New(nil); return &http.Client{Jar: jar} }()}
+	good := map[string]any{"clinic_name": "Dental Sol", "kind": "DENTAL", "phone": "55 1", "email": "Nuevo@Sol.mx", "username": "dra", "password": "una-clave-larga"}
+	with := func(k string, v any) map[string]any {
+		m := map[string]any{}
+		for a, b := range good {
+			m[a] = b
+		}
+		m[k] = v
+		return m
+	}
+
+	anon.expect(400, "POST", "/api/register", with("kind", "BAKERY"))
+	anon.expect(400, "POST", "/api/register", with("email", "no-es-correo"))
+	anon.expect(400, "POST", "/api/register", with("password", "corta"))
+	anon.expect(400, "POST", "/api/register", with("username", "ab"))
+	anon.expect(400, "POST", "/api/register", with("clinic_name", " "))
+
+	out := anon.expect(200, "POST", "/api/register", good)
+	perms := out["session"].(map[string]any)["permissions"].([]any)
+	if len(perms) != 5 {
+		t.Fatalf("admin should get every permission: %v", perms)
+	}
+	// registration signs the user in, and the new clinic is its own tenant
+	clinic := anon.expect(200, "GET", "/api/clinic", nil)["clinic"].(map[string]any)
+	if clinic["kind"] != "DENTAL" || clinic["name"] != "Dental Sol" {
+		t.Fatalf("clinic: %v", clinic)
+	}
+	if n := len(anon.expect(200, "GET", "/api/users", nil)["users"].([]any)); n != 1 {
+		t.Fatalf("new clinic should only have its admin, got %d", n)
+	}
+	// the email is stored lowercased and can't be registered twice
+	anon.expect(409, "POST", "/api/register", with("username", "otra"))
+	// ... and the new credentials work for a normal login
+	fresh := &client{e: e, c: &http.Client{}}
+	fresh.expect(200, "POST", "/api/login", map[string]string{"email": "nuevo@sol.mx", "username": "dra", "password": "una-clave-larga"})
+}
+
+func TestRegisterRateLimit(t *testing.T) {
+	e := setup(t)
+	anon := &client{e: e, c: &http.Client{}}
+	for i := 0; i < 5; i++ {
+		anon.expect(200, "POST", "/api/register", map[string]any{
+			"clinic_name": "Clinica", "kind": "VETERINARY", "email": "c" + string(rune('a'+i)) + "@x.mx", "username": "admin", "password": "una-clave-larga"})
+	}
+	anon.expect(429, "POST", "/api/register", map[string]any{
+		"clinic_name": "Clinica", "kind": "VETERINARY", "email": "otra@x.mx", "username": "admin", "password": "una-clave-larga"})
+}

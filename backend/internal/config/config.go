@@ -19,7 +19,7 @@ type Config struct {
 	StaticDir      string   // optional: serve the built frontend from this directory
 
 	// Optional first-run setup: when set and the database has no clinics, one is created.
-	AdminEmail, AdminUsername, AdminPassword, ClinicName string
+	AdminEmail, AdminUsername, AdminPassword, ClinicName, ClinicKind string
 }
 
 func Load() (*Config, error) {
@@ -34,6 +34,7 @@ func Load() (*Config, error) {
 		AdminUsername: env("ADMIN_USERNAME", "admin"),
 		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
 		ClinicName:    env("CLINIC_NAME", "Mi Clínica"),
+		ClinicKind:    env("CLINIC_KIND", "GENERAL_MEDICAL"),
 	}
 	if c.StaticDir == "" {
 		for _, d := range []string{"../frontend/build", "frontend/build"} {

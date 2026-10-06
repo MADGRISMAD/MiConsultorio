@@ -2,15 +2,17 @@
   import type { Snippet } from 'svelte';
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
-  import Navbar from './Navbar.svelte';
+  import AppShell from './AppShell.svelte';
   import Spinner from './Spinner.svelte';
+  import EmptyState from './ui/EmptyState.svelte';
 
   interface Props {
     /** Any one of these permissions grants access; omit to only require a session. */
     permissions?: string[];
+    title?: string;
     children: Snippet;
   }
-  let { permissions, children }: Props = $props();
+  let { permissions, title, children }: Props = $props();
 
   const allowed = $derived(!permissions || permissions.some((p) => session.has(p)));
 
@@ -20,18 +22,17 @@
 </script>
 
 {#if session.status === 'authenticated'}
-  <Navbar />
-  <main>
+  <AppShell {title}>
     {#if allowed}
       {@render children()}
     {:else}
-      <div class="mx-auto mt-24 max-w-md rounded-2xl bg-white p-8 text-center shadow">
-        <h1 class="font-display text-3xl">Sin acceso</h1>
-        <p class="mt-3 text-ink-soft">Tu usuario no tiene permiso para ver esta página.</p>
-        <a href="/" class="btn-primary mt-6">Volver al inicio</a>
+      <div class="card mx-auto mt-10 max-w-md">
+        <EmptyState icon="lock" title="Sin acceso" text="Tu usuario no tiene permiso para ver esta página. Pídele a un administrador que te lo asigne.">
+          <a href="/" class="btn-primary">Volver al inicio</a>
+        </EmptyState>
       </div>
     {/if}
-  </main>
+  </AppShell>
 {:else}
   <Spinner />
 {/if}

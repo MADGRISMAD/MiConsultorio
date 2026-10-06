@@ -24,6 +24,7 @@ func main() {
 	phone := flag.String("phone", "", "clinic phone number")
 	address := flag.String("address", "", "clinic address")
 	image := flag.String("image", "", "clinic image URL")
+	kind := flag.String("kind", "GENERAL_MEDICAL", "GENERAL_MEDICAL, DENTAL, VETERINARY or CHIROPRACTIC")
 	username := flag.String("username", "admin", "first administrator's username")
 	flag.Parse()
 	config.LoadDotEnv()
@@ -52,7 +53,7 @@ func main() {
 		log.Fatal(err)
 	}
 	clinicID, err := db.CreateClinic(ctx, pool, db.ClinicParams{
-		Name: *name, Email: *email, Phone: *phone, Address: *address, ImageURL: *image, Username: *username, Password: password,
+		Name: *name, Kind: *kind, Email: *email, Phone: *phone, Address: *address, ImageURL: *image, Username: *username, Password: password,
 	})
 	if err != nil {
 		log.Fatal(err)

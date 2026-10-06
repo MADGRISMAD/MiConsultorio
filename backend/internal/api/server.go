@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -16,11 +17,12 @@ import (
 type Server struct {
 	db      *pgxpool.Pool
 	cfg     *config.Config
-	limiter *loginLimiter
+	limiter *rateLimiter // failed logins
+	signups *rateLimiter // registrations per IP
 }
 
 func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
-	s := &Server{db: db, cfg: cfg, limiter: newLoginLimiter()}
+	s := &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour)}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP, middleware.Recoverer, securityHeaders)
@@ -31,6 +33,7 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
 		r.Post("/login", s.login)
+		r.Post("/register", s.register)
 		r.Post("/logout", s.logout)
 
 		r.Group(func(r chi.Router) {

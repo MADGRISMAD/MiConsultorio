@@ -3,8 +3,8 @@
   import UsersPanel from '$lib/components/UsersPanel.svelte';
 </script>
 
-<svelte:head><title>Administrar usuarios · Caresia</title></svelte:head>
+<svelte:head><title>Usuarios y permisos · Caresia</title></svelte:head>
 
-<Guard permissions={['adminUsers']}>
+<Guard title="Usuarios y permisos" permissions={['adminUsers']}>
   <UsersPanel />
 </Guard>

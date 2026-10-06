@@ -4,6 +4,10 @@
   import type { Expedient } from '$lib/types';
   import Guard from '$lib/components/Guard.svelte';
   import ExpedientView from '$lib/components/ExpedientView.svelte';
+  import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
+  import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
+  import PageHeader from '$lib/components/ui/PageHeader.svelte';
 
   let expedient = $state<Expedient | null>(null);
   let status = $state<'loading' | 'ok' | 'notFound' | 'error'>('loading');
@@ -24,16 +28,14 @@
 
 <svelte:head><title>Historial {curp} · Caresia</title></svelte:head>
 
-<Guard permissions={['navHistorials', 'adminHistorials']}>
-  <div class="mx-auto max-w-4xl px-4 py-8">
-    <a href="/admin/navegar-historiales" class="text-sm text-signal hover:underline">← Volver a historiales</a>
-    {#if status === 'ok' && expedient}
-      <h1 class="mb-6 mt-2 font-display text-4xl">Historial {curp}</h1>
-      <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink/10"><ExpedientView {expedient} /></div>
-    {:else if status === 'loading'}
-      <p class="mt-6 text-ink-soft">Cargando...</p>
-    {:else}
-      <h1 class="mt-2 font-display text-4xl">{status === 'notFound' ? 'Historial no encontrado' : 'No se pudo cargar el historial'}</h1>
-    {/if}
-  </div>
+<Guard title="Historial" permissions={['navHistorials', 'adminHistorials']}>
+  <a href="/admin/navegar-historiales" class="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-app-primary hover:underline"><Icon name="arrow-left" size={16} />Volver a historiales</a>
+  {#if status === 'ok' && expedient}
+    <PageHeader title="Historial clínico" subtitle={expedient.CURP} />
+    <div class="card p-6"><ExpedientView {expedient} /></div>
+  {:else if status === 'loading'}
+    <div class="card"><LoadingRows /></div>
+  {:else}
+    <div class="card"><EmptyState icon="search" title={status === 'notFound' ? 'Historial no encontrado' : 'No se pudo cargar el historial'} text={curp} /></div>
+  {/if}
 </Guard>

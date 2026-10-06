@@ -106,31 +106,143 @@ html.lenis body {
   }
 }
 
-/* ---------- App (admin) ---------- */
+/* ---------- App (panel, login, registro) ----------
+   Everything below is scoped to `.app`, so the landing keeps its own look. */
+.app {
+  --app-primary: 30 90 168;
+  --app-accent: 224 138 30;
+  --app-ink: 26 35 50;
+  --app-muted: 100 116 139;
+  --app-surface: 238 241 246;
+  --app-panel: 255 255 255;
+  --app-elevated: 247 249 252;
+  --app-danger: 198 40 40;
+  --app-success: 46 125 50;
+  --app-warning: 230 81 0;
+  --app-on-primary: 255 255 255;
+  --app-shadow: 0 1px 2px rgba(18, 32, 56, 0.05), 0 12px 28px rgba(18, 32, 56, 0.08);
+  color-scheme: light;
+}
+.app[data-theme='dark'] {
+  --app-primary: 91 154 232;
+  --app-accent: 240 169 74;
+  --app-ink: 232 238 246;
+  --app-muted: 154 171 191;
+  --app-surface: 12 18 28;
+  --app-panel: 21 29 42;
+  --app-elevated: 28 38 54;
+  --app-danger: 249 112 102;
+  --app-success: 108 233 166;
+  --app-warning: 253 176 34;
+  --app-on-primary: 10 18 32;
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+.app {
+  font-family: Figtree, 'Segoe UI', system-ui, sans-serif;
+  background: rgb(var(--app-surface));
+  color: rgb(var(--app-ink));
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.app *:focus-visible {
+  outline: 2px solid rgb(var(--app-primary) / 0.6);
+  outline-offset: 2px;
+}
+
 @layer components {
+  .card {
+    @apply rounded-2xl border border-app-ink/10 bg-app-panel shadow-app;
+  }
   .field {
-    @apply w-full rounded-lg border border-ink/20 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-signal focus:outline-none focus:ring-2 focus:ring-signal/30;
+    @apply min-h-11 w-full rounded-xl border-[1.5px] border-app-ink/15 bg-app-elevated px-3.5 text-[15px] text-app-ink transition placeholder:text-app-muted/80 focus:border-app-primary focus:bg-app-panel focus:outline-none focus:ring-4 focus:ring-app-primary/15 aria-[invalid=true]:border-app-danger;
+  }
+  textarea.field {
+    @apply py-2.5;
+  }
+  select.field {
+    @apply cursor-pointer;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-app-ink;
+  }
+  .hint {
+    @apply mt-1 text-xs text-app-muted;
   }
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex min-h-10 select-none items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55;
   }
   .btn-primary {
-    @apply btn bg-ink text-paper hover:bg-signal;
+    @apply btn bg-app-primary text-app-on-primary shadow-[0_8px_20px_rgb(var(--app-primary)/0.25)] hover:brightness-110;
   }
   .btn-secondary {
-    @apply btn bg-white text-ink ring-1 ring-ink/15 hover:bg-paper;
+    @apply btn border border-app-ink/15 bg-app-panel text-app-ink hover:bg-app-elevated;
+  }
+  .btn-ghost {
+    @apply btn text-app-muted hover:bg-app-ink/5 hover:text-app-ink;
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
+    @apply btn bg-app-danger text-white hover:brightness-110;
+  }
+  .btn-lg {
+    @apply min-h-12 w-full rounded-[0.85rem] text-base;
   }
   .icon-btn {
-    @apply inline-grid h-10 w-10 place-items-center rounded-lg bg-white ring-1 ring-ink/10 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal;
+    @apply inline-grid h-9 w-9 place-items-center rounded-lg text-app-muted transition hover:bg-app-ink/8 hover:text-app-ink;
+  }
+  .icon-btn.danger {
+    @apply hover:bg-app-danger/12 hover:text-app-danger;
   }
   .th {
-    @apply px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft;
+    @apply relative whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-app-muted;
   }
   .td {
-    @apply px-5 py-3 text-sm text-ink;
+    @apply px-4 py-3 text-sm;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full bg-app-primary/12 px-2.5 py-0.5 text-xs font-bold text-app-primary;
+  }
+  .badge-soon {
+    @apply inline-flex items-center rounded-full bg-app-accent/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-app-accent;
+  }
+  .alert {
+    @apply flex items-start gap-2.5 rounded-xl bg-app-danger/12 px-3.5 py-3 text-sm font-semibold text-app-danger;
+  }
+  .section-title {
+    @apply text-xs font-extrabold uppercase tracking-[0.08em] text-app-muted;
+  }
+}
+
+.app .spin {
+  width: 1rem;
+  height: 1rem;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: app-spin 0.7s linear infinite;
+}
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.app .page-in {
+  animation: rise 0.4s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+/* Opacity only: a transform here would become the containing block of fixed modals. */
+.app .page-fade {
+  animation: fade 0.3s ease;
+}
+.app input:-webkit-autofill,
+.app input:-webkit-autofill:focus {
+  -webkit-text-fill-color: rgb(var(--app-ink));
+  -webkit-box-shadow: 0 0 0 1000px rgb(var(--app-elevated)) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app .page-in {
+    animation: none;
   }
 }
 

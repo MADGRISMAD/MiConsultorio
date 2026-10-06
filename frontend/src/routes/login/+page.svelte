@@ -2,20 +2,35 @@
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
   import { Op } from '$lib/op.svelte';
+  import AuthLayout from '$lib/components/AuthLayout.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
 
   let email = $state('');
   let username = $state('');
   let password = $state('');
+  let showPass = $state(false);
+  let capsOn = $state(false);
+  let missing = $state({ email: false, username: false, password: false });
+  let emailEl = $state<HTMLInputElement>();
   const op = new Op();
 
   $effect(() => {
     if (session.status === 'authenticated') goto('/', { replaceState: true });
   });
+  $effect(() => emailEl?.focus());
+
+  const caps = (e: KeyboardEvent) => (capsOn = e.getModifierState?.('CapsLock') ?? false);
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    await op.run(() => session.login(email.trim(), username.trim(), password));
+    missing = { email: !email.trim(), username: !username.trim(), password: !password };
+    if (missing.email || missing.username || missing.password) {
+      op.fail('Escribe el correo del consultorio, tu usuario y tu contraseña.');
+      return;
+    }
+    const ok = await op.run(() => session.login(email.trim(), username.trim(), password));
+    if (!ok) password = '';
   }
 </script>
 
@@ -24,31 +39,50 @@
 {#if session.status === 'loading'}
   <Spinner />
 {:else}
-  <main class="grid min-h-[100svh] place-items-center bg-paper px-4">
-    <form class="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl ring-1 ring-ink/10" onsubmit={submit}>
-      <a href="/" class="font-display text-3xl text-ink">Caresia</a>
-      <h1 class="mt-6 text-lg font-semibold">Iniciar sesión</h1>
+  <AuthLayout>
+    <header class="mb-5">
+      <h1 class="text-[1.55rem] font-extrabold tracking-tight">Bienvenido de vuelta</h1>
+      <p class="mt-1 text-[15px] text-app-muted">Entra para ver tu agenda, tus pacientes y tu consultorio.</p>
+    </header>
 
-      <label class="mt-5 block">
-        <span class="mb-1 block text-xs font-semibold text-ink-soft">Correo de la clínica</span>
-        <input class="field" type="email" bind:value={email} required autocomplete="email" placeholder="clinica@ejemplo.com" />
-      </label>
-      <label class="mt-4 block">
-        <span class="mb-1 block text-xs font-semibold text-ink-soft">Usuario</span>
-        <input class="field" type="text" bind:value={username} required autocomplete="username" placeholder="usuario_123" />
-      </label>
-      <label class="mt-4 block">
-        <span class="mb-1 block text-xs font-semibold text-ink-soft">Contraseña</span>
-        <input class="field" type="password" bind:value={password} required autocomplete="current-password" placeholder="••••••••" />
-      </label>
-
+    <form class="grid gap-4" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}
-        <p class="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{op.message}</p>
+        <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
       {/if}
 
-      <button type="submit" class="btn-primary mt-6 w-full" disabled={op.phase === 'loading'}>
-        {op.phase === 'loading' ? 'Entrando…' : 'Entrar'}
+      <div>
+        <label class="label" for="login-email">Correo del consultorio</label>
+        <input id="login-email" bind:this={emailEl} class="field" type="email" bind:value={email} placeholder="consultorio@correo.com" autocomplete="email" autocapitalize="none" spellcheck="false" aria-invalid={missing.email} oninput={() => (missing.email = false)} />
+      </div>
+
+      <div>
+        <label class="label" for="login-user">Usuario</label>
+        <input id="login-user" class="field" type="text" bind:value={username} placeholder="tu_usuario" autocomplete="username" autocapitalize="none" spellcheck="false" aria-invalid={missing.username} oninput={() => (missing.username = false)} />
+      </div>
+
+      <div>
+        <div class="flex items-baseline justify-between gap-2">
+          <label class="label" for="login-pass">Contraseña</label>
+          <a href="/forgot" class="text-[13px] font-semibold text-app-primary hover:underline">¿La olvidaste?</a>
+        </div>
+        <div class="relative">
+          <input id="login-pass" class="field pr-12" type={showPass ? 'text' : 'password'} bind:value={password} placeholder="Tu contraseña" autocomplete="current-password" aria-invalid={missing.password} oninput={() => (missing.password = false)} onkeydown={caps} onkeyup={caps} />
+          <button type="button" class="icon-btn absolute right-1 top-1/2 -translate-y-1/2" aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPass} onclick={() => (showPass = !showPass)}>
+            <Icon name={showPass ? 'eye-off' : 'eye'} size={20} />
+          </button>
+        </div>
+        {#if capsOn}<p class="mt-1.5 text-[13px] font-semibold text-app-warning">Bloq Mayús está activado.</p>{/if}
+      </div>
+
+      <button type="submit" class="btn-primary btn-lg" disabled={op.phase === 'loading'}>
+        {#if op.phase === 'loading'}<span class="spin"></span>Entrando…{:else}Entrar{/if}
       </button>
     </form>
-  </main>
+
+    <div class="mt-6 grid gap-2.5 border-t border-app-ink/10 pt-5 text-center text-sm text-app-muted">
+      <span>¿Aún no tienes cuenta?</span>
+      <a href="/register" class="btn-secondary btn-lg !text-app-primary">Crear mi consultorio</a>
+    </div>
+    <a href="/" class="mt-4 block text-center text-sm font-semibold text-app-muted hover:text-app-ink">← Volver al inicio</a>
+  </AuthLayout>
 {/if}

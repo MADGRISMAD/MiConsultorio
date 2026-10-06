@@ -5,6 +5,6 @@
 
 <svelte:head><title>Historiales · Caresia</title></svelte:head>
 
-<Guard permissions={['navHistorials']}>
+<Guard title="Historiales" permissions={['navHistorials']}>
   <ExpedientsPanel />
 </Guard>

@@ -1,11 +1,12 @@
 import { api, ApiError } from './api';
-import type { SessionInfo } from './types';
+import type { Clinic, SessionInfo } from './types';
 
 type Status = 'loading' | 'authenticated' | 'anonymous';
 
 class SessionStore {
   status = $state<Status>('loading');
   user = $state<SessionInfo | null>(null);
+  clinic = $state<Clinic | null>(null);
 
   get permissions(): string[] {
     return this.user?.permissions ?? [];
@@ -26,7 +27,23 @@ class SessionStore {
     }
   }
 
+  async loadClinic() {
+    if (this.clinic) return;
+    try {
+      this.clinic = await api.clinic();
+    } catch {
+      /* the shell works without it */
+    }
+  }
+
+  async register(r: Parameters<typeof api.register>[0]) {
+    this.clinic = null;
+    this.user = await api.register(r);
+    this.status = 'authenticated';
+  }
+
   async login(email: string, username: string, password: string) {
+    this.clinic = null;
     this.user = await api.login(email, username, password);
     this.status = 'authenticated';
   }
@@ -36,6 +53,7 @@ class SessionStore {
       await api.logout();
     } finally {
       this.user = null;
+      this.clinic = null;
       this.status = 'anonymous';
     }
   }
