@@ -18,8 +18,12 @@ type Config struct {
 	AllowedOrigins []string // extra origins allowed to make state-changing requests
 	StaticDir      string   // optional: serve the built frontend from this directory
 
-	// Optional first-run setup: when set and the database has no clinics, one is created.
-	AdminEmail, AdminUsername, AdminPassword, ClinicName, ClinicKind string
+	// Optional first-run setup. The platform administrator is created when none exists;
+	// the sample clinic when the database has no clinics.
+	PlatformName, PlatformEmail, PlatformUsername, PlatformPassword string
+	ClinicName, ClinicKind                                          string
+	ClinicAdminName, ClinicAdminEmail, ClinicAdminUsername          string
+	ClinicAdminPassword                                             string
 }
 
 func Load() (*Config, error) {
@@ -30,11 +34,17 @@ func Load() (*Config, error) {
 		SessionTTL:   12 * time.Hour,
 		StaticDir:    os.Getenv("STATIC_DIR"),
 
-		AdminEmail:    os.Getenv("ADMIN_EMAIL"),
-		AdminUsername: env("ADMIN_USERNAME", "admin"),
-		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
-		ClinicName:    env("CLINIC_NAME", "Mi Clínica"),
-		ClinicKind:    env("CLINIC_KIND", "GENERAL_MEDICAL"),
+		PlatformName:     env("PLATFORM_ADMIN_NAME", "Administrador de Caresia"),
+		PlatformEmail:    os.Getenv("PLATFORM_ADMIN_EMAIL"),
+		PlatformUsername: env("PLATFORM_ADMIN_USERNAME", "plataforma"),
+		PlatformPassword: os.Getenv("PLATFORM_ADMIN_PASSWORD"),
+
+		ClinicName:          env("CLINIC_NAME", "Mi Clínica"),
+		ClinicKind:          env("CLINIC_KIND", "GENERAL_MEDICAL"),
+		ClinicAdminName:     os.Getenv("CLINIC_ADMIN_NAME"),
+		ClinicAdminEmail:    first("CLINIC_ADMIN_EMAIL", "ADMIN_EMAIL"), // ADMIN_* are the old names
+		ClinicAdminUsername: firstOr("admin", "CLINIC_ADMIN_USERNAME", "ADMIN_USERNAME"),
+		ClinicAdminPassword: first("CLINIC_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
 	}
 	if c.StaticDir == "" {
 		for _, d := range []string{"../frontend/build", "frontend/build"} {
@@ -65,6 +75,23 @@ func Load() (*Config, error) {
 		c.SessionTTL = time.Duration(h) * time.Hour
 	}
 	return c, nil
+}
+
+// first returns the first non-empty variable among keys.
+func first(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func firstOr(def string, keys ...string) string {
+	if v := first(keys...); v != "" {
+		return v
+	}
+	return def
 }
 
 func env(key, def string) string {

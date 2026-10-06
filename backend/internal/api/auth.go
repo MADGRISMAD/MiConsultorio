@@ -18,23 +18,31 @@ const sessionCookie = "caresia_session"
 // dummyHash lets a login for an unknown user cost the same as a real one.
 var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("caresia-dummy-password"), bcrypt.DefaultCost)
 
-func (s *Server) issueToken(userID string) (string, error) {
+type claims struct {
+	jwt.RegisteredClaims
+	TV int `json:"tv"` // token version: bumping it on the user ends every session of that account
+}
+
+func (s *Server) issueToken(userID string, tokenVersion int) (string, error) {
 	now := time.Now()
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Subject:   userID,
-		IssuedAt:  jwt.NewNumericDate(now),
-		ExpiresAt: jwt.NewNumericDate(now.Add(s.cfg.SessionTTL)),
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.cfg.SessionTTL)),
+		},
+		TV: tokenVersion,
 	}).SignedString(s.cfg.JWTSecret)
 }
 
-func (s *Server) parseToken(raw string) (string, error) {
-	var claims jwt.RegisteredClaims
-	tok, err := jwt.ParseWithClaims(raw, &claims, func(*jwt.Token) (any, error) { return s.cfg.JWTSecret, nil },
+func (s *Server) parseToken(raw string) (userID string, tokenVersion int, err error) {
+	var c claims
+	tok, err := jwt.ParseWithClaims(raw, &c, func(*jwt.Token) (any, error) { return s.cfg.JWTSecret, nil },
 		jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
-	if err != nil || !tok.Valid || claims.Subject == "" {
-		return "", errors.New("invalid token")
+	if err != nil || !tok.Valid || c.Subject == "" {
+		return "", 0, errors.New("invalid token")
 	}
-	return claims.Subject, nil
+	return c.Subject, c.TV, nil
 }
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
@@ -45,20 +53,48 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 	})
 }
 
+// startSession signs the user in: sets the cookie and writes the session.
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, p *Principal) {
+	token, err := s.issueToken(p.UserID, p.TokenVersion)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	s.setSessionCookie(w, token)
+	writeJSON(w, http.StatusOK, sessionResponse{Session: sessionOf(p)})
+}
+
 type sessionResponse struct {
 	Session sessionInfo `json:"session"`
 }
 
 type sessionInfo struct {
-	ClinicID    string   `json:"clinicId"`
-	Username    string   `json:"username"`
-	Permissions []string `json:"permissions"`
+	UserID      string       `json:"userId"`
+	ClinicID    string       `json:"clinicId"`
+	Username    string       `json:"username"`
+	Name        string       `json:"name"`
+	Email       string       `json:"email"`
+	Role        string       `json:"role"`
+	RoleLabel   string       `json:"roleLabel"`
+	Permissions []string     `json:"permissions"`
+	Billing     *billingInfo `json:"billing"` // nil for platform staff
+}
+
+func sessionOf(p *Principal) sessionInfo {
+	info := sessionInfo{
+		UserID: p.UserID, ClinicID: p.ClinicID, Username: p.Username, Name: p.Name, Email: p.Email,
+		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions,
+	}
+	if p.Billing != nil {
+		b := p.Billing.info(time.Now())
+		info.Billing = &b
+	}
+	return info
 }
 
 type loginRequest struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Identifier string `json:"identifier"` // e-mail or username
+	Password   string `json:"password"`
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -66,22 +102,21 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	email := strings.ToLower(strings.TrimSpace(req.Email))
-	username := strings.TrimSpace(req.Username)
-	if email == "" || username == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "Correo de la clínica, usuario y contraseña son obligatorios.")
+	ident := strings.ToLower(strings.TrimSpace(req.Identifier))
+	if ident == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "Escribe tu correo o usuario y tu contraseña.")
 		return
 	}
-	key := clientIP(r) + "|" + email + "|" + strings.ToLower(username)
+	key := clientIP(r) + "|" + ident
 	if !s.limiter.allow(key) {
 		writeError(w, http.StatusTooManyRequests, "Demasiados intentos. Inténtalo de nuevo en unos minutos.")
 		return
 	}
 
+	// E-mails always contain '@' and usernames never do, so at most one account matches.
 	var id, hash string
-	err := s.db.QueryRow(r.Context(), `
-		SELECT u.id, u.password_hash FROM users u JOIN clinics c ON c.id = u.clinic_id
-		WHERE lower(c.email) = $1 AND u.username = $2`, email, username).Scan(&id, &hash)
+	err := s.db.QueryRow(r.Context(),
+		`SELECT id, password_hash FROM users WHERE lower(email) = $1 OR lower(username) = $1`, ident).Scan(&id, &hash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 		s.limiter.fail(key)
@@ -99,13 +134,18 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	s.limiter.reset(key)
 
-	token, err := s.issueToken(id)
+	p, err := loadPrincipal(r.Context(), s.db, id)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
-	s.setSessionCookie(w, token)
-	s.writeSession(w, r, id)
+	// Said only after the password checked out, so it can't be used to probe for accounts.
+	if p.Disabled {
+		writeError(w, http.StatusForbidden, "Esta cuenta está desactivada. Contacta al administrador de tu consultorio.")
+		return
+	}
+	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)
+	s.startSession(w, r, p)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
@@ -117,19 +157,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
-	p := principalFrom(r.Context())
-	writeJSON(w, http.StatusOK, sessionResponse{Session: sessionInfo{ClinicID: p.ClinicID, Username: p.Username, Permissions: p.Permissions}})
-}
-
-func (s *Server) writeSession(w http.ResponseWriter, r *http.Request, userID string) {
-	var info sessionInfo
-	err := s.db.QueryRow(r.Context(), `SELECT clinic_id, username, permissions FROM users WHERE id = $1`, userID).
-		Scan(&info.ClinicID, &info.Username, &info.Permissions)
-	if err != nil {
-		serverError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, sessionResponse{Session: info})
+	writeJSON(w, http.StatusOK, sessionResponse{Session: sessionOf(principalFrom(r.Context()))})
 }
 
 func clientIP(r *http.Request) string {

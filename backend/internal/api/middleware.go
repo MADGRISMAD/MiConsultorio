@@ -5,11 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-// Permission names, shared with the frontend.
+// Capability names, shared with the frontend. Roles grant them (see roles.go).
 const (
 	PermAdminUsers        = "adminUsers"
 	PermAdminAppointments = "adminAppointments"
@@ -18,17 +19,31 @@ const (
 	PermNavAppointments   = "navAppointments"
 )
 
-var allPermissions = []string{PermAdminUsers, PermAdminAppointments, PermAdminHistorials, PermNavHistorials, PermNavAppointments}
-
 type ctxKey struct{}
 
 // Principal is the authenticated user, loaded fresh from the database on every
-// request so deleted users and permission changes take effect immediately.
+// request so deactivated accounts, role changes and subscription changes apply immediately.
 type Principal struct {
-	UserID      string
-	ClinicID    string
-	Username    string
-	Permissions []string
+	UserID       string
+	ClinicID     string // empty for platform staff
+	Username     string
+	Name         string
+	Email        string
+	Role         string
+	Permissions  []string
+	TokenVersion int
+	Disabled     bool
+	Billing      *Billing // nil for platform staff
+}
+
+func (p *Principal) isPlatform() bool { return p.ClinicID == "" }
+
+// actorName is how the person appears in the activity log.
+func (p *Principal) actorName() string {
+	if p.Name != "" {
+		return p.Name
+	}
+	return p.Username
 }
 
 func principalFrom(ctx context.Context) *Principal {
@@ -36,7 +51,39 @@ func principalFrom(ctx context.Context) *Principal {
 	return p
 }
 
-// requireAuth resolves the session cookie into a Principal.
+type queryRower interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+var errNoUser = errors.New("user not found")
+
+// loadPrincipal reads a user with their clinic's subscription state.
+func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, error) {
+	var p Principal
+	var plan, status, reason string
+	var trialEnds, periodEnd *time.Time
+	err := q.QueryRow(ctx, `
+		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version,
+		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, '')
+		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
+		WHERE u.id = $1`, id).
+		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion,
+			&plan, &status, &trialEnds, &periodEnd, &reason)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, errNoUser
+	}
+	if err != nil {
+		return nil, err
+	}
+	p.Permissions = permissionsFor(p.Role)
+	if p.ClinicID != "" {
+		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
+	}
+	return &p, nil
+}
+
+// requireAuth resolves the session cookie into a Principal. A session dies as soon as
+// the account is deactivated, deleted, or its token version moves (password or role change).
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
@@ -44,33 +91,70 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "No has iniciado sesión.")
 			return
 		}
-		userID, err := s.parseToken(c.Value)
+		userID, tv, err := s.parseToken(c.Value)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Tu sesión no es válida o expiró.")
 			return
 		}
-		var p Principal
-		err = s.db.QueryRow(r.Context(),
-			`SELECT id, clinic_id, username, permissions FROM users WHERE id = $1`, userID,
-		).Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Permissions)
-		if errors.Is(err, pgx.ErrNoRows) {
-			writeError(w, http.StatusUnauthorized, "Tu sesión no es válida o expiró.")
+		p, err := loadPrincipal(r.Context(), s.db, userID)
+		if errors.Is(err, errNoUser) || (err == nil && (p.Disabled || p.TokenVersion != tv)) {
+			writeError(w, http.StatusUnauthorized, "Tu sesión terminó. Vuelve a entrar.")
 			return
 		}
 		if err != nil {
 			serverError(w, r, err)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, &p)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, p)))
 	})
 }
 
-// require restricts a route to users holding at least one of the given permissions.
+// requireClinic keeps platform staff out of clinic data.
+func requireClinic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if p := principalFrom(r.Context()); p == nil || p.isPlatform() {
+			writeError(w, http.StatusForbidden, "Esta sección es solo para cuentas de un consultorio.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireSubscription blocks clinic data while the clinic's trial or subscription is not active.
+func (s *Server) requireSubscription(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := principalFrom(r.Context())
+		if p != nil && p.Billing != nil && !p.Billing.Usable(time.Now()) {
+			writeJSON(w, http.StatusForbidden, errorBody{
+				Code:    "SUBSCRIPTION_REQUIRED",
+				Message: "La prueba o suscripción de este consultorio no está activa. Contacta a tu administrador.",
+			})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// require restricts a route to users holding at least one of the given capabilities.
 func require(perms ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			p := principalFrom(r.Context())
-			if p == nil || !hasPermission(p.Permissions, perms...) {
+			if p == nil || !hasAnyPermission(p.Permissions, perms...) {
+				writeError(w, http.StatusForbidden, "No tienes permiso para realizar esta acción.")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// requireRoles restricts a route to the listed roles.
+func requireRoles(roles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := principalFrom(r.Context())
+			if p == nil || !hasPermission(roles, p.Role) {
 				writeError(w, http.StatusForbidden, "No tienes permiso para realizar esta acción.")
 				return
 			}

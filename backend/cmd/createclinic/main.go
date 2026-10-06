@@ -1,8 +1,8 @@
 // Command createclinic provisions a clinic and its first administrator.
 //
-//	go run ./cmd/createclinic -name "Clínica Sol" -email contacto@clinica.mx -username admin
+//	go run ./cmd/createclinic -name "Clínica Sol" -email dra@clinica.mx -username dra
 //
-// The admin password is read from CARESIA_ADMIN_PASSWORD, or prompted on stdin.
+// The administrator's password is read from CARESIA_ADMIN_PASSWORD, or prompted on stdin.
 package main
 
 import (
@@ -20,12 +20,14 @@ import (
 
 func main() {
 	name := flag.String("name", "", "clinic name (required)")
-	email := flag.String("email", "", "clinic email, used to sign in (required)")
+	email := flag.String("email", "", "administrator's e-mail, used to sign in (required)")
+	adminName := flag.String("admin-name", "", "administrator's full name (defaults to the username)")
 	phone := flag.String("phone", "", "clinic phone number")
 	address := flag.String("address", "", "clinic address")
-	image := flag.String("image", "", "clinic image URL")
 	kind := flag.String("kind", "GENERAL_MEDICAL", "GENERAL_MEDICAL, DENTAL, VETERINARY or CHIROPRACTIC")
-	username := flag.String("username", "admin", "first administrator's username")
+	plan := flag.String("plan", "consultorio", "consultorio, clinica or empresarial")
+	status := flag.String("status", "active", "active, or trialing for a 14-day trial")
+	username := flag.String("username", "admin", "administrator's username")
 	flag.Parse()
 	config.LoadDotEnv()
 
@@ -53,10 +55,11 @@ func main() {
 		log.Fatal(err)
 	}
 	clinicID, err := db.CreateClinic(ctx, pool, db.ClinicParams{
-		Name: *name, Kind: *kind, Email: *email, Phone: *phone, Address: *address, ImageURL: *image, Username: *username, Password: password,
+		Name: *name, Kind: *kind, Plan: *plan, Status: *status, Phone: *phone, Address: *address,
+		AdminName: *adminName, AdminEmail: *email, AdminUsername: *username, AdminPassword: password,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Clinic %q created (id %s). Sign in with email %s and user %s.\n", *name, clinicID, strings.ToLower(*email), *username)
+	fmt.Printf("Clinic %q created (id %s). Sign in with %s or %s.\n", *name, clinicID, strings.ToLower(*email), *username)
 }

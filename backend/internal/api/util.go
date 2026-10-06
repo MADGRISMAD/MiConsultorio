@@ -9,6 +9,7 @@ import (
 
 type errorBody struct {
 	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -43,12 +44,21 @@ func decode(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 
-func hasPermission(perms []string, any ...string) bool {
-	for _, p := range perms {
-		for _, want := range any {
-			if p == want {
-				return true
-			}
+// hasPermission reports whether list contains want.
+func hasPermission(list []string, want string) bool {
+	for _, p := range list {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAnyPermission reports whether list contains at least one of wants.
+func hasAnyPermission(list []string, wants ...string) bool {
+	for _, w := range wants {
+		if hasPermission(list, w) {
+			return true
 		}
 	}
 	return false

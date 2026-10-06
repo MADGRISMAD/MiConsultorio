@@ -212,6 +212,21 @@ html.lenis body {
   .badge-soon {
     @apply inline-flex items-center rounded-full bg-app-accent/12 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-app-accent;
   }
+  .pill {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-app-ink/8 px-2.5 py-0.5 text-xs font-medium text-app-muted;
+  }
+  .pill-info {
+    @apply bg-app-primary/12 text-app-primary;
+  }
+  .pill-ok {
+    @apply bg-app-accent/14 text-app-accent;
+  }
+  .pill-warn {
+    @apply bg-app-warning/14 text-app-warning;
+  }
+  .pill-bad {
+    @apply bg-app-danger/12 text-app-danger;
+  }
   .alert {
     @apply flex items-start gap-2.5 rounded-xl bg-app-danger/10 px-3.5 py-3 text-sm font-medium text-app-danger;
   }

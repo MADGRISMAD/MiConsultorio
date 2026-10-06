@@ -8,10 +8,148 @@ export const PERMISSIONS = {
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+export type ClinicRole = 'admin' | 'doctor' | 'reception' | 'cashier';
+export type PlatformRole = 'platform_admin' | 'platform_support';
+export type Role = ClinicRole | PlatformRole;
+
+/** What each role does, in the words shown to people (the server enforces the real rules). */
+export const ROLES: Record<Role, { label: string; short: string; about: string; tone: 'info' | 'ok' | 'warn' | 'muted' }> = {
+  admin: { label: 'Administrador', short: 'Admin', about: 'Todo, incluido el equipo y sus roles.', tone: 'info' },
+  doctor: { label: 'Médico / especialista', short: 'Médico', about: 'Ve la agenda y lee y edita los expedientes clínicos.', tone: 'ok' },
+  reception: { label: 'Recepción', short: 'Recepción', about: 'Ve y administra la agenda. No ve información clínica.', tone: 'warn' },
+  cashier: { label: 'Cajero', short: 'Cajero', about: 'Ve la agenda. Los cobros llegarán con el punto de venta.', tone: 'muted' },
+  platform_admin: { label: 'Administrador de plataforma', short: 'Admin', about: 'Negocios, suscripciones, pagos y equipo de plataforma.', tone: 'info' },
+  platform_support: { label: 'Soporte', short: 'Soporte', about: 'Consulta negocios y su actividad. No cambia nada.', tone: 'muted' }
+};
+
+export const CLINIC_ROLES: ClinicRole[] = ['admin', 'doctor', 'reception', 'cashier'];
+export const PLATFORM_ROLES: PlatformRole[] = ['platform_admin', 'platform_support'];
+
+export type BillingState = 'trialing' | 'trial_expired' | 'active' | 'past_due' | 'suspended';
+
+export const BILLING_STATES: Record<BillingState, { label: string; tone: 'ok' | 'info' | 'warn' | 'bad' }> = {
+  trialing: { label: 'En prueba', tone: 'info' },
+  trial_expired: { label: 'Prueba vencida', tone: 'warn' },
+  active: { label: 'Activo', tone: 'ok' },
+  past_due: { label: 'Pago atrasado', tone: 'warn' },
+  suspended: { label: 'Suspendido', tone: 'bad' }
+};
+
+export interface Billing {
+  plan: string;
+  plan_name: string;
+  state: BillingState;
+  usable: boolean;
+  trial_ends_at: string | null;
+  trial_days_left: number | null;
+  current_period_end: string | null;
+  suspended_reason: string;
+}
+
 export interface SessionInfo {
+  userId: string;
   clinicId: string;
   username: string;
+  name: string;
+  email: string;
+  role: Role;
+  roleLabel: string;
   permissions: string[];
+  /** null for platform staff */
+  billing: Billing | null;
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  phone: string;
+  role: Role;
+  role_label: string;
+  disabled: boolean;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface Seats {
+  plan: string;
+  plan_name: string;
+  max_users: number | null;
+  max_doctors: number | null;
+  used_users: number;
+  used_doctors: number;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  price_month: number;
+  max_users: number | null;
+  max_doctors: number | null;
+  description: string;
+}
+
+export interface ClinicRow {
+  id: string;
+  name: string;
+  kind: ClinicKind;
+  email: string;
+  phone_number: string;
+  address: string;
+  plan: string;
+  plan_name: string;
+  billing_status: string;
+  state: BillingState;
+  trial_ends_at: string | null;
+  trial_days_left: number | null;
+  current_period_end: string | null;
+  suspended_reason: string;
+  created_at: string;
+  users: number;
+  owner_name: string;
+  owner_email: string;
+  last_seen: string | null;
+}
+
+export interface ActivityItem {
+  id: number;
+  clinic_id: string | null;
+  clinic_name: string;
+  actor_name: string;
+  type: string;
+  message: string;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  amount_cents: number;
+  plan: string;
+  months: number;
+  note: string;
+  period_end: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface AttentionItem {
+  kind: 'past_due' | 'trial_expired' | 'trial_ending';
+  clinic_id: string;
+  clinic_name: string;
+  title: string;
+  detail: string;
+  since: string | null;
+}
+
+export interface Overview {
+  counts: Record<string, number>;
+  attention: AttentionItem[];
+  recent: ClinicRow[];
+  signups_30d: number;
+  /** administrators only */
+  mrr?: number;
+  paid_this_month_cents?: number;
 }
 
 export const CLINIC_KINDS = {
@@ -117,3 +255,19 @@ export function emptyExpedient(): ExpedientInput {
 export function emptyAppointment(): AppointmentInput {
   return { names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '' };
 }
+
+/** What each clinic role can do, for the "who can do what" table (the server decides for real). */
+export const ROLE_PERMISSIONS: Record<ClinicRole, string[]> = {
+  admin: ['navAppointments', 'adminAppointments', 'navHistorials', 'adminHistorials', 'adminUsers'],
+  doctor: ['navAppointments', 'navHistorials', 'adminHistorials'],
+  reception: ['navAppointments', 'adminAppointments'],
+  cashier: ['navAppointments']
+};
+
+export const CAPABILITY_ROWS: [string, string][] = [
+  ['Ver la agenda', 'navAppointments'],
+  ['Crear y editar citas', 'adminAppointments'],
+  ['Ver expedientes clínicos', 'navHistorials'],
+  ['Crear y editar expedientes', 'adminHistorials'],
+  ['Administrar el equipo', 'adminUsers']
+];

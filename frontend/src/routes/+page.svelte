@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api } from '$lib/api';
+  import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
   import { POS_WINDOWS } from '$lib/pos';
   import { CLINIC_KINDS, PERMISSIONS, type Appointment } from '$lib/types';
@@ -15,7 +16,11 @@
   const canPatients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
 
   $effect(() => {
-    if (session.status !== 'authenticated') return;
+    if (session.status === 'authenticated' && session.isPlatform) goto('/plataforma', { replaceState: true });
+  });
+
+  $effect(() => {
+    if (session.status !== 'authenticated' || session.isPlatform || session.locked) return;
     if (canAppointments) api.appointments().then((a) => (appointments = a), () => {});
     if (canPatients) api.expedients().then((e) => (patientCount = e.length), () => {});
   });
@@ -35,7 +40,7 @@
       { label: 'Nueva cita', href: '/admin/admin-citas', icon: 'plus', show: session.has(PERMISSIONS.adminAppointments) },
       { label: 'Ver historiales', href: '/admin/navegar-historiales', icon: 'folder', show: session.has(PERMISSIONS.navHistorials) },
       { label: 'Nuevo expediente', href: '/admin/admin-historiales', icon: 'plus', show: session.has(PERMISSIONS.adminHistorials) },
-      { label: 'Equipo y permisos', href: '/admin/admin-usuario', icon: 'users', show: session.has(PERMISSIONS.adminUsers) }
+      { label: 'Equipo', href: '/equipo', icon: 'users', show: session.has(PERMISSIONS.adminUsers) }
     ].filter((q) => q.show) as { label: string; href: string; icon: 'calendar' | 'plus' | 'folder' | 'users'; show: boolean }[]
   );
 </script>
@@ -50,7 +55,7 @@
   <Guard title="Inicio">
     <section class="relative">
       <p class="section-title">{greeting}</p>
-      <h1 class="display mt-3 text-[2.75rem] leading-[0.95] sm:text-6xl">Tu consultorio, <em class="italic text-app-primary">{session.user?.username}.</em></h1>
+      <h1 class="display mt-3 text-[2.75rem] leading-[0.95] sm:text-6xl">Tu consultorio, <em class="italic text-app-primary">{session.user?.name?.split(' ')[0] || session.user?.username}.</em></h1>
       {#if session.clinic}
         <p class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-app-muted">
           <strong class="font-medium text-app-ink">{session.clinic.name}</strong>

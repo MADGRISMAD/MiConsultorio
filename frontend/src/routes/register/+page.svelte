@@ -13,6 +13,7 @@
   let clinicName = $state('');
   let phone = $state('');
   let email = $state('');
+  let personName = $state('');
   let username = $state('');
   let password = $state('');
   let confirm = $state('');
@@ -22,7 +23,7 @@
   const op = new Op();
 
   $effect(() => {
-    if (session.status === 'authenticated') goto('/', { replaceState: true });
+    if (session.status === 'authenticated') goto(session.home, { replaceState: true });
   });
 
   // 0..3 — length, mixed case/digits, symbols or long
@@ -38,7 +39,8 @@
   const problems = $derived({
     clinicName: clinicName.trim().length < 2 ? 'Escribe el nombre de tu consultorio.' : '',
     email: !/^\S+@\S+\.\S+$/.test(email.trim()) ? 'Escribe un correo válido.' : '',
-    username: username.trim().length < 3 ? 'Mínimo 3 caracteres.' : '',
+    personName: personName.trim().length < 2 ? 'Escribe tu nombre.' : '',
+    username: !/^[A-Za-z0-9._-]{3,64}$/.test(username.trim()) ? 'Mínimo 3 caracteres: letras, números, punto, guion o guion bajo.' : '',
     password: password.length < 8 ? 'Mínimo 8 caracteres.' : '',
     confirm: confirm !== password ? 'Las contraseñas no coinciden.' : '',
     accepted: !accepted ? 'Debes aceptar los términos.' : ''
@@ -53,7 +55,7 @@
       return;
     }
     await op.run(() =>
-      session.register({ clinic_name: clinicName.trim(), kind, phone: phone.trim(), email: email.trim(), username: username.trim(), password })
+      session.register({ clinic_name: clinicName.trim(), kind, phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password })
     );
   }
 </script>
@@ -113,13 +115,18 @@
       </div>
 
       <div class="grid gap-3.5 border-t border-app-ink/10 pt-3.5 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="label" for="r-person">Tu nombre <span class="font-normal text-app-muted">(serás el administrador)</span></label>
+          <input id="r-person" class="field" bind:value={personName} placeholder="Nombre y apellido" autocomplete="name" aria-invalid={touched && !!problems.personName} />
+          {@render err('personName')}
+        </div>
         <div>
           <label class="label" for="r-email">Correo electrónico</label>
           <input id="r-email" class="field" type="email" bind:value={email} placeholder="consultorio@correo.com" autocomplete="email" autocapitalize="none" aria-invalid={touched && !!problems.email} />
           {@render err('email')}
         </div>
         <div>
-          <label class="label" for="r-user">Usuario <span class="font-normal text-app-muted">(para entrar)</span></label>
+          <label class="label" for="r-user">Usuario <span class="font-normal text-app-muted">(o entra con tu correo)</span></label>
           <input id="r-user" class="field" bind:value={username} placeholder="admin" autocomplete="username" autocapitalize="none" aria-invalid={touched && !!problems.username} />
           {@render err('username')}
         </div>

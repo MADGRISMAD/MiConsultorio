@@ -9,12 +9,10 @@ import (
 	"io/fs"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed migrations/*.sql
@@ -111,60 +109,4 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 	}
 	return tx.Commit(ctx)
-}
-
-// ClinicParams describes a clinic and its first administrator.
-type ClinicParams struct {
-	Name, Email, Phone, Address, ImageURL string
-	Kind                                  string // GENERAL_MEDICAL when empty
-	Username, Password                    string
-}
-
-// AllPermissions is the full permission set granted to a clinic's first administrator.
-var AllPermissions = []string{"adminUsers", "adminAppointments", "adminHistorials", "navHistorials", "navAppointments"}
-
-// CreateClinic inserts a clinic and its administrator in one transaction.
-func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (string, error) {
-	if n := utf8.RuneCountInString(p.Password); n < 8 || len(p.Password) > 72 {
-		return "", errors.New("la contraseña del administrador debe tener entre 8 y 72 caracteres")
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback(ctx)
-	kind := p.Kind
-	if kind == "" {
-		kind = "GENERAL_MEDICAL"
-	}
-	var id string
-	if err := tx.QueryRow(ctx,
-		`INSERT INTO clinics (name, email, phone_number, address, image_url, kind) VALUES ($1, lower($2), $3, $4, $5, $6) RETURNING id`,
-		p.Name, p.Email, p.Phone, p.Address, p.ImageURL, kind).Scan(&id); err != nil {
-		return "", fmt.Errorf("create clinic: %w", err)
-	}
-	if _, err := tx.Exec(ctx,
-		`INSERT INTO users (clinic_id, username, password_hash, permissions) VALUES ($1, $2, $3, $4)`,
-		id, p.Username, string(hash), AllPermissions); err != nil {
-		return "", fmt.Errorf("create admin: %w", err)
-	}
-	return id, tx.Commit(ctx)
-}
-
-// EnsureFirstClinic creates the clinic described by p when the database has none,
-// so a fresh deployment is usable without any manual step. It is a no-op otherwise.
-func EnsureFirstClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (created bool, err error) {
-	var any bool
-	if err := pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM clinics)`).Scan(&any); err != nil {
-		return false, err
-	}
-	if any {
-		return false, nil
-	}
-	_, err = CreateClinic(ctx, pool, p)
-	return err == nil, err
 }

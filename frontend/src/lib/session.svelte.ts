@@ -12,8 +12,27 @@ class SessionStore {
     return this.user?.permissions ?? [];
   }
 
+  /** Platform staff (the people who run Caresia) live outside any consultorio. */
+  get isPlatform(): boolean {
+    return this.user?.role === 'platform_admin' || this.user?.role === 'platform_support';
+  }
+
+  get isPlatformAdmin(): boolean {
+    return this.user?.role === 'platform_admin';
+  }
+
+  /** Where a signed-in person lands. */
+  get home(): string {
+    return this.isPlatform ? '/plataforma' : '/';
+  }
+
   has(permission: string): boolean {
     return this.permissions.includes(permission);
+  }
+
+  /** Subscription blocks clinic data when not usable (platform staff are never blocked). */
+  get locked(): boolean {
+    return !!this.user?.billing && !this.user.billing.usable;
   }
 
   async load() {
@@ -28,7 +47,7 @@ class SessionStore {
   }
 
   async loadClinic() {
-    if (this.clinic) return;
+    if (this.clinic || this.isPlatform) return;
     try {
       this.clinic = await api.clinic();
     } catch {
@@ -36,16 +55,20 @@ class SessionStore {
     }
   }
 
-  async register(r: Parameters<typeof api.register>[0]) {
-    this.clinic = null;
-    this.user = await api.register(r);
+  /** Replace the session with a fresh one returned by the server (profile or password changes). */
+  setUser(user: SessionInfo) {
+    this.user = user;
     this.status = 'authenticated';
   }
 
-  async login(email: string, username: string, password: string) {
+  async register(r: Parameters<typeof api.register>[0]) {
     this.clinic = null;
-    this.user = await api.login(email, username, password);
-    this.status = 'authenticated';
+    this.setUser(await api.register(r));
+  }
+
+  async login(identifier: string, password: string) {
+    this.clinic = null;
+    this.setUser(await api.login(identifier, password));
   }
 
   async logout() {

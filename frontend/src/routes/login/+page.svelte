@@ -6,30 +6,29 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
-  let email = $state('');
-  let username = $state('');
+  let identifier = $state('');
   let password = $state('');
   let showPass = $state(false);
   let capsOn = $state(false);
-  let missing = $state({ email: false, username: false, password: false });
-  let emailEl = $state<HTMLInputElement>();
+  let missing = $state({ identifier: false, password: false });
+  let idEl = $state<HTMLInputElement>();
   const op = new Op();
 
   $effect(() => {
-    if (session.status === 'authenticated') goto('/', { replaceState: true });
+    if (session.status === 'authenticated') goto(session.home, { replaceState: true });
   });
-  $effect(() => emailEl?.focus());
+  $effect(() => idEl?.focus());
 
   const caps = (e: KeyboardEvent) => (capsOn = e.getModifierState?.('CapsLock') ?? false);
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    missing = { email: !email.trim(), username: !username.trim(), password: !password };
-    if (missing.email || missing.username || missing.password) {
-      op.fail('Escribe el correo del consultorio, tu usuario y tu contraseña.');
+    missing = { identifier: !identifier.trim(), password: !password };
+    if (missing.identifier || missing.password) {
+      op.fail('Escribe tu correo o usuario y tu contraseña.');
       return;
     }
-    const ok = await op.run(() => session.login(email.trim(), username.trim(), password));
+    const ok = await op.run(() => session.login(identifier.trim(), password));
     if (!ok) password = '';
   }
 </script>
@@ -51,19 +50,14 @@
       {/if}
 
       <div>
-        <label class="label" for="login-email">Correo del consultorio</label>
-        <input id="login-email" bind:this={emailEl} class="field" type="email" bind:value={email} placeholder="consultorio@correo.com" autocomplete="email" autocapitalize="none" spellcheck="false" aria-invalid={missing.email} oninput={() => (missing.email = false)} />
-      </div>
-
-      <div>
-        <label class="label" for="login-user">Usuario</label>
-        <input id="login-user" class="field" type="text" bind:value={username} placeholder="tu_usuario" autocomplete="username" autocapitalize="none" spellcheck="false" aria-invalid={missing.username} oninput={() => (missing.username = false)} />
+        <label class="label" for="login-id">Correo o usuario</label>
+        <input id="login-id" bind:this={idEl} class="field" type="text" bind:value={identifier} placeholder="tu@correo.com o tu_usuario" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" aria-invalid={missing.identifier} oninput={() => (missing.identifier = false)} />
       </div>
 
       <div>
         <div class="flex items-baseline justify-between gap-2">
           <label class="label" for="login-pass">Contraseña</label>
-          <a href="/forgot" class="text-[13px] font-semibold text-app-primary hover:underline">¿La olvidaste?</a>
+          <a href="/forgot" class="text-[13px] font-medium text-app-primary hover:underline">¿La olvidaste?</a>
         </div>
         <div class="relative">
           <input id="login-pass" class="field pr-12" type={showPass ? 'text' : 'password'} bind:value={password} placeholder="Tu contraseña" autocomplete="current-password" aria-invalid={missing.password} oninput={() => (missing.password = false)} onkeydown={caps} onkeyup={caps} />
@@ -71,7 +65,7 @@
             <Icon name={showPass ? 'eye-off' : 'eye'} size={20} />
           </button>
         </div>
-        {#if capsOn}<p class="mt-1.5 text-[13px] font-semibold text-app-warning">Bloq Mayús está activado.</p>{/if}
+        {#if capsOn}<p class="mt-1.5 text-[13px] font-medium text-app-warning">Bloq Mayús está activado.</p>{/if}
       </div>
 
       <button type="submit" class="btn-primary btn-lg" disabled={op.phase === 'loading'}>
@@ -83,6 +77,6 @@
       <span>¿Aún no tienes cuenta?</span>
       <a href="/register" class="btn-secondary btn-lg">Crear mi consultorio</a>
     </div>
-    <a href="/" class="mt-4 block text-center text-sm font-semibold text-app-muted hover:text-app-ink">← Volver al inicio</a>
+    <a href="/" class="mt-4 block text-center text-sm font-medium text-app-muted hover:text-app-ink">← Volver al inicio</a>
   </AuthLayout>
 {/if}

@@ -19,7 +19,7 @@ Necesitas instalados: **Go 1.26+**, **Node 22+** y **PostgreSQL 16** (anota la c
 
 ```bash
 # 1. Configuración: copia el ejemplo y ajusta DATABASE_URL (tu contraseña de PostgreSQL),
-#    JWT_SECRET (openssl rand -hex 32) y ADMIN_PASSWORD
+#    JWT_SECRET (openssl rand -hex 32) y las contraseñas de PLATFORM_ADMIN_* y CLINIC_ADMIN_*
 cp .env.example .env      # en PowerShell: copy .env.example .env
 
 # 2. Instala todo y arranca backend + frontend con un solo comando (desde la raíz)
@@ -27,13 +27,13 @@ npm install
 npm run dev
 ```
 
-Abre <http://localhost:5173> e inicia sesión con `ADMIN_EMAIL`, `ADMIN_USERNAME` y `ADMIN_PASSWORD`.
-En el primer arranque el backend crea solo la base de datos, las tablas y la clínica con su administrador.
+Abre <http://localhost:5173> e inicia sesión con el **correo o el usuario** del administrador de plataforma (`PLATFORM_ADMIN_*`) o del consultorio de ejemplo (`CLINIC_ADMIN_*`).
+En el primer arranque el backend crea solo la base de datos, las tablas, el administrador de plataforma y, si lo configuraste, un consultorio de ejemplo.
 El frontend espera a que el backend esté listo; si el backend falla (por ejemplo, PostgreSQL apagado), ambos se detienen y verás el motivo.
 
 Otros comandos desde la raíz: `npm run build` (compila la interfaz), `npm start` (compila y sirve todo en <http://localhost:8080>, como en producción), `npm run test:api` y `npm run check`.
 
-Cualquiera puede crear su propio consultorio desde <http://localhost:5173/register> (elige el giro: medicina general, odontología, veterinaria o quiropráctica). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
+Cualquiera puede crear su propio consultorio (con 14 días de prueba) desde <http://localhost:5173/register> (elige el giro: medicina general, odontología, veterinaria o quiropráctica). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
 ## Producción con Docker
 
@@ -61,21 +61,41 @@ cd frontend && npm run check
 
 Las pruebas del backend **borran el esquema `public`** de la base indicada: usa una base exclusiva para tests.
 
+## Roles y permisos
+
+El **rol** define lo que puede hacer cada persona (no hay casillas por usuario):
+
+| Rol | Qué puede hacer |
+| --- | --- |
+| **Administrador** | Todo en su consultorio, incluido el equipo y los roles |
+| **Médico / especialista** | Ve la agenda; lee y edita expedientes clínicos |
+| **Recepción** | Ve y administra la agenda; sin acceso a expedientes |
+| **Cajero** | Ve la agenda (los cobros llegan con el punto de venta) |
+| **Administrador de plataforma** | Negocios, suscripciones, pagos y equipo de plataforma |
+| **Soporte** | Consulta negocios y su actividad, sin cambiar nada |
+
+Reglas (igual que en MiTiendita): siempre queda al menos un administrador activo; nadie cambia su propio rol ni se desactiva; desactivar, cambiar de rol o restablecer una contraseña **cierra las sesiones de esa persona al instante**; los lugares dependen del plan; y todo cambio queda en la bitácora de actividad.
+
+Se entra con **correo o usuario** (ambos únicos en todo el sistema).
+
+## Planes y suscripciones
+
+Cada consultorio tiene un plan (Consultorio, Clínica, Empresarial) y un estado: **prueba** (14 días), **activo**, **pago atrasado** o **suspendido**. Cuando no está activo, sus datos se bloquean (la cuenta sigue entrando para ver el aviso). Un periodo pagado vencido pasa solo a "pago atrasado" tras 3 días de gracia. El administrador de plataforma cambia plan y estado, suspende y registra pagos manuales desde **Negocios**.
+
 ## API
 
-Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"message": "..."}`. La sesión es una cookie `HttpOnly` firmada; la clínica sale siempre de la sesión (nunca de la URL), por lo que cada clínica solo ve sus propios datos.
+Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"message": "..."}` (más un `code` en casos como `SUBSCRIPTION_REQUIRED` o `SEAT_LIMIT`). La sesión es una cookie `HttpOnly` firmada; el consultorio sale siempre de la sesión (nunca de la URL), por lo que cada uno solo ve sus propios datos. Los permisos se leen de la base de datos en cada petición.
 
-| Ruta | Permiso requerido |
+| Ruta | Quién |
 | --- | --- |
-| `POST /login`, `POST /register`, `POST /logout` | — (público; el registro tiene límite por IP) |
-| `GET /session`, `GET /clinic` | sesión |
-| `GET/POST /users`, `PUT /users/permissions`, `PUT/DELETE /users/{username}` | `adminUsers` |
-| `GET /expedients`, `GET /expedients/{curp}` | `navHistorials` o `adminHistorials` |
-| `POST/PUT/DELETE /expedients[/{curp}]` | `adminHistorials` |
-| `GET /appointments`, `GET /appointments/{id}` | `navAppointments` o `adminAppointments` |
-| `POST/PUT/DELETE /appointments[/{id}]` | `adminAppointments` |
-
-Los permisos se leen de la base de datos en cada petición: quitar un permiso o eliminar un usuario surte efecto de inmediato.
+| `POST /login`, `POST /register`, `POST /logout` | público (el registro y el login tienen límites) |
+| `GET /session`, `PUT /me`, `PUT /me/password` | cualquier sesión |
+| `GET /clinic` | cuentas de consultorio |
+| `GET/POST /team`, `PATCH /team/{id}`, `POST /team/{id}/password\|deactivate\|reactivate` | administrador del consultorio |
+| `/expedients` | lectura: médico o administrador · escritura: médico o administrador |
+| `/appointments` | lectura: todos los roles · escritura: recepción o administrador |
+| `GET /platform/overview\|plans\|clinics[/{id}]` | personal de plataforma |
+| `PATCH /platform/clinics/{id}`, `POST …/suspend\|reactivate\|payments`, `/platform/staff…`, `GET /platform/activity` | administrador de plataforma |
 
 ## Despliegue
 

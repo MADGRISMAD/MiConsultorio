@@ -36,15 +36,27 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	if cfg.AdminEmail != "" && cfg.AdminPassword != "" {
-		created, err := db.EnsureFirstClinic(ctx, pool, db.ClinicParams{
-			Name: cfg.ClinicName, Kind: cfg.ClinicKind, Email: cfg.AdminEmail, Username: cfg.AdminUsername, Password: cfg.AdminPassword,
+	if cfg.PlatformEmail != "" && cfg.PlatformPassword != "" {
+		created, err := db.EnsureFirstPlatformAdmin(ctx, pool, db.UserParams{
+			Name: cfg.PlatformName, Email: cfg.PlatformEmail, Username: cfg.PlatformUsername, Password: cfg.PlatformPassword,
 		})
 		if err != nil {
-			log.Fatalf("first-run setup: %v", err)
+			log.Fatalf("first-run platform admin: %v", err)
 		}
 		if created {
-			log.Printf("Created clinic %q: sign in with email %s and user %s", cfg.ClinicName, cfg.AdminEmail, cfg.AdminUsername)
+			log.Printf("Created platform administrator: sign in with %s or %s", cfg.PlatformEmail, cfg.PlatformUsername)
+		}
+	}
+	if cfg.ClinicAdminEmail != "" && cfg.ClinicAdminPassword != "" {
+		created, err := db.EnsureFirstClinic(ctx, pool, db.ClinicParams{
+			Name: cfg.ClinicName, Kind: cfg.ClinicKind, Plan: "clinica", Status: "active",
+			AdminName: cfg.ClinicAdminName, AdminEmail: cfg.ClinicAdminEmail, AdminUsername: cfg.ClinicAdminUsername, AdminPassword: cfg.ClinicAdminPassword,
+		})
+		if err != nil {
+			log.Fatalf("first-run clinic: %v", err)
+		}
+		if created {
+			log.Printf("Created clinic %q: sign in with %s or %s", cfg.ClinicName, cfg.ClinicAdminEmail, cfg.ClinicAdminUsername)
 		}
 	}
 

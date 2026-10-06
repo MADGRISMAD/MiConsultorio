@@ -4,8 +4,9 @@
   import { page } from '$app/state';
   import { session } from '$lib/session.svelte';
   import { theme } from '$lib/theme.svelte';
-  import { CLINIC_KINDS, PERMISSIONS } from '$lib/types';
+  import { CLINIC_KINDS, PERMISSIONS, ROLES, type Role } from '$lib/types';
   import Modal from './Modal.svelte';
+  import Avatar from './ui/Avatar.svelte';
   import Brand from './ui/Brand.svelte';
   import Icon, { type IconName } from './ui/Icon.svelte';
   import Toasts from './ui/Toasts.svelte';
@@ -14,8 +15,10 @@
     label: string;
     href: string;
     icon: IconName;
-    /** any one of these grants access; omitted = everyone signed in */
+    /** any one of these capabilities grants access; omitted = everyone signed in */
     perms?: string[];
+    /** restrict to these roles */
+    roles?: Role[];
     soon?: boolean;
   }
   interface NavGroup {
@@ -23,7 +26,7 @@
     items: NavItem[];
   }
 
-  const groups: NavGroup[] = [
+  const clinicGroups: NavGroup[] = [
     {
       title: 'Consultorio',
       items: [
@@ -37,7 +40,7 @@
       items: [
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
-        { label: 'Usuarios y permisos', href: '/admin/admin-usuario', icon: 'users', perms: [PERMISSIONS.adminUsers] }
+        { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] }
       ]
     },
     {
@@ -53,11 +56,31 @@
     }
   ];
 
+  const platformGroups: NavGroup[] = [
+    {
+      title: 'Plataforma',
+      items: [
+        { label: 'Resumen', href: '/plataforma', icon: 'home' },
+        { label: 'Negocios', href: '/plataforma/negocios', icon: 'building' }
+      ]
+    },
+    {
+      title: 'Administración',
+      items: [
+        { label: 'Equipo de plataforma', href: '/plataforma/equipo', icon: 'users', roles: ['platform_admin'] },
+        { label: 'Actividad', href: '/plataforma/actividad', icon: 'activity', roles: ['platform_admin'] }
+      ]
+    }
+  ];
+
   let { title, children }: { title?: string; children: Snippet } = $props();
 
+  const allowed = (i: NavItem) =>
+    (!i.perms || i.perms.some((p) => session.has(p))) && (!i.roles || (session.user ? i.roles.includes(session.user.role) : false));
+
   const visible = $derived(
-    groups
-      .map((g) => ({ ...g, items: g.items.filter((i) => !i.perms || i.perms.some((p) => session.has(p))) }))
+    (session.isPlatform ? platformGroups : clinicGroups)
+      .map((g) => ({ ...g, items: g.items.filter(allowed) }))
       .filter((g) => g.items.length > 0)
   );
 
@@ -74,8 +97,8 @@
     drawer = false;
   });
 
-  const isActive = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
-  const initial = $derived((session.user?.username ?? '?').slice(0, 1).toUpperCase());
+  const isActive = (href: string) => (href === '/' || href === '/plataforma' ? page.url.pathname === href : page.url.pathname.startsWith(href));
+  const billing = $derived(session.user?.billing);
 
   async function signOut() {
     await session.logout();
@@ -93,7 +116,7 @@
     class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-app-ink/10 bg-app-panel transition-transform duration-300 lg:translate-x-0 {drawer ? 'translate-x-0' : '-translate-x-full'}"
     aria-label="Navegación principal"
   >
-    <a href="/" class="px-5 py-5" aria-label="Caresia, inicio"><Brand size={32} class="text-[1.05rem]" /></a>
+    <a href={session.home} class="px-5 py-5" aria-label="Caresia, inicio"><Brand size={32} class="text-[1.05rem]" /></a>
 
     <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
       {#each visible as g}
@@ -119,12 +142,14 @@
     </nav>
 
     <div class="border-t border-app-ink/10 p-3">
-      <div class="flex items-center gap-3 rounded-xl p-2">
-        <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-ink font-display text-lg text-app-surface">{initial}</span>
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-sm font-semibold">{session.user?.username}</span>
-          <span class="block truncate text-xs text-app-muted">{session.clinic?.name ?? '…'}</span>
-        </span>
+      <div class="flex items-center gap-1 rounded-xl p-1">
+        <a href="/cuenta" class="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 transition hover:bg-app-ink/5" title="Mi cuenta" aria-label="Mi cuenta" aria-current={page.url.pathname === '/cuenta' ? 'page' : undefined}>
+          <Avatar name={session.user?.name || session.user?.username || '?'} size={40} />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-semibold">{session.user?.name || session.user?.username}</span>
+            <span class="block truncate text-xs text-app-muted">{session.user ? ROLES[session.user.role]?.label : ''}{session.clinic ? ` · ${session.clinic.name}` : ''}</span>
+          </span>
+        </a>
         <button type="button" class="icon-btn danger" title="Cerrar sesión" aria-label="Cerrar sesión" onclick={() => (confirming = true)}>
           <Icon name="logout" size={19} />
         </button>
@@ -141,7 +166,9 @@
         <div class="min-w-0 flex-1 px-1">
           {#if title}<p class="truncate font-mono text-[11px] uppercase tracking-[0.14em] text-app-muted">{title}</p>{/if}
         </div>
-        {#if session.clinic}
+        {#if session.isPlatform}
+          <span class="badge hidden sm:inline-flex">Plataforma</span>
+        {:else if session.clinic}
           <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
         {/if}
         <button
@@ -155,6 +182,15 @@
         </button>
       </div>
     </header>
+
+    {#if billing?.state === 'trialing' && billing.trial_days_left !== null}
+      <div class="mx-auto mt-3 max-w-7xl px-3 sm:px-5 lg:px-8" role="status">
+        <p class="flex items-center gap-2 rounded-2xl bg-app-primary/10 px-4 py-2.5 text-sm text-app-primary">
+          <Icon name="sparkles" size={17} class="flex-none" />
+          <span>Estás en tu prueba gratuita: {billing.trial_days_left === 0 ? 'termina hoy' : billing.trial_days_left === 1 ? 'te queda 1 día' : `te quedan ${billing.trial_days_left} días`}.</span>
+        </p>
+      </div>
+    {/if}
 
     <main class="page-fade mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
       {@render children()}

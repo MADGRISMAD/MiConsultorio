@@ -6,8 +6,8 @@
   $effect(() => theme.init());
 
   const steps = [
-    'Pídele a un administrador de tu consultorio que entre a Usuarios y permisos.',
-    'Que presione el candado junto a tu usuario y escriba una contraseña nueva.',
+    'Pídele a un administrador de tu consultorio que entre a Equipo.',
+    'Que abra el menú de tu cuenta y elija «Cambiar contraseña» para escribir una nueva.',
     'Entra con la contraseña nueva y cámbiala cuando quieras.'
   ];
 </script>

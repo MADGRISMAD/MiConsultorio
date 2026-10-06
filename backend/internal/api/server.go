@@ -39,31 +39,68 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
 			r.Get("/session", s.session)
-			r.Get("/clinic", s.clinicInfo)
+			r.Put("/me", s.updateProfile)
+			r.Put("/me/password", s.changeOwnPassword)
 
-			r.Route("/users", func(r chi.Router) {
-				r.Use(require(PermAdminUsers))
-				r.Get("/", s.listUsers)
-				r.Post("/", s.createUser)
-				r.Put("/permissions", s.updatePermissions)
-				r.Put("/{username}", s.updateUser)
-				r.Delete("/{username}", s.deleteUser)
+			// ---- Clinic accounts: data is blocked while the subscription is not active ----
+			r.Group(func(r chi.Router) {
+				r.Use(requireClinic)
+				r.Get("/clinic", s.clinicInfo)
+
+				r.Group(func(r chi.Router) {
+					r.Use(s.requireSubscription)
+
+					r.Route("/team", func(r chi.Router) {
+						r.Use(require(PermAdminUsers))
+						r.Get("/", s.listTeam)
+						r.Post("/", s.createMember)
+						r.Patch("/{id}", s.updateMember)
+						r.Post("/{id}/password", s.setMemberPassword)
+						r.Post("/{id}/deactivate", s.deactivateMember)
+						r.Post("/{id}/reactivate", s.reactivateMember)
+					})
+
+					r.Route("/expedients", func(r chi.Router) {
+						r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/", s.listExpedients)
+						r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/{curp}", s.getExpedient)
+						r.With(require(PermAdminHistorials)).Post("/", s.createExpedient)
+						r.With(require(PermAdminHistorials)).Put("/{curp}", s.updateExpedient)
+						r.With(require(PermAdminHistorials)).Delete("/{curp}", s.deleteExpedient)
+					})
+
+					r.Route("/appointments", func(r chi.Router) {
+						r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/", s.listAppointments)
+						r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/{id}", s.getAppointment)
+						r.With(require(PermAdminAppointments)).Post("/", s.createAppointment)
+						r.With(require(PermAdminAppointments)).Put("/{id}", s.updateAppointment)
+						r.With(require(PermAdminAppointments)).Delete("/{id}", s.deleteAppointment)
+					})
+				})
 			})
 
-			r.Route("/expedients", func(r chi.Router) {
-				r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/", s.listExpedients)
-				r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/{curp}", s.getExpedient)
-				r.With(require(PermAdminHistorials)).Post("/", s.createExpedient)
-				r.With(require(PermAdminHistorials)).Put("/{curp}", s.updateExpedient)
-				r.With(require(PermAdminHistorials)).Delete("/{curp}", s.deleteExpedient)
-			})
+			// ---- Platform staff: administrators change things, support only looks ----
+			r.Route("/platform", func(r chi.Router) {
+				r.Use(requireRoles(RolePlatformAdmin, RolePlatformSupport))
+				r.Get("/overview", s.platformOverview)
+				r.Get("/plans", s.platformPlans)
+				r.Get("/clinics", s.platformClinics)
+				r.Get("/clinics/{id}", s.platformClinic)
 
-			r.Route("/appointments", func(r chi.Router) {
-				r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/", s.listAppointments)
-				r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/{id}", s.getAppointment)
-				r.With(require(PermAdminAppointments)).Post("/", s.createAppointment)
-				r.With(require(PermAdminAppointments)).Put("/{id}", s.updateAppointment)
-				r.With(require(PermAdminAppointments)).Delete("/{id}", s.deleteAppointment)
+				r.Group(func(r chi.Router) {
+					r.Use(requireRoles(RolePlatformAdmin))
+					r.Patch("/clinics/{id}", s.updateClinic)
+					r.Post("/clinics/{id}/suspend", s.suspendClinic)
+					r.Post("/clinics/{id}/reactivate", s.reactivateClinic)
+					r.Post("/clinics/{id}/payments", s.recordPayment)
+
+					r.Get("/activity", s.platformActivity)
+					r.Get("/staff", s.listStaff)
+					r.Post("/staff", s.createStaff)
+					r.Patch("/staff/{id}", s.updateStaff)
+					r.Post("/staff/{id}/password", s.setStaffPassword)
+					r.Post("/staff/{id}/deactivate", s.setStaffDisabled(true))
+					r.Post("/staff/{id}/reactivate", s.setStaffDisabled(false))
+				})
 			})
 		})
 

@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"net/mail"
 	"strings"
 	"unicode/utf8"
 
@@ -15,12 +14,13 @@ type registerRequest struct {
 	ClinicName string `json:"clinic_name"`
 	Kind       string `json:"kind"`
 	Phone      string `json:"phone"`
+	Name       string `json:"name"` // the person registering: becomes the clinic's administrator
 	Email      string `json:"email"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 }
 
-// register creates a new clinic with its first administrator and signs them in.
+// register creates a clinic (14-day trial) with its first administrator and signs them in.
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if !s.signups.allow(ip) {
@@ -45,29 +45,25 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		bad("Elige el giro de tu consultorio.")
 		return
 	}
-	if !validEmail(req.Email) {
-		bad("El correo electrónico no es válido.")
-		return
-	}
 	if utf8.RuneCountInString(req.Phone) > 30 {
 		bad("El teléfono es demasiado largo.")
 		return
 	}
-	if n := utf8.RuneCountInString(req.Username); n < 3 || n > 64 {
-		bad("El usuario debe tener entre 3 y 64 caracteres.")
-		return
-	}
-	if msg := validPassword(req.Password); msg != "" {
-		writeError(w, http.StatusBadRequest, msg)
-		return
+	for _, msg := range []string{db.ValidateName(req.Name), db.ValidateEmail(req.Email), db.ValidateUsername(req.Username), db.ValidatePassword(req.Password)} {
+		if msg != "" {
+			bad(msg)
+			return
+		}
 	}
 
 	s.signups.fail(ip) // every attempt that reaches the database counts
-	if _, err := db.CreateClinic(r.Context(), s.db, db.ClinicParams{
-		Name: req.ClinicName, Kind: req.Kind, Email: req.Email, Phone: req.Phone, Username: req.Username, Password: req.Password,
-	}); err != nil {
-		if isUniqueViolation(err) {
-			writeError(w, http.StatusConflict, "Ya existe un consultorio registrado con ese correo.")
+	clinicID, err := db.CreateClinic(r.Context(), s.db, db.ClinicParams{
+		Name: req.ClinicName, Kind: req.Kind, Phone: req.Phone, Plan: "consultorio", Status: "trialing",
+		AdminName: req.Name, AdminEmail: req.Email, AdminUsername: req.Username, AdminPassword: req.Password,
+	})
+	if err != nil {
+		if msg := uniqueMessage(err); msg != "" {
+			writeError(w, http.StatusConflict, msg)
 			return
 		}
 		serverError(w, r, err)
@@ -75,25 +71,16 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var id string
-	if err := s.db.QueryRow(r.Context(),
-		`SELECT u.id FROM users u JOIN clinics c ON c.id = u.clinic_id WHERE lower(c.email) = $1 AND u.username = $2`,
-		req.Email, req.Username).Scan(&id); err != nil {
+	if err := s.db.QueryRow(r.Context(), `SELECT id FROM users WHERE clinic_id = $1 AND role = 'admin'`, clinicID).Scan(&id); err != nil {
 		serverError(w, r, err)
 		return
 	}
-	token, err := s.issueToken(id)
+	p, err := loadPrincipal(r.Context(), s.db, id)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
-	s.setSessionCookie(w, token)
-	s.writeSession(w, r, id)
-}
-
-func validEmail(e string) bool {
-	if len(e) > 254 {
-		return false
-	}
-	a, err := mail.ParseAddress(e)
-	return err == nil && a.Address == e && strings.Contains(e[strings.LastIndex(e, "@"):], ".")
+	audit(r.Context(), s.db, clinicID, p, "clinic_created", "Creó el consultorio "+req.ClinicName, map[string]any{"kind": req.Kind})
+	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)
+	s.startSession(w, r, p)
 }
