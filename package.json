@@ -1,0 +1,19 @@
+{
+  "name": "caresia",
+  "private": true,
+  "description": "Caresia: SvelteKit frontend + Go/PostgreSQL backend. Run everything from here.",
+  "scripts": {
+    "postinstall": "npm install --prefix frontend",
+    "dev": "concurrently --kill-others-on-fail -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "cd backend && go run ./cmd/server",
+    "dev:web": "wait-on -t 120000 tcp:127.0.0.1:8080 && npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run build && cd backend && go run ./cmd/server",
+    "test:api": "cd backend && go test ./...",
+    "check": "npm run check --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "wait-on": "^8.0.0"
+  }
+}
