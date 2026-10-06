@@ -53,9 +53,11 @@ func main() {
 			AdminName: cfg.ClinicAdminName, AdminEmail: cfg.ClinicAdminEmail, AdminUsername: cfg.ClinicAdminUsername, AdminPassword: cfg.ClinicAdminPassword,
 		})
 		if err != nil {
-			log.Fatalf("first-run clinic: %v", err)
-		}
-		if created {
+			// Not fatal: the server must still start (the platform panel and /register work without it).
+			log.Printf("WARNING: sample clinic not created (%v). Usually the clinic admin's username/e-mail is already taken, "+
+				"e.g. CLINIC_ADMIN_USERNAME equals PLATFORM_ADMIN_USERNAME. Usernames and e-mails are unique across the whole platform; "+
+				"change CLINIC_ADMIN_USERNAME / CLINIC_ADMIN_EMAIL in .env or remove them.", err)
+		} else if created {
 			log.Printf("Created clinic %q: sign in with %s or %s", cfg.ClinicName, cfg.ClinicAdminEmail, cfg.ClinicAdminUsername)
 		}
 	}
