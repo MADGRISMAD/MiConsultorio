@@ -98,7 +98,7 @@
                 <span class="block truncate font-semibold">{c.name}</span>
                 <span class="block truncate text-sm text-app-muted">{c.owner_name || 'Sin dueño'}</span>
                 <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill><Pill>{kind(c)}</Pill>
+                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill>{#if plans.find((x) => x.id === c.plan)?.cobros}<Pill tone="ok">Cobros</Pill>{/if}<Pill>{kind(c)}</Pill>
                   <span class="text-xs text-app-muted">{c.last_seen ? ago(c.last_seen) : 'sin entrar'}</span>
                 </span>
               </span>

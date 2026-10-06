@@ -147,7 +147,7 @@
       <div class="min-w-0 flex-1 basis-56">
         <h2 class="display truncate text-3xl leading-tight">{clinic.name}</h2>
         <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-app-muted">
-          <StatePill state={clinic.state} /><Pill tone="info">{clinic.plan_name}</Pill><span>{kindLabel}</span>
+          <StatePill state={clinic.state} /><Pill tone="info">{clinic.plan_name}</Pill><Pill tone={plans.find((x) => x.id === clinic?.plan)?.cobros ? 'ok' : 'muted'}>{plans.find((x) => x.id === clinic?.plan)?.cobros ? 'Con cobros' : 'Sin cobros'}</Pill><span>{kindLabel}</span>
         </p>
       </div>
       {#if canEdit}
@@ -224,6 +224,7 @@
                   <button type="button" role="radio" aria-checked={draft.plan === p.id} class="rounded-xl border-2 p-3 text-left transition {draft.plan === p.id ? 'border-app-primary bg-app-primary/8' : 'border-app-ink/10 hover:border-app-ink/25'}" onclick={() => (draft.plan = p.id)}>
                     <strong class="block text-sm {draft.plan === p.id ? 'text-app-primary' : ''}">{p.name}</strong>
                     <small class="block text-xs text-app-muted">{p.price_month ? `$${p.price_month.toLocaleString('es-MX')} / mes` : 'A medida'} · {p.description}</small>
+                    <span class="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold {p.cobros ? 'bg-app-primary/12 text-app-primary' : 'bg-app-ink/8 text-app-muted'}"><Icon name={p.cobros ? 'check' : 'lock'} size={12} />{p.cobros ? 'Incluye cobros' : 'Sin cobros'}</span>
                   </button>
                 {/each}
               </div>

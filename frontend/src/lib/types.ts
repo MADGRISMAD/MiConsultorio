@@ -92,6 +92,7 @@ export interface Plan {
   max_users: number | null;
   max_doctors: number | null;
   description: string;
+  cobros: boolean;
 }
 
 export interface ClinicRow {
