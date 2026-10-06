@@ -127,7 +127,7 @@ func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (clin
 		p.Kind = "GENERAL_MEDICAL"
 	}
 	if p.Plan == "" {
-		p.Plan = "consultorio"
+		p.Plan = "basico"
 	}
 	var trialEnds any
 	switch p.Status {

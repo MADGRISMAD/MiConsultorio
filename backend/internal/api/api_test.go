@@ -72,7 +72,7 @@ func (e *env) seedClinic(x string) string {
 	e.t.Helper()
 	ctx := context.Background()
 	id, err := db.CreateClinic(ctx, e.pool, db.ClinicParams{
-		Name: "Clinica " + x, Plan: "clinica", Status: "active", SetupDone: true,
+		Name: "Clinica " + x, Plan: "crecimiento", Status: "active", SetupDone: true,
 		AdminName: "Admin " + x, AdminEmail: "admin_" + x + "@clinic.mx", AdminUsername: "admin_" + x, AdminPassword: pw,
 	})
 	if err != nil {
@@ -187,7 +187,7 @@ func TestLogin(t *testing.T) {
 		if s["role"] != "admin" || s["username"] != "admin_a" || len(s["permissions"].([]any)) != 5 {
 			t.Fatalf("session for %q: %v", ident, s)
 		}
-		if sub(s, "billing")["usable"] != true || sub(s, "billing")["plan"] != "clinica" {
+		if sub(s, "billing")["usable"] != true || sub(s, "billing")["plan"] != "crecimiento" || sub(s, "billing")["cobros"] != true {
 			t.Fatalf("billing: %v", s["billing"])
 		}
 	}
@@ -486,7 +486,7 @@ func TestSeatLimits(t *testing.T) {
 	e := setup(t)
 	// A clinic on the Consultorio plan: 3 accounts, 1 doctor.
 	id, err := db.CreateClinic(context.Background(), e.pool, db.ClinicParams{
-		Name: "Chica", Plan: "consultorio", Status: "active",
+		Name: "Chica", Plan: "basico", Status: "active",
 		AdminName: "Dueña", AdminEmail: "duena@chica.mx", AdminUsername: "duena", AdminPassword: pw,
 	})
 	if err != nil {
@@ -603,8 +603,8 @@ func TestPlatformPanel(t *testing.T) {
 	help.expect(403, "GET", "/api/platform/activity", nil)
 
 	// edit data and plan
-	c := sub(root.expect(200, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"name": "Renombrada", "kind": "DENTAL", "plan": "empresarial"}), "clinic")
-	if c["name"] != "Renombrada" || c["plan"] != "empresarial" || c["kind"] != "DENTAL" {
+	c := sub(root.expect(200, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"name": "Renombrada", "kind": "DENTAL", "plan": "pro"}), "clinic")
+	if c["name"] != "Renombrada" || c["plan"] != "pro" || c["kind"] != "DENTAL" {
 		t.Fatalf("patch: %v", c)
 	}
 	root.expect(400, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"plan": "gratis"})
@@ -612,7 +612,7 @@ func TestPlatformPanel(t *testing.T) {
 	root.expect(404, "PATCH", "/api/platform/clinics/00000000-0000-0000-0000-000000000000", map[string]any{"name": "Nadie"})
 
 	// downgrading below the accounts in use is refused until they free seats
-	root.expect(409, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"plan": "consultorio"})
+	root.expect(409, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"plan": "basico"})
 
 	// payments extend the period and show up in the detail
 	root.expect(201, "POST", "/api/platform/clinics/"+e.clinicB+"/payments", map[string]any{"amount": 1199, "months": 3})
@@ -712,7 +712,7 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("session: %v", s)
 	}
 	b := sub(s, "billing")
-	if b["state"] != "trialing" || b["plan"] != "consultorio" || b["trial_days_left"].(float64) < 13 {
+	if b["state"] != "trialing" || b["plan"] != "basico" || b["cobros"] != false || b["trial_days_left"].(float64) < 13 {
 		t.Fatalf("a new clinic starts a 14-day trial: %v", b)
 	}
 	clinic := sub(anon.expect(200, "GET", "/api/clinic", nil), "clinic")

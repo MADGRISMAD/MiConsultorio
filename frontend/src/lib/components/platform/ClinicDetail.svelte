@@ -61,7 +61,7 @@
   });
 
   // ----- license form -----
-  let draft = $state({ name: '', kind: 'GENERAL_MEDICAL' as ClinicKind, phone_number: '', address: '', plan: 'consultorio', billing_status: 'active', trial_ends_on: '' });
+  let draft = $state({ name: '', kind: 'GENERAL_MEDICAL' as ClinicKind, phone_number: '', address: '', plan: 'basico', billing_status: 'active', trial_ends_on: '' });
   function fill() {
     if (!clinic) return;
     draft = {

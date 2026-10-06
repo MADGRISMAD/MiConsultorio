@@ -8,7 +8,8 @@ const (
 )
 
 // Plan limits. nil means unlimited. They mirror the landing page:
-// Consultorio = 1 professional + 1 front desk; Clínica = up to 5 professionals.
+// Básico = 1 professional + 1 front desk (agenda and records); Crecimiento = up to 5 professionals
+// and collections (cobros); Pro = no limits.
 type Plan struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -16,14 +17,16 @@ type Plan struct {
 	MaxUsers    *int   `json:"max_users"`
 	MaxDoctors  *int   `json:"max_doctors"`
 	Description string `json:"description"`
+	// Cobros is true when the plan includes the collections section (point of sale, cash register, ...).
+	Cobros bool `json:"cobros"`
 }
 
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "consultorio", Name: "Consultorio", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "1 profesional, 1 recepción y el administrador"},
-	{ID: "clinica", Name: "Clínica", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales y recepción ilimitada"},
-	{ID: "empresarial", Name: "Empresarial", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, a medida"},
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false},
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true},
+	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true},
 }
 
 func planByID(id string) (Plan, bool) {
@@ -93,6 +96,7 @@ type billingInfo struct {
 	TrialDaysLeft    *int       `json:"trial_days_left"`
 	CurrentPeriodEnd *time.Time `json:"current_period_end"`
 	SuspendedReason  string     `json:"suspended_reason"`
+	Cobros           bool       `json:"cobros"`
 }
 
 func (b Billing) info(now time.Time) billingInfo {
@@ -100,6 +104,6 @@ func (b Billing) info(now time.Time) billingInfo {
 	return billingInfo{
 		Plan: b.Plan, PlanName: p.Name, State: b.State(now), Usable: b.Usable(now),
 		TrialEndsAt: b.TrialEndsAt, TrialDaysLeft: b.TrialDaysLeft(now),
-		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason,
+		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros,
 	}
 }

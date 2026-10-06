@@ -20,6 +20,8 @@
     /** restrict to these roles */
     roles?: Role[];
     soon?: boolean;
+    /** only on plans that include cobros */
+    cobros?: boolean;
   }
   interface NavGroup {
     title: string;
@@ -47,12 +49,12 @@
     {
       title: 'Cobros',
       items: [
-        { label: 'Punto de venta', href: '/pos/cobros', icon: 'cash', soon: true },
-        { label: 'Caja', href: '/pos/caja', icon: 'wallet', soon: true },
-        { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', soon: true },
-        { label: 'Inventario', href: '/pos/inventario', icon: 'box', soon: true },
-        { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', soon: true },
-        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', soon: true }
+        { label: 'Punto de venta', href: '/pos/cobros', icon: 'cash', soon: true, cobros: true },
+        { label: 'Caja', href: '/pos/caja', icon: 'wallet', soon: true, cobros: true },
+        { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', soon: true, cobros: true },
+        { label: 'Inventario', href: '/pos/inventario', icon: 'box', soon: true, cobros: true },
+        { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', soon: true, cobros: true },
+        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', soon: true, cobros: true }
       ]
     }
   ];
@@ -77,7 +79,8 @@
   let { title, children }: { title?: string; children: Snippet } = $props();
 
   const allowed = (i: NavItem) =>
-    (!i.perms || i.perms.some((p) => session.has(p))) && (!i.roles || (session.user ? i.roles.includes(session.user.role) : false));
+    (!i.perms || i.perms.some((p) => session.has(p))) && (!i.roles || (session.user ? i.roles.includes(session.user.role) : false)) &&
+    (!i.cobros || session.cobros);
 
   const visible = $derived(
     (session.isPlatform ? platformGroups : clinicGroups)

@@ -44,6 +44,8 @@ export interface Billing {
   trial_days_left: number | null;
   current_period_end: string | null;
   suspended_reason: string;
+  /** the plan includes the collections (cobros) section */
+  cobros: boolean;
 }
 
 export interface SessionInfo {

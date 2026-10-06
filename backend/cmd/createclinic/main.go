@@ -25,7 +25,7 @@ func main() {
 	phone := flag.String("phone", "", "clinic phone number")
 	address := flag.String("address", "", "clinic address")
 	kind := flag.String("kind", "GENERAL_MEDICAL", "GENERAL_MEDICAL, DENTAL, PEDIATRICS, INTERNAL_MEDICINE, PHYSIOTHERAPY, NUTRITION, PSYCHOLOGY, DERMATOLOGY, GYNECOLOGY, ORTHOPEDICS, VETERINARY or CHIROPRACTIC")
-	plan := flag.String("plan", "consultorio", "consultorio, clinica or empresarial")
+	plan := flag.String("plan", "basico", "basico, crecimiento or pro")
 	status := flag.String("status", "active", "active, or trialing for a 14-day trial")
 	username := flag.String("username", "admin", "administrator's username")
 	flag.Parse()

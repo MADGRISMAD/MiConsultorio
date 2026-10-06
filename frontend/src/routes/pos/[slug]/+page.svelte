@@ -10,7 +10,7 @@
 
 <svelte:head><title>{win?.title ?? 'No encontrado'} · Caresia</title></svelte:head>
 
-<Guard title={win?.title}>
+<Guard title={win?.title} cobros>
   {#if win}
     <div class="mb-6 flex flex-wrap items-center gap-4">
       <span class="grid h-14 w-14 place-items-center rounded-2xl bg-app-primary/12 text-app-primary"><Icon name={win.icon} size={28} /></span>

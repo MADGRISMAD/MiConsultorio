@@ -80,7 +80,7 @@ Se entra con **correo o usuario** (ambos únicos en todo el sistema).
 
 ## Planes y suscripciones
 
-Cada consultorio tiene un plan (Consultorio, Clínica, Empresarial) y un estado: **prueba** (14 días), **activo**, **pago atrasado** o **suspendido**. Cuando no está activo, sus datos se bloquean (la cuenta sigue entrando para ver el aviso). Un periodo pagado vencido pasa solo a "pago atrasado" tras 3 días de gracia. El administrador de plataforma cambia plan y estado, suspende y registra pagos manuales desde **Negocios**.
+Cada consultorio tiene un plan (Básico, Crecimiento, Pro; la sección de **Cobros** solo aparece en Crecimiento y Pro) y un estado: **prueba** (14 días), **activo**, **pago atrasado** o **suspendido**. Cuando no está activo, sus datos se bloquean (la cuenta sigue entrando para ver el aviso). Un periodo pagado vencido pasa solo a "pago atrasado" tras 3 días de gracia. El administrador de plataforma cambia plan y estado, suspende y registra pagos manuales desde **Negocios**.
 
 ## API
 

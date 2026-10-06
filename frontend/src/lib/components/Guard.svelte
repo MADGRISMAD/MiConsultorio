@@ -16,9 +16,11 @@
     title?: string;
     /** Show the page even when the subscription is not active (e.g. "Mi cuenta"). */
     allowLocked?: boolean;
+    /** Needs a plan that includes cobros (Crecimiento or Pro). */
+    cobros?: boolean;
     children: Snippet;
   }
-  let { permissions, roles, title, allowLocked = false, children }: Props = $props();
+  let { permissions, roles, title, allowLocked = false, cobros = false, children }: Props = $props();
 
   const allowed = $derived(
     roles ? (session.user ? roles.includes(session.user.role) : false) : permissions ? permissions.some((p) => session.has(p)) : true
@@ -39,6 +41,12 @@
       </div>
     {:else if session.locked && !allowLocked}
       <LockedNotice />
+    {:else if cobros && !session.cobros}
+      <div class="card mx-auto mt-10 max-w-md">
+        <EmptyState icon="lock" title="Cobros no está en tu plan" text="La sección de cobros (punto de venta, caja, inventario y más) viene con los planes Crecimiento y Pro. Pide el cambio de plan a tu administrador de Caresia.">
+          <a href={session.home} class="btn-primary">Volver al inicio</a>
+        </EmptyState>
+      </div>
     {:else}
       {@render children()}
     {/if}

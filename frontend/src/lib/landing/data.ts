@@ -8,7 +8,7 @@ export const demoHref = `mailto:${contactEmail}?subject=${encodeURIComponent('Qu
 
 export const plans = [
   {
-    name: 'Consultorio',
+    name: 'Básico',
     price: '$499',
     period: 'MXN / mes',
     blurb: 'Para el profesional independiente que atiende solo o con un asistente.',
@@ -17,20 +17,20 @@ export const plans = [
     featured: false
   },
   {
-    name: 'Clínica',
+    name: 'Crecimiento',
     price: '$1,199',
     period: 'MXN / mes',
-    blurb: 'Para clínicas con varios doctores, dentistas o especialidades.',
-    features: ['Hasta 5 profesionales', 'Usuarios de recepción ilimitados', 'Permisos por rol', 'Agenda compartida del equipo', 'Alta y migración asistida', 'Soporte prioritario'],
+    blurb: 'Para clínicas con varios doctores que además quieren cobrar desde el sistema.',
+    features: ['Todo lo del Básico', 'Hasta 5 profesionales', 'Usuarios de recepción ilimitados', 'Cobros: punto de venta, caja, servicios, inventario y reportes', 'Permisos por rol', 'Alta y migración asistida', 'Soporte prioritario'],
     cta: 'Solicitar demo',
     featured: true
   },
   {
-    name: 'Empresarial',
+    name: 'Pro',
     price: 'A medida',
     period: '',
     blurb: 'Para grupos médicos, redes de clínicas y varias sucursales.',
-    features: ['Profesionales ilimitados', 'Varias sucursales', 'Capacitación al equipo', 'Acompañamiento dedicado'],
+    features: ['Todo lo de Crecimiento', 'Profesionales ilimitados', 'Varias sucursales', 'Capacitación al equipo', 'Acompañamiento dedicado'],
     cta: 'Hablar con ventas',
     featured: false
   }
@@ -41,7 +41,7 @@ export const faqs = [
   { q: '¿Sirve igual para una clínica dental que para medicina general?', a: 'Sí. La agenda, los expedientes y el historial clínico funcionan igual de bien en odontología, medicina general y cualquier especialidad que atiende con cita.' },
   { q: '¿Mi recepcionista puede agendar sin ver los expedientes?', a: 'Sí. Cada usuario tiene permisos por rol: recepción puede administrar la agenda sin acceso a la información clínica.' },
   { q: '¿Cómo se protege la información de mis pacientes?', a: 'El acceso requiere usuario y contraseña, cada clínica solo ve a sus propios pacientes y los permisos por rol limitan quién consulta la información clínica.' },
-  { q: '¿Me ayudan a empezar?', a: 'Sí. En los planes Clínica y Empresarial te acompañamos en el alta, la configuración de usuarios y la capacitación de tu equipo.' },
+  { q: '¿Me ayudan a empezar?', a: 'Sí. En los planes Crecimiento y Pro te acompañamos en el alta, la configuración de usuarios y la capacitación de tu equipo.' },
   { q: '¿Hay plazo forzoso?', a: 'No. Los planes son mensuales y puedes cancelar cuando quieras.' }
 ];
 

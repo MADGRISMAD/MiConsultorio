@@ -124,6 +124,7 @@
         </section>
       {/if}
 
+      {#if session.cobros}
       <section class="card p-5 sm:p-6 {canAppointments ? '' : 'lg:col-span-2'}">
         <div class="mb-4 flex items-center gap-2">
           <h2 class="display text-3xl">Cobros</h2>
@@ -139,6 +140,7 @@
           {/each}
         </ul>
       </section>
+      {/if}
     </div>
   </Guard>
 {:else}

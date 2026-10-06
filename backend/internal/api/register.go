@@ -60,7 +60,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 
 	s.signups.fail(ip) // every attempt that reaches the database counts
 	clinicID, err := db.CreateClinic(r.Context(), s.db, db.ClinicParams{
-		Name: req.ClinicName, Kind: req.Kind, Phone: req.Phone, Plan: "consultorio", Status: "trialing",
+		Name: req.ClinicName, Kind: req.Kind, Phone: req.Phone, Plan: "basico", Status: "trialing",
 		AdminName: req.Name, AdminEmail: req.Email, AdminUsername: req.Username, AdminPassword: req.Password,
 	})
 	if err != nil {

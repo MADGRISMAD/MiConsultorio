@@ -31,6 +31,11 @@ class SessionStore {
     return this.permissions.includes(permission);
   }
 
+  /** The clinic's plan includes cobros (Crecimiento and Pro). */
+  get cobros(): boolean {
+    return !!this.user?.billing?.cobros;
+  }
+
   /** Subscription blocks clinic data when not usable (platform staff are never blocked). */
   get locked(): boolean {
     return !!this.user?.billing && !this.user.billing.usable;
