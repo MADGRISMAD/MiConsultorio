@@ -17,6 +17,9 @@ type Config struct {
 	SessionTTL     time.Duration
 	AllowedOrigins []string // extra origins allowed to make state-changing requests
 	StaticDir      string   // optional: serve the built frontend from this directory
+
+	// Optional first-run setup: when set and the database has no clinics, one is created.
+	AdminEmail, AdminUsername, AdminPassword, ClinicName string
 }
 
 func Load() (*Config, error) {
@@ -26,6 +29,19 @@ func Load() (*Config, error) {
 		CookieSecure: env("COOKIE_SECURE", "true") != "false",
 		SessionTTL:   12 * time.Hour,
 		StaticDir:    os.Getenv("STATIC_DIR"),
+
+		AdminEmail:    os.Getenv("ADMIN_EMAIL"),
+		AdminUsername: env("ADMIN_USERNAME", "admin"),
+		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
+		ClinicName:    env("CLINIC_NAME", "Mi Clínica"),
+	}
+	if c.StaticDir == "" {
+		for _, d := range []string{"../frontend/build", "frontend/build"} {
+			if _, err := os.Stat(d + "/index.html"); err == nil {
+				c.StaticDir = d
+				break
+			}
+		}
 	}
 	if c.DatabaseURL == "" {
 		return nil, errors.New("DATABASE_URL is required")

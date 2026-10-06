@@ -16,6 +16,9 @@ import (
 )
 
 func main() {
+	if p := config.LoadDotEnv(); p != "" {
+		log.Printf("Configuración cargada desde %s", p)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
@@ -33,6 +36,18 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	if cfg.AdminEmail != "" && cfg.AdminPassword != "" {
+		created, err := db.EnsureFirstClinic(ctx, pool, db.ClinicParams{
+			Name: cfg.ClinicName, Email: cfg.AdminEmail, Username: cfg.AdminUsername, Password: cfg.AdminPassword,
+		})
+		if err != nil {
+			log.Fatalf("first-run setup: %v", err)
+		}
+		if created {
+			log.Printf("Created clinic %q: sign in with email %s and user %s", cfg.ClinicName, cfg.AdminEmail, cfg.AdminUsername)
+		}
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           api.NewRouter(pool, cfg),
@@ -48,7 +63,12 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("Caresia API listening on %s", cfg.Addr)
+	if cfg.StaticDir != "" {
+		log.Printf("Sirviendo la interfaz desde %s", cfg.StaticDir)
+	} else {
+		log.Printf("Aviso: no se encontró frontend/build; solo estará disponible la API (/api).")
+	}
+	log.Printf("Caresia lista en http://localhost%s", cfg.Addr)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

@@ -13,41 +13,36 @@ backend/    API en Go: autenticación, permisos, usuarios, expedientes y citas
 frontend/   SvelteKit: landing comercial y panel de administración
 ```
 
-## Empezar (desarrollo)
+## Empezar (sin Docker)
 
-Necesitas Go 1.26+, Node 22+ y un PostgreSQL accesible.
+Necesitas instalados: **Go 1.26+**, **Node 22+** y **PostgreSQL 16** (anota la contraseña que le pongas al usuario `postgres`).
 
 ```bash
-# 1. Base de datos
-createdb caresia
+# 1. Configuración: copia el ejemplo, y ajusta DATABASE_URL (tu contraseña de PostgreSQL),
+#    JWT_SECRET (openssl rand -hex 32) y ADMIN_PASSWORD
+cp .env.example .env
 
-# 2. API (migra el esquema al arrancar)
-cd backend
-export DATABASE_URL="postgres://usuario:clave@localhost:5432/caresia?sslmode=disable"
-export JWT_SECRET="$(openssl rand -hex 32)"
-export COOKIE_SECURE=false          # solo en desarrollo con http
-export ALLOWED_ORIGINS=http://localhost:5173
-go run ./cmd/server                 # escucha en :8080
+# 2. Compila la interfaz (una sola vez)
+cd frontend && npm install && npm run build && cd ..
 
-# 3. Da de alta una clínica y su primer administrador
-go run ./cmd/createclinic -name "Mi Clínica" -email clinica@ejemplo.com -username admin
-#   (pide la contraseña, o usa CARESIA_ADMIN_PASSWORD)
-
-# 4. Frontend (en otra terminal; hace proxy de /api hacia :8080)
-cd frontend
-npm install
-npm run dev                         # http://localhost:5173
+# 3. Arranca
+cd backend && go run ./cmd/server
 ```
 
-Inicia sesión con el **correo de la clínica**, el usuario y la contraseña.
+Abre <http://localhost:8080> e inicia sesión con `ADMIN_EMAIL`, `ADMIN_USERNAME` y `ADMIN_PASSWORD`.
+En el primer arranque el backend crea solo la base de datos, las tablas y la clínica con su administrador.
+
+Para desarrollar el frontend con recarga en caliente, deja el backend corriendo y en otra terminal usa `cd frontend && npm run dev` (<http://localhost:5173>, con `ALLOWED_ORIGINS=http://localhost:5173` en el `.env`).
+Para crear más clínicas: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
 ## Producción con Docker
 
 ```bash
-cp .env.example .env     # define POSTGRES_PASSWORD y JWT_SECRET
+cp .env.example .env     # define POSTGRES_PASSWORD, JWT_SECRET y los datos ADMIN_*
 docker compose up --build
-docker compose run --rm --entrypoint /app/createclinic app -name "Mi Clínica" -email clinica@ejemplo.com -username admin
 ```
+
+La clínica y el administrador se crean solos en el primer arranque.
 
 Una sola imagen sirve la API (`/api/*`) y el frontend compilado en `:8080`. Pon un proxy con HTTPS delante (la cookie de sesión es `Secure`).
 

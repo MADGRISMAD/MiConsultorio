@@ -13,10 +13,9 @@ import (
 	"log"
 	"os"
 	"strings"
-	"unicode/utf8"
 
+	"github.com/madgrismad/miconsultorio/backend/internal/config"
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -27,6 +26,7 @@ func main() {
 	image := flag.String("image", "", "clinic image URL")
 	username := flag.String("username", "admin", "first administrator's username")
 	flag.Parse()
+	config.LoadDotEnv()
 
 	if *name == "" || *email == "" {
 		flag.Usage()
@@ -42,14 +42,6 @@ func main() {
 		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		password = strings.TrimRight(line, "\r\n")
 	}
-	if utf8.RuneCountInString(password) < 8 || len(password) > 72 {
-		log.Fatal("password must be 8 to 72 characters")
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	ctx := context.Background()
 	pool, err := db.Connect(ctx, url)
 	if err != nil {
@@ -59,25 +51,10 @@ func main() {
 	if err := db.Migrate(ctx, pool); err != nil {
 		log.Fatal(err)
 	}
-
-	tx, err := pool.Begin(ctx)
+	clinicID, err := db.CreateClinic(ctx, pool, db.ClinicParams{
+		Name: *name, Email: *email, Phone: *phone, Address: *address, ImageURL: *image, Username: *username, Password: password,
+	})
 	if err != nil {
-		log.Fatal(err)
-	}
-	defer tx.Rollback(ctx)
-	var clinicID string
-	if err := tx.QueryRow(ctx,
-		`INSERT INTO clinics (name, email, phone_number, address, image_url) VALUES ($1, lower($2), $3, $4, $5) RETURNING id`,
-		*name, *email, *phone, *address, *image).Scan(&clinicID); err != nil {
-		log.Fatalf("create clinic: %v", err)
-	}
-	if _, err := tx.Exec(ctx,
-		`INSERT INTO users (clinic_id, username, password_hash, permissions) VALUES ($1, $2, $3, $4)`,
-		clinicID, *username, string(hash),
-		[]string{"adminUsers", "adminAppointments", "adminHistorials", "navHistorials", "navAppointments"}); err != nil {
-		log.Fatalf("create admin: %v", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Clinic %q created (id %s). Sign in with email %s and user %s.\n", *name, clinicID, strings.ToLower(*email), *username)
