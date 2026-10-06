@@ -15,7 +15,7 @@
     <span class="a-line absolute bottom-3 left-[5px] top-3 w-px bg-ink/15" style="--t: 0.9s"></span>
     {#each items as [d, t, n, tone], i}
       <li class="a-x16 relative pl-7" style="--d: {0.15 + i * 0.1}s">
-        <span class="absolute left-0 top-4 h-[11px] w-[11px] rounded-full ring-4 ring-white {tone === 'dental' ? 'bg-mint' : 'bg-signal'}"></span>
+        <span class="absolute left-0 top-4 h-[11px] w-[11px] rounded-full ring-4 ring-panel {tone === 'dental' ? 'bg-mint' : 'bg-signal'}"></span>
         <div class="rounded-xl bg-paper px-4 py-3">
           <div class="flex items-baseline justify-between gap-3">
             <span class="text-[14px] font-medium">{t}</span>

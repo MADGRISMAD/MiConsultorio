@@ -90,7 +90,7 @@
               </ul>
             </div>
             <!-- small screens: the screen follows its text -->
-            <div class="mt-8 rounded-[22px] bg-white p-5 shadow-[0_30px_60px_-30px_rgba(11,37,64,0.35)] ring-1 ring-ink/10 lg:hidden" aria-hidden="true">
+            <div class="mt-8 rounded-[22px] bg-panel p-5 shadow-[0_30px_60px_-30px_rgba(11,37,64,0.35)] ring-1 ring-ink/10 lg:hidden" aria-hidden="true">
               <Inline />
             </div>
           </div>
@@ -100,7 +100,7 @@
         <div class="sticky top-0 flex h-screen items-center">
           <div class="relative w-full">
             <div class="absolute -inset-6 -z-10 rounded-[40px] bg-gradient-to-br from-mint-soft via-transparent to-signal-soft opacity-70 blur-2xl"></div>
-            <div class="relative grid h-[29rem] overflow-hidden rounded-[26px] bg-white p-7 shadow-[0_40px_80px_-30px_rgba(11,37,64,0.4)] ring-1 ring-ink/10">
+            <div class="relative grid h-[29rem] overflow-hidden rounded-[26px] bg-panel p-7 shadow-[0_40px_80px_-30px_rgba(11,37,64,0.4)] ring-1 ring-ink/10">
               {#key active}
                 <div class="[grid-area:1/1]" in:swap={{ enter: true }} out:swap={{ enter: false }}>
                   <Screen />

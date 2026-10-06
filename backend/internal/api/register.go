@@ -8,8 +8,6 @@ import (
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
 )
 
-var clinicKinds = map[string]bool{"GENERAL_MEDICAL": true, "DENTAL": true, "VETERINARY": true, "CHIROPRACTIC": true}
-
 type registerRequest struct {
 	ClinicName string `json:"clinic_name"`
 	Kind       string `json:"kind"`
@@ -21,6 +19,7 @@ type registerRequest struct {
 }
 
 // register creates a clinic (14-day trial) with its first administrator and signs them in.
+// The type of business is chosen afterwards, in the setup wizard.
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if !s.signups.allow(ip) {
@@ -41,8 +40,11 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		bad("El nombre del consultorio debe tener entre 2 y 120 caracteres.")
 		return
 	}
+	if req.Kind == "" {
+		req.Kind = "GENERAL_MEDICAL" // the setup wizard asks for the real one
+	}
 	if !clinicKinds[req.Kind] {
-		bad("Elige el giro de tu consultorio.")
+		bad("El giro del consultorio no es válido.")
 		return
 	}
 	if utf8.RuneCountInString(req.Phone) > 30 {

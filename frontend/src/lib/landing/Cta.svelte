@@ -20,7 +20,7 @@
 </script>
 
 <section id="contacto" bind:this={section} class="px-3 sm:px-5">
-  <div bind:this={card} class="relative isolate overflow-hidden bg-signal px-6 py-24 text-center text-white sm:py-32">
+  <div bind:this={card} class="l-deep relative isolate overflow-hidden bg-signal px-6 py-24 text-center text-white sm:py-32">
     <Ecg class="absolute inset-x-0 top-1/2 -z-10 h-40 w-full -translate-y-1/2" base="stroke-white/15" sweep="stroke-white/70" beats={5} />
     <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-white/75">Demo gratuita · 20 minutos</p>
     <Split text={'¿Listo para *ordenar*\ntu consulta?'} class="mx-auto mt-6 max-w-5xl font-display text-[clamp(3rem,9vw,8.5rem)] leading-[0.9] tracking-[-0.035em]" accent="italic" />

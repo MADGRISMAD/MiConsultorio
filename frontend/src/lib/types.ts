@@ -57,6 +57,8 @@ export interface SessionInfo {
   permissions: string[];
   /** null for platform staff */
   billing: Billing | null;
+  /** a clinic administrator who still has to finish the setup wizard */
+  setupPending: boolean;
 }
 
 export interface Person {
@@ -152,22 +154,60 @@ export interface Overview {
   paid_this_month_cents?: number;
 }
 
+import type { IconName } from './components/ui/Icon.svelte';
+
+/** Business types ("giro"). Keys match the server; order is the order shown in the wizard. */
 export const CLINIC_KINDS = {
-  GENERAL_MEDICAL: { label: 'Medicina general', hint: 'Consultorio médico' },
-  DENTAL: { label: 'Odontología', hint: 'Clínica dental' },
-  VETERINARY: { label: 'Veterinaria', hint: 'Clínica veterinaria' },
-  CHIROPRACTIC: { label: 'Quiropráctica', hint: 'Quiropráctica y fisioterapia' }
-} as const;
+  GENERAL_MEDICAL: { label: 'Medicina general', hint: 'Consultorio médico', icon: 'stethoscope' },
+  DENTAL: { label: 'Odontología', hint: 'Clínica dental', icon: 'tooth' },
+  PEDIATRICS: { label: 'Pediatría', hint: 'Niñas, niños y adolescentes', icon: 'baby' },
+  INTERNAL_MEDICINE: { label: 'Medicina interna', hint: 'Adultos y padecimientos crónicos', icon: 'heart' },
+  PHYSIOTHERAPY: { label: 'Fisioterapia', hint: 'Rehabilitación y terapia física', icon: 'activity' },
+  NUTRITION: { label: 'Nutrición', hint: 'Planes y seguimiento nutricional', icon: 'leaf' },
+  PSYCHOLOGY: { label: 'Psicología', hint: 'Salud mental y terapia', icon: 'chat' },
+  DERMATOLOGY: { label: 'Dermatología', hint: 'Piel, cabello y uñas', icon: 'droplet' },
+  GYNECOLOGY: { label: 'Ginecología', hint: 'Salud de la mujer', icon: 'flower' },
+  ORTHOPEDICS: { label: 'Ortopedia', hint: 'Huesos, músculos y articulaciones', icon: 'bone' },
+  VETERINARY: { label: 'Veterinaria', hint: 'Clínica veterinaria', icon: 'paw' },
+  CHIROPRACTIC: { label: 'Quiropráctica', hint: 'Quiropráctica y columna', icon: 'spine' }
+} as const satisfies Record<string, { label: string; hint: string; icon: IconName }>;
 
 export type ClinicKind = keyof typeof CLINIC_KINDS;
+export const CLINIC_KIND_KEYS = Object.keys(CLINIC_KINDS) as ClinicKind[];
+
+export const WEEKDAYS = [
+  ['mon', 'Lunes'],
+  ['tue', 'Martes'],
+  ['wed', 'Miércoles'],
+  ['thu', 'Jueves'],
+  ['fri', 'Viernes'],
+  ['sat', 'Sábado'],
+  ['sun', 'Domingo']
+] as const;
+export type Weekday = (typeof WEEKDAYS)[number][0];
+
+export interface DayHours {
+  open: boolean;
+  start: string;
+  end: string;
+}
+
+export interface ClinicSettings {
+  hours: Record<Weekday, DayHours>;
+  appointment_minutes: number;
+}
 
 export interface Clinic {
   id: string;
   kind: ClinicKind;
+  /** other specialties besides the main kind */
+  specialties: ClinicKind[];
   name: string;
   phone_number: string;
   address: string;
   image_url: string;
+  settings: ClinicSettings;
+  setup_completed: boolean;
 }
 
 export interface User {

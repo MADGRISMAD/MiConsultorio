@@ -34,6 +34,8 @@ type Principal struct {
 	TokenVersion int
 	Disabled     bool
 	Billing      *Billing // nil for platform staff
+	// SetupPending: a clinic administrator whose clinic has not finished the setup wizard.
+	SetupPending bool
 }
 
 func (p *Principal) isPlatform() bool { return p.ClinicID == "" }
@@ -61,14 +63,15 @@ var errNoUser = errors.New("user not found")
 func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, error) {
 	var p Principal
 	var plan, status, reason string
+	var setupOpen bool
 	var trialEnds, periodEnd *time.Time
 	err := q.QueryRow(ctx, `
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version,
-		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, '')
+		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false)
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion,
-			&plan, &status, &trialEnds, &periodEnd, &reason)
+			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser
 	}
@@ -76,6 +79,7 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 		return nil, err
 	}
 	p.Permissions = permissionsFor(p.Role)
+	p.SetupPending = setupOpen && p.Role == RoleAdmin
 	if p.ClinicID != "" {
 		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
 	}

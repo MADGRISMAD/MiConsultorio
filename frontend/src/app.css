@@ -34,6 +34,54 @@
 
 /* ---------- Landing ---------- */
 
+/* Landing palette. Light by default; `data-theme="dark"` on the landing root swaps it. */
+:root,
+.landing {
+  --l-paper: 244 248 251;
+  --l-desk: 221 231 238;
+  --l-panel: 255 255 255;
+  --l-ink: 11 37 64;
+  --l-ink-soft: 75 97 119;
+  --l-ink-faint: 138 155 173;
+  --l-signal: 22 115 209;
+  --l-signal-soft: 220 234 251;
+  --l-mint: 15 158 142;
+  --l-mint-soft: 211 240 236;
+}
+.landing[data-theme='dark'] {
+  --l-paper: 7 22 40;
+  --l-desk: 3 12 24;
+  --l-panel: 13 33 56;
+  --l-ink: 244 248 251;
+  --l-ink-soft: 160 178 196;
+  --l-ink-faint: 118 138 158;
+  --l-signal: 86 164 240;
+  --l-signal-soft: 14 41 70;
+  --l-mint: 45 196 178;
+  --l-mint-soft: 10 46 52;
+  color-scheme: dark;
+}
+/* Sections that stay navy in both themes (steps, pricing highlight, call to action, footer) */
+.l-deep {
+  --l-paper: 244 248 251;
+  --l-panel: 255 255 255;
+  --l-ink: 11 37 64;
+  --l-ink-soft: 75 97 119;
+  --l-ink-faint: 138 155 173;
+  --l-signal: 22 115 209;
+  --l-signal-soft: 220 234 251;
+  --l-mint: 15 158 142;
+  --l-mint-soft: 211 240 236;
+}
+/* No white flash behind the page when scrolling past its edges in dark mode */
+:root:has(.landing[data-theme='dark']) body {
+  background: rgb(7 22 40);
+}
+.landing[data-theme='dark'] .grain::after,
+.landing[data-theme='dark'].grain::after {
+  opacity: 0;
+}
+
 /* Lenis smooth scroll */
 html.lenis,
 html.lenis body {

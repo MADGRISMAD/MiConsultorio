@@ -16,7 +16,10 @@
   const canPatients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
 
   $effect(() => {
-    if (session.status === 'authenticated' && session.isPlatform) goto('/plataforma', { replaceState: true });
+    if (session.status === 'authenticated') {
+      if (session.isPlatform) goto('/plataforma', { replaceState: true });
+      else if (session.user?.setupPending) goto('/bienvenida', { replaceState: true });
+    }
   });
 
   $effect(() => {

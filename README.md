@@ -33,7 +33,7 @@ El frontend espera a que el backend esté listo; si el backend falla (por ejempl
 
 Otros comandos desde la raíz: `npm run build` (compila la interfaz), `npm start` (compila y sirve todo en <http://localhost:8080>, como en producción), `npm run test:api` y `npm run check`.
 
-Cualquiera puede crear su propio consultorio (con 14 días de prueba) desde <http://localhost:5173/register> (elige el giro: medicina general, odontología, veterinaria o quiropráctica). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
+Cualquiera puede crear su propio consultorio (con 14 días de prueba) desde <http://localhost:5173/register> (el registro es mínimo; al entrar, un asistente de configuración te guía para elegir el giro —medicina general, odontología, pediatría, medicina interna, fisioterapia, nutrición, psicología, dermatología, ginecología, ortopedia, veterinaria o quiropráctica—, datos del negocio, horario y equipo; después se edita en Configuración). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
 ## Producción con Docker
 

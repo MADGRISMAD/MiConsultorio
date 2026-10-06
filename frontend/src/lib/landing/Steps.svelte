@@ -14,7 +14,7 @@
   onMount(() => track(wrap, ['start 80%', 'end 60%'], (p) => (line.style.transform = `scaleX(${p})`)));
 </script>
 
-<section class="relative overflow-hidden rounded-t-[36px] bg-ink px-5 py-28 text-paper sm:px-8 lg:py-40">
+<section class="l-deep relative overflow-hidden rounded-t-[36px] bg-ink px-5 py-28 text-paper sm:px-8 lg:py-40">
   <div class="mx-auto max-w-6xl">
     <div class="grid gap-6 md:grid-cols-[1.7fr_1fr] md:items-end">
       <Split text={'Listo en días,\n*no en meses.*'} class="font-display text-[clamp(2.75rem,6.5vw,5.25rem)] leading-[0.95] tracking-[-0.03em]" accent="italic text-signal" />

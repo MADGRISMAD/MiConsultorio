@@ -49,7 +49,7 @@ func main() {
 	}
 	if cfg.ClinicAdminEmail != "" && cfg.ClinicAdminPassword != "" {
 		created, err := db.EnsureFirstClinic(ctx, pool, db.ClinicParams{
-			Name: cfg.ClinicName, Kind: cfg.ClinicKind, Plan: "clinica", Status: "active",
+			Name: cfg.ClinicName, Kind: cfg.ClinicKind, Plan: "clinica", Status: "active", SetupDone: true,
 			AdminName: cfg.ClinicAdminName, AdminEmail: cfg.ClinicAdminEmail, AdminUsername: cfg.ClinicAdminUsername, AdminPassword: cfg.ClinicAdminPassword,
 		})
 		if err != nil {

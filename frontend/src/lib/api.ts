@@ -4,6 +4,7 @@ import type {
   AppointmentInput,
   Clinic,
   ClinicRow,
+  ClinicSettings,
   Expedient,
   ExpedientInput,
   Overview,
@@ -46,11 +47,14 @@ const seg = encodeURIComponent;
 export const api = {
   login: (identifier: string, password: string) =>
     request<{ session: SessionInfo }>('POST', '/login', { identifier, password }).then((r) => r.session),
-  register: (r: { clinic_name: string; kind: string; phone: string; name: string; email: string; username: string; password: string }) =>
+  register: (r: { clinic_name: string; phone: string; name: string; email: string; username: string; password: string }) =>
     request<{ session: SessionInfo }>('POST', '/register', r).then((x) => x.session),
   logout: () => request<void>('POST', '/logout'),
   session: () => request<{ session: SessionInfo }>('GET', '/session').then((r) => r.session),
   clinic: () => request<{ clinic: Clinic }>('GET', '/clinic').then((r) => r.clinic),
+  updateClinic: (patch: Partial<{ name: string; phone_number: string; address: string; kind: string; specialties: string[]; settings: ClinicSettings }>) =>
+    request<{ clinic: Clinic }>('PUT', '/clinic', patch).then((r) => r.clinic),
+  completeSetup: () => request<{ session: SessionInfo }>('POST', '/clinic/setup').then((r) => r.session),
 
   // my account
   updateProfile: (name: string, phone: string) => request<{ session: SessionInfo }>('PUT', '/me', { name, phone }).then((r) => r.session),

@@ -12,6 +12,7 @@
   import Pricing from './Pricing.svelte';
   import Specialties from './Specialties.svelte';
   import Steps from './Steps.svelte';
+  import { theme } from '$lib/theme.svelte';
   import { reducedMotion } from './motion';
 
   /** Inertial smooth scrolling. Off when the user prefers reduced motion. */
@@ -29,7 +30,7 @@
   });
 </script>
 
-<div class="grain overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white [-webkit-tap-highlight-color:transparent]">
+<div class="landing grain min-h-screen overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white [-webkit-tap-highlight-color:transparent]" data-theme={theme.mode}>
   <Nav />
   <Hero />
   <Chaos />

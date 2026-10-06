@@ -4,7 +4,7 @@
     | 'sun' | 'moon' | 'logout' | 'menu' | 'x' | 'eye' | 'eye-off' | 'search' | 'plus' | 'edit' | 'trash'
     | 'check' | 'alert' | 'clock' | 'lock' | 'arrow-right' | 'arrow-left' | 'sparkles' | 'info' | 'wallet'
     | 'shield' | 'stethoscope' | 'tooth' | 'paw' | 'spine' | 'building' | 'activity' | 'user' | 'user-plus' | 'key' | 'mail'
-    | 'phone' | 'chevron-down' | 'ban' | 'refresh';
+    | 'phone' | 'chevron-down' | 'ban' | 'refresh' | 'baby' | 'heart' | 'leaf' | 'chat' | 'droplet' | 'flower' | 'bone' | 'clock-plus';
 </script>
 
 <script lang="ts">
@@ -62,6 +62,14 @@
     phone: 'M6.5 4h3l1.5 4-2 1.3a10 10 0 0 0 5.7 5.7L16 13l4 1.5v3a2 2 0 0 1-2 2A14 14 0 0 1 4.5 6a2 2 0 0 1 2-2z',
     'chevron-down': 'M6 9l6 6 6-6',
     ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8',
+    baby: 'M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM9 12v.01M15 12v.01M9.5 15.5c1.5 1.2 3.5 1.2 5 0M12 6c0-1.5 1-2.5 2.5-2.5',
+    heart: 'M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z',
+    leaf: 'M5 19c0-8 5-14 15-14 0 9-5 15-13 15M5 19l8-8',
+    chat: 'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5zM8.5 10h7M8.5 12.5h4',
+    droplet: 'M12 3.5s6 6 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3.5 12 3.5zM9.5 14.5a2.5 2.5 0 0 0 2.5 2.5',
+    flower: 'M12 11a3 3 0 1 0 0-.01zM12 8V4.5M12 16v3.5M8.5 12H5M19 12h-3.5M9.5 9.5 7 7M17 17l-2.5-2.5M14.5 9.5 17 7M7 17l2.5-2.5',
+    bone: 'M7 5.5A2.5 2.5 0 0 0 5 9.5a2.5 2.5 0 0 0 3.5 1.5l4.5 4.5A2.5 2.5 0 0 0 14.5 19a2.5 2.5 0 0 0 4-2 2.5 2.5 0 0 0-1.5-3.5L12.5 9A2.5 2.5 0 0 0 11 5.5a2.5 2.5 0 0 0-4-0z',
+    'clock-plus': 'M12 21a9 9 0 1 1 8.2-12.6M12 7v5l3 2M19 15v6M16 18h6',
     refresh: 'M20 11a8 8 0 0 0-14.3-4.3L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.3L20 15.5M20 20v-4.5h-4.5'
   };
 </script>

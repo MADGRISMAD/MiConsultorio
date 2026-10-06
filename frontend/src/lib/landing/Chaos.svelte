@@ -43,7 +43,7 @@
       section,
       ['start start', 'end end'],
       (p) => {
-        section.style.backgroundColor = mix('#DDE7EE', '#F4F8FB', clamp((p - 0.1) / 0.55, 0, 1));
+        section.style.setProperty('--t', String(clamp((p - 0.1) / 0.55, 0, 1))); // 0 = messy desk, 1 = tidy paper
         const b = interp(p, [0.3, 0.42], [1, 0]);
         before.style.opacity = String(b);
         before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -30])}%)`;
@@ -64,15 +64,9 @@
       { stiffness: 120, damping: 30, mass: 0.3 }
     );
   });
-
-  function mix(a: string, b: string, t: number) {
-    const c = (h: string, o: number) => parseInt(h.slice(o, o + 2), 16);
-    const ch = (o: number) => Math.round(c(a, o) + (c(b, o) - c(a, o)) * t);
-    return `rgb(${ch(1)}, ${ch(3)}, ${ch(5)})`;
-  }
 </script>
 
-<section bind:this={section} class="relative h-[300vh]" style="background-color: #DDE7EE" aria-labelledby="chaos-title">
+<section bind:this={section} class="relative h-[300vh]" style="background-color: color-mix(in srgb, rgb(var(--l-paper)) calc(var(--t, 0) * 100%), rgb(var(--l-desk)))" aria-labelledby="chaos-title">
   <div class="sticky top-0 flex h-screen flex-col justify-center overflow-hidden px-4 sm:px-8">
     <div class="mx-auto w-full max-w-6xl">
       <div class="flex items-end justify-between gap-6">
@@ -101,7 +95,7 @@
               {#if s.kind === 'folder'}<span class="absolute -top-3 left-0 h-3 w-16 rounded-t-md bg-[#E4CF9E]"></span>{/if}
               <p class="font-hand text-[17px] leading-[1.05] text-ink/85 sm:text-[22px]">{s.messy}</p>
             </div>
-            <div bind:this={cleanEls[i]} class="absolute inset-0 flex flex-col justify-between rounded-2xl bg-white p-3 ring-1 ring-ink/10 sm:p-4" style="opacity: 0">
+            <div bind:this={cleanEls[i]} class="absolute inset-0 flex flex-col justify-between rounded-2xl bg-panel p-3 ring-1 ring-ink/10 sm:p-4" style="opacity: 0">
               <span class="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint sm:text-[10px]">
                 <span class="h-1.5 w-1.5 rounded-full {s.tone === 'dental' ? 'bg-mint' : 'bg-signal'}"></span>
                 {s.label}

@@ -23,7 +23,8 @@ class SessionStore {
 
   /** Where a signed-in person lands. */
   get home(): string {
-    return this.isPlatform ? '/plataforma' : '/';
+    if (this.isPlatform) return '/plataforma';
+    return this.user?.setupPending ? '/bienvenida' : '/';
   }
 
   has(permission: string): boolean {
@@ -53,6 +54,11 @@ class SessionStore {
     } catch {
       /* the shell works without it */
     }
+  }
+
+  /** Keep the cached clinic in step with what the server just saved. */
+  setClinic(clinic: Clinic) {
+    this.clinic = clinic;
   }
 
   /** Replace the session with a fresh one returned by the server (profile or password changes). */

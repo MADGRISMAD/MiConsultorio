@@ -50,6 +50,9 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireSubscription)
 
+					r.With(require(PermAdminUsers)).Put("/clinic", s.updateOwnClinic)
+					r.With(require(PermAdminUsers)).Post("/clinic/setup", s.completeSetup)
+
 					r.Route("/team", func(r chi.Router) {
 						r.Use(require(PermAdminUsers))
 						r.Get("/", s.listTeam)

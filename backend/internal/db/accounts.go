@@ -117,6 +117,8 @@ type ClinicParams struct {
 	Status                         string // "trialing" (default) or "active"
 	AdminName, AdminEmail          string
 	AdminUsername, AdminPassword   string
+	// SetupDone skips the first-run setup wizard (clinics created by an operator, not self-registered).
+	SetupDone bool
 }
 
 // CreateClinic inserts a clinic and its administrator in one transaction.
@@ -146,9 +148,9 @@ func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (clin
 	}
 	defer tx.Rollback(ctx)
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO clinics (name, email, phone_number, address, image_url, kind, plan, billing_status, trial_ends_at)
-		VALUES ($1, lower($2), $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-		p.Name, p.AdminEmail, p.Phone, p.Address, p.ImageURL, p.Kind, p.Plan, p.Status, trialEnds).Scan(&clinicID); err != nil {
+		INSERT INTO clinics (name, email, phone_number, address, image_url, kind, plan, billing_status, trial_ends_at, setup_completed_at)
+		VALUES ($1, lower($2), $3, $4, $5, $6, $7, $8, $9, CASE WHEN $10 THEN now() END) RETURNING id`,
+		p.Name, p.AdminEmail, p.Phone, p.Address, p.ImageURL, p.Kind, p.Plan, p.Status, trialEnds, p.SetupDone).Scan(&clinicID); err != nil {
 		return "", fmt.Errorf("create clinic: %w", err)
 	}
 	if _, err := InsertUser(ctx, tx, UserParams{

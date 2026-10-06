@@ -72,7 +72,7 @@ func (e *env) seedClinic(x string) string {
 	e.t.Helper()
 	ctx := context.Background()
 	id, err := db.CreateClinic(ctx, e.pool, db.ClinicParams{
-		Name: "Clinica " + x, Plan: "clinica", Status: "active",
+		Name: "Clinica " + x, Plan: "clinica", Status: "active", SetupDone: true,
 		AdminName: "Admin " + x, AdminEmail: "admin_" + x + "@clinic.mx", AdminUsername: "admin_" + x, AdminPassword: pw,
 	})
 	if err != nil {
@@ -780,6 +780,97 @@ func TestResetPassword(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Setup wizard
+// ---------------------------------------------------------------------------
+
+func TestSetupWizard(t *testing.T) {
+	e := setup(t)
+	anon := e.anon()
+
+	// registration no longer asks for the type of business
+	s := sub(anon.expect(200, "POST", "/api/register", map[string]any{
+		"clinic_name": "Nueva", "name": "Dra. Nueva", "email": "nueva@x.mx", "username": "nueva", "password": "una-clave-larga"}), "session")
+	if s["setupPending"] != true {
+		t.Fatalf("a new clinic's admin must see the wizard: %v", s)
+	}
+	c := sub(anon.expect(200, "GET", "/api/clinic", nil), "clinic")
+	st := sub(c, "settings")
+	if c["kind"] != "GENERAL_MEDICAL" || c["setup_completed"] != false || len(c["specialties"].([]any)) != 0 ||
+		st["appointment_minutes"].(float64) != 30 || sub(sub(st, "hours"), "mon")["open"] != true || sub(sub(st, "hours"), "sat")["open"] != false {
+		t.Fatalf("defaults: %v", c)
+	}
+	anon.expect(400, "POST", "/api/register", map[string]any{
+		"clinic_name": "X", "kind": "BAKERY", "name": "Nombre", "email": "y@x.mx", "username": "yy1", "password": "una-clave-larga"})
+
+	// validation
+	for name, body := range map[string]map[string]any{
+		"kind":        {"kind": "BAKERY"},
+		"specialty":   {"specialties": []string{"NOPE"}},
+		"name":        {"name": " "},
+		"minutes":     {"settings": map[string]any{"appointment_minutes": 7}},
+		"day":         {"settings": map[string]any{"appointment_minutes": 30, "hours": map[string]any{"xyz": map[string]any{"open": true, "start": "09:00", "end": "10:00"}}}},
+		"end<=start":  {"settings": map[string]any{"appointment_minutes": 30, "hours": map[string]any{"mon": map[string]any{"open": true, "start": "10:00", "end": "09:00"}}}},
+		"bad time":    {"settings": map[string]any{"appointment_minutes": 30, "hours": map[string]any{"mon": map[string]any{"open": true, "start": "9am", "end": "10:00"}}}},
+		"unknown key": {"color": "red"},
+	} {
+		if got, _ := anon.do("PUT", "/api/clinic", body); got != 400 {
+			t.Errorf("%s: got %d want 400", name, got)
+		}
+	}
+
+	// step by step: main kind + extra specialties (deduplicated, the main kind is not repeated)
+	c = sub(anon.expect(200, "PUT", "/api/clinic", map[string]any{"kind": "PEDIATRICS", "specialties": []string{"PEDIATRICS", "NUTRITION", "NUTRITION", "PSYCHOLOGY"}}), "clinic")
+	if c["kind"] != "PEDIATRICS" || fmt.Sprint(c["specialties"]) != "[NUTRITION PSYCHOLOGY]" {
+		t.Fatalf("kinds: %v %v", c["kind"], c["specialties"])
+	}
+	anon.expect(200, "PUT", "/api/clinic", map[string]any{"name": "Nueva Pediátrica", "phone_number": "55 1", "address": "Calle 1"})
+	c = sub(anon.expect(200, "PUT", "/api/clinic", map[string]any{"settings": map[string]any{
+		"appointment_minutes": 20,
+		"hours":               map[string]any{"mon": map[string]any{"open": false, "start": "09:00", "end": "18:00"}, "sat": map[string]any{"open": true, "start": "09:00", "end": "13:00"}},
+	}}), "clinic")
+	st = sub(c, "settings")
+	if st["appointment_minutes"].(float64) != 20 || sub(sub(st, "hours"), "mon")["open"] != false || sub(sub(st, "hours"), "sat")["end"] != "13:00" || sub(sub(st, "hours"), "tue")["open"] != true {
+		t.Fatalf("settings (missing days must fall back to the defaults): %v", st)
+	}
+	if c["name"] != "Nueva Pediátrica" || c["address"] != "Calle 1" || c["kind"] != "PEDIATRICS" {
+		t.Fatalf("earlier steps must survive later saves: %v", c)
+	}
+
+	// only the administrator edits the clinic; others never see the wizard
+	e.addUser(e.clinicA, "extra_doc", "doctor")
+	doc := e.login("extra_doc")
+	doc.expect(403, "PUT", "/api/clinic", map[string]any{"name": "Hack"})
+	doc.expect(403, "POST", "/api/clinic/setup", nil)
+	if sub(doc.expect(200, "GET", "/api/session", nil), "session")["setupPending"] != false {
+		t.Fatal("only admins see the wizard")
+	}
+	if sub(e.login("admin_a").expect(200, "GET", "/api/session", nil), "session")["setupPending"] != false {
+		t.Fatal("a clinic that is already set up has no wizard")
+	}
+
+	// finishing is idempotent and clears the flag
+	for i := 0; i < 2; i++ {
+		if sub(anon.expect(200, "POST", "/api/clinic/setup", nil), "session")["setupPending"] != false {
+			t.Fatal("setupPending must clear")
+		}
+	}
+	if sub(anon.expect(200, "GET", "/api/clinic", nil), "clinic")["setup_completed"] != true {
+		t.Fatal("setup_completed")
+	}
+	var logged int
+	_ = e.pool.QueryRow(context.Background(), `SELECT count(*) FROM activity_log WHERE type = 'setup_completed'`).Scan(&logged)
+	if logged != 1 {
+		t.Fatalf("finishing twice must be logged once, got %d", logged)
+	}
+
+	// the platform can use every kind too
+	root := e.login("root")
+	for _, k := range []string{"NUTRITION", "ORTHOPEDICS", "VETERINARY"} {
+		root.expect(200, "PATCH", "/api/platform/clinics/"+e.clinicB, map[string]any{"kind": k})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Migration of data created before roles existed
 // ---------------------------------------------------------------------------
 
@@ -841,6 +932,13 @@ func TestMigrationFromPermissions(t *testing.T) {
 	var email string
 	if err := pool.QueryRow(ctx, `SELECT email FROM users WHERE clinic_id = '11111111-1111-1111-1111-111111111111' AND role = 'admin'`).Scan(&email); err != nil || email != "uno@vieja.mx" {
 		t.Fatalf("admin e-mail: %q %v", email, err)
+	}
+	var setupDone bool
+	if err := pool.QueryRow(ctx, `SELECT setup_completed_at IS NOT NULL FROM clinics WHERE name = 'Vieja 1'`).Scan(&setupDone); err != nil || !setupDone {
+		t.Fatalf("existing clinics skip the setup wizard: %v %v", setupDone, err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE clinics SET kind = 'PEDIATRICS', specialties = '{NUTRITION}' WHERE name = 'Vieja 1'`); err != nil {
+		t.Fatalf("new kinds must be accepted: %v", err)
 	}
 	var status string
 	if err := pool.QueryRow(ctx, `SELECT billing_status FROM clinics WHERE name = 'Vieja 1'`).Scan(&status); err != nil || status != "active" {

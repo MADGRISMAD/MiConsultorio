@@ -78,12 +78,14 @@ type sessionInfo struct {
 	RoleLabel   string       `json:"roleLabel"`
 	Permissions []string     `json:"permissions"`
 	Billing     *billingInfo `json:"billing"` // nil for platform staff
+	// SetupPending is true for a clinic administrator who still has to finish the setup wizard.
+	SetupPending bool `json:"setupPending"`
 }
 
 func sessionOf(p *Principal) sessionInfo {
 	info := sessionInfo{
 		UserID: p.UserID, ClinicID: p.ClinicID, Username: p.Username, Name: p.Name, Email: p.Email,
-		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions,
+		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions, SetupPending: p.SetupPending,
 	}
 	if p.Billing != nil {
 		b := p.Billing.info(time.Now())

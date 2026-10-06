@@ -27,7 +27,7 @@
           role="presentation"
           use:reveal={{ y: 60, delay: i * 0.1, margin: '0px 0px -10% 0px' }}
           onpointermove={spotlight}
-          class="group relative flex w-full flex-col overflow-hidden rounded-[28px] p-8 sm:p-9 {dark ? 'bg-ink text-paper lg:-my-6 lg:py-14' : 'bg-white ring-1 ring-ink/10'}"
+          class="group relative flex w-full flex-col overflow-hidden rounded-[28px] p-8 sm:p-9 {dark ? 'l-deep bg-ink text-paper lg:-my-6 lg:py-14' : 'bg-panel ring-1 ring-ink/10'}"
         >
           <span
             aria-hidden="true"

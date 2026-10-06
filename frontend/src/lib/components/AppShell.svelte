@@ -40,7 +40,8 @@
       items: [
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
-        { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] }
+        { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
+        { label: 'Configuración', href: '/configuracion', icon: 'settings', perms: [PERMISSIONS.adminUsers] }
       ]
     },
     {

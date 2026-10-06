@@ -20,7 +20,7 @@
   });
 </script>
 
-<footer bind:this={footer} class="relative mt-3 overflow-hidden bg-ink text-paper">
+<footer bind:this={footer} class="l-deep relative mt-3 overflow-hidden bg-ink text-paper">
   <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
     <div>
       <Wordmark light />

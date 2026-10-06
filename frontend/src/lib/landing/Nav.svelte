@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
+  import { theme } from '$lib/theme.svelte';
   import ButtonLabel from './ButtonLabel.svelte';
   import Wordmark from './Wordmark.svelte';
   import { demoHref, loginPath } from './data';
@@ -61,6 +63,15 @@
       {/each}
     </div>
     <div class="flex items-center gap-1.5">
+      <button
+        type="button"
+        class="grid h-10 w-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"
+        title={theme.mode === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+        aria-label={theme.mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+        onclick={() => theme.toggle()}
+      >
+        <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
+      </button>
       <a href={loginPath} class="hidden px-3 text-[15px] font-medium text-ink-soft hover:text-ink sm:block">Entrar</a>
       <a href={demoHref} class="{btn} h-10 bg-ink px-5 text-sm text-paper hover:bg-signal">
         <ButtonLabel>Solicitar demo</ButtonLabel>

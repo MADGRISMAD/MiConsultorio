@@ -33,3 +33,6 @@ class ThemeStore {
 }
 
 export const theme = new ThemeStore();
+
+// ssr is off, so this always runs in the browser: set the theme before anything renders
+if (typeof localStorage !== 'undefined') theme.init();

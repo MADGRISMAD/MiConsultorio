@@ -35,7 +35,7 @@
   ];
   const hours = [8, 9, 10, 11, 12];
   const NOW = 10.6;
-  const chip = 'rounded-2xl bg-white/90 shadow-[0_24px_48px_-16px_rgba(11,37,64,0.3)] ring-1 ring-ink/10 backdrop-blur';
+  const chip = 'rounded-2xl bg-panel/90 shadow-[0_24px_48px_-16px_rgba(11,37,64,0.3)] ring-1 ring-ink/10 backdrop-blur';
 
   let section: HTMLElement;
   let stage: HTMLDivElement;
@@ -137,7 +137,7 @@
     </div>
 
     <div bind:this={window3d} class="relative z-10 will-change-transform [transform-origin:50%_0%]" aria-hidden="true">
-      <div class="overflow-hidden rounded-[22px] bg-white shadow-[0_2px_4px_rgba(11,37,64,0.04),0_40px_80px_-24px_rgba(11,37,64,0.35)] ring-1 ring-ink/10">
+      <div class="overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgba(11,37,64,0.04),0_40px_80px_-24px_rgba(11,37,64,0.35)] ring-1 ring-ink/10">
         <div class="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
@@ -181,7 +181,7 @@
                 <!-- hour lines -->
                 {#each hours as h, i}
                   <div class="pointer-events-none absolute inset-x-0 border-t border-dashed border-ink/[0.08]" style="top: calc(var(--h) * {i})">
-                    <span class="absolute -top-2 left-0 bg-white pr-1 font-mono text-[9px] tabular-nums text-ink-faint sm:text-[10px]">{String(h).padStart(2, '0')}:00</span>
+                    <span class="absolute -top-2 left-0 bg-panel pr-1 font-mono text-[9px] tabular-nums text-ink-faint sm:text-[10px]">{String(h).padStart(2, '0')}:00</span>
                   </div>
                 {/each}
                 <span></span>
@@ -219,7 +219,7 @@
             <span class="block font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Expediente · 34 años</span>
           </span>
         </div>
-        <div class="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700 ring-1 ring-inset ring-amber-600/15">
+        <div class="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700 ring-1 ring-inset dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/25 ring-amber-600/15">
           <Icon name="warn" class="h-3.5 w-3.5" strokeWidth={2.2} />
           Alergia a penicilina
         </div>

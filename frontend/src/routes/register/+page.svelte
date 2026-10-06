@@ -2,14 +2,10 @@
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
   import { Op } from '$lib/op.svelte';
-  import { CLINIC_KINDS, type ClinicKind } from '$lib/types';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
-  import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
 
-  const kindIcons: Record<ClinicKind, IconName> = { GENERAL_MEDICAL: 'stethoscope', DENTAL: 'tooth', VETERINARY: 'paw', CHIROPRACTIC: 'spine' };
-
-  let kind = $state<ClinicKind>('GENERAL_MEDICAL');
   let clinicName = $state('');
   let phone = $state('');
   let email = $state('');
@@ -55,7 +51,7 @@
       return;
     }
     await op.run(() =>
-      session.register({ clinic_name: clinicName.trim(), kind, phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password })
+      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password })
     );
   }
 </script>
@@ -72,35 +68,13 @@
   <AuthLayout wide>
     <header class="mb-4">
       <h1 class="display text-[2.2rem] leading-none">Crea tu <em class="italic text-app-primary">consultorio</em></h1>
-      <p class="mt-2 text-sm text-app-muted">Toma menos de un minuto. Podrás agregar a tu equipo después.</p>
+      <p class="mt-2 text-sm text-app-muted">Toma menos de un minuto. Después te ayudamos a configurar todo lo demás.</p>
     </header>
 
     <form class="grid gap-3.5" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}
         <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
       {/if}
-
-      <fieldset>
-        <legend class="label">Giro del consultorio</legend>
-        <div class="grid grid-cols-2 gap-2.5" role="radiogroup">
-          {#each Object.entries(CLINIC_KINDS) as [k, info]}
-            {@const on = kind === k}
-            <button
-              type="button"
-              role="radio"
-              aria-checked={on}
-              class="flex items-center gap-3 rounded-xl border-2 p-3 text-left transition {on ? 'border-app-primary bg-app-primary/10' : 'border-app-ink/10 bg-app-panel hover:border-app-ink/25'}"
-              onclick={() => (kind = k as ClinicKind)}
-            >
-              <span class="grid h-9 w-9 flex-none place-items-center rounded-lg {on ? 'bg-app-primary text-app-on-primary' : 'bg-app-ink/8 text-app-muted'}"><Icon name={kindIcons[k as ClinicKind]} size={19} /></span>
-              <span class="min-w-0">
-                <strong class="block truncate text-sm font-semibold {on ? 'text-app-primary' : ''}">{info.label}</strong>
-                <small class="block truncate text-xs font-medium text-app-muted">{info.hint}</small>
-              </span>
-            </button>
-          {/each}
-        </div>
-      </fieldset>
 
       <div class="grid gap-3.5 sm:grid-cols-2">
         <div>
