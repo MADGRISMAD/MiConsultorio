@@ -48,12 +48,12 @@
   <Spinner />
 {:else if session.status === 'authenticated'}
   <Guard title="Inicio">
-    <section class="card relative overflow-hidden p-6 sm:p-8" style="background-image: radial-gradient(ellipse 60% 120% at 100% 0%, rgb(var(--app-primary) / 0.14), transparent 70%)">
-      <p class="text-sm font-semibold text-app-muted">{greeting},</p>
-      <h1 class="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">{session.user?.username}</h1>
+    <section class="relative">
+      <p class="section-title">{greeting}</p>
+      <h1 class="display mt-3 text-[2.75rem] leading-[0.95] sm:text-6xl">Tu consultorio, <em class="italic text-app-primary">{session.user?.username}.</em></h1>
       {#if session.clinic}
-        <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-app-muted">
-          <strong class="text-base text-app-ink">{session.clinic.name}</strong>
+        <p class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-app-muted">
+          <strong class="font-medium text-app-ink">{session.clinic.name}</strong>
           <span class="badge">{CLINIC_KINDS[session.clinic.kind]?.label}</span>
           {#if session.clinic.phone_number}<span>{session.clinic.phone_number}</span>{/if}
           {#if session.clinic.address}<span>{session.clinic.address}</span>{/if}
@@ -68,31 +68,31 @@
       {/if}
     </section>
 
-    <div class="mt-6 grid gap-4 sm:grid-cols-3">
+    <div class="mt-9 grid gap-4 sm:grid-cols-3">
       {#if canAppointments}
-        <div class="card p-5">
+        <div class="card p-6">
           <p class="section-title">Citas de hoy</p>
-          <p class="mt-2 text-4xl font-extrabold tabular-nums">{todayCount}</p>
+          <p class="display mt-3 text-6xl leading-none tabular-nums">{todayCount}</p>
         </div>
-        <div class="card p-5">
+        <div class="card p-6">
           <p class="section-title">Próximas citas</p>
-          <p class="mt-2 text-4xl font-extrabold tabular-nums">{appointments.filter((a) => a.date >= today).length}</p>
+          <p class="display mt-3 text-6xl leading-none tabular-nums">{appointments.filter((a) => a.date >= today).length}</p>
         </div>
       {/if}
       {#if canPatients}
-        <div class="card p-5">
+        <div class="card p-6">
           <p class="section-title">Pacientes</p>
-          <p class="mt-2 text-4xl font-extrabold tabular-nums">{patientCount ?? '—'}</p>
+          <p class="display mt-3 text-6xl leading-none tabular-nums">{patientCount ?? '—'}</p>
         </div>
       {/if}
     </div>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+    <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
       {#if canAppointments}
         <section class="card p-5 sm:p-6">
           <div class="mb-4 flex items-center justify-between">
-            <h2 class="text-lg font-extrabold">Próximas citas</h2>
-            <a href="/admin/navegar-citas" class="text-sm font-bold text-app-primary hover:underline">Ver todas</a>
+            <h2 class="display text-3xl">Próximas citas</h2>
+            <a href="/admin/navegar-citas" class="text-sm font-semibold text-app-primary hover:underline">Ver todas</a>
           </div>
           {#if upcoming.length === 0}
             <p class="rounded-xl bg-app-ink/5 px-4 py-8 text-center text-sm text-app-muted">No hay citas próximas.</p>
@@ -101,11 +101,11 @@
               {#each upcoming as a (a.id)}
                 <li class="flex items-center gap-4 py-3">
                   <span class="grid w-14 flex-none place-items-center rounded-xl bg-app-primary/12 py-1.5 text-center text-app-primary">
-                    <span class="text-[11px] font-extrabold uppercase leading-tight">{longDate(a.date).split(' ')[0]}</span>
-                    <span class="text-lg font-extrabold leading-tight">{a.date.slice(8)}</span>
+                    <span class="text-[11px] font-semibold uppercase leading-tight">{longDate(a.date).split(' ')[0]}</span>
+                    <span class="text-lg font-semibold leading-tight">{a.date.slice(8)}</span>
                   </span>
                   <span class="min-w-0 flex-1">
-                    <span class="block truncate font-bold">{a.names} {a.last_names}</span>
+                    <span class="block truncate font-semibold">{a.names} {a.last_names}</span>
                     <span class="block truncate text-sm text-app-muted">{a.details || 'Sin detalles'}</span>
                   </span>
                   <span class="flex items-center gap-1.5 text-sm font-semibold tabular-nums"><Icon name="clock" size={16} class="text-app-muted" />{a.startHour}</span>
@@ -118,7 +118,7 @@
 
       <section class="card p-5 sm:p-6 {canAppointments ? '' : 'lg:col-span-2'}">
         <div class="mb-4 flex items-center gap-2">
-          <h2 class="text-lg font-extrabold">Cobros</h2>
+          <h2 class="display text-3xl">Cobros</h2>
           <span class="badge-soon">Próximamente</span>
         </div>
         <ul class="grid gap-1.5 {canAppointments ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}">

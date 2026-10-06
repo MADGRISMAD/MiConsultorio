@@ -40,9 +40,9 @@
   <Spinner />
 {:else}
   <AuthLayout>
-    <header class="mb-5">
-      <h1 class="text-[1.55rem] font-extrabold tracking-tight">Bienvenido de vuelta</h1>
-      <p class="mt-1 text-[15px] text-app-muted">Entra para ver tu agenda, tus pacientes y tu consultorio.</p>
+    <header class="mb-6">
+      <h1 class="display text-[2.4rem] leading-none">Bienvenido <em class="italic text-app-primary">de vuelta</em></h1>
+      <p class="mt-3 text-[15px] text-app-muted">Entra para ver tu agenda, tus pacientes y tu consultorio.</p>
     </header>
 
     <form class="grid gap-4" novalidate onsubmit={submit}>
@@ -81,7 +81,7 @@
 
     <div class="mt-6 grid gap-2.5 border-t border-app-ink/10 pt-5 text-center text-sm text-app-muted">
       <span>¿Aún no tienes cuenta?</span>
-      <a href="/register" class="btn-secondary btn-lg !text-app-primary">Crear mi consultorio</a>
+      <a href="/register" class="btn-secondary btn-lg">Crear mi consultorio</a>
     </div>
     <a href="/" class="mt-4 block text-center text-sm font-semibold text-app-muted hover:text-app-ink">← Volver al inicio</a>
   </AuthLayout>

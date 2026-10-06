@@ -27,7 +27,7 @@
 
 {#snippet item(label: string, value: string | number)}
   <div>
-    <dt class="text-xs font-bold uppercase tracking-wide text-app-muted">{label}</dt>
+    <dt class="text-xs font-semibold uppercase tracking-wide text-app-muted">{label}</dt>
     <dd class="mt-0.5 break-words text-sm font-semibold">{value || '—'}</dd>
   </div>
 {/snippet}
@@ -35,7 +35,7 @@
 {#snippet flag(label: string, on: boolean)}
   <div class="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm {on ? 'bg-app-warning/12' : 'bg-app-ink/5'}">
     <span class="font-semibold {on ? '' : 'text-app-muted'}">{label}</span>
-    <span class="text-xs font-extrabold uppercase {on ? 'text-app-warning' : 'text-app-muted'}">{on ? 'Sí' : 'No'}</span>
+    <span class="text-xs font-semibold uppercase {on ? 'text-app-warning' : 'text-app-muted'}">{on ? 'Sí' : 'No'}</span>
   </div>
 {/snippet}
 

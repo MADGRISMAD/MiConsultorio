@@ -50,10 +50,10 @@
         aria-modal="true"
         aria-labelledby="{uid}-title"
         tabindex="-1"
-        class="page-in relative flex max-h-[92dvh] w-full flex-col rounded-t-3xl border border-app-ink/10 bg-app-panel text-app-ink shadow-app outline-none sm:rounded-2xl {wide ? 'max-w-4xl' : 'max-w-xl'}"
+        class="page-in relative flex max-h-[92dvh] w-full flex-col rounded-t-[28px] border border-app-ink/10 bg-app-panel text-app-ink shadow-app outline-none sm:rounded-[28px] {wide ? 'max-w-4xl' : 'max-w-xl'}"
       >
         <div class="flex items-start justify-between gap-4 px-6 pb-2 pt-6">
-          <h2 id="{uid}-title" class="text-xl font-extrabold tracking-tight">{title}</h2>
+          <h2 id="{uid}-title" class="display text-[1.75rem] leading-tight">{title}</h2>
           <button type="button" class="icon-btn -mr-2 -mt-1" aria-label="Cerrar" onclick={onclose}><Icon name="x" size={20} /></button>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">{@render children()}</div>

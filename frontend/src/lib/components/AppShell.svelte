@@ -6,8 +6,7 @@
   import { theme } from '$lib/theme.svelte';
   import { CLINIC_KINDS, PERMISSIONS } from '$lib/types';
   import Modal from './Modal.svelte';
-  import BrandMark from './ui/BrandMark.svelte';
-  import BrandName from './ui/BrandName.svelte';
+  import Brand from './ui/Brand.svelte';
   import Icon, { type IconName } from './ui/Icon.svelte';
   import Toasts from './ui/Toasts.svelte';
 
@@ -94,10 +93,7 @@
     class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-app-ink/10 bg-app-panel transition-transform duration-300 lg:translate-x-0 {drawer ? 'translate-x-0' : '-translate-x-full'}"
     aria-label="Navegación principal"
   >
-    <a href="/" class="flex items-center gap-3 px-5 py-5">
-      <BrandMark size={38} />
-      <span class="text-xl"><BrandName /></span>
-    </a>
+    <a href="/" class="px-5 py-5" aria-label="Caresia, inicio"><Brand size={32} class="text-[1.05rem]" /></a>
 
     <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
       {#each visible as g}
@@ -109,7 +105,7 @@
                 <a
                   href={item.href}
                   aria-current={isActive(item.href) ? 'page' : undefined}
-                  class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink aria-[current=page]:bg-app-primary/12 aria-[current=page]:text-app-primary"
+                  class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink aria-[current=page]:bg-app-primary/10 aria-[current=page]:text-app-primary"
                 >
                   <Icon name={item.icon} size={20} />
                   <span class="flex-1">{item.label}</span>
@@ -124,9 +120,9 @@
 
     <div class="border-t border-app-ink/10 p-3">
       <div class="flex items-center gap-3 rounded-xl p-2">
-        <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-primary/15 text-base font-extrabold text-app-primary">{initial}</span>
+        <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-ink font-display text-lg text-app-surface">{initial}</span>
         <span class="min-w-0 flex-1">
-          <span class="block truncate text-sm font-bold">{session.user?.username}</span>
+          <span class="block truncate text-sm font-semibold">{session.user?.username}</span>
           <span class="block truncate text-xs text-app-muted">{session.clinic?.name ?? '…'}</span>
         </span>
         <button type="button" class="icon-btn danger" title="Cerrar sesión" aria-label="Cerrar sesión" onclick={() => (confirming = true)}>
@@ -136,29 +132,31 @@
     </div>
   </aside>
 
-  <div class="lg:pl-72">
-    <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-app-ink/10 bg-app-surface/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
-      <button type="button" class="icon-btn lg:hidden" aria-label="Abrir menú" aria-expanded={drawer} onclick={() => (drawer = true)}>
-        <Icon name="menu" size={22} />
-      </button>
-      <div class="min-w-0 flex-1">
-        {#if title}<p class="truncate text-sm font-bold">{title}</p>{/if}
+  <div class="lg:pl-72" style="background-image: radial-gradient(ellipse 60% 360px at 50% 0%, rgb(var(--app-primary) / 0.08), transparent 75%); background-repeat: no-repeat">
+    <header class="sticky top-0 z-20 px-3 pt-3 sm:px-5 lg:px-8">
+      <div class="mx-auto flex h-14 max-w-7xl items-center gap-2 rounded-full bg-app-surface/75 pl-2 pr-2.5 shadow-[0_1px_0_rgba(11,37,64,0.05),0_12px_32px_-14px_rgba(11,37,64,0.2)] ring-1 ring-app-ink/5 backdrop-blur-xl sm:pl-4">
+        <button type="button" class="icon-btn lg:hidden" aria-label="Abrir menú" aria-expanded={drawer} onclick={() => (drawer = true)}>
+          <Icon name="menu" size={22} />
+        </button>
+        <div class="min-w-0 flex-1 px-1">
+          {#if title}<p class="truncate font-mono text-[11px] uppercase tracking-[0.14em] text-app-muted">{title}</p>{/if}
+        </div>
+        {#if session.clinic}
+          <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
+        {/if}
+        <button
+          type="button"
+          class="icon-btn"
+          title={theme.mode === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+          aria-label={theme.mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          onclick={() => theme.toggle()}
+        >
+          <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
+        </button>
       </div>
-      {#if session.clinic}
-        <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
-      {/if}
-      <button
-        type="button"
-        class="icon-btn"
-        title={theme.mode === 'dark' ? 'Tema claro' : 'Tema oscuro'}
-        aria-label={theme.mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-        onclick={() => theme.toggle()}
-      >
-        <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
-      </button>
     </header>
 
-    <main class="page-fade mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <main class="page-fade mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
       {@render children()}
     </main>
   </div>

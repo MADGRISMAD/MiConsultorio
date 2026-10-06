@@ -9,10 +9,10 @@
   let { title, subtitle, actions }: Props = $props();
 </script>
 
-<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+<div class="mb-7 flex flex-wrap items-end justify-between gap-4">
   <div>
-    <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
-    {#if subtitle}<p class="mt-1 text-sm text-app-muted">{subtitle}</p>{/if}
+    <h1 class="display text-[2.25rem] leading-[1] sm:text-5xl">{title}</h1>
+    {#if subtitle}<p class="mt-2 text-[15px] text-app-muted">{subtitle}</p>{/if}
   </div>
   {#if actions}<div class="flex flex-wrap items-center gap-2">{@render actions()}</div>{/if}
 </div>

@@ -16,7 +16,7 @@
       <span class="grid h-14 w-14 place-items-center rounded-2xl bg-app-primary/12 text-app-primary"><Icon name={win.icon} size={28} /></span>
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-3">
-          <h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{win.title}</h1>
+          <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{win.title}</h1>
           <span class="badge-soon">Próximamente</span>
         </div>
         <p class="mt-1 text-sm text-app-muted">{win.summary}</p>
@@ -31,7 +31,7 @@
     <ul class="grid gap-4 sm:grid-cols-2">
       {#each win.features as f, i}
         <li class="card page-in p-5 opacity-90" style="animation-delay: {i * 60}ms">
-          <h2 class="flex items-center gap-2 text-base font-extrabold"><Icon name="sparkles" size={17} class="text-app-accent" />{f.title}</h2>
+          <h2 class="flex items-center gap-2 text-base font-semibold"><Icon name="sparkles" size={17} class="text-app-accent" />{f.title}</h2>
           <p class="mt-2 text-sm leading-relaxed text-app-muted">{f.text}</p>
         </li>
       {/each}

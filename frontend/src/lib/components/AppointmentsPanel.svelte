@@ -124,7 +124,7 @@
           {#each items as a (a.id)}
             <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td">
-                <span class="block font-bold">{a.names} {a.last_names}</span>
+                <span class="block font-semibold">{a.names} {a.last_names}</span>
                 <span class="block font-mono text-xs text-app-muted">{a.CURP}</span>
               </td>
               <td class="td whitespace-nowrap">
@@ -160,7 +160,7 @@
       <div class="sm:col-span-3"><dt class="section-title">Detalles</dt><dd class="mt-1 whitespace-pre-wrap">{viewing.details || '—'}</dd></div>
     </dl>
     {#if canSeeExpedients}
-      <h3 class="mb-3 mt-6 text-base font-extrabold">Historial asociado</h3>
+      <h3 class="mb-3 mt-6 text-base font-semibold">Historial asociado</h3>
       {#if viewingExpedient}
         <ExpedientView expedient={viewingExpedient} />
       {:else}

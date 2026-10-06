@@ -29,7 +29,7 @@
 <svelte:head><title>Historial {curp} · Caresia</title></svelte:head>
 
 <Guard title="Historial" permissions={['navHistorials', 'adminHistorials']}>
-  <a href="/admin/navegar-historiales" class="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-app-primary hover:underline"><Icon name="arrow-left" size={16} />Volver a historiales</a>
+  <a href="/admin/navegar-historiales" class="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-app-primary hover:underline"><Icon name="arrow-left" size={16} />Volver a historiales</a>
   {#if status === 'ok' && expedient}
     <PageHeader title="Historial clínico" subtitle={expedient.CURP} />
     <div class="card p-6"><ExpedientView {expedient} /></div>

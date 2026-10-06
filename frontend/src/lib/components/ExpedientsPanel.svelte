@@ -131,8 +131,8 @@
             <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td">
                 <span class="flex items-center gap-3">
-                  <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/15 text-xs font-extrabold text-app-primary">{initials(e)}</span>
-                  <span class="font-bold">{e.names} {e.last_names}</span>
+                  <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/15 text-xs font-semibold text-app-primary">{initials(e)}</span>
+                  <span class="font-semibold">{e.names} {e.last_names}</span>
                 </span>
               </td>
               <td class="td whitespace-nowrap font-mono text-xs">{e.CURP}</td>

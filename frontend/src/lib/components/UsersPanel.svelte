@@ -141,8 +141,8 @@
             <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td">
                 <span class="flex items-center gap-3">
-                  <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/15 text-sm font-extrabold text-app-primary">{u.username.slice(0, 1).toUpperCase()}</span>
-                  <span class="font-bold">{u.username}</span>
+                  <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/15 text-sm font-semibold text-app-primary">{u.username.slice(0, 1).toUpperCase()}</span>
+                  <span class="font-semibold">{u.username}</span>
                   {#if u.username === session.user?.username}<span class="badge">Tú</span>{/if}
                 </span>
               </td>

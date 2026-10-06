@@ -1,10 +1,15 @@
 <script lang="ts">
   import { theme } from '$lib/theme.svelte';
-  import BrandMark from '$lib/components/ui/BrandMark.svelte';
-  import BrandName from '$lib/components/ui/BrandName.svelte';
+  import Brand from '$lib/components/ui/Brand.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
   $effect(() => theme.init());
+
+  const steps = [
+    'Pídele a un administrador de tu consultorio que entre a Usuarios y permisos.',
+    'Que presione el candado junto a tu usuario y escriba una contraseña nueva.',
+    'Entra con la contraseña nueva y cámbiala cuando quieras.'
+  ];
 </script>
 
 <svelte:head><title>Recuperar contraseña · Caresia</title></svelte:head>
@@ -12,34 +17,25 @@
 <div
   class="app fixed inset-0 grid place-items-center overflow-y-auto px-4 py-8"
   data-theme={theme.mode}
-  style="background: radial-gradient(ellipse 70% 45% at 10% 10%, rgba(224,138,30,.22), transparent 60%), radial-gradient(ellipse 60% 50% at 95% 95%, rgba(91,154,232,.3), transparent 60%), linear-gradient(160deg, #0a1a30 0%, #123056 45%, #1e5aa8 100%)"
+  style="background-image: radial-gradient(ellipse 60% 420px at 50% 0%, rgb(var(--app-primary) / 0.1), transparent 75%); background-repeat: no-repeat"
 >
-  <div class="card page-in w-full max-w-md px-6 py-8 text-center sm:px-8">
-    <a href="/" class="mx-auto inline-flex flex-col items-center gap-2" aria-label="Caresia, ir al inicio">
-      <BrandMark size={52} />
-      <span class="text-2xl"><BrandName /></span>
-    </a>
+  <div class="card page-in w-full max-w-md px-6 py-9 sm:px-9">
+    <a href="/" class="inline-flex" aria-label="Caresia, ir al inicio"><Brand size={32} class="text-[1.05rem]" /></a>
 
-    <h1 class="mt-5 text-lg font-extrabold">Recuperar contraseña</h1>
-    <p class="mt-2 text-sm text-app-muted">El envío de enlaces por correo todavía no está disponible. Mientras tanto, restablecer tu contraseña es muy sencillo:</p>
+    <h1 class="display mt-7 text-[2.2rem] leading-none">Recuperar <em class="italic text-app-primary">contraseña</em></h1>
+    <p class="mt-3 text-[15px] text-app-muted">El envío de enlaces por correo todavía no está disponible. Mientras tanto, restablecerla es muy sencillo:</p>
 
-    <ol class="mt-5 space-y-3 text-left text-sm">
-      <li class="flex gap-3 rounded-xl bg-app-elevated p-3.5">
-        <span class="grid h-6 w-6 flex-none place-items-center rounded-full bg-app-primary text-xs font-extrabold text-app-on-primary">1</span>
-        Pídele a un administrador de tu consultorio que entre a <strong>Usuarios y permisos</strong>.
-      </li>
-      <li class="flex gap-3 rounded-xl bg-app-elevated p-3.5">
-        <span class="grid h-6 w-6 flex-none place-items-center rounded-full bg-app-primary text-xs font-extrabold text-app-on-primary">2</span>
-        Que presione el ícono de editar junto a tu usuario y escriba una contraseña nueva.
-      </li>
-      <li class="flex gap-3 rounded-xl bg-app-elevated p-3.5">
-        <span class="grid h-6 w-6 flex-none place-items-center rounded-full bg-app-primary text-xs font-extrabold text-app-on-primary">3</span>
-        Entra con la contraseña nueva y cámbiala cuando quieras.
-      </li>
+    <ol class="mt-6 space-y-2.5 text-sm">
+      {#each steps as step, i}
+        <li class="flex items-start gap-3 rounded-xl bg-app-elevated p-3.5">
+          <span class="grid h-6 w-6 flex-none place-items-center rounded-full bg-app-ink font-mono text-xs text-app-surface">{i + 1}</span>
+          <span class="pt-0.5">{step}</span>
+        </li>
+      {/each}
     </ol>
 
-    <p class="mt-4 flex items-start gap-2 text-left text-xs text-app-muted"><Icon name="info" size={16} class="mt-px flex-none" />¿Eres el único administrador? Contacta al soporte de Caresia para recuperar el acceso.</p>
+    <p class="mt-5 flex items-start gap-2 text-xs text-app-muted"><Icon name="info" size={16} class="mt-px flex-none" />¿Eres el único administrador? Contacta al soporte de Caresia para recuperar el acceso.</p>
 
-    <a href="/login" class="btn-primary btn-lg mt-6">Volver al login</a>
+    <a href="/login" class="btn-primary btn-lg mt-7">Volver al login</a>
   </div>
 </div>

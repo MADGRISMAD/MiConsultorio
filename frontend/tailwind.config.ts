@@ -26,8 +26,7 @@ export default {
         display: ['"Instrument Serif"', 'Georgia', 'serif'],
         body: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
-        hand: ['Caveat', 'cursive'],
-        app: ['Figtree', '"Segoe UI"', 'system-ui', 'sans-serif']
+        hand: ['Caveat', 'cursive']
       },
       transitionTimingFunction: { 'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)' }
     }

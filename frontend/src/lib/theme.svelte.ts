@@ -8,7 +8,7 @@ function initial(): Theme {
   } catch {
     /* storage unavailable */
   }
-  return matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return 'light'; // the calm, paper-white look of the landing is the default
 }
 
 class ThemeStore {

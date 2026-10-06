@@ -69,8 +69,8 @@
 {:else}
   <AuthLayout wide>
     <header class="mb-4">
-      <h1 class="text-[1.45rem] font-extrabold tracking-tight">Crea tu consultorio</h1>
-      <p class="mt-1 text-sm text-app-muted">Toma menos de un minuto. Podrás agregar a tu equipo después.</p>
+      <h1 class="display text-[2.2rem] leading-none">Crea tu <em class="italic text-app-primary">consultorio</em></h1>
+      <p class="mt-2 text-sm text-app-muted">Toma menos de un minuto. Podrás agregar a tu equipo después.</p>
     </header>
 
     <form class="grid gap-3.5" novalidate onsubmit={submit}>
@@ -92,7 +92,7 @@
             >
               <span class="grid h-9 w-9 flex-none place-items-center rounded-lg {on ? 'bg-app-primary text-app-on-primary' : 'bg-app-ink/8 text-app-muted'}"><Icon name={kindIcons[k as ClinicKind]} size={19} /></span>
               <span class="min-w-0">
-                <strong class="block truncate text-sm font-extrabold {on ? 'text-app-primary' : ''}">{info.label}</strong>
+                <strong class="block truncate text-sm font-semibold {on ? 'text-app-primary' : ''}">{info.label}</strong>
                 <small class="block truncate text-xs font-medium text-app-muted">{info.hint}</small>
               </span>
             </button>
@@ -136,7 +136,7 @@
               {#each [1, 2, 3] as bar}
                 <i class="h-1.5 rounded-full {strength >= bar ? (strength === 1 ? 'bg-app-danger' : strength === 2 ? 'bg-app-warning' : 'bg-app-success') : 'bg-app-ink/12'}"></i>
               {/each}
-              <span class="ml-1 text-xs font-bold text-app-muted">{strengthLabel[strength]}</span>
+              <span class="ml-1 text-xs font-semibold text-app-muted">{strengthLabel[strength]}</span>
             </div>
           {/if}
           {@render err('password')}
@@ -151,7 +151,7 @@
       <div>
         <label class="flex cursor-pointer items-start gap-2.5 text-sm text-app-muted">
           <input type="checkbox" class="mt-0.5 h-[1.15rem] w-[1.15rem] flex-none accent-[rgb(var(--app-primary))]" bind:checked={accepted} />
-          <span>Acepto los <a href="/terminos" target="_blank" rel="noopener" class="font-bold text-app-primary hover:underline">términos</a> y el <a href="/privacidad" target="_blank" rel="noopener" class="font-bold text-app-primary hover:underline">aviso de privacidad</a>.</span>
+          <span>Acepto los <a href="/terminos" target="_blank" rel="noopener" class="font-semibold text-app-primary hover:underline">términos</a> y el <a href="/privacidad" target="_blank" rel="noopener" class="font-semibold text-app-primary hover:underline">aviso de privacidad</a>.</span>
         </label>
         {@render err('accepted')}
       </div>
@@ -162,7 +162,7 @@
     </form>
 
     <p class="mt-4 border-t border-app-ink/10 pt-4 text-center text-sm text-app-muted">
-      ¿Ya tienes cuenta? <a href="/login" class="font-bold text-app-primary hover:underline">Inicia sesión</a> · <a href="/" class="font-semibold hover:text-app-ink">Volver al inicio</a>
+      ¿Ya tienes cuenta? <a href="/login" class="font-semibold text-app-primary hover:underline">Inicia sesión</a> · <a href="/" class="font-semibold hover:text-app-ink">Volver al inicio</a>
     </p>
   </AuthLayout>
 {/if}

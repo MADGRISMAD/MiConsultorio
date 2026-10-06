@@ -107,56 +107,61 @@ html.lenis body {
 }
 
 /* ---------- App (panel, login, registro) ----------
-   Everything below is scoped to `.app`, so the landing keeps its own look. */
+   Same palette and type as the landing (paper, ink, signal blue, mint).
+   Everything below is scoped to `.app`, so the landing keeps its own markup untouched. */
 .app {
-  --app-primary: 30 90 168;
-  --app-accent: 224 138 30;
-  --app-ink: 26 35 50;
-  --app-muted: 100 116 139;
-  --app-surface: 238 241 246;
+  --app-primary: 22 115 209; /* signal */
+  --app-accent: 15 158 142; /* mint */
+  --app-ink: 11 37 64;
+  --app-muted: 75 97 119; /* ink-soft */
+  --app-surface: 244 248 251; /* paper */
   --app-panel: 255 255 255;
-  --app-elevated: 247 249 252;
-  --app-danger: 198 40 40;
-  --app-success: 46 125 50;
-  --app-warning: 230 81 0;
+  --app-elevated: 236 243 248;
+  --app-danger: 192 38 38;
+  --app-success: 15 158 142;
+  --app-warning: 180 83 9;
   --app-on-primary: 255 255 255;
-  --app-shadow: 0 1px 2px rgba(18, 32, 56, 0.05), 0 12px 28px rgba(18, 32, 56, 0.08);
+  --app-shadow: 0 1px 2px rgba(11, 37, 64, 0.04), 0 24px 48px -24px rgba(11, 37, 64, 0.22);
   color-scheme: light;
 }
 .app[data-theme='dark'] {
-  --app-primary: 91 154 232;
-  --app-accent: 240 169 74;
-  --app-ink: 232 238 246;
-  --app-muted: 154 171 191;
-  --app-surface: 12 18 28;
-  --app-panel: 21 29 42;
-  --app-elevated: 28 38 54;
-  --app-danger: 249 112 102;
-  --app-success: 108 233 166;
-  --app-warning: 253 176 34;
-  --app-on-primary: 10 18 32;
-  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.4);
+  --app-primary: 86 164 240;
+  --app-accent: 45 196 178;
+  --app-ink: 244 248 251;
+  --app-muted: 160 178 196;
+  --app-surface: 7 22 40;
+  --app-panel: 13 33 56;
+  --app-elevated: 20 46 76;
+  --app-danger: 248 113 113;
+  --app-success: 45 196 178;
+  --app-warning: 251 191 36;
+  --app-on-primary: 7 22 40;
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 24px 48px -20px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
 .app {
-  font-family: Figtree, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
   background: rgb(var(--app-surface));
   color: rgb(var(--app-ink));
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
+.app ::selection {
+  background: rgb(var(--app-primary));
+  color: #fff;
+}
 .app *:focus-visible {
-  outline: 2px solid rgb(var(--app-primary) / 0.6);
+  outline: 2px solid rgb(var(--app-primary) / 0.7);
   outline-offset: 2px;
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-app-ink/10 bg-app-panel shadow-app;
+    @apply rounded-[22px] border border-app-ink/10 bg-app-panel shadow-app;
   }
   .field {
-    @apply min-h-11 w-full rounded-xl border-[1.5px] border-app-ink/15 bg-app-elevated px-3.5 text-[15px] text-app-ink transition placeholder:text-app-muted/80 focus:border-app-primary focus:bg-app-panel focus:outline-none focus:ring-4 focus:ring-app-primary/15 aria-[invalid=true]:border-app-danger;
+    @apply min-h-11 w-full rounded-xl border border-app-ink/15 bg-app-panel px-3.5 text-[15px] text-app-ink transition placeholder:text-app-muted/70 hover:border-app-ink/30 focus:border-app-primary focus:outline-none focus:ring-4 focus:ring-app-primary/15 aria-[invalid=true]:border-app-danger;
   }
   textarea.field {
     @apply py-2.5;
@@ -165,19 +170,20 @@ html.lenis body {
     @apply cursor-pointer;
   }
   .label {
-    @apply mb-1.5 block text-sm font-semibold text-app-ink;
+    @apply mb-1.5 block text-sm font-medium text-app-ink;
   }
   .hint {
     @apply mt-1 text-xs text-app-muted;
   }
   .btn {
-    @apply inline-flex min-h-10 select-none items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55;
+    @apply inline-flex min-h-10 select-none items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-[transform,background-color,color,box-shadow] duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
   }
+  /* Same pill as the landing: ink fill that turns signal blue on hover */
   .btn-primary {
-    @apply btn bg-app-primary text-app-on-primary shadow-[0_8px_20px_rgb(var(--app-primary)/0.25)] hover:brightness-110;
+    @apply btn bg-app-ink text-app-surface hover:bg-app-primary hover:text-white;
   }
   .btn-secondary {
-    @apply btn border border-app-ink/15 bg-app-panel text-app-ink hover:bg-app-elevated;
+    @apply btn bg-app-panel text-app-ink ring-1 ring-inset ring-app-ink/15 hover:bg-app-elevated;
   }
   .btn-ghost {
     @apply btn text-app-muted hover:bg-app-ink/5 hover:text-app-ink;
@@ -186,31 +192,34 @@ html.lenis body {
     @apply btn bg-app-danger text-white hover:brightness-110;
   }
   .btn-lg {
-    @apply min-h-12 w-full rounded-[0.85rem] text-base;
+    @apply min-h-12 w-full text-base;
   }
   .icon-btn {
-    @apply inline-grid h-9 w-9 place-items-center rounded-lg text-app-muted transition hover:bg-app-ink/8 hover:text-app-ink;
+    @apply inline-grid h-9 w-9 place-items-center rounded-full text-app-muted transition hover:bg-app-ink/8 hover:text-app-ink;
   }
   .icon-btn.danger {
     @apply hover:bg-app-danger/12 hover:text-app-danger;
   }
   .th {
-    @apply relative whitespace-nowrap px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-app-muted;
+    @apply relative whitespace-nowrap px-4 py-3 text-left font-mono text-[11px] font-normal uppercase tracking-[0.12em] text-app-muted;
   }
   .td {
-    @apply px-4 py-3 text-sm;
+    @apply px-4 py-3.5 text-sm;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full bg-app-primary/12 px-2.5 py-0.5 text-xs font-bold text-app-primary;
+    @apply inline-flex items-center gap-1 rounded-full bg-app-primary/10 px-2.5 py-0.5 text-xs font-medium text-app-primary;
   }
   .badge-soon {
-    @apply inline-flex items-center rounded-full bg-app-accent/15 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-app-accent;
+    @apply inline-flex items-center rounded-full bg-app-accent/12 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-app-accent;
   }
   .alert {
-    @apply flex items-start gap-2.5 rounded-xl bg-app-danger/12 px-3.5 py-3 text-sm font-semibold text-app-danger;
+    @apply flex items-start gap-2.5 rounded-xl bg-app-danger/10 px-3.5 py-3 text-sm font-medium text-app-danger;
   }
   .section-title {
-    @apply text-xs font-extrabold uppercase tracking-[0.08em] text-app-muted;
+    @apply font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-app-muted;
+  }
+  .display {
+    @apply font-display font-normal tracking-[-0.02em];
   }
 }
 
