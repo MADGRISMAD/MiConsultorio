@@ -18,21 +18,21 @@ frontend/   SvelteKit: landing comercial y panel de administración
 Necesitas instalados: **Go 1.26+**, **Node 22+** y **PostgreSQL 16** (anota la contraseña que le pongas al usuario `postgres`).
 
 ```bash
-# 1. Configuración: copia el ejemplo, y ajusta DATABASE_URL (tu contraseña de PostgreSQL),
+# 1. Configuración: copia el ejemplo y ajusta DATABASE_URL (tu contraseña de PostgreSQL),
 #    JWT_SECRET (openssl rand -hex 32) y ADMIN_PASSWORD
-cp .env.example .env
+cp .env.example .env      # en PowerShell: copy .env.example .env
 
-# 2. Compila la interfaz (una sola vez)
-cd frontend && npm install && npm run build && cd ..
-
-# 3. Arranca
-cd backend && go run ./cmd/server
+# 2. Instala todo y arranca backend + frontend con un solo comando (desde la raíz)
+npm install
+npm run dev
 ```
 
-Abre <http://localhost:8080> e inicia sesión con `ADMIN_EMAIL`, `ADMIN_USERNAME` y `ADMIN_PASSWORD`.
+Abre <http://localhost:5173> e inicia sesión con `ADMIN_EMAIL`, `ADMIN_USERNAME` y `ADMIN_PASSWORD`.
 En el primer arranque el backend crea solo la base de datos, las tablas y la clínica con su administrador.
+El frontend espera a que el backend esté listo; si el backend falla (por ejemplo, PostgreSQL apagado), ambos se detienen y verás el motivo.
 
-Para desarrollar el frontend con recarga en caliente, deja el backend corriendo y en otra terminal usa `cd frontend && npm run dev` (<http://localhost:5173>, con `ALLOWED_ORIGINS=http://localhost:5173` en el `.env`).
+Otros comandos desde la raíz: `npm run build` (compila la interfaz), `npm start` (compila y sirve todo en <http://localhost:8080>, como en producción), `npm run test:api` y `npm run check`.
+
 Para crear más clínicas: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
 ## Producción con Docker
