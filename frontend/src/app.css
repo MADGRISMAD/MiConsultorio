@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* One-shot entrance on first paint; stagger comes from an inline animation-delay. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.rise {
+  animation: rise 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation-name: fade;
+  }
+}
+
+/* ---------- Landing ---------- */
+
+/* Lenis smooth scroll */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Paper grain over the whole landing */
+.grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Heart-monitor sweep: a bright dash travels along a path with pathLength=1000 */
+@keyframes ecg-sweep {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: -260;
+  }
+}
+.ecg-sweep {
+  stroke-dasharray: 260 1000;
+  animation: ecg-sweep 3.6s linear infinite;
+}
+
+@keyframes now-line {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.now-pulse {
+  animation: now-line 1.6s ease-in-out infinite;
+}
+
+@keyframes slot-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.4);
+  }
+}
+.slot-in {
+  transform-origin: top;
+  animation: slot-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ecg-sweep,
+  .now-pulse {
+    animation: none;
+  }
+  .slot-in {
+    animation-name: fade;
+  }
+}
+
+/* ---------- App (admin) ---------- */
+@layer components {
+  .field {
+    @apply w-full rounded-lg border border-ink/20 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-signal focus:outline-none focus:ring-2 focus:ring-signal/30;
+  }
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-paper hover:bg-signal;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink ring-1 ring-ink/15 hover:bg-paper;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .icon-btn {
+    @apply inline-grid h-10 w-10 place-items-center rounded-lg bg-white ring-1 ring-ink/10 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal;
+  }
+  .th {
+    @apply px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-soft;
+  }
+  .td {
+    @apply px-5 py-3 text-sm text-ink;
+  }
+}
+
+/* Entrance animations for the landing (delay/duration come from --d / --t) */
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+@keyframes enter-float {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.92);
+  }
+}
+.enter-up {
+  animation: enter-up var(--t, 1s) cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+}
+.enter-fade {
+  animation: fade var(--t, 1s) ease var(--d, 0s) both;
+}
+.enter-float {
+  animation: enter-float 1.1s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .enter-up,
+  .enter-float {
+    animation-name: fade;
+  }
+}
+
+/* Mount animations for the landing's product screens (delay via --d, duration via --t) */
+@keyframes k-scaley {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+}
+@keyframes k-up8 {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes k-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes k-x16 {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes k-line {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes k-thumb {
+  from {
+    left: 2px;
+  }
+}
+.a-scaley,
+.a-up8,
+.a-pop,
+.a-x16,
+.a-line,
+.a-thumb {
+  animation-duration: var(--t, 0.6s);
+  animation-delay: var(--d, 0s);
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-fill-mode: both;
+}
+.a-scaley {
+  animation-name: k-scaley;
+  transform-origin: top;
+}
+.a-up8 {
+  animation-name: k-up8;
+}
+.a-pop {
+  animation-name: k-pop;
+}
+.a-x16 {
+  animation-name: k-x16;
+}
+.a-line {
+  animation-name: k-line;
+  transform-origin: top;
+}
+.a-thumb {
+  animation-name: k-thumb;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .a-scaley,
+  .a-up8,
+  .a-pop,
+  .a-x16 {
+    animation-name: fade;
+  }
+  .a-line,
+  .a-thumb {
+    animation: none;
+  }
+}

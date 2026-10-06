@@ -1,0 +1,28 @@
+{
+  "name": "caresia-frontend",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "lenis": "^1.3.26"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@types/node": "^22.20.5",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  }
+}

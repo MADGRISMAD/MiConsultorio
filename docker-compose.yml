@@ -1,0 +1,35 @@
+# Production-like stack: PostgreSQL + the Caresia app (API and frontend on :8080).
+#   cp .env.example .env   # then set POSTGRES_PASSWORD and JWT_SECRET
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-caresia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-caresia}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-caresia}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-caresia}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
