@@ -260,10 +260,25 @@ func spaHandler(dir string) http.HandlerFunc {
 			if strings.HasPrefix(r.URL.Path, "/_app/immutable/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
+			pwaHeaders(w, r.URL.Path)
 			files.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+	}
+}
+
+// pwaHeaders sets the headers the installable app needs: the service worker must never be served
+// from the HTTP cache (so updates are noticed) and may control the whole origin.
+func pwaHeaders(w http.ResponseWriter, path string) {
+	switch path {
+	case "/service-worker.js":
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Service-Worker-Allowed", "/")
+	case "/manifest.webmanifest":
+		w.Header().Set("Content-Type", "application/manifest+json")
+		w.Header().Set("Cache-Control", "no-cache")
 	}
 }

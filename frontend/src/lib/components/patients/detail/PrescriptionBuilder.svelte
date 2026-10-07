@@ -98,7 +98,7 @@
     disclaimer = r.disclaimer;
     return r.medications;
   };
-  const searchDx = async (q: string) => (await rxApi.diagnoses(q)).diagnoses;
+  const searchDx = async (q: string) => (await rxApi.diagnoses(q, 15, subject, species)).diagnoses;
 
   function pickMed(n: number, m: CatalogMed) {
     const it = items[n];
@@ -226,7 +226,7 @@
       {/if}
       <div>
         <label class="label" for="rx-dx">Diagnóstico</label>
-        <Autocomplete id="rx-dx" bind:value={diagnosis} search={searchDx} title={(d: Icd10) => `${d.code} · ${d.name}`} onpick={(d: Icd10) => (diagnosis = `${d.name} (${d.code})`)} placeholder="Escribe o busca en CIE-10 (código o nombre)" minChars={2} describedby="rx-dx-h" />
+        <Autocomplete id="rx-dx" bind:value={diagnosis} search={searchDx} title={(d: Icd10) => (d.code ? `${d.code} · ${d.name}` : d.name)} onpick={(d: Icd10) => (diagnosis = d.code ? `${d.name} (${d.code})` : d.name)} placeholder={subject === 'animal' ? 'Escribe o busca un diagnóstico veterinario' : 'Escribe o busca en CIE-10 (código o nombre)'} minChars={2} describedby="rx-dx-h" />
         <p id="rx-dx-h" class="hint">Catálogo CIE-10 parcial: si no aparece, escribe el diagnóstico libremente.</p>
       </div>
 
