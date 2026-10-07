@@ -89,6 +89,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Enviar correo
+        # Un fallo del correo nunca debe pintar de rojo un deploy que salió bien.
+        continue-on-error: true
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -106,6 +108,9 @@ jobs:
             echo "Faltan SMTP_USER, SMTP_PASS o DEPLOY_NOTIFY_TO: no se envía correo."
             exit 0
           fi
+          # Las contraseñas de aplicación de Gmail se muestran en grupos de 4 con espacios: el servidor las quiere juntas.
+          SMTP_PASS="$(printf '%s' "$SMTP_PASS" | tr -d '[:space:]"'"'")"
+          SMTP_USER="$(printf '%s' "$SMTP_USER" | tr -d '[:space:]"'"'")"
           HOST="${SMTP_HOST:-smtp.gmail.com}"; PORT="${SMTP_PORT:-587}"
           FROM="${MAIL_FROM:-Caresia <$SMTP_USER>}"
           if [ "$RESULT" = "success" ]; then
@@ -121,6 +126,9 @@ jobs:
             printf 'MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n'
             printf '%s\r\n\r\nCommit: %s\r\nAutor: %s\r\nMensaje: %s\r\n\r\nDetalle: %s\r\n' "$STATUS" "${SHA:0:7}" "$ACTOR" "$(printf '%s' "$COMMIT_MSG" | head -n1)" "$RUN_URL"
           } > mail.txt
-          curl -fsS --ssl-reqd --url "smtp://$HOST:$PORT" --user "$SMTP_USER:$SMTP_PASS" \
+          if ! curl -fsS --ssl-reqd --url "smtp://$HOST:$PORT" --user "$SMTP_USER:$SMTP_PASS" \
             --mail-from "$SMTP_USER" $(for r in ${NOTIFY_TO//,/ }; do printf -- '--mail-rcpt %s ' "$r"; done) \
-            --upload-file mail.txt
+            --upload-file mail.txt; then
+            echo "::warning title=No se pudo enviar el correo del deploy::El servidor SMTP rechazó el acceso (curl 67). Revisa SMTP_USER (correo completo) y SMTP_PASS (contraseña de APLICACIÓN de Gmail, no la normal). El deploy en sí no se afectó."
+            exit 1
+          fi
