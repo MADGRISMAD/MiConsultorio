@@ -42,7 +42,7 @@ type Principal struct {
 	// asks for it and they have not set it up yet (clinical routes answer SETUP_2FA until they do).
 	TwoFactorEnabled, MustSetup2FA bool
 	// LinkedOwnerID is set on a branch administrator account: the organization owner it acts for.
-	// OwnerTV and OwnerDisabled are that owner's token version and state, checked on every request.
+	// OwnerTV and OwnerDisabled are that owner's token version and whether they are deactivated or no longer an administrator.
 	LinkedOwnerID string
 	OwnerTV       int
 	OwnerDisabled bool
@@ -80,7 +80,7 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	err := q.QueryRow(ctx, `
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
 		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none'),
-		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled, false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false)
+		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled OR o.role <> 'admin', false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false)
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id LEFT JOIN users o ON o.id = u.linked_owner_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
