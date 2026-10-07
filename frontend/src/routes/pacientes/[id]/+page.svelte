@@ -197,8 +197,8 @@
             <button type="button" class="btn-secondary" aria-haspopup="menu" aria-expanded={docsOpen} onclick={(ev) => { ev.stopPropagation(); docsOpen = !docsOpen; }}>Documentos<Icon name="chevron-down" size={16} /></button>
             {#if docsOpen}
               <div role="menu" tabindex="-1" class="absolute right-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-app-ink/10 bg-app-panel p-2 shadow-app" onclick={(ev) => ev.stopPropagation()} onkeydown={(ev) => ev.key === 'Escape' && (docsOpen = false)}>
-                <button type="button" role="menuitem" class="btn-ghost w-full justify-start" onclick={() => run('priv', () => printPrivacyNotice(patient, undefined as never))}>Aviso de privacidad</button>
-                <button type="button" role="menuitem" class="btn-ghost w-full justify-start" onclick={() => run('cons', () => printConsent(patient, undefined as never, professional))}>Consentimiento informado</button>
+                <button type="button" role="menuitem" class="btn-ghost w-full justify-start" onclick={() => run('priv', () => printPrivacyNotice(patient))}>Aviso de privacidad</button>
+                <button type="button" role="menuitem" class="btn-ghost w-full justify-start" onclick={() => run('cons', () => printConsent(patient, undefined, professional))}>Consentimiento informado</button>
                 <p class="px-3 pb-2 pt-1 text-xs text-app-muted">Son formatos base: revísalos con tu asesor legal.</p>
               </div>
             {/if}
