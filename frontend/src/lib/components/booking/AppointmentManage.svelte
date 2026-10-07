@@ -103,7 +103,7 @@
     </div>
 
     <dl class="mt-4 grid gap-3 rounded-xl bg-app-elevated p-4 text-sm">
-      <div><dt class="text-xs text-app-muted">Fecha</dt><dd class="font-semibold capitalize">{dateLong(appt.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">Fecha</dt><dd class="font-semibold first-letter:uppercase">{dateLong(appt.date)}</dd></div>
       <div><dt class="text-xs text-app-muted">Hora</dt><dd class="font-semibold">{appt.start} h</dd></div>
       {#if appt.professional}<div><dt class="text-xs text-app-muted">Atiende</dt><dd class="font-semibold">{appt.professional}</dd></div>{/if}
       {#if appt.service}<div><dt class="text-xs text-app-muted">Servicio</dt><dd class="font-semibold">{appt.service}</dd></div>{/if}

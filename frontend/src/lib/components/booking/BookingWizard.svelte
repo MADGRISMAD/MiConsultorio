@@ -108,7 +108,7 @@
       {#if done.pending_confirmation}El consultorio revisará tu solicitud y te avisará si hay algún cambio.{:else}Te esperamos.{/if}
     </p>
     <dl class="mt-5 grid gap-2 rounded-xl bg-app-elevated p-4 text-sm">
-      <div><dt class="text-xs text-app-muted">Fecha</dt><dd class="font-semibold capitalize">{dateLong(done.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">Fecha</dt><dd class="font-semibold first-letter:uppercase">{dateLong(done.date)}</dd></div>
       <div><dt class="text-xs text-app-muted">Hora</dt><dd class="font-semibold">{done.start} h</dd></div>
       <div><dt class="text-xs text-app-muted">Atiende</dt><dd class="font-semibold">{done.professional}</dd></div>
       <div><dt class="text-xs text-app-muted">Consultorio</dt><dd class="font-semibold">{done.clinic}</dd></div>
@@ -168,7 +168,7 @@
         <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} /></div>
         {#if date}
           <div class="mt-4" aria-live="polite">
-            <p class="label capitalize">{dateLong(date)}</p>
+            <p class="label first-letter:uppercase">{dateLong(date)}</p>
             {#if slotsOp.phase === 'loading'}
               <p class="text-sm text-app-muted">Buscando horarios…</p>
             {:else if slotsOp.phase === 'error'}
@@ -193,7 +193,7 @@
       <section class="card page-in px-5 py-5 sm:px-6" aria-labelledby="bk-s3">
         <h2 id="bk-s3" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(3)}>3</span>Tus datos</h2>
         <p class="mt-2 text-sm text-app-muted">
-          {professional?.name ?? ''} · <span class="capitalize">{dateLong(date)}</span> · {start} h. Solo pedimos lo necesario para agendar; no escribas información médica detallada.
+          {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{dateLong(date)}</span> · {start} h. Solo pedimos lo necesario para agendar; no escribas información médica detallada.
         </p>
         {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
