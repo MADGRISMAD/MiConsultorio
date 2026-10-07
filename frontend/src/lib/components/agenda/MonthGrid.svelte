@@ -1,5 +1,6 @@
 <script lang="ts">
   import { STATUS_META, isActive, type Appt, type Professional, type TimeBlock } from '$lib/types/agenda';
+  import type { MonthLoadDay } from '$lib/types/waitlist';
   import { WEEKDAY_SHORT, fullName, monthDays, parseDay, proColor, todayStr } from './util';
 
   interface Props {
@@ -9,8 +10,11 @@
     pros: Professional[];
     onday: (day: string) => void;
     onopen: (a: Appt) => void;
+    /** how full each day is (from /agenda/month-load); optional */
+    load?: Map<string, MonthLoadDay>;
   }
-  let { cursor, appts, blocks, pros, onday, onopen }: Props = $props();
+  let { cursor, appts, blocks, pros, onday, onopen, load }: Props = $props();
+  const loadColor = (l: number) => (l >= 0.9 ? 'bg-app-danger' : l >= 0.6 ? 'bg-app-warning' : 'bg-app-success');
 
   const today = todayStr();
   const days = $derived(monthDays(cursor));
@@ -41,6 +45,10 @@
         {@const list = byDay.get(d) ?? []}
         <div class="min-h-[6.5rem] border-b border-l border-app-ink/10 p-1 first:border-l-0 [&:nth-child(7n+1)]:border-l-0 {d.slice(0, 7) === month ? '' : 'bg-app-ink/[0.03]'} {blocked(d) ? 'month-block' : ''}">
           <button type="button" class="mb-1 grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-medium hover:bg-app-ink/8 {d === today ? 'bg-app-primary text-white hover:bg-app-primary' : d.slice(0, 7) === month ? '' : 'text-app-muted'}" onclick={() => onday(d)} aria-label="Ver el día {parseDay(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}">{parseDay(d).getDate()}</button>
+          {#if load?.get(d) && !load.get(d)?.blocked && (load.get(d)?.capacity_minutes ?? 0) > 0}
+            {@const l = load.get(d)!}
+            <div class="mb-1 h-1 overflow-hidden rounded-full bg-app-ink/10" title="{Math.round(l.load * 100)}% de ocupación" aria-hidden="true"><div class="h-full {loadColor(l.load)}" style="width:{Math.min(100, Math.round(l.load * 100))}%"></div></div>
+          {/if}
           {#each list.slice(0, MAX) as a (a.id)}
             <button type="button" class="mb-0.5 block w-full truncate rounded border-l-[3px] px-1 py-px text-left text-[11px] {STATUS_META[a.status].card}" style="border-left-color:{proColor(pros, a.professional_id)}" onclick={() => onopen(a)}>
               <span class="tabular-nums">{a.startHour}</span> {fullName(a)}

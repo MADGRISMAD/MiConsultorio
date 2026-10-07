@@ -19,6 +19,7 @@
   import Appearance from './Appearance.svelte';
   import ClinicSettings from './ClinicSettings.svelte';
   import AgendaSettings from './AgendaSettings.svelte';
+  import ServiceDurations from './ServiceDurations.svelte';
   import ComplianceSection from './ComplianceSection.svelte';
   import PortalSettings from './PortalSettings.svelte';
   import SecuritySettings from './SecuritySettings.svelte';
@@ -272,6 +273,7 @@
         <ClinicSettings />
       {:else if section.id === 'agenda'}
         <AgendaSettings />
+        <ServiceDurations />
       {:else if section.id === 'seguridad'}
         <SecuritySettings />
       {:else if section.id === 'portal'}

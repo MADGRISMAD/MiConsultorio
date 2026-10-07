@@ -4,6 +4,7 @@
   import { page } from '$app/state';
   import { session } from '$lib/session.svelte';
   import { theme } from '$lib/theme.svelte';
+  import NotificationBell from './notifications/NotificationBell.svelte';
   import { CLINIC_KINDS, PERMISSIONS, ROLES, type Role } from '$lib/types';
   import Modal from './Modal.svelte';
   import Avatar from './ui/Avatar.svelte';
@@ -36,6 +37,8 @@
       items: [
         { label: 'Inicio', href: '/', icon: 'home' },
         { label: 'Citas', href: '/admin/navegar-citas', icon: 'calendar', perms: [PERMISSIONS.navAppointments] },
+        { label: 'Lista de espera', href: '/agenda/espera', icon: 'clock-plus', perms: [PERMISSIONS.navAppointments] },
+        { label: 'Avisos', href: '/avisos', icon: 'bell', perms: [PERMISSIONS.navAppointments, PERMISSIONS.pos, PERMISSIONS.posManage] },
         { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] },
         { label: 'Reportes clínicos', href: '/reportes', icon: 'chart', perms: [PERMISSIONS.adminUsers, PERMISSIONS.navHistorials] }
       ]
@@ -179,6 +182,7 @@
         {:else if session.clinic}
           <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
         {/if}
+        {#if !session.isPlatform}<NotificationBell />{/if}
         <a
           href="/ajustes"
           class="icon-btn {page.url.pathname.startsWith('/ajustes') ? 'bg-app-primary/12 text-app-primary' : ''}"

@@ -12,6 +12,8 @@
   import AppointmentDetail from './agenda/AppointmentDetail.svelte';
   import BlockModal from './agenda/BlockModal.svelte';
   import MonthGrid from './agenda/MonthGrid.svelte';
+  import { agendaLoadApi } from '$lib/api/waitlist';
+  import type { MonthLoadDay } from '$lib/types/waitlist';
   import TimeGrid from './agenda/TimeGrid.svelte';
   import { addDays, addMonths, dayKey, fmtShort, fullName, monthDays, proColor, rangeTitle, todayStr, toMin, visibleRange, weekStart } from './agenda/util';
   import AppointmentForm from './AppointmentForm.svelte';
@@ -48,6 +50,7 @@
 
   let view = $state<View>('week');
   let cursor = $state(todayStr());
+  let monthLoad = $state<Map<string, MonthLoadDay>>(new Map());
   let proFilter = $state('');
   let roomFilter = $state('');
   let statusFilter = $state('');
@@ -106,6 +109,12 @@
       ]);
       if (mine !== seq) return;
       appts = a;
+      if (view === 'month') {
+        agendaLoadApi
+          .monthLoad(cursor.slice(0, 7), proFilter)
+          .then((days) => { if (mine === seq) monthLoad = new Map(days.map((d) => [d.date, d])); })
+          .catch(() => { monthLoad = new Map(); });
+      }
       blocks = proFilter ? b.filter((x) => !x.professional_id || x.professional_id === proFilter) : b;
       loadError = '';
     } catch (e) {
@@ -303,7 +312,7 @@
       onblock={() => (blockOpen = true)} onday={view === 'week' ? goDay : undefined}
     />
   {:else if view === 'month'}
-    <MonthGrid {cursor} {appts} {blocks} {pros} onday={goDay} onopen={(a) => (viewing = a)} />
+    <MonthGrid {cursor} {appts} {blocks} {pros} load={monthLoad} onday={goDay} onopen={(a) => (viewing = a)} />
   {:else if listSorted.length === 0}
     <EmptyState icon="calendar" title="No hay citas en este mes" text={canEdit ? 'Agenda una cita o cambia de mes.' : 'Cuando se agenden citas aparecerán aquí.'}>
       {#if canEdit}<button type="button" class="btn-primary" onclick={() => openCreate()}><Icon name="plus" size={18} stroke={2.2} />Nueva cita</button>{/if}
