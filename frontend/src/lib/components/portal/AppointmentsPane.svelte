@@ -69,7 +69,7 @@
 {#snippet card(a: PortalAppointment, withCancel: boolean)}
   <li class="card flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-5">
     <div class="min-w-0">
-      <p class="font-medium capitalize">{dateLong(a.date)}</p>
+      <p class="font-medium first-letter:uppercase">{dateLong(a.date)}</p>
       <p class="mt-0.5 flex items-center gap-1.5 text-sm text-app-muted"><Icon name="clock" size={15} />{a.start_hour} a {a.end_hour} h</p>
       {#if multi && a.patient_name}<p class="mt-1 text-sm">Paciente: <strong>{a.patient_name}</strong></p>{/if}
       {#if a.service}<p class="text-sm text-app-muted">{a.service}</p>{/if}
@@ -120,7 +120,7 @@
 
 <ConfirmModal open={target !== null} title="Cancelar cita" op={cancelOp} onconfirm={confirmCancel} onclose={() => (target = null)} confirmLabel="Sí, cancelar mi cita">
   {#if target}
-    <p>Vas a cancelar la cita del <strong class="capitalize">{dateLong(target.date)}</strong> a las {target.start_hour} h.</p>
+    <p>Vas a cancelar la cita del <strong>{dateLong(target.date)}</strong> a las {target.start_hour} h.</p>
     <label class="label mt-4" for="ap-reason">Motivo (opcional)</label>
     <input id="ap-reason" class="field" maxlength="300" bind:value={reason} />
   {/if}

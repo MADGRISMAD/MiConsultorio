@@ -75,7 +75,7 @@
                   </li>
                 {/each}
               </ol>
-              {#if r.instructions}<p class="mt-3 whitespace-pre-line"><strong>Indicaciones generales: </strong>{r.instructions}</p>{/if}
+              {#if r.instructions}<p class="mt-3 whitespace-pre-line"><strong class="mr-1">Indicaciones generales:</strong>{r.instructions}</p>{/if}
             {/if}
             {#if r.next_visit}<p class="mt-3 text-app-muted">Próxima cita sugerida: {fmt(r.next_visit)}</p>{/if}
             <p class="mt-3 text-xs text-app-muted">Cédula profesional {r.author_license}{r.author_institution ? ` · ${r.author_institution}` : ''}. Esta es una copia informativa; la receta firmada es la que te entregó el consultorio.</p>

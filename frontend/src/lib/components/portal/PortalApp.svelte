@@ -105,7 +105,7 @@
           onclick={() => (tab = t.id)}
           onkeydown={onKey}
         >
-          <Icon name={t.icon} size={16} />{t.label}
+          <Icon name={t.icon} size={16} />{#if t.id === 'vacunas'}<span class="sm:hidden">Vacunas</span><span class="hidden sm:inline">{t.label}</span>{:else}{t.label}{/if}
         </button>
       {/each}
     </div>
