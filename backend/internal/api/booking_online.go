@@ -458,7 +458,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		audit(ctx, tx, c.ID, nil, "appointment_booked_online", "Cita reservada en línea para el "+req.Date+" a las "+req.Start,
 			map[string]any{"appointment_id": apptID, "professional_id": pro.ID, "requires_confirmation": c.RequiresConfirmation})
 		b.ntfAppointment(ctx, tx, c.ID, pro.ID, "booking_new", "Nueva cita por reserva en línea",
-			req.Names+" "+req.LastNames+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/agenda")
+			req.Names+" "+req.LastNames+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/admin/navegar-citas")
 		return b.scheduleReminders(ctx, tx, c.ID, apptID)
 	})
 	switch {

@@ -464,7 +464,7 @@ func (s *Server) wlAccept(ctx context.Context, token string, v *wlView, clinicID
 			return err
 		}
 		audit(ctx, tx, clinicID, nil, "waitlist_accept", "Se agendó una cita desde la lista de espera", map[string]any{"entry": entryID, "appointment_id": apptID})
-		s.ntfAppointment(ctx, tx, clinicID, proID, "waitlist_accepted", "Lugar aceptado desde la lista de espera", name+" · "+date+" "+start, "/agenda")
+		s.ntfAppointment(ctx, tx, clinicID, proID, "waitlist_accepted", "Lugar aceptado desde la lista de espera", name+" · "+date+" "+start, "/admin/navegar-citas")
 		return s.scheduleReminders(ctx, tx, clinicID, apptID)
 	})
 	if err != nil || refused != "" {

@@ -220,7 +220,7 @@ func (s *Server) portalCancelAppointment(w http.ResponseWriter, r *http.Request)
 			return err
 		}
 		portalAudit(ctx, tx, sess.ClinicID, sess.Email, "appointment_cancelled", "Cita cancelada por el paciente desde el portal", map[string]any{"appointment_id": id})
-		s.ntfAppointmentByID(ctx, tx, sess.ClinicID, id, "appointment_cancelled_patient", "Un paciente canceló su cita", "/agenda")
+		s.ntfAppointmentByID(ctx, tx, sess.ClinicID, id, "appointment_cancelled_patient", "Un paciente canceló su cita", "/admin/navegar-citas")
 		return nil
 	})
 	switch {

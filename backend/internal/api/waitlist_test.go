@@ -950,7 +950,7 @@ func TestNotificationsByRoleAndRead(t *testing.T) {
 		if len(list) != 1 || unread != 1 || list[0]["kind"] != "booking_new" || list[0]["read"] != false {
 			t.Fatalf("%s: %v (%d)", name, list, unread)
 		}
-		if !strings.Contains(list[0]["body"].(string), "Ana") || list[0]["link"] != "/agenda" {
+		if !strings.Contains(list[0]["body"].(string), "Ana") || list[0]["link"] != "/admin/navegar-citas" {
 			t.Fatalf("%s body: %v", name, list[0])
 		}
 	}

@@ -8,8 +8,14 @@
     horizon: number;
     value: string;
     onpick: (date: string) => void;
+    /** Days (YYYY-MM-DD) that still have a free slot in the shown month; null while unknown (nothing is disabled). */
+    available?: string[] | null;
+    /** Called with the shown month (YYYY-MM) at start and whenever it changes. */
+    onmonth?: (month: string) => void;
   }
-  let { min, horizon, value, onpick }: Props = $props();
+  let { min, horizon, value, onpick, available = null, onmonth }: Props = $props();
+
+  const free = $derived(available ? new Set(available) : null);
 
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -46,6 +52,10 @@
     month = t.getUTCMonth();
   }
 
+  $effect(() => {
+    onmonth?.(`${year}-${String(month + 1).padStart(2, '0')}`);
+  });
+
   function label(d: number) {
     const dow = (new Date(Date.UTC(year, month, d)).getUTCDay() + 6) % 7;
     return `${DAY_NAMES[dow]} ${d} de ${MONTHS[month]}`;
@@ -71,13 +81,14 @@
         <span></span>
       {:else}
         {@const day = iso(year, month, d)}
-        {@const off = day < min || day > max}
+        {@const full = !!free && day >= min && day <= max && !free.has(day)}
+        {@const off = day < min || day > max || full}
         <button
           type="button"
           class="grid aspect-square min-h-10 place-items-center rounded-xl text-sm transition disabled:cursor-not-allowed disabled:text-app-muted/40
             {value === day ? 'bg-app-ink font-semibold text-app-surface' : day === min ? 'font-semibold text-app-primary hover:bg-app-ink/8' : 'hover:bg-app-ink/8'}"
           disabled={off}
-          aria-label={label(d)}
+          aria-label={full ? `${label(d)}, sin lugares` : label(d)}
           aria-pressed={value === day}
           onclick={() => onpick(day)}>{d}</button
         >
