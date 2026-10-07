@@ -60,6 +60,9 @@ type Config struct {
 
 	// CFDI stamping through Facturama. Empty credentials leave invoices as requests to issue by hand.
 	FacturamaUser, FacturamaPass, FacturamaBase string
+
+	// Signs patient-portal sessions; kept apart from JWTSecret so a portal cookie can never act as a staff session.
+	PortalKey []byte
 }
 
 func Load() (*Config, error) {
@@ -152,6 +155,7 @@ func Load() (*Config, error) {
 	// Provider secrets: use the dedicated variables when given, otherwise derive them from JWT_SECRET.
 	c.OAuthStateSecret = deriveKey("OAUTH_STATE_SECRET", secret, "oauth-state")
 	c.TokenEncKey = deriveKey("TOKEN_ENC_KEY", secret, "token-enc")
+	c.PortalKey = deriveKey("PORTAL_SESSION_KEY", secret, "portal-session")
 	for _, o := range strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {
 			c.AllowedOrigins = append(c.AllowedOrigins, strings.TrimRight(o, "/"))
