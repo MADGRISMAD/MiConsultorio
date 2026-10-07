@@ -22,10 +22,13 @@
     if (cents !== toCents(text)) text = centsText(cents);
   });
   $effect(() => {
-    if (autofocus) {
+    if (!autofocus) return;
+    // Modals focus their own dialog after mounting, so wait a beat
+    const t = setTimeout(() => {
       input?.focus();
       input?.select();
-    }
+    }, 40);
+    return () => clearTimeout(t);
   });
 </script>
 

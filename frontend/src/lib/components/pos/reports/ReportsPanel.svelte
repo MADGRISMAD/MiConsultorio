@@ -164,7 +164,7 @@
         <div class="mt-4 overflow-x-auto pb-1">
           <ul class="flex h-44 items-end gap-1.5 text-app-primary" style="min-width: {Math.min(report.by_day.length, 62) * 26}px" aria-label="Total vendido por día">
             {#each report.by_day as d (d.day)}
-              <li class="group relative flex h-full min-w-[18px] flex-1 flex-col justify-end" title="{dayLabel(d.day)}: {moneyCents(d.total_cents)} · {d.sales} venta(s)">
+              <li class="group relative flex h-full min-w-[18px] max-w-[72px] flex-1 flex-col justify-end" title="{dayLabel(d.day)}: {moneyCents(d.total_cents)} · {d.sales} venta(s)">
                 <span class="rounded-t-md bg-current opacity-80 transition group-hover:opacity-100" style="height: {Math.max(3, (d.total_cents / maxDay) * 100)}%"></span>
                 <span class="sr-only">{dayLabel(d.day)}: {moneyCents(d.total_cents)}, {d.sales} ventas</span>
               </li>

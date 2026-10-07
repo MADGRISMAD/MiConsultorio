@@ -122,6 +122,8 @@
     } else {
       addLine({ method, amount_cents: amount, reference: reference.trim() || undefined });
     }
+    // A single payment that covers the whole account closes the sale right away: one tap instead of two.
+    if (remaining === 0 && !busy) onconfirm(payments.map(({ id: _id, ...p }) => p));
   }
 
   // ---- Mercado Pago charges ----
@@ -356,7 +358,7 @@
                 <input id="{uid}-ref" class="field" bind:value={reference} maxlength="80" autocomplete="off" placeholder={method === 'card' ? 'Últimos 4 dígitos o folio del voucher' : method === 'transfer' ? 'Clave de rastreo' : 'Referencia'} />
               </div>
             {/if}
-            <button type="submit" class="btn-primary btn-lg min-h-12">Agregar pago{amount ? ' de ' + moneyCents(amount) : ''}</button>
+            <button type="submit" class="btn-primary btn-lg min-h-12">{amount && amount === remaining ? 'Cobrar ' + moneyCents(amount) : 'Agregar pago' + (amount ? ' de ' + moneyCents(amount) : '')}</button>
           </form>
         {/if}
         {#if formError}<p class="alert" role="alert"><Icon name="alert" size={18} />{formError}</p>{/if}
