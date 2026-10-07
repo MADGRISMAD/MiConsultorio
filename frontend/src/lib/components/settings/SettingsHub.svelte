@@ -205,16 +205,16 @@
       <p class="mt-2 text-[15px] text-app-muted">Tu consultorio, tus cobros y esta app.</p>
     </header>
 
-    <div class="card grid gap-5 p-3">
+    <div class="card grid min-w-0 gap-5 p-3">
       {#each groups as g (g.title)}
-        <div>
+        <div class="min-w-0">
           <p class="section-title px-3 pb-2">{g.title}</p>
-          <ul class="space-y-0.5">
+          <ul class="min-w-0 space-y-0.5">
             {#each g.items as item (item.id)}
               {@const on = !item.to && section?.id === item.id}
               <li>
                 {#if item.to}
-                  <a href={item.to} class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink">
+                  <a href={item.to} class="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink">
                     <Icon name={item.icon} size={20} class="flex-none" />
                     <span class="min-w-0 flex-1">
                       <span class="block truncate text-[15px] font-medium">{item.label}</span>
@@ -225,14 +225,14 @@
                 {:else}
                   <button
                     type="button"
-                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition {on ? 'bg-app-primary/10 text-app-primary' : 'text-app-muted hover:bg-app-ink/5 hover:text-app-ink'}"
+                    class="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-left transition {on ? 'bg-app-primary/10 text-app-primary' : 'text-app-muted hover:bg-app-ink/5 hover:text-app-ink'}"
                     aria-current={on ? 'page' : undefined}
                     onclick={() => open(item.id)}
                   >
                     <Icon name={item.icon} size={20} class="flex-none" />
                     <span class="min-w-0 flex-1">
-                      <span class="flex items-center gap-1.5 truncate text-[15px] font-medium">
-                        {item.label}{#if dirtyIn(item.id)}<i class="h-2 w-2 flex-none rounded-full bg-app-warning" aria-label="Con cambios sin guardar"></i>{/if}
+                      <span class="flex min-w-0 items-center gap-1.5 text-[15px] font-medium">
+                        <span class="truncate">{item.label}</span>{#if dirtyIn(item.id)}<i class="h-2 w-2 flex-none rounded-full bg-app-warning" aria-label="Con cambios sin guardar"></i>{/if}
                       </span>
                       <small class="block truncate text-xs font-normal {on ? 'text-app-primary/80' : ''}">{item.desc}</small>
                     </span>
