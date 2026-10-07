@@ -1,0 +1,132 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
+)
+
+// Allowed status changes of an appointment. A closed appointment (completed, no_show, cancelled) is never reopened.
+var statusTransitions = map[string][]string{
+	"scheduled":   {"confirmed", "arrived", "cancelled", "no_show"},
+	"confirmed":   {"arrived", "cancelled", "no_show"},
+	"arrived":     {"in_progress", "cancelled", "no_show"},
+	"in_progress": {"completed"},
+}
+
+func validStatus(s string) bool {
+	switch s {
+	case "scheduled", "confirmed", "arrived", "in_progress", "completed", "no_show", "cancelled":
+		return true
+	}
+	return false
+}
+
+var statusLabels = map[string]string{
+	"confirmed": "Confirmó", "arrived": "Marcó como llegada", "in_progress": "Inició la consulta de", "completed": "Terminó la consulta de",
+	"no_show": "Marcó como no asistió", "cancelled": "Canceló",
+}
+
+// changeAppointmentStatus is POST /appointments/{id}/status. Administrators and reception may change any appointment;
+// a doctor only the ones assigned to them; cashiers never.
+func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !validUUID(id) {
+		writeError(w, http.StatusNotFound, "Cita no encontrada.")
+		return
+	}
+	var in struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	in.Reason = strings.TrimSpace(in.Reason)
+	if !validStatus(in.Status) || in.Status == "scheduled" {
+		writeError(w, http.StatusBadRequest, "El estado no es válido.")
+		return
+	}
+	if utf8.RuneCountInString(in.Reason) > 500 {
+		writeError(w, http.StatusBadRequest, "El motivo es demasiado largo.")
+		return
+	}
+	p := principalFrom(r.Context())
+	var out appointment
+	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
+		var cur, prof string
+		err := tx.QueryRow(r.Context(), `SELECT status, coalesce(professional_id::text, '') FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, id).Scan(&cur, &prof)
+		if err != nil {
+			return err
+		}
+		if !hasPermission(p.Permissions, PermAdminAppointments) && !(p.Role == RoleDoctor && prof == p.UserID) {
+			return fail(http.StatusForbidden, "No tienes permiso para cambiar esta cita.")
+		}
+		if !contains(statusTransitions[cur], in.Status) {
+			e := fail(http.StatusConflict, "No se puede pasar una cita de «"+statusName(cur)+"» a «"+statusName(in.Status)+"».")
+			e.Code = "INVALID_TRANSITION"
+			return e
+		}
+		if _, err := tx.Exec(r.Context(), `
+			UPDATE appointments SET status = $3,
+				arrived_at  = CASE WHEN $3 IN ('arrived', 'in_progress') THEN coalesce(arrived_at, now()) ELSE arrived_at END,
+				started_at  = CASE WHEN $3 = 'in_progress' THEN now() ELSE started_at END,
+				finished_at = CASE WHEN $3 = 'completed' THEN now() ELSE finished_at END,
+				cancel_reason = CASE WHEN $3 IN ('cancelled', 'no_show') THEN $4 ELSE cancel_reason END,
+				updated_at = now()
+			WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id, in.Status, in.Reason); err != nil {
+			return err
+		}
+		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {
+			return err
+		}
+		if err := s.scheduleReminders(r.Context(), tx, p.ClinicID, id); err != nil {
+			return err
+		}
+		audit(r.Context(), tx, p.ClinicID, p, "appointment_status", statusLabels[in.Status]+" una cita",
+			map[string]any{"appointment": id, "from": cur, "to": in.Status, "reason": in.Reason})
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "Cita no encontrada.")
+		return
+	}
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func statusName(s string) string {
+	switch s {
+	case "scheduled":
+		return "Programada"
+	case "confirmed":
+		return "Confirmada"
+	case "arrived":
+		return "Llegó"
+	case "in_progress":
+		return "En consulta"
+	case "completed":
+		return "Completada"
+	case "no_show":
+		return "No asistió"
+	case "cancelled":
+		return "Cancelada"
+	}
+	return s
+}

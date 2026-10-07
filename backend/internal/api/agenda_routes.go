@@ -3,7 +3,21 @@ package api
 import "github.com/go-chi/chi/v5"
 
 // mountAgenda Routes inside /appointments (status, move, confirm...).
-func (s *Server) mountAgenda(r chi.Router) {}
+func (s *Server) mountAgenda(r chi.Router) {
+	r.With(require(PermNavAppointments, PermAdminAppointments)).Post("/{id}/status", s.changeAppointmentStatus)
+}
 
 // mountAgendaRoot Routes of /agenda (professionals, availability, blocks, settings).
-func (s *Server) mountAgendaRoot(r chi.Router) {}
+func (s *Server) mountAgendaRoot(r chi.Router) {
+	r.Route("/agenda", func(r chi.Router) {
+		view := require(PermNavAppointments, PermAdminAppointments)
+		manage := require(PermAdminAppointments)
+		r.With(view).Get("/professionals", s.listProfessionals)
+		r.With(require(PermAdminUsers)).Put("/professionals/{id}", s.updateProfessional)
+		r.With(view).Get("/blocks", s.listBlocks)
+		r.With(manage).Post("/blocks", s.createBlock)
+		r.With(manage).Delete("/blocks/{id}", s.deleteBlock)
+		r.With(view).Get("/settings", s.getAgendaSettings)
+		r.With(require(PermAdminUsers)).Put("/settings", s.updateAgendaSettings)
+	})
+}
