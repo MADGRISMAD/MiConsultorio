@@ -50,6 +50,8 @@ type cfdiStamped struct {
 
 type cfdiProvider interface {
 	Stamp(ctx context.Context, doc cfdiDoc) (cfdiStamped, error)
+	// StampPayment stamps the payment complement (Pago 2.0) of one abono of a PPD invoice.
+	StampPayment(ctx context.Context, doc cfdiPaymentDoc) (cfdiStamped, error)
 	// Fetch downloads the stamped document; format is "xml" or "pdf".
 	Fetch(ctx context.Context, providerID, format string) ([]byte, error)
 	Cancel(ctx context.Context, providerID, motive, replacementUUID string) error
@@ -218,7 +220,12 @@ func facturamaMessage(status int, raw []byte) string {
 }
 
 func (f *facturama) Stamp(ctx context.Context, doc cfdiDoc) (cfdiStamped, error) {
-	raw, err := f.do(ctx, http.MethodPost, "/api-lite/3/cfdis", f.body(doc))
+	return f.stampRaw(ctx, f.body(doc))
+}
+
+// stampRaw posts a CFDI request body and reads the stamped identifiers.
+func (f *facturama) stampRaw(ctx context.Context, body any) (cfdiStamped, error) {
+	raw, err := f.do(ctx, http.MethodPost, "/api-lite/3/cfdis", body)
 	if err != nil {
 		return cfdiStamped{}, err
 	}

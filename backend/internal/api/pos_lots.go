@@ -29,6 +29,7 @@ type stockOp struct {
 	clinicID, itemID, lotID string
 	reason                  string
 	saleID, encounterID     string // optional
+	chargeItemID            string // optional: the pre-account line this consumption belongs to
 	note, actor             string
 }
 
@@ -67,9 +68,9 @@ func stockApply(ctx context.Context, tx pgx.Tx, op stockOp, delta float64) (floa
 		return 0, err
 	}
 	_, err := tx.Exec(ctx, `
-		INSERT INTO stock_movements (clinic_id, item_id, delta, reason, sale_id, encounter_id, note, balance, created_by_name, lot_id, lot_code)
-		VALUES ($1,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,'')::uuid,$7,$8,$9,$10,$11)`,
-		op.clinicID, op.itemID, delta, op.reason, op.saleID, op.encounterID, op.note, bal, op.actor, op.lotID, code)
+		INSERT INTO stock_movements (clinic_id, item_id, delta, reason, sale_id, encounter_id, note, balance, created_by_name, lot_id, lot_code, charge_item_id)
+		VALUES ($1,$2,$3,$4,NULLIF($5,'')::uuid,NULLIF($6,'')::uuid,$7,$8,$9,$10,$11,NULLIF($12,'')::uuid)`,
+		op.clinicID, op.itemID, delta, op.reason, op.saleID, op.encounterID, op.note, bal, op.actor, op.lotID, code, op.chargeItemID)
 	return bal, err
 }
 

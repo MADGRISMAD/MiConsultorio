@@ -36,16 +36,18 @@ type salePaymentIn struct {
 }
 
 type saleIn struct {
-	Lines          []saleLineIn    `json:"lines"`
-	DiscountCents  int             `json:"discount_cents"` // on the whole ticket
-	CustomerName   string          `json:"customer_name"`
-	CustomerCURP   string          `json:"customer_curp"`
-	PatientID      string          `json:"patient_id"`
-	ProfessionalID string          `json:"professional_id"`
-	AppointmentID  string          `json:"appointment_id"`
-	PlanItemIDs    []string        `json:"plan_item_ids"` // treatment plan items this sale charges
-	Note           string          `json:"note"`
-	Payments       []salePaymentIn `json:"payments"`
+	Lines          []saleLineIn `json:"lines"`
+	DiscountCents  int          `json:"discount_cents"` // on the whole ticket
+	CustomerName   string       `json:"customer_name"`
+	CustomerCURP   string       `json:"customer_curp"`
+	PatientID      string       `json:"patient_id"`
+	ProfessionalID string       `json:"professional_id"`
+	AppointmentID  string       `json:"appointment_id"`
+	PlanItemIDs    []string     `json:"plan_item_ids"` // treatment plan items this sale charges
+	// ConsultChargeID is the pre-account of a consultation this sale charges; it becomes 'charged' with the sale.
+	ConsultChargeID string          `json:"consult_charge_id"`
+	Note            string          `json:"note"`
+	Payments        []salePaymentIn `json:"payments"`
 	// OnAccount leaves what the payments do not cover as a balance to collect later (abonos).
 	OnAccount bool `json:"on_account"`
 	// AllowExpired sells expired lots anyway. Administrators only, with a reason.
@@ -115,9 +117,10 @@ type pricedLine struct {
 	unitPrice  int
 	unitCost   int
 	taxRate    float64
-	total      int // after the line discount
-	taxPart    int // tax contained in what is charged for the line (ticket discount included)
-	sharePart  int // what is charged for the line after the ticket discount
+	total      int     // after the line discount
+	skip       float64 // quantity already taken out of stock by the consultation's pre-account
+	taxPart    int     // tax contained in what is charged for the line (ticket discount included)
+	sharePart  int     // what is charged for the line after the ticket discount
 	track      bool
 }
 
@@ -180,6 +183,7 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, f := range []struct{ v, msg string }{
 		{in.AppointmentID, "La cita no es válida."}, {in.PatientID, "El paciente no es válido."}, {in.ProfessionalID, "El profesional no es válido."},
+		{in.ConsultChargeID, "La pre-cuenta no es válida."},
 	} {
 		if f.v != "" && !validUUID(f.v) {
 			writeError(w, http.StatusBadRequest, f.msg)
@@ -231,6 +235,24 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			return err
+		}
+
+		// ---- the pre-account this sale charges (locked until the sale commits) ----
+		var charge *cbLink
+		if in.ConsultChargeID != "" {
+			if charge, err = cbLoadForSale(r.Context(), tx, p.ClinicID, in.ConsultChargeID); err != nil {
+				return err
+			}
+			if in.PatientID != "" && in.PatientID != charge.PatientID {
+				return fail(http.StatusBadRequest, "El paciente no coincide con el de la pre-cuenta.")
+			}
+			in.PatientID = charge.PatientID
+			if in.AppointmentID == "" && charge.AppointmentID != nil {
+				in.AppointmentID = *charge.AppointmentID
+			}
+			if in.ProfessionalID == "" && charge.ProfessionalID != nil {
+				in.ProfessionalID = *charge.ProfessionalID
+			}
 		}
 
 		// ---- who, and which visit ----
@@ -318,7 +340,10 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 				}
 				id := l.ItemID
 				pl.itemID, pl.unitPrice, pl.unitCost = &id, price, cost
-				if pl.track && !cfg.AllowNegativeStock && stock < l.Qty {
+				if pl.track {
+					pl.skip = charge.take(l.ItemID, l.Qty)
+				}
+				if pl.track && !cfg.AllowNegativeStock && stock < l.Qty-pl.skip {
 					return &httpError{Status: http.StatusConflict, Code: "NO_STOCK", Msg: "No hay existencias suficientes de «" + pl.name + "» (quedan " + strconv.FormatFloat(stock, 'f', -1, 64) + ")."}
 				}
 			} else {
@@ -463,9 +488,9 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 			}
 			out.Lines = append(out.Lines, saleLine{ID: lineID, ItemID: l.itemID, Kind: l.kind, Name: l.name, Qty: l.in.Qty,
 				UnitPriceCents: l.unitPrice, TaxRate: l.taxRate, DiscountCents: l.in.DiscountCents, TotalCents: l.total})
-			if l.track && l.itemID != nil {
+			if l.track && l.itemID != nil && l.in.Qty-l.skip > qtyEps {
 				res, err := consumeStock(r.Context(), tx, stockOp{clinicID: p.ClinicID, itemID: *l.itemID, reason: "sale", saleID: saleID,
-					note: "Venta #" + itoa(folio), actor: p.actorName()}, l.in.Qty, in.AllowExpired, cfg.AllowNegativeStock)
+					note: "Venta #" + itoa(folio), actor: p.actorName()}, l.in.Qty-l.skip, in.AllowExpired, cfg.AllowNegativeStock)
 				if err != nil {
 					return err
 				}
@@ -510,6 +535,11 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(in.PlanItemIDs) > 0 {
 			markPlanItems(r.Context(), tx, p.ClinicID, saleID, in.PlanItemIDs)
+		}
+		if charge != nil {
+			if err := charge.finish(r.Context(), tx, p.ClinicID, saleID); err != nil {
+				return err
+			}
 		}
 		if in.AllowExpired {
 			audit(r.Context(), tx, p.ClinicID, p, "sale_expired_override", "Vendió con lotes caducados autorizados en la venta #"+itoa(folio)+": "+in.ExpiredReason, map[string]any{"folio": folio})

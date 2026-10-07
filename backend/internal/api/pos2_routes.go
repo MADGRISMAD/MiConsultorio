@@ -35,4 +35,10 @@ func (s *Server) mountPosRoutes(r chi.Router) {
 	r.With(require(PermPOSManage)).Post("/invoices/{id}/cancel-cfdi", s.cancelCFDI)
 	r.With(require(PermPOSReports, PermPOSManage)).Get("/invoices/{id}/xml", s.downloadCFDI("xml"))
 	r.With(require(PermPOSReports, PermPOSManage)).Get("/invoices/{id}/pdf", s.downloadCFDI("pdf"))
+
+	// payment complements (Pago 2.0) of sales on account
+	r.With(require(PermPOSReports, PermPOSManage)).Get("/invoices/{id}/payment-complements", s.listPaymentComplements)
+	r.With(require(PermPOSReports, PermPOSManage)).Post("/invoices/{id}/payment-complement", s.issuePaymentComplement)
+	r.With(require(PermPOSReports, PermPOSManage)).Get("/invoices/{id}/payment-complements/{cid}/xml", s.downloadPaymentComplement("xml"))
+	r.With(require(PermPOSReports, PermPOSManage)).Get("/invoices/{id}/payment-complements/{cid}/pdf", s.downloadPaymentComplement("pdf"))
 }

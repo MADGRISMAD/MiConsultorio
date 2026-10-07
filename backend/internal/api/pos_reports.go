@@ -225,6 +225,8 @@ type invoiceRequest struct {
 	CreatedAt  time.Time `json:"created_at"`
 	// CfdiState is '' for manual requests, then stamped or cancelled when issued through the PAC.
 	CfdiState string `json:"cfdi_state"`
+	// OnCredit: the sale was settled in abonos, so its CFDI is PPD and each abono takes a payment complement.
+	OnCredit bool `json:"on_credit"`
 }
 
 func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +237,7 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
 		args = append(args, st)
 	}
 	rows, err := s.db.Query(r.Context(), `
-		SELECT i.id, i.sale_id, s.folio, s.total_cents, i.rfc, i.legal_name, i.tax_regime, i.zip_code, i.cfdi_use, i.email, i.status, i.fiscal_uuid, i.note, i.created_by_name, i.created_at, i.cfdi_state
+		SELECT i.id, i.sale_id, s.folio, s.total_cents, i.rfc, i.legal_name, i.tax_regime, i.zip_code, i.cfdi_use, i.email, i.status, i.fiscal_uuid, i.note, i.created_by_name, i.created_at, i.cfdi_state, s.on_credit
 		FROM invoice_requests i JOIN sales s ON s.id = i.sale_id WHERE `+where+` ORDER BY i.created_at DESC LIMIT 300`, args...)
 	if err != nil {
 		serverError(w, r, err)
@@ -245,7 +247,7 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
 	list := []invoiceRequest{}
 	for rows.Next() {
 		var x invoiceRequest
-		if err := rows.Scan(&x.ID, &x.SaleID, &x.Folio, &x.TotalCents, &x.RFC, &x.LegalName, &x.TaxRegime, &x.ZipCode, &x.CfdiUse, &x.Email, &x.Status, &x.FiscalUUID, &x.Note, &x.CreatedBy, &x.CreatedAt, &x.CfdiState); err != nil {
+		if err := rows.Scan(&x.ID, &x.SaleID, &x.Folio, &x.TotalCents, &x.RFC, &x.LegalName, &x.TaxRegime, &x.ZipCode, &x.CfdiUse, &x.Email, &x.Status, &x.FiscalUUID, &x.Note, &x.CreatedBy, &x.CreatedAt, &x.CfdiState, &x.OnCredit); err != nil {
 			serverError(w, r, err)
 			return
 		}
