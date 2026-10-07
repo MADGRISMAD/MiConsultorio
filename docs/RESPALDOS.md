@@ -128,3 +128,23 @@ Para la copia mensual de largo plazo, configura una regla de ciclo de vida en tu
 ## Exportar el expediente de una persona (ARCO y portabilidad)
 
 Para una solicitud de acceso o portabilidad, un administrador o un profesional con permiso de historial puede descargar el expediente completo en JSON desde el propio expediente (`GET /api/patients/{id}/export`). Incluye datos del paciente, bitácora, recetas, vacunas, planes, consentimientos, metadatos de archivos, citas y la bitácora de accesos. La exportación queda registrada en los accesos del expediente y en la actividad. Las notas privadas de otra persona aparecen sin contenido, y los archivos adjuntos se entregan por separado desde la pestaña de Archivos.
+
+## Llave de cifrado
+
+Además de los adjuntos, Caresia cifra dentro de la base el contenido clínico libre: interrogatorio, exploración, diagnóstico, plan y notas de la bitácora (también las privadas y las adendas), diagnóstico e indicaciones de las recetas, antecedentes y alergias del paciente y el detalle de las citas. Se guardan como `enc:v1:…` (en el perfil del paciente, como `{"_enc":"v1:…"}`). Cada valor queda ligado a su tabla, columna y registro: copiarlo a otro registro lo invalida. Motivo de consulta, mediciones, nombres, fechas, códigos CIE-10 y los medicamentos de la receta **no** se cifran porque los reportes y la agenda los usan.
+
+La llave se deriva de `TOKEN_ENC_KEY` (o de `JWT_SECRET` si no la definiste); no hay una variable aparte. Consecuencias:
+
+- **Un respaldo de la base sin esa llave no se puede leer en sus campos clínicos.** Guarda `JWT_SECRET` y `TOKEN_ENC_KEY` fuera del servidor, y verifica en cada prueba de restauración que el expediente abre con esas llaves.
+- **No cambies `JWT_SECRET` ni `TOKEN_ENC_KEY` en un sistema con datos.** Si cambian, los registros cifrados quedan ilegibles: el sistema no muestra basura ni se cae, responde `DECRYPT_FAILED` (HTTP 500 con un mensaje claro) en las pantallas que los leen, y deja una línea `decrypt_failed` en la bitácora de actividad con la tabla, columna y registro afectados (nunca el contenido). Lo que no está cifrado (listas de pacientes, agenda sin detalles, caja) sigue funcionando, y lo que se capture a partir de entonces se cifra con la llave nueva. Para recuperar, vuelve a poner la llave anterior y reinicia; ese contenido no se puede reconstruir de otra forma.
+- **Las llaves de adjuntos y tokens de pago dependen de la misma llave maestra**, así que un cambio las afecta igual.
+
+Registros anteriores a esta función se leen en claro sin problema y se van cifrando cuando se vuelven a guardar. Para cifrar todo lo existente de una vez (conviene hacerlo con un respaldo reciente y fuera del horario de consulta):
+
+```bash
+cd backend
+go run ./cmd/encryptfields --dry-run   # cuenta lo que cambiaría, no escribe nada
+go run ./cmd/encryptfields             # cifra por lotes; se puede repetir sin riesgo
+```
+
+Con Docker Compose, el binario viene en la imagen: `docker compose exec app /app/encryptfields --dry-run` (y luego sin `--dry-run`), con las mismas variables de entorno del servicio. Un valor que no se pueda abrir con la llave actual no se toca y el comando lo reporta (código de salida 3). El formato lleva un identificador de llave para poder rotarla en el futuro sin perder lo anterior.
