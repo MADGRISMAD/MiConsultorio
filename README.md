@@ -82,6 +82,15 @@ Se entra con **correo o usuario** (ambos únicos en todo el sistema).
 
 Cada consultorio tiene un plan (Básico, Crecimiento, Pro; la sección de **Cobros** solo aparece en Crecimiento y Pro) y un estado: **prueba** (14 días), **activo**, **pago atrasado** o **suspendido**. Cuando no está activo, sus datos se bloquean (la cuenta sigue entrando para ver el aviso). Un periodo pagado vencido pasa solo a "pago atrasado" tras 3 días de gracia. El administrador de plataforma cambia plan y estado, suspende y registra pagos manuales desde **Negocios**.
 
+## Pacientes, bitácora y recetas
+
+El módulo **Pacientes** reemplaza a los antiguos expedientes (los existentes se migran solos). Cada paciente es una **persona o un animal**, y el formulario cambia según el giro del consultorio: pediatría pide vacunación y desarrollo, ginecología los antecedentes obstétricos, odontología hábitos de higiene, salud mental antecedentes psicológicos, veterinaria especie, raza, vacunas y propietario (y nadie le pide CURP a un perro).
+
+- **Bitácora de consultas:** lo que cuenta el paciente, signos vitales según el giro, exploración, diagnóstico (CIE-10 opcional) y plan. Es de *solo agregar*: se corrige con una adenda. Hay notas privadas (solo las lee quien las escribió).
+- **Recetas** con cédula profesional, institución, denominación genérica, vigencia y línea de firma autógrafa; en psicología, nutrición y fisioterapia se emite una **hoja de indicaciones**. Los medicamentos de fracción I y II (receta especial COFEPRIS) no se emiten desde aquí.
+- **Impresión:** receta, expediente completo, aviso de privacidad y consentimiento informado.
+- **Cumplimiento en México:** nada se borra (solo se archiva, conservación de 5 años), cada acceso queda registrado y **Ajustes → Cumplimiento** lista lo pendiente. Lee [`docs/CUMPLIMIENTO-MX.md`](docs/CUMPLIMIENTO-MX.md): qué cubre Caresia y qué te toca a ti. No es asesoría legal.
+
 ## Cobros (punto de venta)
 
 Incluido en los planes **Crecimiento** y **Pro**. Ventanas: **Punto de venta**, **Caja** (apertura, entradas/salidas, corte con diferencia), **Servicios y precios** (catálogo), **Inventario** (entradas, mermas, conteo físico, historial), **Facturación** (solicitudes de factura con datos fiscales; el timbrado del CFDI se hace con tu contador o PAC y aquí se marca emitida con su UUID), **Reportes** (ventas, utilidad, métodos de pago, CSV) y **Ajustes de cobros** (datos fiscales, ticket, reglas, métodos de pago, Mercado Pago e impresora).

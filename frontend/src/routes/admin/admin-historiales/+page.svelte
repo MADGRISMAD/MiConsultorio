@@ -1,10 +1,9 @@
 <script lang="ts">
-  import Guard from '$lib/components/Guard.svelte';
-  import ExpedientsPanel from '$lib/components/ExpedientsPanel.svelte';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+
+  // Los historiales ahora viven en el módulo Pacientes.
+  onMount(() => goto('/pacientes', { replaceState: true }));
 </script>
 
-<svelte:head><title>Administrar historiales · Caresia</title></svelte:head>
-
-<Guard title="Administrar historiales" permissions={['adminHistorials']}>
-  <ExpedientsPanel admin/>
-</Guard>
+<svelte:head><title>Pacientes · Caresia</title></svelte:head>

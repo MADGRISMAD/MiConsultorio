@@ -51,6 +51,14 @@ export interface Billing {
   cobros: boolean;
 }
 
+/** Data printed on recetas and notes (cédula profesional, school, title). */
+export interface Professional {
+  cedula: string;
+  institution: string;
+  specialty_license: string;
+  title: string;
+}
+
 export interface SessionInfo {
   userId: string;
   clinicId: string;
@@ -64,6 +72,7 @@ export interface SessionInfo {
   billing: Billing | null;
   /** a clinic administrator who still has to finish the setup wizard */
   setupPending: boolean;
+  professional: Professional;
 }
 
 export interface Person {
@@ -224,50 +233,9 @@ export interface User {
   permissions: string[];
 }
 
-export const CHECKBOX_FIELDS = [
-  'diabetes',
-  'rheumatic_diseases',
-  'fractures',
-  'allergies',
-  'layed',
-  'contractures',
-  'cancer',
-  'accidents',
-  'transfusions',
-  'cardiopathies',
-  'surgeries',
-  'tabaquism',
-  'alcoholism',
-  'automedication',
-  'drug_use',
-  'pregnant'
-] as const;
-
-export type CheckboxField = (typeof CHECKBOX_FIELDS)[number];
-
-export interface ExpedientInput extends Record<CheckboxField, boolean> {
-  CURP: string;
-  names: string;
-  last_names: string;
-  sex: 'Hombre' | 'Mujer';
-  date_of_birth: string;
-  education: string;
-  occupation: string;
-  weight: string;
-  clothes_size: string;
-  height: string;
-  ethnicity: string;
-  physical_activity: string;
-  hobbies: string;
-  child: string;
-}
-
-export interface Expedient extends ExpedientInput {
-  id: string;
-  age: number;
-}
-
 export interface AppointmentInput {
+  /** registered patient (a person or an animal); empty for someone not registered yet */
+  patient_id?: string | null;
   names: string;
   last_names: string;
   CURP: string;
@@ -281,28 +249,8 @@ export interface Appointment extends AppointmentInput {
   id: string;
 }
 
-export function emptyExpedient(): ExpedientInput {
-  return {
-    CURP: '',
-    names: '',
-    last_names: '',
-    sex: 'Hombre',
-    date_of_birth: '',
-    education: '',
-    occupation: '',
-    weight: '',
-    clothes_size: '',
-    height: '',
-    ethnicity: '',
-    physical_activity: '',
-    hobbies: '',
-    child: '',
-    ...(Object.fromEntries(CHECKBOX_FIELDS.map((f) => [f, false])) as Record<CheckboxField, boolean>)
-  };
-}
-
 export function emptyAppointment(): AppointmentInput {
-  return { names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '' };
+  return { patient_id: null, names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '' };
 }
 
 /** What each clinic role can do, for the "who can do what" table (the server decides for real). */
@@ -598,4 +546,237 @@ export interface CheckoutRow {
   init_point: string;
   created_at: string;
   paid_at: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Pacientes (personas y animales), bitácora, recetas y datos legales
+// ---------------------------------------------------------------------------
+
+export type Subject = 'person' | 'animal';
+
+export interface FieldDef {
+  key: string;
+  label: string;
+  type: 'text' | 'longtext' | 'number' | 'date' | 'select' | 'multiselect' | 'bool';
+  group: string;
+  options?: string[];
+  unit?: string;
+  required?: boolean;
+  hint?: string;
+  placeholder?: string;
+}
+
+export interface PatientSchema {
+  subjects: Subject[];
+  profile: Partial<Record<Subject, FieldDef[]>>;
+  measures: Partial<Record<Subject, FieldDef[]>>;
+  /** medication: the giro prescribes medicines; instructions: it gives indications only */
+  rx_mode: 'medication' | 'instructions';
+  kinds: ClinicKind[];
+  encounter_kinds: EncounterKind[];
+  routes: string[];
+}
+
+export type FieldValues = Record<string, unknown>;
+
+export interface PatientRow {
+  id: string;
+  file_number: number;
+  subject: Subject;
+  names: string;
+  last_names: string;
+  age: number | null;
+  phone: string;
+  guardian_name: string;
+  species?: string;
+  incomplete: boolean;
+  no_privacy_notice: boolean;
+  last_encounter_at: string | null;
+  archived_at: string | null;
+}
+
+export interface Patient {
+  id: string;
+  file_number: number;
+  subject: Subject;
+  names: string;
+  last_names: string;
+  sex: string;
+  birth_date: string | null;
+  age: number | null;
+  curp: string;
+  phone: string;
+  email: string;
+  address: string;
+  guardian_name: string;
+  guardian_relation: string;
+  guardian_phone: string;
+  guardian_email: string;
+  profile: FieldValues;
+  incomplete: boolean;
+  privacy_notice_at: string | null;
+  privacy_notice_by: string;
+  last_encounter_at: string | null;
+  archived_at: string | null;
+  archive_reason: string;
+  created_at: string;
+}
+
+export interface PatientInput {
+  subject?: Subject;
+  names: string;
+  last_names: string;
+  sex: string;
+  birth_date: string;
+  curp: string;
+  phone: string;
+  email: string;
+  address: string;
+  guardian_name: string;
+  guardian_relation: string;
+  guardian_phone: string;
+  guardian_email: string;
+  profile: FieldValues;
+  privacy_ack: boolean;
+}
+
+export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone'>> & { names: string };
+
+export type EncounterKind = 'consulta' | 'seguimiento' | 'procedimiento' | 'llamada' | 'nota' | 'adenda';
+
+export const ENCOUNTER_KINDS: Record<EncounterKind, string> = {
+  consulta: 'Consulta',
+  seguimiento: 'Seguimiento',
+  procedimiento: 'Procedimiento',
+  llamada: 'Llamada',
+  nota: 'Nota',
+  adenda: 'Adenda'
+};
+
+export interface Encounter {
+  id: string;
+  patient_id: string;
+  kind: EncounterKind;
+  occurred_at: string;
+  appointment_id: string | null;
+  reason: string;
+  subjective: string;
+  measures: FieldValues;
+  exam: string;
+  assessment: string;
+  diagnosis_codes: string[];
+  plan: string;
+  notes: string;
+  private: boolean;
+  /** somebody else's private note: only its existence is shown */
+  hidden?: boolean;
+  addendum_of: string | null;
+  author_name: string;
+  author_role: string;
+  author_license: string;
+  created_at: string;
+}
+
+export interface EncounterInput {
+  kind: EncounterKind;
+  occurred_at?: string;
+  appointment_id?: string;
+  reason: string;
+  subjective: string;
+  measures: FieldValues;
+  exam: string;
+  assessment: string;
+  diagnosis_codes: string[];
+  plan: string;
+  notes: string;
+  private: boolean;
+}
+
+export type RxControl = 'No' | 'Antibiótico' | 'Fracción III' | 'Fracción I o II';
+
+export interface RxItem {
+  medicine: string;
+  brand: string;
+  presentation: string;
+  dose: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  quantity: string;
+  notes: string;
+  control: RxControl;
+}
+
+export interface Prescription {
+  id: string;
+  patient_id: string;
+  encounter_id: string | null;
+  folio: number;
+  mode: 'medication' | 'instructions';
+  issued_at: string;
+  valid_until: string | null;
+  diagnosis: string;
+  items: RxItem[];
+  instructions: string;
+  next_visit: string | null;
+  author_name: string;
+  author_title: string;
+  author_license: string;
+  author_institution: string;
+  author_specialty_license: string;
+  voided_at: string | null;
+  voided_by: string;
+  void_reason: string;
+}
+
+export interface PrescriptionInput {
+  encounter_id?: string;
+  diagnosis: string;
+  items: RxItem[];
+  instructions: string;
+  next_visit?: string;
+  valid_days?: number;
+}
+
+export interface Legal {
+  responsible_name: string;
+  responsible_license: string;
+  responsible_institution: string;
+  operating_notice: string;
+  privacy_contact: string;
+  privacy_email: string;
+  privacy_phone: string;
+  privacy_address: string;
+}
+
+/** The establishment block printed on recetas and expedientes. */
+export interface Issuer {
+  name: string;
+  address: string;
+  phone: string;
+  kind: ClinicKind;
+  legal: Legal;
+}
+
+export interface ComplianceItem {
+  key: string;
+  label: string;
+  status: 'ok' | 'todo' | 'info';
+  detail: string;
+  link?: string;
+}
+
+export interface PatientRecord {
+  patient: Patient;
+  encounters: Encounter[];
+  prescriptions: Prescription[];
+  clinic: Issuer;
+  printed_by: string;
+  generated_at: string;
+}
+
+export interface AccessEntry {
+  user: string;
+  action: 'view' | 'print' | 'export';
+  at: string;
 }

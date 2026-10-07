@@ -84,8 +84,8 @@
     load();
     if (canSeeExpedients) {
       api
-        .expedients()
-        .then((r) => (people = r.map((e) => ({ name: `${e.names} ${e.last_names}`.trim(), curp: e.CURP }))))
+        .patients.list()
+        .then((r) => (people = r.map((e) => ({ name: `${e.names} ${e.last_names}`.trim(), curp: '' }))))
         .catch(() => {
           /* plain text field then */
         });

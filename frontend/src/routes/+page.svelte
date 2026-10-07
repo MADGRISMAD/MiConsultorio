@@ -25,7 +25,7 @@
   $effect(() => {
     if (session.status !== 'authenticated' || session.isPlatform || session.locked) return;
     if (canAppointments) api.appointments().then((a) => (appointments = a), () => {});
-    if (canPatients) api.expedients().then((e) => (patientCount = e.length), () => {});
+    if (canPatients) api.patients.list().then((e) => (patientCount = e.length), () => {});
   });
 
   const today = new Date().toISOString().slice(0, 10);
@@ -41,8 +41,8 @@
     [
       { label: 'Ver citas', href: '/admin/navegar-citas', icon: 'calendar', show: session.has(PERMISSIONS.navAppointments) },
       { label: 'Nueva cita', href: '/admin/admin-citas', icon: 'plus', show: session.has(PERMISSIONS.adminAppointments) },
-      { label: 'Ver historiales', href: '/admin/navegar-historiales', icon: 'folder', show: session.has(PERMISSIONS.navHistorials) },
-      { label: 'Nuevo expediente', href: '/admin/admin-historiales', icon: 'plus', show: session.has(PERMISSIONS.adminHistorials) },
+      { label: 'Pacientes', href: '/pacientes', icon: 'folder', show: session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials) },
+      { label: 'Nuevo paciente', href: '/pacientes/nuevo', icon: 'plus', show: session.has(PERMISSIONS.adminHistorials) },
       { label: 'Equipo', href: '/equipo', icon: 'users', show: session.has(PERMISSIONS.adminUsers) }
     ].filter((q) => q.show) as { label: string; href: string; icon: 'calendar' | 'plus' | 'folder' | 'users'; show: boolean }[]
   );

@@ -2,19 +2,27 @@ import type {
   ActivityItem,
   Appointment,
   AppointmentInput,
+  AccessEntry,
   CashSession,
   CatalogInput,
   CatalogItem,
   Charge,
   CheckoutRow,
+  ComplianceItem,
   Clinic,
   ClinicRow,
   ClinicSettings,
-  Expedient,
-  ExpedientInput,
+  Encounter,
+  EncounterInput,
   InvoiceRequest,
+  Legal,
   MagicItem,
   Overview,
+  Patient,
+  PatientInput,
+  PatientRecord,
+  PatientRow,
+  PatientSchema,
   Payment,
   Person,
   Plan,
@@ -23,6 +31,10 @@ import type {
   PointTerminal,
   PosReport,
   PosSettings,
+  Prescription,
+  PrescriptionInput,
+  QuickPatientInput,
+  Issuer,
   ProviderStatus,
   Sale,
   SaleInput,
@@ -78,7 +90,11 @@ export const api = {
   completeSetup: () => request<{ session: SessionInfo }>('POST', '/clinic/setup').then((r) => r.session),
 
   // my account
-  updateProfile: (name: string, phone: string) => request<{ session: SessionInfo }>('PUT', '/me', { name, phone }).then((r) => r.session),
+  updateProfile: (
+    name: string,
+    phone: string,
+    pro?: { cedula: string; cedula_institution: string; cedula_specialty: string; specialty_title: string }
+  ) => request<{ session: SessionInfo }>('PUT', '/me', { name, phone, ...pro }).then((r) => r.session),
   changePassword: (current_password: string, new_password: string) =>
     request<{ session: SessionInfo }>('PUT', '/me/password', { current_password, new_password }).then((r) => r.session),
 
@@ -92,17 +108,51 @@ export const api = {
   deactivateMember: (id: string) => request<void>('POST', `/team/${seg(id)}/deactivate`),
   reactivateMember: (id: string) => request<void>('POST', `/team/${seg(id)}/reactivate`),
 
-  expedients: () => request<{ expedients: Expedient[] }>('GET', '/expedients/').then((r) => r.expedients),
-  expedient: (curp: string) => request<{ expedient: Expedient }>('GET', `/expedients/${seg(curp)}`).then((r) => r.expedient),
-  createExpedient: (e: ExpedientInput) => request<unknown>('POST', '/expedients/', e),
-  updateExpedient: (curp: string, e: ExpedientInput) => request<unknown>('PUT', `/expedients/${seg(curp)}`, e),
-  deleteExpedient: (curp: string) => request<void>('DELETE', `/expedients/${seg(curp)}`),
-
   appointments: () => request<{ appointments: Appointment[] }>('GET', '/appointments/').then((r) => r.appointments),
   appointment: (id: string) => request<{ appointment: Appointment }>('GET', `/appointments/${seg(id)}`).then((r) => r.appointment),
   createAppointment: (a: AppointmentInput) => request<unknown>('POST', '/appointments/', a),
   updateAppointment: (id: string, a: AppointmentInput) => request<unknown>('PUT', `/appointments/${seg(id)}`, a),
   deleteAppointment: (id: string) => request<void>('DELETE', `/appointments/${seg(id)}`),
+
+  // pacientes (personas y animales), bitácora y recetas
+  patients: {
+    schema: () => request<PatientSchema>('GET', '/patients/schema'),
+    list: (p: { q?: string; archived?: boolean; pending?: boolean } = {}) => {
+      const q = new URLSearchParams();
+      if (p.q) q.set('q', p.q);
+      if (p.archived) q.set('archived', '1');
+      if (p.pending) q.set('pending', '1');
+      return request<{ patients: PatientRow[] }>('GET', `/patients/?${q}`).then((r) => r.patients);
+    },
+    /** name and contact only: what the front desk needs to book a visit */
+    lookup: (q: string) => request<{ patients: PatientRow[] }>('GET', `/patients/lookup?q=${encodeURIComponent(q)}`).then((r) => r.patients),
+    get: (id: string) => request<{ patient: Patient }>('GET', `/patients/${seg(id)}`).then((r) => r.patient),
+    create: (p: PatientInput) => request<{ patient: Patient }>('POST', '/patients/', p).then((r) => r.patient),
+    quick: (p: QuickPatientInput) => request<{ patient: Patient }>('POST', '/patients/quick', p).then((r) => r.patient),
+    update: (id: string, p: PatientInput) => request<{ patient: Patient }>('PUT', `/patients/${seg(id)}`, p).then((r) => r.patient),
+    privacy: (id: string) => request<{ patient: Patient }>('POST', `/patients/${seg(id)}/privacy`).then((r) => r.patient),
+    archive: (id: string, reason: string) => request<{ patient: Patient }>('POST', `/patients/${seg(id)}/archive`, { reason }).then((r) => r.patient),
+    unarchive: (id: string) => request<{ patient: Patient }>('POST', `/patients/${seg(id)}/unarchive`).then((r) => r.patient),
+    access: (id: string) => request<{ access: AccessEntry[] }>('GET', `/patients/${seg(id)}/access`).then((r) => r.access),
+    encounters: (id: string) => request<{ encounters: Encounter[] }>('GET', `/patients/${seg(id)}/encounters`).then((r) => r.encounters),
+    createEncounter: (id: string, e: EncounterInput) => request<{ encounter: Encounter }>('POST', `/patients/${seg(id)}/encounters`, e).then((r) => r.encounter),
+    addendum: (encounterId: string, a: { reason: string; text: string }) =>
+      request<{ encounter: Encounter }>('POST', `/encounters/${seg(encounterId)}/addendum`, a).then((r) => r.encounter),
+    prescriptions: (id: string) => request<{ prescriptions: Prescription[] }>('GET', `/patients/${seg(id)}/prescriptions`).then((r) => r.prescriptions),
+    createPrescription: (id: string, p: PrescriptionInput) => request<{ prescription: Prescription }>('POST', `/patients/${seg(id)}/prescriptions`, p).then((r) => r.prescription),
+    /** everything for printing the expediente (logs the access) */
+    record: (id: string) => request<PatientRecord>('GET', `/patients/${seg(id)}/record`)
+  },
+  prescriptions: {
+    /** receta + patient + establishment, ready to print (logs the access) */
+    print: (id: string) => request<{ prescription: Prescription; patient: Patient; clinic: Issuer }>('GET', `/prescriptions/${seg(id)}`),
+    void: (id: string, reason: string) => request<unknown>('POST', `/prescriptions/${seg(id)}/void`, { reason })
+  },
+  legal: {
+    get: () => request<{ legal: Legal }>('GET', '/clinic/legal').then((r) => r.legal),
+    save: (l: Legal) => request<{ legal: Legal }>('PUT', '/clinic/legal', l).then((r) => r.legal),
+    compliance: () => request<{ items: ComplianceItem[] }>('GET', '/clinic/compliance').then((r) => r.items)
+  },
 
   // billing: paying for the plan online
   billing: {

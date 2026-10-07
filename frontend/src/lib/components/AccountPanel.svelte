@@ -21,6 +21,22 @@
     if (await profileOp.run(async () => session.setUser(await api.updateProfile(name, phone)))) toast.show('Datos actualizados');
   }
 
+  // Professional data: printed on recetas and signed notes (cédula profesional)
+  let title = $state(session.user?.professional?.title ?? '');
+  let cedula = $state(session.user?.professional?.cedula ?? '');
+  let institution = $state(session.user?.professional?.institution ?? '');
+  let specialty = $state(session.user?.professional?.specialty_license ?? '');
+  const proOp = new Op();
+  const canPrescribe = $derived(u?.role === 'doctor' || u?.role === 'admin');
+  async function savePro(e: SubmitEvent) {
+    e.preventDefault();
+    if (cedula.trim() && !/^\d{7,8}$/.test(cedula.trim())) return proOp.fail('La cédula profesional son 7 u 8 dígitos.');
+    const ok = await proOp.run(async () =>
+      session.setUser(await api.updateProfile(name, phone, { cedula: cedula.trim(), cedula_institution: institution.trim(), cedula_specialty: specialty.trim(), specialty_title: title.trim() }))
+    );
+    if (ok) toast.show('Datos profesionales guardados');
+  }
+
   let current = $state('');
   let next = $state('');
   let again = $state('');
@@ -65,6 +81,33 @@
       <div><button type="submit" class="btn-primary" disabled={profileOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
   </section>
+
+  {#if canPrescribe}
+    <section class="card p-6 lg:col-span-2">
+      <h2 class="display text-2xl">Datos profesionales</h2>
+      <p class="mt-1 text-sm text-app-muted">Aparecen en tus recetas y en las notas que firmas. Sin cédula profesional e institución no se pueden emitir recetas.</p>
+      <form class="mt-5 grid gap-3.5 sm:grid-cols-2" onsubmit={savePro}>
+        <div>
+          <label class="label" for="pro-title">Profesión o especialidad</label>
+          <input id="pro-title" class="field" bind:value={title} placeholder="Médico Cirujano, Cirujano Dentista, Médico Veterinario Zootecnista…" />
+        </div>
+        <div>
+          <label class="label" for="pro-cedula">Cédula profesional</label>
+          <input id="pro-cedula" class="field" inputmode="numeric" bind:value={cedula} maxlength="8" placeholder="7 u 8 dígitos" />
+        </div>
+        <div>
+          <label class="label" for="pro-inst">Institución que expidió el título</label>
+          <input id="pro-inst" class="field" bind:value={institution} placeholder="Universidad Nacional Autónoma de México" />
+        </div>
+        <div>
+          <label class="label" for="pro-spec">Cédula de especialidad <span class="font-normal text-app-muted">(si tienes)</span></label>
+          <input id="pro-spec" class="field" bind:value={specialty} />
+        </div>
+        {#if proOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{proOp.message}</p>{/if}
+        <div class="sm:col-span-2"><button type="submit" class="btn-primary" disabled={proOp.phase === 'loading'}>Guardar datos profesionales</button></div>
+      </form>
+    </section>
+  {/if}
 
   <section class="card p-6">
     <h2 class="display text-2xl">Cambiar contraseña</h2>

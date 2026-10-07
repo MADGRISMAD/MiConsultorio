@@ -36,14 +36,13 @@
       items: [
         { label: 'Inicio', href: '/', icon: 'home' },
         { label: 'Citas', href: '/admin/navegar-citas', icon: 'calendar', perms: [PERMISSIONS.navAppointments] },
-        { label: 'Historiales', href: '/admin/navegar-historiales', icon: 'folder', perms: [PERMISSIONS.navHistorials] }
+        { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] }
       ]
     },
     {
       title: 'Administración',
       items: [
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
-        { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
         { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]

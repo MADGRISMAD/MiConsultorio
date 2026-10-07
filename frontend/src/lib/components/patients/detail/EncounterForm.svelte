@@ -1,0 +1,203 @@
+<script lang="ts">
+  import { api } from '$lib/api';
+  import { Op } from '$lib/op.svelte';
+  import { toast } from '$lib/toast.svelte';
+  import { ENCOUNTER_KINDS, type Encounter, type EncounterKind, type FieldValues, type Patient, type PatientSchema } from '$lib/types';
+  import DynamicFields from '../../DynamicFields.svelte';
+  import Modal from '../../Modal.svelte';
+  import Icon from '../../ui/Icon.svelte';
+
+  interface Props {
+    open: boolean;
+    patient: Patient;
+    schema: PatientSchema;
+    prefill?: { appointment_id?: string; reason?: string };
+    onclose: () => void;
+    onsaved: (e: Encounter, thenRx: boolean) => void;
+  }
+  let { open, patient, schema, prefill, onclose, onsaved }: Props = $props();
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const CIE = /^[A-TV-Z]\d{2}(\.[0-9A-Z]{1,4})?$/;
+
+  const measureDefs = $derived(schema.measures[patient.subject] ?? []);
+  const kinds = $derived((schema.encounter_kinds?.length ? schema.encounter_kinds : (Object.keys(ENCOUNTER_KINDS) as EncounterKind[])).filter((k) => k !== 'adenda'));
+
+  let kind = $state<EncounterKind>('consulta');
+  let when = $state(local(new Date()));
+  let minWhen = $state(local(new Date()));
+  let maxWhen = $state(local(new Date()));
+  let whenTouched = $state(false);
+  let reason = $state('');
+  let subjective = $state('');
+  let measures = $state<FieldValues>({});
+  let exam = $state('');
+  let assessment = $state('');
+  let codes = $state<string[]>([]);
+  let codeDraft = $state('');
+  let codeError = $state('');
+  let plan = $state('');
+  let notes = $state('');
+  let isPrivate = $state(false);
+  let error = $state('');
+  const op = new Op();
+  let wasOpen = false;
+
+  $effect(() => {
+    if (open && !wasOpen) {
+      const now = new Date();
+      kind = 'consulta';
+      when = local(now);
+      maxWhen = local(now);
+      minWhen = local(new Date(now.getTime() - 7 * 864e5));
+      whenTouched = false;
+      reason = prefill?.reason ?? '';
+      subjective = exam = assessment = plan = notes = '';
+      measures = {};
+      codes = [];
+      codeDraft = codeError = error = '';
+      isPrivate = false;
+      op.reset();
+    }
+    wasOpen = open;
+  });
+
+  function addCode() {
+    const parts = codeDraft.split(/[\s,;]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);
+    codeError = '';
+    for (const c of parts) {
+      if (!CIE.test(c)) {
+        codeError = `"${c}" no es un código CIE-10 válido (ejemplo: J06.9).`;
+        return false;
+      }
+      if (!codes.includes(c)) codes = [...codes, c];
+    }
+    codeDraft = '';
+    return true;
+  }
+  function codeKey(ev: KeyboardEvent) {
+    if (ev.key === 'Enter' || ev.key === ',') {
+      ev.preventDefault();
+      addCode();
+    } else if (ev.key === 'Backspace' && !codeDraft && codes.length) codes = codes.slice(0, -1);
+  }
+
+  const cleanMeasures = () => Object.fromEntries(Object.entries(measures).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length)));
+
+  async function save(thenRx: boolean) {
+    error = '';
+    if (codeDraft && !addCode()) return;
+    const m = cleanMeasures();
+    if (![reason, subjective, exam, assessment, plan, notes].some((s) => s.trim()) && !Object.keys(m).length) {
+      error = 'Escribe al menos el motivo, lo que cuenta el paciente o algún otro apartado.';
+      return;
+    }
+    let saved: Encounter | undefined;
+    const ok = await op.run(async () => {
+      saved = await api.patients.createEncounter(patient.id, {
+        kind,
+        ...(whenTouched ? { occurred_at: new Date(when).toISOString() } : {}),
+        ...(prefill?.appointment_id ? { appointment_id: prefill.appointment_id } : {}),
+        reason: reason.trim(),
+        subjective: subjective.trim(),
+        measures: m,
+        exam: exam.trim(),
+        assessment: assessment.trim(),
+        diagnosis_codes: codes,
+        plan: plan.trim(),
+        notes: notes.trim(),
+        private: isPrivate
+      });
+    });
+    if (ok && saved) {
+      toast.show('Nota guardada en la bitácora');
+      onsaved(saved, thenRx);
+    }
+  }
+</script>
+
+<Modal {open} title="Nueva nota en la bitácora" {onclose} wide>
+  <form id="enc-form" class="space-y-5" onsubmit={(ev) => { ev.preventDefault(); save(false); }}>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label class="label" for="enc-kind">Tipo</label>
+        <select id="enc-kind" class="field" bind:value={kind}>
+          {#each kinds as k}<option value={k}>{ENCOUNTER_KINDS[k]}</option>{/each}
+        </select>
+      </div>
+      <div>
+        <label class="label" for="enc-when">Fecha y hora</label>
+        <input id="enc-when" type="datetime-local" class="field" bind:value={when} min={minWhen} max={maxWhen} oninput={() => (whenTouched = true)} />
+        <p class="hint">Puedes registrar hasta 7 días atrás.</p>
+      </div>
+    </div>
+
+    <div>
+      <label class="label" for="enc-reason">Motivo de consulta</label>
+      <input id="enc-reason" class="field" bind:value={reason} autocomplete="off" />
+    </div>
+    <div>
+      <label class="label" for="enc-subj">Lo que cuenta el paciente</label>
+      <textarea id="enc-subj" class="field min-h-40" rows="7" bind:value={subjective} placeholder="Su relato con sus propias palabras: cómo empezó, cómo se siente, qué ha notado…"></textarea>
+      <p class="hint">Es la conversación con {patient.subject === 'animal' ? 'el propietario' : 'el paciente'}; escríbela con el detalle que necesites.</p>
+    </div>
+
+    {#if measureDefs.length}
+      <div>
+        <p class="section-title mb-3">Signos vitales y mediciones</p>
+        <DynamicFields fields={measureDefs} bind:values={measures} id="enc-m" headings={false} />
+      </div>
+    {/if}
+
+    <div>
+      <label class="label" for="enc-exam">Exploración</label>
+      <textarea id="enc-exam" class="field min-h-24" rows="3" bind:value={exam}></textarea>
+    </div>
+    <div>
+      <label class="label" for="enc-ass">Diagnóstico o impresión clínica</label>
+      <textarea id="enc-ass" class="field min-h-20" rows="2" bind:value={assessment}></textarea>
+    </div>
+    <div>
+      <label class="label" for="enc-cie">Códigos CIE-10</label>
+      <div class="flex flex-wrap items-center gap-2 rounded-xl border border-app-ink/15 bg-app-panel p-2 focus-within:border-app-primary focus-within:ring-4 focus-within:ring-app-primary/15">
+        {#each codes as c}
+          <span class="badge font-mono">{c}<button type="button" class="ml-0.5 grid place-items-center" aria-label="Quitar {c}" onclick={() => (codes = codes.filter((x) => x !== c))}><Icon name="x" size={12} /></button></span>
+        {/each}
+        <input id="enc-cie" class="min-w-24 flex-1 bg-transparent px-1.5 py-1 font-mono text-sm uppercase outline-none" bind:value={codeDraft} onkeydown={codeKey} onblur={() => codeDraft && addCode()} placeholder={codes.length ? '' : 'J06.9'} autocomplete="off" autocapitalize="characters" aria-describedby="enc-cie-h" />
+      </div>
+      <p id="enc-cie-h" class="hint {codeError ? 'text-app-danger' : ''}" role={codeError ? 'alert' : undefined}>{codeError || 'Escribe un código y pulsa Enter o coma. Opcional.'}</p>
+    </div>
+    <div>
+      <label class="label" for="enc-plan">Plan e indicaciones</label>
+      <textarea id="enc-plan" class="field min-h-24" rows="3" bind:value={plan}></textarea>
+    </div>
+    <div>
+      <label class="label" for="enc-notes">Notas</label>
+      <textarea id="enc-notes" class="field min-h-20" rows="2" bind:value={notes}></textarea>
+    </div>
+
+    <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-app-ink/10 bg-app-elevated/60 p-4">
+      <input type="checkbox" class="mt-1 h-5 w-5 accent-[rgb(var(--app-primary))]" bind:checked={isPrivate} />
+      <span>
+        <span class="block text-sm font-medium">Nota privada (solo yo puedo leerla)</span>
+        <span class="hint block">Útil para notas de psicoterapia. El resto del equipo verá que existe una nota, pero no su contenido.</span>
+      </span>
+    </label>
+
+    {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
+    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <p class="flex items-start gap-2 text-sm text-app-muted"><Icon name="lock" size={16} class="mt-0.5 shrink-0" />Al guardar, la nota ya no se puede editar ni borrar (NOM-004). Si hay un error, se agrega una adenda.</p>
+  </form>
+  {#snippet footer()}
+    <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>
+    {#if schema.rx_mode === 'medication'}
+      <button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => save(true)}>Guardar y hacer receta</button>
+    {:else}
+      <button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => save(true)}>Guardar y hacer indicaciones</button>
+    {/if}
+    <button type="submit" form="enc-form" class="btn-primary" disabled={op.phase === 'loading'}>
+      {#if op.phase === 'loading'}<span class="spin"></span>{/if}Guardar en la bitácora
+    </button>
+  {/snippet}
+</Modal>
