@@ -270,6 +270,8 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &f) {
 		return
 	}
+	// No end time: the service's duration (or the professional's slot) decides it.
+	s.slotFillEnd(r.Context(), s.db, principalFrom(r.Context()).ClinicID, &f)
 	if msg := f.validate(); msg != "" {
 		writeError(w, http.StatusBadRequest, msg)
 		return
@@ -403,6 +405,7 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, r, err)
 		return
 	}
+	waitlistWake() // the old slot may be free now
 	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
 }
 
@@ -430,6 +433,7 @@ func (s *Server) deleteAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "appointment_delete", "Eliminó una cita", map[string]any{"appointment": id})
+	waitlistWake()
 	w.WriteHeader(http.StatusNoContent)
 }
 

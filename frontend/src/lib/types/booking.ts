@@ -3,6 +3,7 @@ export interface BookingService {
   name: string;
   category: string;
   price_cents?: number;
+  duration_minutes?: number;
 }
 
 export interface BookingProfessional {

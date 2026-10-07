@@ -40,6 +40,7 @@
   let expires = $state('');
   let satProduct = $state('');
   let satUnit = $state('');
+  let durStr = $state('');
   let errors = $state<Record<string, string>>({});
 
   // Reset the fields every time the modal opens (not on every keystroke).
@@ -63,6 +64,7 @@
       expires = '';
       satProduct = i?.sat_product_code ?? '';
       satUnit = i?.sat_unit_code ?? '';
+      durStr = i?.duration_minutes ? String(i.duration_minutes) : '';
       errors = {};
       op.reset();
     });
@@ -98,6 +100,8 @@
     }
     if (satProduct.trim() && !/^\d{8}$/.test(satProduct.trim())) e.satProduct = 'La clave del SAT tiene 8 dígitos.';
     if (satUnit.trim() && !/^[A-Za-z0-9]{2,3}$/.test(satUnit.trim())) e.satUnit = 'La unidad del SAT tiene 2 o 3 caracteres (E48, H87…).';
+    const dur = durStr.trim() === '' ? null : Number(durStr);
+    if (!isProduct && dur !== null && !(Number.isInteger(dur) && dur >= 5 && dur <= 480)) e.dur = 'La duración debe estar entre 5 y 480 minutos.';
     if (expires && expires < new Date().toISOString().slice(0, 10)) e.expires = 'Ese lote ya caducó.';
     errors = e;
     if (Object.keys(e).length) return null;
@@ -114,7 +118,8 @@
       min_stock: isProduct && track ? min : 0,
       unit: unit.trim() || (isProduct ? 'pza' : 'sesión'),
       sat_product_code: satProduct.trim(),
-      sat_unit_code: satUnit.trim().toUpperCase()
+      sat_unit_code: satUnit.trim().toUpperCase(),
+      duration_minutes: isProduct ? null : dur
     };
     if (!item) {
       if (input.track_stock) {
@@ -221,6 +226,14 @@
         <datalist id="{uid}-units">{#each UNITS as u}<option value={u}></option>{/each}</datalist>
       </div>
     </div>
+
+    {#if !isProduct}
+      <div>
+        <label class="label" for="{uid}-dur">Duración en la agenda <span class="font-normal text-app-muted">(minutos, opcional)</span></label>
+        <input id="{uid}-dur" class="field sm:max-w-40" bind:value={durStr} inputmode="numeric" maxlength="3" autocomplete="off" placeholder="Ej. 45" aria-invalid={!!errors.dur} aria-describedby="{uid}-dur-h" />
+        <p id="{uid}-dur-h" class="hint" class:text-app-danger={!!errors.dur}>{errors.dur ?? 'Si la dejas vacía se usa el intervalo del profesional. Las citas y la reserva en línea reservan este tiempo.'}</p>
+      </div>
+    {/if}
 
     {#if isProduct}
       <div class="rounded-2xl border border-app-ink/10 bg-app-elevated p-4">

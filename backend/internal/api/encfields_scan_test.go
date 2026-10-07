@@ -20,13 +20,13 @@ func TestEncryptedColumnsOnlyThroughHelpers(t *testing.T) {
 	// Files that read or write sealed columns: each one must call at least one helper.
 	helperFiles := map[string]bool{
 		"appointments.go": true, "booking_online.go": true, "encounters.go": true, "patients.go": true,
-		"portal_data.go": true, "prescriptions.go": true, "vaccinations.go": true,
+		"portal_data.go": true, "prescriptions.go": true, "vaccinations.go": true, "waitlist_public_routes.go": true,
 	}
 	// Files that mention one of the words for a different table or column (clinics.plan, medications.notes,
 	// treatment_plans.notes...) or only read the clear profile key; reviewed by hand.
 	otherTables := map[string]bool{
 		"middleware.go": true, "mp.go": true, "plans.go": true, "platform.go": true, "team.go": true,
-		"rx_catalog.go": true, "rx_routes.go": true, "treatment_plans.go": true, "reports_clinical.go": true,
+		"rx_catalog.go": true, "rx_routes.go": true, "treatment_plans.go": true, "reports_clinical.go": true, "waitlist.go": true,
 	}
 	// Files allowed to export whole rows (to_jsonb / SELECT *) of the sealed tables.
 	wholeRow := map[string]bool{"patients_export.go": true, "vaccinations.go": true}

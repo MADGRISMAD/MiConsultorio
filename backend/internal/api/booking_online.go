@@ -108,7 +108,7 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 	for _, p := range pros {
 		profs = append(profs, map[string]any{"id": p.ID, "name": p.Name})
 	}
-	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents FROM catalog_items
+	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents, duration_minutes FROM catalog_items
 		WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY category, name LIMIT 200`, c.ID)
 	if err != nil {
 		serverError(w, r, err)
@@ -119,11 +119,15 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var id, name, cat string
 		var price int
-		if err := rows.Scan(&id, &name, &cat, &price); err != nil {
+		var minutes *int
+		if err := rows.Scan(&id, &name, &cat, &price, &minutes); err != nil {
 			serverError(w, r, err)
 			return
 		}
 		svc := map[string]any{"id": id, "name": name, "category": cat}
+		if minutes != nil {
+			svc["duration_minutes"] = *minutes
+		}
 		if c.ShowPrices {
 			svc["price_cents"] = price
 		}
@@ -148,18 +152,9 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 
 var weekdayKeys = []string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 
-// candidateSlots lists the start times ("HH:MM") a professional works on date, one per slot, that
-// respect the lead time and the horizon. Existing appointments and blocks are not considered.
-func (c *bookingClinic) candidateSlots(p bookable, date string, now time.Time) []string {
-	day, err := time.ParseInLocation("2006-01-02", date, c.Loc)
-	if err != nil {
-		return nil
-	}
-	last := now.In(c.Loc).AddDate(0, 0, c.HorizonDays).Format("2006-01-02")
-	if date > last || date < now.In(c.Loc).Format("2006-01-02") {
-		return nil
-	}
-	key := weekdayKeys[day.Weekday()]
+// bookingWindows are the working ranges ("HH:MM") of a professional on a weekday key: their own
+// hours or, when they have none, the clinic's.
+func (c *bookingClinic) bookingWindows(p bookable, key string) [][2]string {
 	var windows [][2]string
 	if len(p.Hours) > 0 {
 		for _, w := range p.Hours[key] {
@@ -170,19 +165,49 @@ func (c *bookingClinic) candidateSlots(p bookable, date string, now time.Time) [
 	} else if h := c.Hours.Hours[key]; h.Open {
 		windows = append(windows, [2]string{h.Start, h.End})
 	}
-	step := p.Slot
-	if step < 5 {
-		step = c.SlotMinutes
+	return windows
+}
+
+// step is the grid, in minutes, on which the professional's appointments start.
+func (p bookable) step(c *bookingClinic) int {
+	if p.Slot < 5 {
+		return c.SlotMinutes
 	}
+	return p.Slot
+}
+
+// minutes is how long an appointment takes: the service's duration when it has one (dur > 0),
+// otherwise the professional's slot.
+func (p bookable) minutes(c *bookingClinic, dur int) int {
+	if dur > 0 {
+		return dur
+	}
+	return p.step(c)
+}
+
+// candidateSlots lists the start times ("HH:MM") a professional works on date, one per grid step, that
+// respect the lead time and the horizon and leave room for an appointment of dur minutes (0 = the
+// professional's slot). Existing appointments and blocks are not considered.
+func (c *bookingClinic) candidateSlots(p bookable, date string, now time.Time, dur int) []string {
+	day, err := time.ParseInLocation("2006-01-02", date, c.Loc)
+	if err != nil {
+		return nil
+	}
+	last := now.In(c.Loc).AddDate(0, 0, c.HorizonDays).Format("2006-01-02")
+	if date > last || date < now.In(c.Loc).Format("2006-01-02") {
+		return nil
+	}
+	step := time.Duration(p.step(c)) * time.Minute
+	length := time.Duration(p.minutes(c, dur)) * time.Minute
 	earliest := now.Add(time.Duration(c.LeadHours) * time.Hour)
 	var out []string
-	for _, w := range windows {
+	for _, w := range c.bookingWindows(p, weekdayKeys[day.Weekday()]) {
 		from, err1 := localTime(c.Loc, date, w[0])
 		to, err2 := localTime(c.Loc, date, w[1])
 		if err1 != nil || err2 != nil {
 			continue
 		}
-		for t := from; !t.Add(time.Duration(step) * time.Minute).After(to); t = t.Add(time.Duration(step) * time.Minute) {
+		for t := from; !t.Add(length).After(to); t = t.Add(step) {
 			if !t.Before(earliest) {
 				out = append(out, t.Format("15:04"))
 			}
@@ -192,13 +217,10 @@ func (c *bookingClinic) candidateSlots(p bookable, date string, now time.Time) [
 	return out
 }
 
-func (p bookable) end(c *bookingClinic, start string) string {
-	step := p.Slot
-	if step < 5 {
-		step = c.SlotMinutes
-	}
+// end is when an appointment of dur minutes (0 = the professional's slot) starting at start finishes.
+func (p bookable) end(c *bookingClinic, start string, dur int) string {
 	t, _ := time.Parse("15:04", start)
-	return t.Add(time.Duration(step) * time.Minute).Format("15:04")
+	return t.Add(time.Duration(p.minutes(c, dur)) * time.Minute).Format("15:04")
 }
 
 func (b *bookingAPI) bookingAvailability(w http.ResponseWriter, r *http.Request) {
@@ -225,10 +247,12 @@ func (b *bookingAPI) bookingAvailability(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "La fecha no es válida.")
 		return
 	}
-	if svc := r.URL.Query().Get("service"); svc != "" && !b.serviceOK(ctx, c.ID, svc) {
+	svc := r.URL.Query().Get("service")
+	if svc != "" && !b.serviceOK(ctx, c.ID, svc) {
 		writeError(w, http.StatusBadRequest, "El servicio no es válido.")
 		return
 	}
+	dur := b.slotServiceMinutes(ctx, b.db, c.ID, svc)
 	pros, err := b.listBookable(ctx, c, profID)
 	if err != nil {
 		serverError(w, r, err)
@@ -237,14 +261,19 @@ func (b *bookingAPI) bookingAvailability(w http.ResponseWriter, r *http.Request)
 	slots := []map[string]string{}
 	if len(pros) == 1 {
 		pid := pros[0].ID
-		for _, st := range c.candidateSlots(pros[0], date, time.Now()) {
-			end := pros[0].end(c, st)
+		held, err := b.slotHeldSpans(ctx, b.db, c.ID, pid, date)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		for _, st := range c.candidateSlots(pros[0], date, time.Now(), dur) {
+			end := pros[0].end(c, st, dur)
 			code, err := b.slotConflict(ctx, b.db, c.ID, &pid, "", date, st, end, "")
 			if err != nil {
 				serverError(w, r, err)
 				return
 			}
-			if code == SlotFree {
+			if code == SlotFree && !held.overlaps(st, end) {
 				slots = append(slots, map[string]string{"start": st, "end": end})
 			}
 		}
@@ -358,15 +387,16 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pro := pros[0]
+	dur := b.slotServiceMinutes(ctx, b.db, c.ID, req.ServiceID)
 	valid := false
-	for _, st := range c.candidateSlots(pro, req.Date, time.Now()) {
+	for _, st := range c.candidateSlots(pro, req.Date, time.Now(), dur) {
 		valid = valid || st == req.Start
 	}
 	if !valid {
 		writeError(w, http.StatusConflict, "Ese horario ya no está disponible. Elige otro.")
 		return
 	}
-	end := pro.end(c, req.Start)
+	end := pro.end(c, req.Start, dur)
 	token, err := newToken()
 	if err != nil {
 		serverError(w, r, err)
@@ -383,6 +413,15 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		code, err := b.slotConflict(ctx, tx, c.ID, &pro.ID, "", req.Date, req.Start, end, "")
 		if err != nil {
 			return err
+		}
+		if code == SlotFree {
+			held, err := b.slotHeldSpans(ctx, tx, c.ID, pro.ID, req.Date)
+			if err != nil {
+				return err
+			}
+			if held.overlaps(req.Start, end) {
+				code = SlotTaken // the slot is on offer to someone on the waitlist
+			}
 		}
 		if code != SlotFree {
 			taken = true
@@ -418,6 +457,8 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		audit(ctx, tx, c.ID, nil, "appointment_booked_online", "Cita reservada en línea para el "+req.Date+" a las "+req.Start,
 			map[string]any{"appointment_id": apptID, "professional_id": pro.ID, "requires_confirmation": c.RequiresConfirmation})
+		b.ntfAppointment(ctx, tx, c.ID, pro.ID, "booking_new", "Nueva cita por reserva en línea",
+			req.Names+" "+req.LastNames+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/admin/navegar-citas")
 		return b.scheduleReminders(ctx, tx, c.ID, apptID)
 	})
 	switch {

@@ -302,6 +302,8 @@ export interface CatalogItem {
   sat_unit_code?: string;
   /** Earliest expiry among lots with stock (YYYY-MM-DD). */
   next_expiry?: string | null;
+  /** Minutes the service takes in the agenda; null/absent = the professional's slot. */
+  duration_minutes?: number | null;
   /** Lot of the initial stock (create only). */
   lot_code?: string;
   expires_on?: string;

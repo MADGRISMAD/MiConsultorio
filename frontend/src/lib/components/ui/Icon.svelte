@@ -5,7 +5,7 @@
     | 'check' | 'alert' | 'clock' | 'lock' | 'arrow-right' | 'arrow-left' | 'sparkles' | 'info' | 'wallet'
     | 'shield' | 'stethoscope' | 'tooth' | 'paw' | 'spine' | 'building' | 'activity' | 'user' | 'user-plus' | 'key' | 'mail'
     | 'phone' | 'chevron-down' | 'ban' | 'refresh' | 'baby' | 'heart' | 'leaf' | 'chat' | 'droplet' | 'flower' | 'bone' | 'clock-plus'
-    | 'upload' | 'download' | 'file' | 'archive' | 'rotate' | 'zoom-in' | 'zoom-out';
+    | 'bell' | 'upload' | 'download' | 'file' | 'archive' | 'rotate' | 'zoom-in' | 'zoom-out';
 </script>
 
 <script lang="ts">
@@ -38,6 +38,7 @@
     'eye-off': 'M3 3l18 18M10.6 5.7A9.6 9.6 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 3.9M6.5 7A16.6 16.6 0 0 0 2 12s3.6 6.5 10 6.5c1.5 0 2.9-.4 4.1-.9M9.9 9.9a2.8 2.8 0 0 0 4 4',
     search: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.9-4.9',
     plus: 'M12 5v14M5 12h14',
+    bell: 'M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0',
     edit: 'M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17zM14.5 7.5l3 3',
     trash: 'M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.2A1.5 1.5 0 0 0 8.8 20.5h6.4a1.5 1.5 0 0 0 1.5-1.3L17.5 7M10 11v5.5M14 11v5.5',
     check: 'M5 12.5l4.5 4.5L19 7.5',

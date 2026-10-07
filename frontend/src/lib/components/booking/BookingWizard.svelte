@@ -1,11 +1,13 @@
 <script lang="ts">
   import { bookingApi } from '$lib/api/booking';
+  import { bookingMonthApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
   import { moneyCents } from '$lib/format';
   import { CLINIC_KINDS } from '$lib/types';
   import type { BookingInfo, BookingResult, BookingSlot } from '$lib/types/booking';
   import Icon from '$lib/components/ui/Icon.svelte';
   import DatePicker from './DatePicker.svelte';
+  import WaitlistJoin from './WaitlistJoin.svelte';
 
   let { slug, info }: { slug: string; info: BookingInfo } = $props();
 
@@ -25,6 +27,9 @@
   let acceptReminders = $state(false);
   let website = $state(''); // honeypot
   let done = $state<BookingResult | null>(null);
+  let monthKey = $state('');
+  let available = $state<string[] | null>(null); // days of the shown month with a free slot; null while loading
+  let monthSeq = 0;
 
   const slotsOp = new Op();
   const op = new Op();
@@ -46,6 +51,27 @@
       if (mine === seq) slots = r;
     });
   }
+
+  // Days without room are disabled in the calendar: one request per month, not per day.
+  $effect(() => {
+    const ym = monthKey;
+    const pro = professionalId;
+    const svc = serviceId;
+    if (!ym || !pro) {
+      available = null;
+      return;
+    }
+    const mine = ++monthSeq;
+    available = null;
+    bookingMonthApi
+      .month(slug, ym, pro, svc)
+      .then((days) => {
+        if (mine === monthSeq) available = days;
+      })
+      .catch(() => {
+        if (mine === monthSeq) available = null; // without it the picker simply allows every day
+      });
+  });
 
   function pickDate(d: string) {
     date = d;
@@ -137,7 +163,7 @@
               {#each info.services as s (s.id)}
                 <label class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
                   <input type="radio" class="sr-only" name="svc" value={s.id} bind:group={serviceId} onchange={loadSlots} />
-                  <span>{s.name}</span>
+                  <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {s.duration_minutes} min</span>{/if}</span>
                   {#if s.price_cents !== undefined}<span class="font-mono text-xs text-app-muted">{moneyCents(s.price_cents)}</span>{/if}
                 </label>
               {/each}
@@ -165,7 +191,10 @@
       {#if !professionalId}
         <p class="mt-3 text-sm text-app-muted">Elige primero un profesional.</p>
       {:else}
-        <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} /></div>
+        <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} {available} onmonth={(m) => (monthKey = m)} /></div>
+        {#if available && available.length === 0 && !date}
+          <p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">No hay horarios libres este mes. Prueba con otro mes o anótate en la lista de espera.</p>
+        {/if}
         {#if date}
           <div class="mt-4" aria-live="polite">
             <p class="label first-letter:uppercase">{dateLong(date)}</p>
@@ -185,6 +214,9 @@
               </div>
             {/if}
           </div>
+        {/if}
+        {#if (available && available.length === 0) || (slots && slots.length === 0)}
+          <WaitlistJoin {slug} clinicName={info.clinic.name} {professionalId} {serviceId} />
         {/if}
       {/if}
     </section>
