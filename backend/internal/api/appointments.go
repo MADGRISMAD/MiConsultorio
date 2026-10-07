@@ -71,6 +71,7 @@ const appointmentSelect = `SELECT a.id::text AS id, a.patient_id::text AS patien
 	LEFT JOIN catalog_items ci ON ci.id = a.service_id `
 
 type rowsQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 

@@ -70,11 +70,6 @@ type treatmentPlan struct {
 	Events          []planEvent `json:"events,omitempty"`
 }
 
-type rowsQuerier interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-}
-
 func lineTotal(qty float64, unit int) int { return int(math.Round(qty * float64(unit))) }
 
 const planCols = `p.id::text, p.patient_id::text, trim(pt.names || ' ' || pt.last_names), p.title, p.status, p.notes, p.professional_id::text,
