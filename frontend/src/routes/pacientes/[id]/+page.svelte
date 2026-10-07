@@ -11,6 +11,8 @@
   import PrescriptionBuilder from '$lib/components/patients/detail/PrescriptionBuilder.svelte';
   import PrescriptionsTab from '$lib/components/patients/detail/PrescriptionsTab.svelte';
   import FilesTab from '$lib/components/patients/detail/FilesTab.svelte';
+  import LabTab from '$lib/components/patients/detail/LabTab.svelte';
+  import GrowthTab from '$lib/components/patients/detail/GrowthTab.svelte';
   import VaccinesTab from '$lib/components/patients/detail/VaccinesTab.svelte';
   import OdontogramTab from '$lib/components/patients/detail/OdontogramTab.svelte';
   import BodyMapTab from '$lib/components/patients/detail/BodyMapTab.svelte';
@@ -28,7 +30,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
 
-  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'archivos' | 'vacunas' | 'odontograma' | 'esquema' | 'planes' | 'accesos';
+  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'planes' | 'accesos';
 
   const id = $derived(page.params.id ?? '');
   let patient = $state<Patient | null>(null);
@@ -146,6 +148,8 @@
 
   const isPerson = $derived(patient?.subject === 'person');
   const hasKind = (...k: string[]) => (schema?.kinds ?? []).some((x) => k.includes(x));
+  const hasMeasures = $derived(encounters.some((e) => ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')));
+  const showGrowth = $derived(hasKind('PEDIATRICS') || patient?.subject === 'animal' || hasMeasures);
   const tabs = $derived<{ key: Tab; label: string; count?: number }[]>([
     { key: 'resumen', label: 'Resumen' },
     { key: 'bitacora', label: 'Bitácora', count: encounters.filter((e) => !e.addendum_of).length },
@@ -154,6 +158,8 @@
     ...(isPerson && hasKind('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
     ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
     ...(hasKind('DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'NUTRITION', 'PSYCHOLOGY', 'VETERINARY') ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : []),
+    { key: 'laboratorio', label: 'Laboratorio' },
+    ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento' }] : []),
     { key: 'archivos', label: 'Archivos' },
     ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos' }] : [])
   ]);
@@ -259,6 +265,10 @@
         <PrescriptionsTab {patient} {schema} {prescriptions} {canWrite} {isAdmin} userName={session.user?.name ?? ''} onnew={newRx} onchange={refreshRx} />
       {:else if patient && tab === 'archivos'}
         <FilesTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'laboratorio'}
+        <LabTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'crecimiento'}
+        <GrowthTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'vacunas'}
         <VaccinesTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'odontograma'}
