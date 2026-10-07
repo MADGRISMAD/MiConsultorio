@@ -36,6 +36,10 @@ type rxItem struct {
 	Quantity     string `json:"quantity"`
 	Notes        string `json:"notes"`
 	Control      string `json:"control"`
+	// Optional, for the weight-based dose check: the catalog entry and the numbers behind Dose.
+	CatalogID   string  `json:"catalog_id,omitempty"`
+	DoseMg      float64 `json:"dose_mg,omitempty"`       // mg per intake
+	DosesPerDay float64 `json:"doses_per_day,omitempty"` // intakes per day
 }
 
 type prescription struct {
@@ -58,16 +62,21 @@ type prescription struct {
 	VoidedAt               *time.Time `json:"voided_at"`
 	VoidedBy               string     `json:"voided_by"`
 	VoidReason             string     `json:"void_reason"`
+	WeightKg               *float64   `json:"weight_kg"`
+	AllergyOverrideReason  string     `json:"allergy_override_reason,omitempty"`
+	DoseOverrideReason     string     `json:"dose_override_reason,omitempty"`
 }
 
 const rxCols = `id, patient_id::text, encounter_id::text, folio, mode, issued_at, to_char(valid_until,'YYYY-MM-DD'), diagnosis, items, instructions,
-	to_char(next_visit,'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, author_specialty_license, voided_at, voided_by, void_reason`
+	to_char(next_visit,'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, author_specialty_license, voided_at, voided_by, void_reason,
+	weight_kg::float8, allergy_override_reason, dose_override_reason`
 
 func scanRx(row pgx.Row) (prescription, error) {
 	var x prescription
 	var raw []byte
 	err := row.Scan(&x.ID, &x.PatientID, &x.EncounterID, &x.Folio, &x.Mode, &x.IssuedAt, &x.ValidUntil, &x.Diagnosis, &raw, &x.Instructions,
-		&x.NextVisit, &x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.AuthorSpecialtyLicense, &x.VoidedAt, &x.VoidedBy, &x.VoidReason)
+		&x.NextVisit, &x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.AuthorSpecialtyLicense, &x.VoidedAt, &x.VoidedBy, &x.VoidReason,
+		&x.WeightKg, &x.AllergyOverrideReason, &x.DoseOverrideReason)
 	if err != nil {
 		return x, err
 	}
@@ -123,6 +132,10 @@ type rxIn struct {
 	Instructions string   `json:"instructions"`
 	NextVisit    string   `json:"next_visit"`
 	ValidDays    int      `json:"valid_days"`
+	// Patient weight (kg) for the dose check, and the reasons to go on despite an allergy or dose warning.
+	WeightKg              float64 `json:"weight_kg"`
+	AllergyOverrideReason string  `json:"allergy_override_reason"`
+	DoseOverrideReason    string  `json:"dose_override_reason"`
 }
 
 func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +235,12 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 			case it.Control == "Fracción I o II":
 				writeJSON(w, http.StatusUnprocessableEntity, errorBody{Code: "CONTROLLED", Message: n + "los estupefacientes y psicotrópicos de fracción I y II requieren la receta especial con código de barras de COFEPRIS. Caresia no la emite: haz esa receta en el formato oficial."})
 				return
+			case it.DoseMg < 0 || it.DoseMg > 100000 || it.DosesPerDay < 0 || it.DosesPerDay > 48:
+				writeError(w, http.StatusBadRequest, n+"la dosis en mg o las tomas al día no son válidas.")
+				return
+			case utf8.RuneCountInString(it.CatalogID) > 60:
+				writeError(w, http.StatusBadRequest, n+"medicamento de catálogo no válido.")
+				return
 			case utf8.RuneCountInString(it.Brand) > 120 || utf8.RuneCountInString(it.Presentation) > 100 || utf8.RuneCountInString(it.Dose) > 120 ||
 				utf8.RuneCountInString(it.Frequency) > 100 || utf8.RuneCountInString(it.Duration) > 100 || utf8.RuneCountInString(it.Quantity) > 60 || utf8.RuneCountInString(it.Notes) > 300:
 				writeError(w, http.StatusBadRequest, n+"uno de los campos es demasiado largo.")
@@ -232,6 +251,41 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 	} else if in.Instructions == "" || len(in.Items) > 0 {
 		writeError(w, http.StatusBadRequest, "Escribe las indicaciones para el paciente. Este giro no receta medicamentos.")
 		return
+	}
+	in.AllergyOverrideReason, in.DoseOverrideReason = strings.TrimSpace(in.AllergyOverrideReason), strings.TrimSpace(in.DoseOverrideReason)
+	if in.WeightKg < 0 || in.WeightKg > 2000 || utf8.RuneCountInString(in.AllergyOverrideReason) > 300 || utf8.RuneCountInString(in.DoseOverrideReason) > 300 {
+		writeError(w, http.StatusBadRequest, "El peso o el motivo no son válidos.")
+		return
+	}
+	if len(items) > 0 {
+		pat, err := loadPatient(r.Context(), s.db, p.ClinicID, id)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if conflicts := allergyConflicts(patientAllergies(pat.Profile), items); len(conflicts) > 0 && in.AllergyOverrideReason == "" {
+			writeJSON(w, http.StatusConflict, map[string]any{"code": "ALLERGY_CONFLICT", "message": "El paciente tiene alergias registradas que coinciden con la receta. Revisa o escribe el motivo para continuar.", "conflicts": conflicts})
+			return
+		}
+		var warns []doseWarning
+		for _, it := range items {
+			if it.CatalogID == "" {
+				continue
+			}
+			if m, ok := s.lookupMed(r.Context(), p.ClinicID, it.CatalogID); ok {
+				if wn, over := doseExceeds(m, in.WeightKg, it.DoseMg, it.DosesPerDay); over {
+					warns = append(warns, wn)
+				}
+			}
+		}
+		if len(warns) > 0 && in.DoseOverrideReason == "" {
+			writeJSON(w, http.StatusConflict, map[string]any{"code": "DOSE_WARNING", "message": "La dosis diaria supera el máximo de referencia por kilo. Revisa o escribe el motivo para continuar.", "warnings": warns})
+			return
+		}
+	}
+	var weight any
+	if in.WeightKg > 0 {
+		weight = in.WeightKg
 	}
 	var enc any
 	if in.EncounterID != "" {
@@ -250,14 +304,23 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		}
 		row := tx.QueryRow(r.Context(), `
 			INSERT INTO prescriptions (clinic_id, patient_id, encounter_id, folio, mode, valid_until, diagnosis, items, instructions, next_visit,
-				author_id, author_name, author_title, author_license, author_institution, author_specialty_license)
-			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16) RETURNING `+rxCols,
-			p.ClinicID, id, enc, folio, mode, valid, in.Diagnosis, raw, in.Instructions, next, p.UserID, p.actorName(), title, license, institution, specLicense)
+				author_id, author_name, author_title, author_license, author_institution, author_specialty_license,
+				verify_token, weight_kg, allergy_override_reason, dose_override_reason)
+			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING `+rxCols,
+			p.ClinicID, id, enc, folio, mode, valid, in.Diagnosis, raw, in.Instructions, next, p.UserID, p.actorName(), title, license, institution, specLicense,
+			newVerifyToken(), weight, in.AllergyOverrideReason, in.DoseOverrideReason)
 		var err error
 		if out, err = scanRx(row); err != nil {
 			return err
 		}
-		audit(r.Context(), tx, p.ClinicID, p, "prescription", "Emitió la receta #"+itoa(folio), map[string]any{"patient": id})
+		meta := map[string]any{"patient": id}
+		if in.AllergyOverrideReason != "" {
+			meta["allergy_override_reason"] = in.AllergyOverrideReason
+		}
+		if in.DoseOverrideReason != "" {
+			meta["dose_override_reason"] = in.DoseOverrideReason
+		}
+		audit(r.Context(), tx, p.ClinicID, p, "prescription", "Emitió la receta #"+itoa(folio), meta)
 		return nil
 	})
 	if err != nil {
@@ -329,6 +392,11 @@ func (s *Server) prescriptionPrintData(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	var token string
+	if err := s.db.QueryRow(r.Context(), `SELECT verify_token FROM prescriptions WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id).Scan(&token); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	s.logAccess(r.Context(), p.ClinicID, pat.ID, p, "print")
-	writeJSON(w, http.StatusOK, map[string]any{"prescription": rx, "patient": pat, "clinic": issuer})
+	writeJSON(w, http.StatusOK, map[string]any{"prescription": rx, "patient": pat, "clinic": issuer, "verify_url": s.verifyURL(token)})
 }

@@ -330,7 +330,13 @@ func TestPrescriptions(t *testing.T) {
 
 	r1 := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/prescriptions", rx(item)), "prescription")
 	abx := map[string]any{"medicine": "Amoxicilina", "dose": "500 mg", "route": "Oral", "frequency": "Cada 8 horas", "duration": "7 días", "control": "Antibiótico"}
-	r2 := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/prescriptions", rx(item, abx)), "prescription")
+	// the patient is allergic to penicillin: amoxicillin needs an explicit reason
+	if code, out := doc.do("POST", "/api/patients/"+pid+"/prescriptions", rx(item, abx)); code != 409 || out["code"] != "ALLERGY_CONFLICT" {
+		t.Fatalf("allergy conflict: %d %v", code, out)
+	}
+	withReason := rx(item, abx)
+	withReason["allergy_override_reason"] = "Tolera amoxicilina, documentado por alergología"
+	r2 := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/prescriptions", withReason), "prescription")
 	if r1["folio"].(float64) != 1 || r2["folio"].(float64) != 2 || r1["author_license"] != "12345678" || r1["author_title"] != "Médico Cirujano" || r1["valid_until"] == nil || len(r2["items"].([]any)) != 2 {
 		t.Fatalf("prescriptions: %v %v", r1, r2)
 	}

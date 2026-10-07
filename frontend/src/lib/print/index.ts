@@ -1,6 +1,8 @@
 import { api } from '$lib/api';
 import { specialtyApi } from '$lib/api/specialty';
 import type { BodymapData, OdontogramData } from '$lib/types/specialty';
+import { rxApi } from '$lib/api/rx';
+import QRCode from 'qrcode';
 import { printHtml } from '$lib/printer/ticket';
 import type { Issuer, Patient } from '$lib/types';
 import { consentHtml, privacyNoticeHtml } from './avisos';
@@ -12,8 +14,10 @@ export { escapeHtml } from './base';
 export { consentHtml, expedienteHtml, privacyNoticeHtml, recetaHtml };
 
 export async function printReceta(prescriptionId: string): Promise<void> {
-  const r = await api.prescriptions.print(prescriptionId);
-  await printHtml(recetaHtml(r.prescription, r.patient, r.clinic));
+  const r = await rxApi.printData(prescriptionId);
+  // The QR is drawn in the browser; the receta still prints if it cannot be generated.
+  const qr = r.verify_url ? await QRCode.toDataURL(r.verify_url, { margin: 1, width: 252, errorCorrectionLevel: 'M' }).catch(() => '') : '';
+  await printHtml(recetaHtml(r.prescription, r.patient, r.clinic, qr ? { url: r.verify_url, qr } : undefined));
 }
 
 export async function printExpediente(patientId: string): Promise<void> {

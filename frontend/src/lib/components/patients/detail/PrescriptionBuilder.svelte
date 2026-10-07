@@ -3,7 +3,12 @@
   import { Op } from '$lib/op.svelte';
   import { printReceta } from '$lib/print';
   import { toast } from '$lib/toast.svelte';
-  import type { Patient, PatientSchema, Prescription, RxControl, RxItem } from '$lib/types';
+  import { rxApi } from '$lib/api/rx';
+  import type { Patient, PatientSchema, Prescription, RxControl } from '$lib/types';
+  import type { CatalogMed, DoseResult, Icd10, RxItemInput } from '$lib/types/rx';
+  import { allergyMatches, patientAllergies } from '../../rx/allergy';
+  import Autocomplete from '../../rx/Autocomplete.svelte';
+  import DoseCalculator from '../../rx/DoseCalculator.svelte';
   import Modal from '../../Modal.svelte';
   import Icon from '../../ui/Icon.svelte';
 
@@ -23,9 +28,24 @@
   const FREQ = ['Cada 4 horas', 'Cada 6 horas', 'Cada 8 horas', 'Cada 12 horas', 'Cada 24 horas', 'Una vez al día', 'Dosis única', 'Solo si hay dolor o molestia'];
   const DUR = ['3 días', '5 días', '7 días', '10 días', '14 días', 'Tratamiento continuo'];
 
-  const blank = (): RxItem => ({ medicine: '', brand: '', presentation: '', dose: '', route: schema.routes?.[0] ?? '', frequency: '', duration: '', quantity: '', notes: '', control: 'No' });
+  const blank = (): RxItemInput => ({ medicine: '', brand: '', presentation: '', dose: '', route: schema.routes?.[0] ?? '', frequency: '', duration: '', quantity: '', notes: '', control: 'No' });
   let diagnosis = $state('');
-  let items = $state<RxItem[]>([blank()]);
+  let items = $state<RxItemInput[]>([blank()]);
+  // catalog entry behind each item (null when typed by hand)
+  let picked = $state<(CatalogMed | null)[]>([null]);
+  let calcFor = $state<number | null>(null);
+  let weight = $state('');
+  let weightNote = $state('');
+  // confirmations asked by the server: allergy match or dose above the reference maximum
+  let pending = $state<{ kind: 'allergy' | 'dose'; message: string; lines: string[] } | null>(null);
+  let reasonText = $state('');
+  let confirmed = $state<{ allergy?: string; dose?: string }>({});
+  let disclaimer = $state('');
+  const subject = $derived(patient.subject === 'animal' ? 'animal' : 'person');
+  const species = $derived(typeof patient.profile?.species === 'string' ? (patient.profile.species as string) : '');
+  const allergies = $derived(patientAllergies(patient.profile));
+  const alertsOf = (it: RxItemInput) => allergyMatches(allergies, it.medicine, it.brand);
+  const anyRetained = $derived(items.some((i) => i.control === 'Antibiótico' || i.control === 'Fracción III'));
   let instructions = $state('');
   let nextVisit = $state('');
   let validDays = $state(30);
@@ -40,6 +60,12 @@
     if (open && !wasOpen) {
       diagnosis = diagnosisSeed;
       items = [blank()];
+      picked = [null];
+      calcFor = null;
+      pending = null;
+      confirmed = {};
+      reasonText = weight = weightNote = '';
+      loadWeight();
       instructions = nextVisit = error = '';
       validDays = 30;
       needCedula = false;
@@ -51,8 +77,70 @@
 
   const today = new Date().toISOString().slice(0, 10);
 
-  async function submit(ev: SubmitEvent) {
+  // Weight of the latest consultation that recorded one; the prescriber can change it.
+  async function loadWeight() {
+    try {
+      const list = await api.patients.encounters(patient.id);
+      const last = [...list]
+        .filter((e) => !e.hidden && Number(e.measures?.weight_kg) > 0)
+        .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0];
+      if (last && !weight) {
+        weight = String(last.measures.weight_kg);
+        weightNote = `Peso de la consulta del ${new Date(last.occurred_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}. Confírmalo antes de calcular dosis.`;
+      }
+    } catch {
+      // optional help; the prescriber can type the weight
+    }
+  }
+
+  const searchMeds = async (q: string) => {
+    const r = await rxApi.medications(q, subject, species);
+    disclaimer = r.disclaimer;
+    return r.medications;
+  };
+  const searchDx = async (q: string) => (await rxApi.diagnoses(q)).diagnoses;
+
+  function pickMed(n: number, m: CatalogMed) {
+    const it = items[n];
+    it.medicine = m.name;
+    it.brand = m.brand ?? '';
+    it.presentation = m.presentations?.[0] ?? '';
+    if ((schema.routes ?? []).includes(m.route)) it.route = m.route;
+    it.control = m.control;
+    it.catalog_id = m.id;
+    delete it.dose_mg;
+    delete it.doses_per_day;
+    picked[n] = m;
+    calcFor = null;
+  }
+  function typedMed(n: number) {
+    delete items[n].catalog_id;
+    picked[n] = null;
+    if (calcFor === n) calcFor = null;
+  }
+  function applyDose(n: number, r: DoseResult) {
+    const it = items[n];
+    it.dose = r.dose;
+    it.frequency = r.frequency;
+    if (r.presentation) it.presentation = r.presentation;
+    it.dose_mg = r.dose_mg;
+    it.doses_per_day = r.doses_per_day;
+    calcFor = null;
+    toast.show('Dosis agregada: revísala antes de crear la receta');
+  }
+  const addItem = () => {
+    items = [...items, blank()];
+    picked = [...picked, null];
+  };
+
+  function submit(ev: SubmitEvent) {
     ev.preventDefault();
+    pending = null;
+    return send();
+  }
+
+  // The server revalidates allergies and doses; a warning comes back as `pending` for the prescriber to confirm.
+  async function send() {
     error = '';
     needCedula = false;
     if (!instr) {
@@ -64,14 +152,26 @@
     let rx: Prescription | undefined;
     const ok = await op.run(async () => {
       try {
-        rx = await api.patients.createPrescription(patient.id, {
+        const w = parseFloat(weight.replace(',', '.'));
+        const res = await rxApi.createPrescription(patient.id, {
           ...(encounterId ? { encounter_id: encounterId } : {}),
           diagnosis: diagnosis.trim(),
           items: instr ? [] : items.map((i) => ({ ...i, medicine: i.medicine.trim() })),
           instructions: instructions.trim(),
           ...(nextVisit ? { next_visit: nextVisit } : {}),
-          valid_days: validDays
+          valid_days: validDays,
+          ...(!instr && w > 0 ? { weight_kg: w } : {}),
+          ...(confirmed.allergy ? { allergy_override_reason: confirmed.allergy } : {}),
+          ...(confirmed.dose ? { dose_override_reason: confirmed.dose } : {})
         });
+        if (res.kind === 'created') rx = res.prescription;
+        else {
+          reasonText = '';
+          pending =
+            res.kind === 'allergy'
+              ? { kind: 'allergy', message: res.message, lines: res.conflicts.map((c) => c.message) }
+              : { kind: 'dose', message: res.message, lines: res.warnings.map((c) => c.message) };
+        }
       } catch (e) {
         if (e instanceof ApiError && e.code === 'CEDULA_REQUIRED') needCedula = true;
         throw e;
@@ -82,6 +182,14 @@
       oncreated(rx);
       toast.show(instr ? 'Hoja de indicaciones creada' : 'Receta creada');
     }
+  }
+
+  function confirmPending() {
+    if (!pending) return;
+    if (!reasonText.trim()) return (error = 'Escribe el motivo para continuar.');
+    confirmed = { ...confirmed, [pending.kind]: reasonText.trim() };
+    pending = null;
+    return send();
   }
 
   async function print() {
@@ -95,7 +203,12 @@
       printing = false;
     }
   }
-  const remove = (n: number) => (items = items.length > 1 ? items.filter((_, i) => i !== n) : items);
+  const remove = (n: number) => {
+    if (items.length < 2) return;
+    items = items.filter((_, i) => i !== n);
+    picked = picked.filter((_, i) => i !== n);
+    calcFor = null;
+  };
   const title = $derived(created ? (instr ? 'Hoja de indicaciones lista' : 'Receta lista') : instr ? 'Nueva hoja de indicaciones' : 'Nueva receta');
 </script>
 
@@ -113,7 +226,8 @@
       {/if}
       <div>
         <label class="label" for="rx-dx">Diagnóstico</label>
-        <input id="rx-dx" class="field" bind:value={diagnosis} autocomplete="off" />
+        <Autocomplete id="rx-dx" bind:value={diagnosis} search={searchDx} title={(d: Icd10) => `${d.code} · ${d.name}`} onpick={(d: Icd10) => (diagnosis = `${d.name} (${d.code})`)} placeholder="Escribe o busca en CIE-10 (código o nombre)" minChars={2} describedby="rx-dx-h" />
+        <p id="rx-dx-h" class="hint">Catálogo CIE-10 parcial: si no aparece, escribe el diagnóstico libremente.</p>
       </div>
 
       {#if instr}
@@ -124,6 +238,17 @@
       {:else}
         <datalist id="rx-freq">{#each FREQ as f}<option value={f}></option>{/each}</datalist>
         <datalist id="rx-dur">{#each DUR as f}<option value={f}></option>{/each}</datalist>
+        {#if allergies.length}
+          <div class="flex items-start gap-2.5 rounded-xl bg-app-warning/15 px-3.5 py-3 text-sm" role="status">
+            <Icon name="alert" size={18} />
+            <span><strong>Alergias registradas:</strong> {allergies.join(', ')}.</span>
+          </div>
+        {/if}
+        <div class="max-w-xs">
+          <label class="label" for="rx-weight">Peso del paciente (kg)</label>
+          <input id="rx-weight" class="field" inputmode="decimal" bind:value={weight} autocomplete="off" aria-describedby="rx-weight-h" />
+          <p id="rx-weight-h" class="hint">{weightNote || 'Opcional. Sirve para calcular dosis por peso y comparar con el máximo de referencia.'}</p>
+        </div>
         <div class="space-y-3">
           <p class="section-title">Medicamentos</p>
           <p class="hint">Escribe siempre la <strong>denominación genérica</strong> (sustancia activa). La marca es opcional.</p>
@@ -133,7 +258,29 @@
               <div class="grid gap-3 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                   <label class="label" for="rx-med-{n}">Denominación genérica *</label>
-                  <input id="rx-med-{n}" class="field" bind:value={it.medicine} autocomplete="off" placeholder="Ej. Paracetamol" />
+                  <Autocomplete
+                    id="rx-med-{n}"
+                    bind:value={it.medicine}
+                    search={searchMeds}
+                    title={(m: CatalogMed) => m.name}
+                    detail={(m: CatalogMed) => `${m.source === 'clinic' ? 'Propio de la clínica · ' : ''}${m.category}${m.control !== 'No' ? ` · ${m.control}` : ''}${m.species?.length ? ` · ${m.species.join(', ')}` : ''}`}
+                    onpick={(m: CatalogMed) => pickMed(n, m)}
+                    oninput={() => typedMed(n)}
+                    placeholder="Escribe para buscar, ej. Paracetamol"
+                    required
+                  />
+                  {#each alertsOf(it) as a}
+                    <p class="alert mt-2" role="alert"><Icon name="alert" size={18} /><span>Alergia registrada: «{a.allergy}»{a.family ? ` (familia ${a.family})` : ''}. Al crear la receta tendrás que indicar el motivo para continuar.</span></p>
+                  {/each}
+                  {#if picked[n]}
+                    {@const m = picked[n]}
+                    <p class="hint">
+                      Referencia: {m.typical_dose}{m.notes ? ` · ${m.notes}` : ''}
+                      {#if m.mg_per_kg}
+                        · <button type="button" class="underline" onclick={() => (calcFor = calcFor === n ? null : n)}>{calcFor === n ? 'Ocultar calculadora' : 'Calcular dosis por peso'}</button>
+                      {/if}
+                    </p>
+                  {/if}
                 </div>
                 <div><label class="label" for="rx-brand-{n}">Marca (opcional)</label><input id="rx-brand-{n}" class="field" bind:value={it.brand} autocomplete="off" /></div>
                 <div><label class="label" for="rx-pres-{n}">Presentación</label><input id="rx-pres-{n}" class="field" bind:value={it.presentation} autocomplete="off" placeholder="Tabletas 500 mg" /></div>
@@ -149,6 +296,9 @@
                   <label class="label" for="rx-ctl-{n}">Control</label>
                   <select id="rx-ctl-{n}" class="field" bind:value={it.control} aria-describedby="rx-ctl-h-{n}">{#each CONTROLS as c}<option value={c}>{c}</option>{/each}</select>
                 </div>
+                {#if picked[n] && calcFor === n}
+                  <div class="sm:col-span-2"><DoseCalculator med={picked[n]} {weight} idPrefix="rx-calc-{n}" onapply={(r) => applyDose(n, r)} /></div>
+                {/if}
                 <p id="rx-ctl-h-{n}" class="hint sm:col-span-2 {it.control === 'Fracción I o II' ? '!text-app-danger font-medium' : ''}">
                   {#if it.control === 'Fracción I o II'}
                     Caresia no puede emitir esta receta: los medicamentos de Fracción I o II (estupefacientes y psicotrópicos) requieren la receta especial con código de barras de COFEPRIS. Elige otro control o quita el medicamento.
@@ -161,7 +311,11 @@
               {#if items.length > 1}<button type="button" class="btn-ghost mt-3 -ml-3 text-app-danger" onclick={() => remove(n)}><Icon name="trash" size={16} />Quitar medicamento</button>{/if}
             </fieldset>
           {/each}
-          <button type="button" class="btn-secondary" onclick={() => (items = [...items, blank()])}><Icon name="plus" size={16} />Agregar medicamento</button>
+          <button type="button" class="btn-secondary" onclick={addItem}><Icon name="plus" size={16} />Agregar medicamento</button>
+          {#if disclaimer}<p class="hint">{disclaimer}</p>{/if}
+          {#if anyRetained}
+            <p class="rounded-xl bg-app-primary/8 px-4 py-3 text-sm" role="status"><strong>Receta retenida:</strong> hay antibióticos o medicamentos de Fracción III; la farmacia conservará la receta y no se podrá surtir de nuevo.</p>
+          {/if}
         </div>
         <div>
           <label class="label" for="rx-ins">Indicaciones generales</label>
@@ -178,6 +332,21 @@
         </div>
       </div>
 
+      {#if pending}
+        <div class="space-y-3 rounded-xl border border-app-danger/40 bg-app-danger/8 p-4" role="alertdialog" aria-labelledby="rx-pend-t">
+          <p id="rx-pend-t" class="flex items-center gap-2 font-medium text-app-danger"><Icon name="alert" size={18} />{pending.kind === 'allergy' ? 'Posible alergia del paciente' : 'Dosis por encima del máximo de referencia'}</p>
+          <ul class="list-disc space-y-1 pl-5 text-sm">{#each pending.lines as l}<li>{l}</li>{/each}</ul>
+          <div>
+            <label class="label" for="rx-reason">Motivo para continuar</label>
+            <textarea id="rx-reason" class="field" rows="2" maxlength="300" bind:value={reasonText} placeholder={pending.kind === 'allergy' ? 'Ej. Tolera el medicamento, documentado' : 'Ej. Dosis validada para este paciente'}></textarea>
+            <p class="hint">Se guarda en la receta y en la bitácora de auditoría.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-primary" onclick={confirmPending}>Continuar con este motivo</button>
+            <button type="button" class="btn-secondary" onclick={() => (pending = null)}>Volver a editar</button>
+          </div>
+        </div>
+      {/if}
       {#if needCedula}
         <div class="alert" role="alert">
           <Icon name="alert" size={18} />
