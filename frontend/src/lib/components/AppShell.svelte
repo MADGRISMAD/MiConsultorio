@@ -48,6 +48,7 @@
       items: [
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
+        { label: 'Solicitudes ARCO', href: '/arco-solicitudes', icon: 'shield', perms: [PERMISSIONS.adminUsers] },
         { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]
     },
