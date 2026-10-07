@@ -48,6 +48,65 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  # Pruebas de punta a punta (Playwright, ver e2e/README.md). Informativo: no está en `needs` del deploy y
+  # `continue-on-error` evita que un fallo bloquee nada mientras la suite se estabiliza.
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: caresia
+          POSTGRES_PASSWORD: caresia
+          POSTGRES_DB: caresia_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U caresia" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      CI: "true"
+      E2E_DATABASE_URL: postgres://caresia:caresia@localhost:5432/caresia_e2e?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Cliente de PostgreSQL
+        run: psql --version || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+      - name: Construir el frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Instalar Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      # Playwright arranca el servidor Go (con STATIC_DIR = frontend/build), el SMTP y Mercado Pago falsos.
+      - name: Pruebas e2e
+        working-directory: e2e
+        run: npm test
+      - name: Subir capturas y trazas
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-resultados
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
+
   # El frontend lo publica Vercel (proyecto caresia); aquí se publican la API y PostgreSQL en el VPS.
   deploy-backend:
     needs: [backend, frontend]

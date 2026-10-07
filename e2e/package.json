@@ -1,0 +1,15 @@
+{
+  "name": "caresia-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de punta a punta (Playwright) de Caresia",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "browsers": "playwright install --with-deps chromium",
+    "stack": "node support/stack.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
