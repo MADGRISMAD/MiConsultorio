@@ -45,6 +45,7 @@
       items: [
         { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, giro, especialidades y horario', icon: 'building', show: admin },
         { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
+        { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
         { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin },
         { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
         { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
