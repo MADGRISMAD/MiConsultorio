@@ -115,4 +115,6 @@ export interface DoseResult {
   frequency: string;
   dose_mg: number;
   doses_per_day: number;
+  /** the liquid presentation used in the calculation, when it comes from the catalog */
+  presentation?: string;
 }

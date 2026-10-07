@@ -122,6 +122,7 @@
     const it = items[n];
     it.dose = r.dose;
     it.frequency = r.frequency;
+    if (r.presentation) it.presentation = r.presentation;
     it.dose_mg = r.dose_mg;
     it.doses_per_day = r.doses_per_day;
     calcFor = null;

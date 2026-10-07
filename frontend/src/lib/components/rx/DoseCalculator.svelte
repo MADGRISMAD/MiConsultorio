@@ -45,7 +45,8 @@
   function apply() {
     const dose = conc > 0 ? `${fmt(mlDose, 1)} mL (${fmt(mgDose)} mg)` : `${fmt(mgDose)} mg`;
     const frequency = Number.isInteger(hours) ? `Cada ${hours} horas` : `${n} veces al día`;
-    onapply({ dose, frequency, dose_mg: Math.round(mgDose * 1000) / 1000, doses_per_day: n });
+    const presentation = conc > 0 && concKey !== 'manual' ? concs[Number(concKey)]?.label : undefined;
+    onapply({ dose, frequency, dose_mg: Math.round(mgDose * 1000) / 1000, doses_per_day: n, presentation });
   }
 </script>
 

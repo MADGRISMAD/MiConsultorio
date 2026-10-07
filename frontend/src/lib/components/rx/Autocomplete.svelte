@@ -87,7 +87,11 @@
     bind:value
     oninput={onInput}
     onkeydown={onKey}
-    onblur={() => setTimeout(() => (open = false), 120)}
+    onblur={() => {
+      clearTimeout(timer);
+      seq++; // a search still in flight must not reopen the list
+      setTimeout(() => (open = false), 120);
+    }}
   />
   {#if open}
     <ul id="{id}-list" role="listbox" class="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-app-ink/10 bg-app-surface p-1 shadow-lg">
