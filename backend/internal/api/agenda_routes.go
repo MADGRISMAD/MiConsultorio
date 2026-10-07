@@ -14,6 +14,7 @@ func (s *Server) mountAgendaRoot(r chi.Router) {
 		manage := require(PermAdminAppointments)
 		r.With(view).Get("/professionals", s.listProfessionals)
 		r.With(require(PermAdminUsers)).Put("/professionals/{id}", s.updateProfessional)
+		r.With(view).Get("/services", s.listAgendaServices)
 		r.With(view).Get("/blocks", s.listBlocks)
 		r.With(manage).Post("/blocks", s.createBlock)
 		r.With(manage).Delete("/blocks/{id}", s.deleteBlock)

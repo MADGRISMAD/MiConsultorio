@@ -151,6 +151,31 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"professional": list[0]})
 }
 
+// listAgendaServices is the catalog of services an appointment can be for (works on every plan).
+func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
+	p := principalFrom(r.Context())
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer rows.Close()
+	type svc struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	out := []svc{}
+	for rows.Next() {
+		var v svc
+		if err := rows.Scan(&v.ID, &v.Name); err != nil {
+			serverError(w, r, err)
+			return
+		}
+		out = append(out, v)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"services": out})
+}
+
 // ---------------------------------------------------------------------------
 // Time blocks
 // ---------------------------------------------------------------------------
