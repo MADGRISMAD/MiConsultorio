@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { specialtyApi } from '$lib/api/specialty';
   import { moneyCents } from '$lib/format';
@@ -40,17 +41,19 @@
   const uid = $props.id();
 
   $effect(() => {
-    if (!open) return;
+    if (open) untrack(init);
+  });
+  function init() {
     op.reset();
     reason = '';
-    title = mode === 'add' ? (plan?.title ?? '') : (plan?.title ?? '');
+    title = plan?.title ?? '';
     notes = plan?.notes ?? '';
     rows =
       mode === 'edit' && plan
         ? plan.items.map((i) => ({ phase: i.phase, description: i.description, tooth: i.tooth, catalog_item_id: i.catalog_item_id ?? '', qty: i.qty, price: i.unit_price_cents / 100, tax_rate: i.tax_rate }))
         : [blank(1)];
     if (canCatalog && catalog.length === 0) api.pos.items({ active: true }).then((r) => (catalog = r.items)).catch(() => {});
-  });
+  }
 
   function blank(phase: number): Row {
     return { phase, description: '', tooth: '', catalog_item_id: '', qty: 1, price: 0, tax_rate: 0 };

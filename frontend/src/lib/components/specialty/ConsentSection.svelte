@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
   import { printSignedConsent } from '$lib/print';
@@ -14,7 +14,8 @@
   import SignBlock from './SignBlock.svelte';
   import { session } from '$lib/session.svelte';
 
-  let { patient, canWrite }: { patient: Patient; canWrite: boolean } = $props();
+  /** bump `version` to reload the list (e.g. after a plan was signed) */
+  let { patient, canWrite, version = 0 }: { patient: Patient; canWrite: boolean; version?: number } = $props();
 
   const animal = $derived(patient.subject === 'animal');
   const patientName = $derived(`${patient.names} ${patient.last_names}`.trim());
@@ -33,7 +34,10 @@
       loading = false;
     }
   }
-  onMount(load);
+  $effect(() => {
+    void version;
+    untrack(load);
+  });
 
   let open = $state(false);
   let kind = $state<ConsentKind>('procedimiento');

@@ -32,6 +32,7 @@
   let error = $state('');
   let openId = $state<string | null>(null);
   let encounters = $state<Encounter[]>([]);
+  let consentVersion = $state(0);
 
   const STATUS: Record<PlanStatus, { label: string; tone: 'info' | 'ok' | 'warn' | 'bad' | 'muted' }> = {
     draft: { label: 'Borrador', tone: 'muted' },
@@ -98,6 +99,7 @@
     if (!sig.signature_png) return acceptOp.fail('Falta la firma.');
     if (await acceptOp.run(async () => replace(await specialtyApi.acceptPlan(p.id, sig)))) {
       accepting = null;
+      consentVersion++;
       toast.show('Plan aceptado y firmado');
     }
   }
@@ -245,7 +247,7 @@
   </ul>
 {/if}
 
-<ConsentSection {patient} {canWrite} />
+<ConsentSection {patient} {canWrite} version={consentVersion} />
 
 {#if editor}
   <PlanEditor
