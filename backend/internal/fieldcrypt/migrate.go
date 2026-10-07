@@ -25,6 +25,8 @@ var Targets = []Target{
 	{Table: "prescriptions", Column: "instructions"},
 	{Table: "patients", Column: "profile", JSON: true},
 	{Table: "appointments", Column: "details"},
+	{Table: "lab_orders", Column: "notes"},
+	{Table: "lab_results", Column: "notes"},
 }
 
 // Stats counts what one run saw for a column.
