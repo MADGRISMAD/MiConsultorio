@@ -683,6 +683,36 @@ func TestPlatformStaff(t *testing.T) {
 	e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": "second@caresia.com", "password": "another-password-1"})
 }
 
+func TestPermanentPlatformAdmins(t *testing.T) {
+	e := setup(t)
+	root := e.login("root")
+	admin := func(name, email, user string) string {
+		body := map[string]any{"name": name, "email": email, "username": user, "password": newPw, "role": "platform_admin"}
+		return sub(root.expect(201, "POST", "/api/platform/staff", body), "person")["id"].(string)
+	}
+	mad := admin("Mad", "MadGrisMad@gmail.com", "mad")
+	admin("Luis", "luispantoja1102@gmail.com", "luis")
+
+	for _, p := range root.expect(200, "GET", "/api/platform/staff", nil)["people"].([]any) {
+		m := p.(map[string]any)
+		if want := m["username"] == "mad" || m["username"] == "luis"; m["permanent"] != want {
+			t.Fatalf("permanent %v: %v", m["username"], m["permanent"])
+		}
+	}
+
+	// nadie los baja de rol ni los desactiva, y un admin normal no les cambia la contraseña
+	root.expect(403, "PATCH", "/api/platform/staff/"+mad, map[string]any{"role": "platform_support"})
+	root.expect(403, "POST", "/api/platform/staff/"+mad+"/deactivate", nil)
+	root.expect(403, "POST", "/api/platform/staff/"+mad+"/password", map[string]any{"password": "another-password-1"})
+	e.loginPw("mad", newPw) // sigue entrando con su contraseña
+
+	// otro permanente sí puede restablecerla (por si alguno la olvida)
+	l := e.loginPw("luis", newPw)
+	l.expect(403, "POST", "/api/platform/staff/"+mad+"/deactivate", nil)
+	l.expect(204, "POST", "/api/platform/staff/"+mad+"/password", map[string]any{"password": "another-password-1"})
+	e.loginPw("mad", "another-password-1")
+}
+
 // ---------------------------------------------------------------------------
 // Registration and account
 // ---------------------------------------------------------------------------

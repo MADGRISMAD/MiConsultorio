@@ -614,6 +614,9 @@ func (s *Server) listStaff(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	for i := range people {
+		people[i].Permanent = isPermanentAdmin(people[i].Email)
+	}
 	roles := []map[string]string{}
 	for _, role := range platformRoles {
 		roles = append(roles, map[string]string{"id": role, "label": roleLabels[role]})
@@ -651,6 +654,7 @@ func loadStaff(ctx context.Context, tx pgx.Tx, id string) (person, error) {
 		return person{}, fail(http.StatusNotFound, "Cuenta no encontrada.")
 	}
 	m.RoleLabel = roleLabels[m.Role]
+	m.Permanent = isPermanentAdmin(m.Email)
 	return m, err
 }
 
@@ -726,6 +730,9 @@ func (s *Server) updateStaff(w http.ResponseWriter, r *http.Request) {
 			if m.ID == actor.UserID {
 				return fail(http.StatusBadRequest, "No puedes cambiar tu propio rol.")
 			}
+			if m.Permanent {
+				return fail(http.StatusForbidden, "Es un administrador permanente: no se le puede cambiar el rol.")
+			}
 			if _, err := tx.Exec(r.Context(), `UPDATE users SET role = $2, token_version = token_version + 1 WHERE id = $1`, m.ID, *req.Role); err != nil {
 				return err
 			}
@@ -777,6 +784,10 @@ func (s *Server) setStaffPassword(w http.ResponseWriter, r *http.Request) {
 		if m.ID == actor.UserID {
 			return fail(http.StatusBadRequest, "Para cambiar tu propia contraseña usa Mi cuenta.")
 		}
+		// Si cualquiera pudiera cambiarla, podría quedarse con la cuenta de un administrador permanente.
+		if m.Permanent && !isPermanentAdmin(actor.Email) {
+			return fail(http.StatusForbidden, "Solo otro administrador permanente puede restablecer esta contraseña.")
+		}
 		if _, err := tx.Exec(r.Context(), `UPDATE users SET password_hash = $2, token_version = token_version + 1 WHERE id = $1`, m.ID, hash); err != nil {
 			return err
 		}
@@ -803,6 +814,9 @@ func (s *Server) setStaffDisabled(disable bool) http.HandlerFunc {
 			}
 			if disable && m.ID == actor.UserID {
 				return fail(http.StatusBadRequest, "No puedes desactivar tu propia cuenta.")
+			}
+			if disable && m.Permanent {
+				return fail(http.StatusForbidden, "Es un administrador permanente: no se puede desactivar.")
 			}
 			if m.Disabled == disable {
 				return nil

@@ -26,6 +26,7 @@ type person struct {
 	Phone       string     `json:"phone" db:"phone"`
 	Role        string     `json:"role" db:"role"`
 	RoleLabel   string     `json:"role_label" db:"-"`
+	Permanent   bool       `json:"permanent" db:"-"` // solo para el equipo de plataforma
 	Disabled    bool       `json:"disabled" db:"disabled"`
 	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`

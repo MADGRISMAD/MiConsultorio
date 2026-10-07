@@ -32,6 +32,8 @@
   onMount(load);
 
   const me = $derived(session.user?.userId);
+  // Solo un permanente puede restablecer la contraseña de otro permanente.
+  const mePermanent = $derived(people.some((p) => p.id === me && p.permanent));
   const active = $derived(people.filter((p) => !p.disabled));
   const inactive = $derived(people.filter((p) => p.disabled));
 
@@ -107,11 +109,16 @@
         <li class="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
           <Avatar name={p.name} size={44} />
           <div class="min-w-0 flex-1 basis-48">
-            <p class="flex flex-wrap items-center gap-2 font-semibold"><span class="truncate">{p.name}</span>{#if self}<Pill tone="info">Tú</Pill>{/if}</p>
+            <p class="flex flex-wrap items-center gap-2 font-semibold"><span class="truncate">{p.name}</span>{#if self}<Pill tone="info">Tú</Pill>{/if}{#if p.permanent}<Pill tone="ok">Permanente</Pill>{/if}</p>
             <p class="truncate text-sm text-app-muted">{p.email} · {p.last_login_at ? `entró ${ago(p.last_login_at)}` : 'aún no ha entrado'}</p>
           </div>
           {#if self}
             <RolePill role={p.role} long />
+          {:else if p.permanent}
+            <RolePill role={p.role} long />
+            {#if mePermanent}
+              <button type="button" class="icon-btn" title="Restablecer contraseña" aria-label="Restablecer la contraseña de {p.name}" onclick={() => { newPassword = ''; pwOp.reset(); pwFor = p; }}><Icon name="key" size={18} /></button>
+            {/if}
           {:else}
             <label class="sr-only" for="srole-{p.id}">Rol de {p.name}</label>
             <select id="srole-{p.id}" class="field !min-h-9 w-auto !py-1 pr-8 text-sm" value={p.role} onchange={(e) => { const role = e.currentTarget.value as PlatformRole; e.currentTarget.value = p.role; roleOp.reset(); roleChange = { person: p, role }; }}>

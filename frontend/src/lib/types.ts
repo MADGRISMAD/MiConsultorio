@@ -71,6 +71,8 @@ export interface Person {
   phone: string;
   role: Role;
   role_label: string;
+  /** Administrador de plataforma permanente: no se desactiva ni se le cambia el rol. */
+  permanent?: boolean;
   disabled: boolean;
   last_login_at: string | null;
   created_at: string;
