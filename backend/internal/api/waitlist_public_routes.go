@@ -443,13 +443,18 @@ func (s *Server) wlAccept(ctx context.Context, token string, v *wlView, clinicID
 		if err != nil {
 			return err
 		}
+		newID := newRowID()
+		sealed, err := encField("appointments", "details", newID, "Lista de espera")
+		if err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id, professional_id, status, source,
+			INSERT INTO appointments (id, clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id, professional_id, status, source,
 			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at)
-			VALUES ($1, '', $2, $3, $4::date, $5::time, $6::time, 'Lista de espera', $7::uuid, $8::uuid, 'scheduled', 'online',
+			VALUES ($15::uuid, $1, '', $2, $3, $4::date, $5::time, $6::time, $16, $7::uuid, $8::uuid, 'scheduled', 'online',
 			        $9::uuid, $10, $11, $12, $13, CASE WHEN $14 = 'online' THEN now() END)
 			RETURNING id::text`,
-			clinicID, names, last, date, start, end, patient, proID, service, phone, email, confirm, consent, via).Scan(&apptID); err != nil {
+			clinicID, names, last, date, start, end, patient, proID, service, phone, email, confirm, consent, via, newID, sealed).Scan(&apptID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE waitlist_offers SET status = 'accepted', responded_at = now(), appointment_id = $2 WHERE id = $1`, offerID, apptID); err != nil {
