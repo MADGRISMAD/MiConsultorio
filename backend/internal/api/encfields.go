@@ -16,6 +16,7 @@ import (
 //
 //	encounters.subjective/exam/assessment/plan/notes   prescriptions.diagnosis/instructions
 //	patients.profile (antecedentes, alergias)          appointments.details
+//	lab_orders.notes                                   lab_results.notes
 //
 // Everything that reads or writes those columns goes through encField/decField/encProfile/decProfile (or the scan
 // helpers that call them); encfields_test.go fails when a new file touches them without being reviewed.

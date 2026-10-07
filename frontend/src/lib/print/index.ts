@@ -5,9 +5,11 @@ import { rxApi } from '$lib/api/rx';
 import QRCode from 'qrcode';
 import { printHtml } from '$lib/printer/ticket';
 import type { Issuer, Patient } from '$lib/types';
+import type { LabOrder } from '$lib/types/lab';
 import { consentHtml, privacyNoticeHtml } from './avisos';
 import { expedienteHtml } from './expediente';
 import { recetaHtml } from './receta';
+import { labReportHtml } from './lab';
 import { carnetHtml, chartHtml, planHtml, signedConsentHtml } from './specialty';
 
 export { escapeHtml } from './base';
@@ -37,6 +39,11 @@ export async function printPrivacyNotice(patient: Patient | null, issuer?: Issue
 
 export async function printConsent(patient: Patient | null, issuer?: Issuer, professional?: { name: string; cedula: string }): Promise<void> {
   await printHtml(consentHtml(patient, issuer ?? (await loadIssuer()), professional));
+}
+
+/** Prints the lab results of a patient (all orders, or just the given ones). */
+export async function printLabReport(patient: Patient, orders: LabOrder[], notice: string): Promise<void> {
+  await printHtml(labReportHtml(patient, orders, await loadIssuer(), notice));
 }
 
 // ---- specialty record: carnet, charts, plans and signed consents ----

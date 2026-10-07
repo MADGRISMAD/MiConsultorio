@@ -21,6 +21,7 @@
   import AgendaSettings from './AgendaSettings.svelte';
   import ServiceDurations from './ServiceDurations.svelte';
   import ComplianceSection from './ComplianceSection.svelte';
+  import GrowthReferencesSettings from './GrowthReferencesSettings.svelte';
   import PortalSettings from './PortalSettings.svelte';
   import SecuritySettings from './SecuritySettings.svelte';
 
@@ -49,6 +50,7 @@
         { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, giro, especialidades y horario', icon: 'building', show: admin },
         { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
+        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Carga las tablas oficiales de la OMS o el CDC', icon: 'baby', show: admin },
         { id: 'seguridad', label: 'Seguridad', desc: 'Verificación en dos pasos del equipo', icon: 'lock', show: admin },
         { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean citas, recetas y vacunas', icon: 'user', show: admin },
         { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin },
@@ -274,6 +276,8 @@
       {:else if section.id === 'agenda'}
         <AgendaSettings />
         <ServiceDurations />
+      {:else if section.id === 'crecimiento'}
+        <GrowthReferencesSettings />
       {:else if section.id === 'seguridad'}
         <SecuritySettings />
       {:else if section.id === 'portal'}
