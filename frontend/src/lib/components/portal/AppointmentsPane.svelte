@@ -6,6 +6,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
+  import { fmtDay, t } from '$lib/i18n/index.svelte';
 
   let { slug, patientId, multi }: { slug: string; patientId: string; multi: boolean } = $props();
 
@@ -34,21 +35,19 @@
   const up = $derived(mine(upcoming));
   const past = $derived(mine(history));
 
-  const STATUS: Record<string, [string, 'info' | 'ok' | 'warn' | 'bad' | 'muted']> = {
-    scheduled: ['Programada', 'info'],
-    confirmed: ['Confirmada', 'ok'],
-    arrived: ['En consultorio', 'ok'],
-    in_progress: ['En consulta', 'ok'],
-    completed: ['Atendida', 'muted'],
-    no_show: ['No asististe', 'warn'],
-    cancelled: ['Cancelada', 'bad']
+  const STATUS: Record<string, 'info' | 'ok' | 'warn' | 'bad' | 'muted'> = {
+    scheduled: 'info',
+    confirmed: 'ok',
+    arrived: 'ok',
+    in_progress: 'ok',
+    completed: 'muted',
+    no_show: 'warn',
+    cancelled: 'bad'
   };
-  const tone = (s: string) => `pill pill-${STATUS[s]?.[1] ?? 'info'}`.replace('pill-muted', '');
+  const tone = (s: string) => `pill pill-${STATUS[s] ?? 'info'}`.replace('pill-muted', '');
+  const statusLabel = (s: string) => (s in STATUS ? t(`portal.appts.st.${s}`) : s);
 
-  const dateLong = (d: string) => {
-    const [y, m, day] = d.split('-').map(Number);
-    return new Date(y, m - 1, day).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  };
+  const dateLong = (d: string) => fmtDay(d);
 
   async function confirmCancel() {
     if (!target) return;
@@ -59,7 +58,7 @@
         await load();
       })
     ) {
-      notice = 'Tu cita fue cancelada.';
+      notice = t('portal.appts.cancelled');
       target = null;
       reason = '';
     }
@@ -70,18 +69,18 @@
   <li class="card flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-5">
     <div class="min-w-0">
       <p class="font-medium first-letter:uppercase">{dateLong(a.date)}</p>
-      <p class="mt-0.5 flex items-center gap-1.5 text-sm text-app-muted"><Icon name="clock" size={15} />{a.start_hour} a {a.end_hour} h</p>
-      {#if multi && a.patient_name}<p class="mt-1 text-sm">Paciente: <strong>{a.patient_name}</strong></p>{/if}
+      <p class="mt-0.5 flex items-center gap-1.5 text-sm text-app-muted"><Icon name="clock" size={15} />{t('portal.appts.hours', { start: a.start_hour, end: a.end_hour })}</p>
+      {#if multi && a.patient_name}<p class="mt-1 text-sm">{t('portal.appts.patient')} <strong>{a.patient_name}</strong></p>{/if}
       {#if a.service}<p class="text-sm text-app-muted">{a.service}</p>{/if}
-      {#if a.professional}<p class="text-sm text-app-muted">Con {a.professional}</p>{/if}
+      {#if a.professional}<p class="text-sm text-app-muted">{t('portal.appts.with', { name: a.professional })}</p>{/if}
     </div>
     <div class="flex flex-col items-end gap-2">
-      <span class={tone(a.status)}>{STATUS[a.status]?.[0] ?? a.status}</span>
+      <span class={tone(a.status)}>{statusLabel(a.status)}</span>
       {#if withCancel}
         {#if a.can_cancel}
-          <button class="btn-secondary !min-h-9" onclick={() => { target = a; reason = ''; cancelOp.reset(); }}>Cancelar cita</button>
+          <button class="btn-secondary !min-h-9" onclick={() => { target = a; reason = ''; cancelOp.reset(); }}>{t('portal.appts.cancel')}</button>
         {:else}
-          <span class="max-w-[14rem] text-right text-xs text-app-muted">Para cancelar con menos de {minHours} h de anticipación, comunícate con el consultorio.</span>
+          <span class="max-w-[14rem] text-right text-xs text-app-muted">{t('portal.appts.tooLate', { hours: minHours })}</span>
         {/if}
       {/if}
     </div>
@@ -97,20 +96,20 @@
     {#if notice}<p class="rounded-xl bg-app-accent/12 px-3.5 py-3 text-sm font-medium text-app-accent" role="status">{notice}</p>{/if}
     <section aria-labelledby="ap-next">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h2 id="ap-next" class="section-title">Próximas citas</h2>
-        <a class="btn-primary !min-h-9" href="/reservar/{encodeURIComponent(slug)}"><Icon name="plus" size={16} />Agendar nueva cita</a>
+        <h2 id="ap-next" class="section-title">{t('portal.appts.next')}</h2>
+        <a class="btn-primary !min-h-9" href="/reservar/{encodeURIComponent(slug)}"><Icon name="plus" size={16} />{t('portal.appts.book')}</a>
       </div>
       {#if up.length === 0}
-        <div class="card px-5 py-8 text-center text-sm text-app-muted">No tienes citas próximas.</div>
+        <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.appts.none')}</div>
       {:else}
         <ul class="grid gap-3">{#each up as a (a.id)}{@render card(a, true)}{/each}</ul>
       {/if}
     </section>
 
     <section aria-labelledby="ap-hist">
-      <h2 id="ap-hist" class="section-title mb-3">Historial</h2>
+      <h2 id="ap-hist" class="section-title mb-3">{t('portal.appts.history')}</h2>
       {#if past.length === 0}
-        <div class="card px-5 py-8 text-center text-sm text-app-muted">Aún no hay citas pasadas.</div>
+        <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.appts.noneHistory')}</div>
       {:else}
         <ul class="grid gap-3">{#each past as a (a.id)}{@render card(a, false)}{/each}</ul>
       {/if}
@@ -118,10 +117,10 @@
   </div>
 {/if}
 
-<ConfirmModal open={target !== null} title="Cancelar cita" op={cancelOp} onconfirm={confirmCancel} onclose={() => (target = null)} confirmLabel="Sí, cancelar mi cita">
+<ConfirmModal open={target !== null} title={t('portal.appts.cancel')} op={cancelOp} onconfirm={confirmCancel} onclose={() => (target = null)} confirmLabel={t('portal.appts.confirmCancel')}>
   {#if target}
-    <p>Vas a cancelar la cita del <strong>{dateLong(target.date)}</strong> a las {target.start_hour} h.</p>
-    <label class="label mt-4" for="ap-reason">Motivo (opcional)</label>
+    <p>{t('portal.appts.confirmBefore')}<strong>{dateLong(target.date)}</strong>{t('portal.appts.confirmAfter', { hour: t('common.hourSuffix', { time: target.start_hour }) })}</p>
+    <label class="label mt-4" for="ap-reason">{t('portal.appts.reason')}</label>
     <input id="ap-reason" class="field" maxlength="300" bind:value={reason} />
   {/if}
 </ConfirmModal>

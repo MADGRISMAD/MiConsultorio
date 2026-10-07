@@ -5,6 +5,7 @@
   import { Op } from '$lib/op.svelte';
   import type { PortalMe, PortalVaccination } from '$lib/types/portal';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { t } from '$lib/i18n/index.svelte';
   import AppointmentsPane from './AppointmentsPane.svelte';
   import RxPane from './RxPane.svelte';
   import VaccinesPane from './VaccinesPane.svelte';
@@ -24,13 +25,13 @@
       me = await portalApi.me();
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 404)) onexit(true);
-      else loadOp.fail(e instanceof Error ? e.message : 'No se pudo cargar tu información.');
+      else loadOp.fail(e instanceof Error ? e.message : t('portal.app.loadError'));
       return;
     }
     try {
       vaccines = (await portalApi.vaccinations()).vaccinations;
     } catch (e) {
-      vaccinesError = e instanceof Error ? e.message : 'No se pudo cargar el carnet.';
+      vaccinesError = e instanceof Error ? e.message : t('portal.app.vaccinesError');
     }
     vaccinesLoaded = true;
   });
@@ -38,13 +39,13 @@
   const hasVaccines = $derived(vaccines.length > 0);
   const multi = $derived((me?.patients.length ?? 0) > 1);
   const tabs = $derived([
-    { id: 'citas' as const, label: 'Mis citas', icon: 'calendar' as const },
-    { id: 'recetas' as const, label: 'Recetas', icon: 'receipt' as const },
-    ...(hasVaccines ? [{ id: 'vacunas' as const, label: 'Carnet de vacunación', icon: 'shield' as const }] : [])
+    { id: 'citas' as const, label: 'portal.app.tabAppointments', icon: 'calendar' as const },
+    { id: 'recetas' as const, label: 'portal.app.tabRx', icon: 'receipt' as const },
+    ...(hasVaccines ? [{ id: 'vacunas' as const, label: 'portal.app.tabVaccines', icon: 'shield' as const }] : [])
   ]);
 
   function onKey(e: KeyboardEvent) {
-    const i = tabs.findIndex((t) => t.id === tab);
+    const i = tabs.findIndex((x) => x.id === tab);
     let n = i;
     if (e.key === 'ArrowRight') n = (i + 1) % tabs.length;
     else if (e.key === 'ArrowLeft') n = (i - 1 + tabs.length) % tabs.length;
@@ -66,26 +67,26 @@
 {#if loadOp.phase === 'error' && !me}
   <section class="card px-6 py-9" role="alert">
     <p class="alert"><Icon name="alert" size={18} />{loadOp.message}</p>
-    <button class="btn-secondary mt-5" onclick={() => location.reload()}>Reintentar</button>
+    <button class="btn-secondary mt-5" onclick={() => location.reload()}>{t('common.retry')}</button>
   </section>
 {:else if me}
   <header class="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div class="min-w-0">
       <p class="section-title">{me.clinic.name}</p>
-      <h1 class="display text-3xl leading-tight">Hola</h1>
+      <h1 class="display text-3xl leading-tight">{t('portal.app.hello')}</h1>
       <p class="break-all text-sm text-app-muted">{me.email}</p>
     </div>
-    <button class="btn-ghost" onclick={logout}><Icon name="logout" size={16} />Salir</button>
+    <button class="btn-ghost" onclick={logout}><Icon name="logout" size={16} />{t('portal.app.logout')}</button>
   </header>
 
   {#if me.patients.length === 0}
-    <section class="card px-6 py-9 text-sm text-app-muted">No encontramos pacientes ligados a este correo.</section>
+    <section class="card px-6 py-9 text-sm text-app-muted">{t('portal.app.noPatients')}</section>
   {:else}
     {#if multi}
       <div class="mb-4">
-        <label class="label" for="pt-patient">Ver información de</label>
+        <label class="label" for="pt-patient">{t('portal.app.viewOf')}</label>
         <select id="pt-patient" class="field" bind:value={patientId}>
-          <option value="">Todos ({me.patients.length})</option>
+          <option value="">{t('portal.app.all', { n: me.patients.length })}</option>
           {#each me.patients as p (p.id)}
             <option value={p.id}>{p.name}{p.species ? ` (${p.species})` : ''}</option>
           {/each}
@@ -93,19 +94,19 @@
       </div>
     {/if}
 
-    <div role="tablist" aria-label="Secciones del portal" class="mb-5 flex gap-1 overflow-x-auto rounded-full bg-app-ink/6 p-1" tabindex="-1">
-      {#each tabs as t (t.id)}
+    <div role="tablist" aria-label={t('portal.app.tabsLabel')} class="mb-5 flex gap-1 overflow-x-auto rounded-full bg-app-ink/6 p-1" tabindex="-1">
+      {#each tabs as tb (tb.id)}
         <button
           role="tab"
-          id="pt-{t.id}"
-          aria-selected={tab === t.id}
-          aria-controls="pp-{t.id}"
-          tabindex={tab === t.id ? 0 : -1}
-          class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition {tab === t.id ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}"
-          onclick={() => (tab = t.id)}
+          id="pt-{tb.id}"
+          aria-selected={tab === tb.id}
+          aria-controls="pp-{tb.id}"
+          tabindex={tab === tb.id ? 0 : -1}
+          class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition {tab === tb.id ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}"
+          onclick={() => (tab = tb.id)}
           onkeydown={onKey}
         >
-          <Icon name={t.icon} size={16} />{#if t.id === 'vacunas'}<span class="sm:hidden">Vacunas</span><span class="hidden sm:inline">{t.label}</span>{:else}{t.label}{/if}
+          <Icon name={tb.icon} size={16} />{#if tb.id === 'vacunas'}<span class="sm:hidden">{t('portal.app.tabVaccinesShort')}</span><span class="hidden sm:inline">{t(tb.label)}</span>{:else}{t(tb.label)}{/if}
         </button>
       {/each}
     </div>
@@ -122,8 +123,8 @@
   {/if}
 
   <footer class="mt-8 text-xs text-app-muted">
-    {me.clinic.name}{me.clinic.address ? ` · ${me.clinic.address}` : ''}{me.clinic.phone ? ` · Tel. ${me.clinic.phone}` : ''}
+    {me.clinic.name}{me.clinic.address ? ` · ${me.clinic.address}` : ''}{me.clinic.phone ? ` · ${t('portal.app.phonePrefix', { phone: me.clinic.phone })}` : ''}
   </footer>
 {:else}
-  <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">Cargando…</div>
+  <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
 {/if}

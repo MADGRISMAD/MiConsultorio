@@ -2,10 +2,14 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { session } from '$lib/session.svelte';
+  import { pwa } from '$lib/pwa/pwa.svelte';
 
   let { children } = $props();
 
-  onMount(() => session.load());
+  onMount(() => {
+    pwa.init();
+    session.load();
+  });
 </script>
 
 <svelte:head>

@@ -2,7 +2,7 @@
   import { bookingApi } from '$lib/api/booking';
   import { bookingMonthApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
-  import { moneyCents } from '$lib/format';
+  import { fmtDay, fmtMoneyCents, t } from '$lib/i18n/index.svelte';
   import { CLINIC_KINDS } from '$lib/types';
   import type { BookingInfo, BookingResult, BookingSlot } from '$lib/types/booking';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -36,10 +36,8 @@
   let seq = 0;
 
   const professional = $derived(info.professionals.find((p) => p.id === professionalId));
-  const dateLong = (d: string) => {
-    const [y, m, day] = d.split('-').map(Number);
-    return new Date(y, m - 1, day).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  };
+  const dateLong = (d: string) => fmtDay(d);
+  const kindLabel = (k: string) => (k in CLINIC_KINDS ? t(`kind.${k}`) : t('kind.fallback'));
 
   async function loadSlots() {
     if (!professionalId || !date) return;
@@ -86,10 +84,10 @@
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    if (!professionalId || !date || !start) return op.fail('Elige profesional, fecha y horario.');
-    if (!names.trim() || !lastNames.trim()) return op.fail('Escribe tu nombre y apellidos.');
-    if (!phone.trim() && !email.trim()) return op.fail('Escribe un teléfono o un correo para poder contactarte.');
-    if (!acceptPrivacy) return op.fail('Debes aceptar el aviso de privacidad para agendar.');
+    if (!professionalId || !date || !start) return op.fail(t('booking.errChoose'));
+    if (!names.trim() || !lastNames.trim()) return op.fail(t('booking.errName'));
+    if (!phone.trim() && !email.trim()) return op.fail(t('booking.errContact'));
+    if (!acceptPrivacy) return op.fail(t('booking.errPrivacy'));
     try {
       await op.run(async () => {
         done = await bookingApi.book(slug, {
@@ -119,7 +117,7 @@
 
 <header class="mb-5 mt-2">
   <p class="section-title flex items-center gap-1.5">
-    <Icon name={(kind?.icon ?? 'calendar') as 'calendar'} size={14} />{kind?.label ?? 'Consultorio'}
+    <Icon name={(kind?.icon ?? 'calendar') as 'calendar'} size={14} />{kind ? kindLabel(info.clinic.kind) : t('kind.fallback')}
   </p>
   <h1 class="display mt-2 text-[2.1rem] leading-[1.05] sm:text-[2.5rem]">{info.clinic.name}</h1>
   {#if info.clinic.address}<p class="mt-2 text-sm text-app-muted">{info.clinic.address}</p>{/if}
@@ -129,42 +127,42 @@
 {#if done}
   <section class="card page-in px-5 py-7 sm:px-8" aria-live="polite">
     <div class="grid h-12 w-12 place-items-center rounded-full bg-app-accent/14 text-app-accent"><Icon name="check" size={26} /></div>
-    <h2 class="display mt-4 text-3xl leading-tight">{done.pending_confirmation ? 'Recibimos tu solicitud' : 'Tu cita quedó agendada'}</h2>
+    <h2 class="display mt-4 text-3xl leading-tight">{done.pending_confirmation ? t('booking.doneRequested') : t('booking.doneBooked')}</h2>
     <p class="mt-3 text-app-muted">
-      {#if done.pending_confirmation}El consultorio revisará tu solicitud y te avisará si hay algún cambio.{:else}Te esperamos.{/if}
+      {#if done.pending_confirmation}{t('booking.doneRequestedText')}{:else}{t('booking.doneBookedText')}{/if}
     </p>
     <dl class="mt-5 grid gap-2 rounded-xl bg-app-elevated p-4 text-sm">
-      <div><dt class="text-xs text-app-muted">Fecha</dt><dd class="font-semibold first-letter:uppercase">{dateLong(done.date)}</dd></div>
-      <div><dt class="text-xs text-app-muted">Hora</dt><dd class="font-semibold">{done.start} h</dd></div>
-      <div><dt class="text-xs text-app-muted">Atiende</dt><dd class="font-semibold">{done.professional}</dd></div>
-      <div><dt class="text-xs text-app-muted">Consultorio</dt><dd class="font-semibold">{done.clinic}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{dateLong(done.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: done.start })}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{done.professional}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('booking.clinic')}</dt><dd class="font-semibold">{done.clinic}</dd></div>
     </dl>
-    <p class="mt-4 text-sm text-app-muted">Guarda este enlace: desde ahí puedes confirmar, cancelar o cambiar tu cita{email ? ' (también te lo enviamos por correo)' : ''}.</p>
-    <a href="/cita/{done.token}" class="btn-primary btn-lg mt-5">Administrar mi cita</a>
+    <p class="mt-4 text-sm text-app-muted">{t('booking.saveLink')}{email ? t('booking.saveLinkEmail') : ''}.</p>
+    <a href="/cita/{done.token}" class="btn-primary btn-lg mt-5">{t('booking.manage')}</a>
   </section>
 {:else if info.professionals.length === 0}
   <section class="card px-5 py-8 text-center">
-    <p class="font-medium">Por ahora no hay horarios disponibles para agendar en línea.</p>
-    {#if info.clinic.phone}<p class="mt-2 text-sm text-app-muted">Llama al <a class="text-app-primary underline" href="tel:{info.clinic.phone}">{info.clinic.phone}</a>.</p>{/if}
+    <p class="font-medium">{t('booking.noSlots')}</p>
+    {#if info.clinic.phone}<p class="mt-2 text-sm text-app-muted">{t('booking.callUs')} <a class="text-app-primary underline" href="tel:{info.clinic.phone}">{info.clinic.phone}</a>.</p>{/if}
   </section>
 {:else}
   <form class="grid gap-5" novalidate onsubmit={submit}>
     {#if info.services.length > 0 || info.professionals.length > 1}
       <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s1">
-        <h2 id="bk-s1" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(1)}>1</span>¿Qué necesitas?</h2>
+        <h2 id="bk-s1" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(1)}>1</span>{t('booking.step1')}</h2>
         {#if info.services.length > 0}
           <fieldset class="mt-4">
-            <legend class="label">Servicio <span class="font-normal text-app-muted">(opcional)</span></legend>
+            <legend class="label">{t('booking.service')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></legend>
             <div class="grid gap-2">
               <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
                 <input type="radio" class="sr-only" name="svc" value="" bind:group={serviceId} onchange={loadSlots} />
-                <span>Primera vez / no estoy seguro</span>
+                <span>{t('booking.firstTime')}</span>
               </label>
               {#each info.services as s (s.id)}
                 <label class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
                   <input type="radio" class="sr-only" name="svc" value={s.id} bind:group={serviceId} onchange={loadSlots} />
-                  <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {s.duration_minutes} min</span>{/if}</span>
-                  {#if s.price_cents !== undefined}<span class="font-mono text-xs text-app-muted">{moneyCents(s.price_cents)}</span>{/if}
+                  <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {t('booking.minutes', { n: s.duration_minutes })}</span>{/if}</span>
+                  {#if s.price_cents !== undefined}<span class="font-mono text-xs text-app-muted">{fmtMoneyCents(s.price_cents)}</span>{/if}
                 </label>
               {/each}
             </div>
@@ -172,7 +170,7 @@
         {/if}
         {#if info.professionals.length > 1}
           <fieldset class="mt-4">
-            <legend class="label">Profesional</legend>
+            <legend class="label">{t('booking.professional')}</legend>
             <div class="grid gap-2 sm:grid-cols-2">
               {#each info.professionals as p (p.id)}
                 <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
@@ -187,25 +185,25 @@
     {/if}
 
     <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s2">
-      <h2 id="bk-s2" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(2)}>2</span>Fecha y hora</h2>
+      <h2 id="bk-s2" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(2)}>2</span>{t('booking.step2')}</h2>
       {#if !professionalId}
-        <p class="mt-3 text-sm text-app-muted">Elige primero un profesional.</p>
+        <p class="mt-3 text-sm text-app-muted">{t('booking.pickProfessional')}</p>
       {:else}
         <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} {available} onmonth={(m) => (monthKey = m)} /></div>
         {#if available && available.length === 0 && !date}
-          <p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">No hay horarios libres este mes. Prueba con otro mes o anótate en la lista de espera.</p>
+          <p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noMonth')}</p>
         {/if}
         {#if date}
           <div class="mt-4" aria-live="polite">
             <p class="label first-letter:uppercase">{dateLong(date)}</p>
             {#if slotsOp.phase === 'loading'}
-              <p class="text-sm text-app-muted">Buscando horarios…</p>
+              <p class="text-sm text-app-muted">{t('booking.searching')}</p>
             {:else if slotsOp.phase === 'error'}
               <p class="alert" role="alert"><Icon name="alert" size={18} />{slotsOp.message}</p>
             {:else if slots && slots.length === 0}
-              <p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">No hay horarios libres ese día. Prueba con otra fecha.</p>
+              <p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noDay')}</p>
             {:else if slots}
-              <div class="grid grid-cols-3 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Horarios disponibles">
+              <div class="grid grid-cols-3 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('booking.slotsLabel')}>
                 {#each slots as s (s.start)}
                   <label class="grid min-h-11 cursor-pointer place-items-center rounded-xl border border-app-ink/12 text-sm font-medium has-[:checked]:border-app-ink has-[:checked]:bg-app-ink has-[:checked]:text-app-surface has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/60">
                     <input type="radio" class="sr-only" name="slot" value={s.start} bind:group={start} />{s.start}
@@ -223,36 +221,36 @@
 
     {#if start}
       <section class="card page-in px-5 py-5 sm:px-6" aria-labelledby="bk-s3">
-        <h2 id="bk-s3" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(3)}>3</span>Tus datos</h2>
+        <h2 id="bk-s3" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(3)}>3</span>{t('booking.step3')}</h2>
         <p class="mt-2 text-sm text-app-muted">
-          {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{dateLong(date)}</span> · {start} h. Solo pedimos lo necesario para agendar; no escribas información médica detallada.
+          {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{dateLong(date)}</span> · {t('common.hourSuffix', { time: start })}. {t('booking.dataHint')}
         </p>
         {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label class="label" for="bk-names">Nombre(s)</label>
+            <label class="label" for="bk-names">{t('common.firstNames')}</label>
             <input id="bk-names" class="field" bind:value={names} autocomplete="given-name" required maxlength="100" />
           </div>
           <div>
-            <label class="label" for="bk-last">Apellidos</label>
+            <label class="label" for="bk-last">{t('common.lastNames')}</label>
             <input id="bk-last" class="field" bind:value={lastNames} autocomplete="family-name" required maxlength="100" />
           </div>
           <div>
-            <label class="label" for="bk-phone">Teléfono celular</label>
+            <label class="label" for="bk-phone">{t('booking.phone')}</label>
             <input id="bk-phone" class="field" type="tel" inputmode="tel" bind:value={phone} autocomplete="tel" placeholder="55 1234 5678" />
           </div>
           <div>
-            <label class="label" for="bk-email">Correo</label>
+            <label class="label" for="bk-email">{t('booking.email')}</label>
             <input id="bk-email" class="field" type="email" bind:value={email} autocomplete="email" autocapitalize="none" placeholder="tu@correo.com" />
           </div>
-          <p class="hint !mt-0 sm:col-span-2">Con uno de los dos basta; lo usamos para avisarte de tu cita.</p>
+          <p class="hint !mt-0 sm:col-span-2">{t('booking.contactHint')}</p>
           <div class="sm:col-span-2">
-            <label class="label" for="bk-reason">Motivo de la cita <span class="font-normal text-app-muted">(opcional, breve)</span></label>
-            <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder="Ej. revisión general" />
+            <label class="label" for="bk-reason">{t('booking.reason')} <span class="font-normal text-app-muted">{t('booking.reasonHint')}</span></label>
+            <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder={t('booking.reasonPlaceholder')} />
           </div>
           <!-- honeypot: invisible to people -->
           <div class="absolute -left-[9999px]" aria-hidden="true">
-            <label for="bk-web">Sitio web</label>
+            <label for="bk-web">{t('common.website')}</label>
             <input id="bk-web" tabindex="-1" autocomplete="off" bind:value={website} />
           </div>
         </div>
@@ -260,18 +258,18 @@
         <div class="mt-5 grid gap-3 text-sm">
           <label class="flex cursor-pointer items-start gap-3">
             <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptPrivacy} required />
-            <span>He leído y acepto el <a href="/privacidad" target="_blank" rel="noopener" class="text-app-primary underline">aviso de privacidad</a> para que {info.clinic.name} use mis datos para agendar mi cita.</span>
+            <span>{t('booking.privacyBefore')}<a href="/privacidad" target="_blank" rel="noopener" class="text-app-primary underline">{t('common.privacyLink')}</a>{t('booking.privacyAfter', { clinic: info.clinic.name })}</span>
           </label>
           <label class="flex cursor-pointer items-start gap-3">
             <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptReminders} />
-            <span>Quiero recibir recordatorios de mi cita por correo o WhatsApp. Puedo darme de baja cuando quiera. <span class="text-app-muted">(opcional)</span></span>
+            <span>{t('booking.reminders')} <span class="text-app-muted">{t('booking.optional')}</span></span>
           </label>
         </div>
 
         <button class="btn-primary btn-lg mt-6" type="submit" disabled={op.phase === 'loading'}>
-          {#if op.phase === 'loading'}<span class="spin"></span>Agendando…{:else}{info.requires_confirmation ? 'Solicitar cita' : 'Agendar cita'}{/if}
+          {#if op.phase === 'loading'}<span class="spin"></span>{t('booking.booking')}{:else}{info.requires_confirmation ? t('booking.request') : t('booking.book')}{/if}
         </button>
-        {#if info.requires_confirmation}<p class="hint mt-3 text-center">El consultorio confirmará tu solicitud.</p>{/if}
+        {#if info.requires_confirmation}<p class="hint mt-3 text-center">{t('booking.willConfirm')}</p>{/if}
       </section>
     {/if}
   </form>
