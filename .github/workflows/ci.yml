@@ -61,8 +61,6 @@ jobs:
       HOST: ubuntu@15.235.62.27
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Llave SSH
         env:
