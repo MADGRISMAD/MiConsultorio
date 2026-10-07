@@ -20,7 +20,7 @@
     <!-- BORRADOR: retirar este aviso solo cuando un abogado haya revisado el texto y se hayan completado los datos del operador. -->
     <p class="mt-6 flex items-start gap-2.5 rounded-xl bg-app-warning/12 px-4 py-3 text-sm font-medium text-app-warning" role="note">
       <Icon name="alert" size={18} class="mt-0.5 flex-none" />
-      <span>Borrador pendiente de revisión legal. Este texto aún no es la versión definitiva y los datos marcados en amarillo están por completarse.</span>
+      <span>Borrador pendiente de revisión legal. Este texto aún no es la versión definitiva y los datos resaltados están por completarse.</span>
     </p>
 
     <h1 class="display mt-7 text-4xl leading-none sm:text-5xl">{title}</h1>

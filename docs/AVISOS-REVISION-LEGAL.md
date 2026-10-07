@@ -1,6 +1,6 @@
 # Aviso de privacidad y términos: borrador pendiente de revisión legal
 
-Las páginas públicas `/privacidad` (aviso de privacidad de Caresia) y `/terminos` (términos de uso) son un **BORRADOR** redactado para un software de salud en México. **No son asesoría legal y no deben presentarse como definitivas hasta que las revise un abogado** con experiencia en protección de datos personales (LFPDPPP) y en servicios de salud. Las páginas muestran un aviso visible de «Borrador pendiente de revisión legal» y resaltan en amarillo cada dato que aún falta.
+Las páginas públicas `/privacidad` (aviso de privacidad de Caresia) y `/terminos` (términos de uso) son un **BORRADOR** redactado para un software de salud en México. **No son asesoría legal y no deben presentarse como definitivas hasta que las revise un abogado** con experiencia en protección de datos personales (LFPDPPP) y en servicios de salud. Las páginas muestran un aviso visible de «Borrador pendiente de revisión legal» y resaltan cada dato que aún falta.
 
 > No se inventó ningún dato legal. Todo lo que depende de quien opera Caresia está marcado entre corchetes.
 

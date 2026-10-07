@@ -110,11 +110,9 @@
     if (!pkg && id) {
       let loaded: ArcoPackage | undefined;
       await op.run(async () => (loaded = await arcoApi.package(id!)));
-      if (loaded) {
-        pkg = loaded;
-        if (!responseText) responseText = loaded.draft_response;
-      }
+      if (loaded) pkg = loaded;
     }
+    if (pkg && !responseText) responseText = outcome === 'procedente' ? pkg.draft_response : pkg.draft_denial;
     sendMail = !!req?.requester_email;
   }
 

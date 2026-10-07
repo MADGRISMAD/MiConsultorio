@@ -70,7 +70,7 @@
       <div class="grid gap-2" role="radiogroup" aria-describedby={errors.kind ? 'arco-kind-err' : undefined}>
         {#each KINDS as k (k)}
           <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-app-ink/15 p-3 transition hover:border-app-ink/30 has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/5 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-app-primary/15">
-            <input id={k === 'acceso' ? 'arco-kind' : undefined} type="radio" name="kind" value={k} bind:group={form.kind} class="mt-1 h-4 w-4 accent-[rgb(var(--app-primary))]" />
+            <input id={k === 'acceso' ? 'arco-kind' : undefined} type="radio" name="kind" value={k} bind:group={form.kind} class="mt-1 h-4 w-4 flex-none accent-[rgb(var(--app-primary))]" />
             <span><span class="block text-[15px] font-semibold">{KIND_LABEL[k]}</span><span class="block text-sm text-app-muted">{KIND_HELP[k]}</span></span>
           </label>
         {/each}
