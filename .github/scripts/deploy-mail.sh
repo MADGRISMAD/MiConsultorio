@@ -52,29 +52,32 @@ APP="$(printf '%s' "${APP_URL:-}" | html_escape)"
 RUN="$(printf '%s' "${RUN_URL:-}" | html_escape)"
 
 HTML="$(cat <<EOF
-<!doctype html><html lang="es"><body style="margin:0;background:#e9f0f6;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#0B2540">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9f0f6;padding:24px 10px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;border-radius:18px;overflow:hidden;background:#F4F8FB">
-  <tr><td style="background:#0B2540;padding:26px 28px 22px">
+<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>@media only screen and (max-width:480px){.px{padding-left:18px!important;padding-right:18px!important}.ttl{font-size:19px!important}}</style></head><body style="margin:0;background:#e9f0f6;font-family:Segoe UI,Helvetica,Arial,sans-serif;color:#0B2540">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e9f0f6;padding:28px 10px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;border-radius:18px;overflow:hidden;background:#F4F8FB">
+  <tr><td class="px" style="background:#0B2540;padding:26px 28px 22px">
     <div style="font:600 10px/1 Menlo,Consolas,monospace;letter-spacing:.2em;color:#7fb4ec">SISTEMA INTERNO</div>
-    <div style="margin-top:14px;font:600 26px/1 Georgia,'Times New Roman',serif;color:#F4F8FB;letter-spacing:-.01em">Caresia<span style="color:#56A4F0">.</span></div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px"><tr>
+      <td style="padding:0 12px 0 0;vertical-align:middle"><img src="cid:caresia-logo" width="44" height="44" alt="" style="display:block;border:0;border-radius:11px"></td>
+      <td style="vertical-align:middle;font:600 28px/1 Georgia,'Times New Roman',serif;color:#F4F8FB;letter-spacing:-.01em">Caresia<span style="color:#56A4F0">.</span></td>
+    </tr></table>
     <div style="width:42px;height:3px;background:#1673D1;margin:16px 0 14px;border-radius:2px"></div>
-    <div style="font:600 21px/1.25 Georgia,'Times New Roman',serif;color:#ffffff">${TITLE}</div>
+    <div class="ttl" style="font:600 22px/1.25 Georgia,'Times New Roman',serif;color:#ffffff">${TITLE}</div>
   </td></tr>
-  <tr><td style="background:${PILL_BG};padding:9px 28px;font:700 11px/1 Menlo,Consolas,monospace;letter-spacing:.16em;color:#ffffff">${PILL}</td></tr>
-  <tr><td style="padding:24px 28px 8px;font-size:15px;line-height:1.55;color:#33475b">${INTRO}</td></tr>
-  <tr><td style="padding:8px 28px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e4edf5;border-radius:12px;padding:4px 18px"><tr><td>
+  <tr><td class="px" style="background:${PILL_BG};padding:9px 28px;font:700 11px/1 Menlo,Consolas,monospace;letter-spacing:.16em;color:#ffffff">${PILL}</td></tr>
+  <tr><td class="px" style="padding:24px 28px 8px;font-size:15px;line-height:1.55;color:#33475b">${INTRO}</td></tr>
+  <tr><td class="px" style="padding:8px 28px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e4edf5;border-radius:12px;padding:4px 18px"><tr><td>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${ROWS}</table>
   </td></tr></table></td></tr>
-  <tr><td style="padding:18px 28px 4px">
+  <tr><td class="px" style="padding:18px 28px 4px">
     <div style="font:600 10px/1 Menlo,Consolas,monospace;letter-spacing:.16em;color:#6b7f90;margin-bottom:8px">MENSAJE DEL COMMIT</div>
     <div style="border-left:3px solid #1673D1;background:#ffffff;border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;line-height:1.5;color:#33475b">${MSG_HTML}</div>
   </td></tr>
-  <tr><td style="padding:22px 28px 6px">
+  <tr><td class="px" style="padding:22px 28px 6px">
     <a href="${APP}" style="display:inline-block;background:#0B2540;color:#ffffff;text-decoration:none;font:700 14px/1 Segoe UI,Helvetica,Arial,sans-serif;padding:14px 22px;border-radius:12px;margin:0 8px 8px 0">Abrir producción</a>
     <a href="${RUN}" style="display:inline-block;background:#dbe7f2;color:#0B2540;text-decoration:none;font:700 14px/1 Segoe UI,Helvetica,Arial,sans-serif;padding:14px 22px;border-radius:12px;margin:0 0 8px">Ver el registro</a>
   </td></tr>
-  <tr><td style="padding:20px 28px 26px"><div style="border-top:1px solid #dfe8ef;padding-top:14px;font-size:12px;line-height:1.5;color:#6b7f90">Aviso automático del equipo de Caresia. Tus pacientes y clientes no reciben este correo.<div style="margin-top:8px;font:600 15px/1 Georgia,'Times New Roman',serif;color:#0B2540">Caresia<span style="color:#1673D1">.</span></div><div style="font:10px/1.4 Menlo,Consolas,monospace;letter-spacing:.1em;color:#8da0b0;margin-top:3px">operación · ${y}</div></div></td></tr>
+  <tr><td class="px" style="padding:20px 28px 26px"><div style="border-top:1px solid #dfe8ef;padding-top:14px;font-size:12px;line-height:1.5;color:#6b7f90">Aviso automático del equipo de Caresia. Tus pacientes y clientes no reciben este correo.<div style="margin-top:8px;font:600 15px/1 Georgia,'Times New Roman',serif;color:#0B2540">Caresia<span style="color:#1673D1">.</span></div><div style="font:10px/1.4 Menlo,Consolas,monospace;letter-spacing:.1em;color:#8da0b0;margin-top:3px">operación · ${y}</div></div></td></tr>
 </table></td></tr></table></body></html>
 EOF
 )"
@@ -114,7 +117,11 @@ fi
   printf 'MIME-Version: 1.0\r\n'
   printf 'Content-Type: multipart/alternative; boundary="%s"\r\n\r\n' "$BOUNDARY"
   printf -- '--%s\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n' "$BOUNDARY" "$(printf '%s' "$TEXT" | b64)"
-  printf -- '--%s\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n' "$BOUNDARY" "$(printf '%s' "$HTML" | b64)"
+  REL="caresia-rel-$RANDOM"
+  printf -- '--%s\r\nContent-Type: multipart/related; boundary="%s"\r\n\r\n' "$BOUNDARY" "$REL"
+  printf -- '--%s\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n' "$REL" "$(printf '%s' "$HTML" | b64)"
+  printf -- '--%s\r\nContent-Type: image/png; name="caresia.png"\r\nContent-Transfer-Encoding: base64\r\nContent-ID: <caresia-logo>\r\nContent-Disposition: inline; filename="caresia.png"\r\n\r\n%s\r\n' "$REL" "$(b64 < "$(dirname "$0")/caresia-logo.png")"
+  printf -- '--%s--\r\n' "$REL"
   printf -- '--%s--\r\n' "$BOUNDARY"
 } > mail.eml
 
