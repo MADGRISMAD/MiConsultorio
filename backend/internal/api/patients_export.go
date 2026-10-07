@@ -77,6 +77,12 @@ func (s *Server) exportPatient(w http.ResponseWriter, r *http.Request) {
 			serverError(w, r, fmt.Errorf("export %s: %w", sec.key, err))
 			return
 		}
+		if sec.key == "appointments" {
+			if list, err = openJSONColumn(list, "appointments", "details"); err != nil {
+				serverError(w, r, err)
+				return
+			}
+		}
 		out[sec.key] = list
 	}
 
@@ -102,4 +108,31 @@ func (s *Server) jsonRows(ctx context.Context, sql string, args ...any) ([]json.
 		out = append(out, raw)
 	}
 	return out, rows.Err()
+}
+
+// openJSONColumn decrypts one text column of rows exported with to_jsonb(row) (the row's "id" is part of the
+// authenticated data).
+func openJSONColumn(list []json.RawMessage, table, column string) ([]json.RawMessage, error) {
+	for i, raw := range list {
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, err
+		}
+		id, _ := m["id"].(string)
+		v, ok := m[column].(string)
+		if !ok {
+			continue
+		}
+		plain, err := decField(table, column, id, v)
+		if err != nil {
+			return nil, err
+		}
+		m[column] = plain
+		b, err := json.Marshal(m)
+		if err != nil {
+			return nil, err
+		}
+		list[i] = b
+	}
+	return list, nil
 }

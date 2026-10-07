@@ -47,6 +47,7 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 }
 
 func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server {
+	installVault(db, cfg.TokenEncKey)
 	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
 		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour), portal: newPortalLimits()}
 }

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"regexp"
@@ -62,8 +61,10 @@ func scanPatient(row pgx.Row) (patient, error) {
 	if err != nil {
 		return p, err
 	}
-	p.Profile = map[string]any{}
-	_ = json.Unmarshal(raw, &p.Profile)
+	p.Profile, err = decProfile(p.ID, raw)
+	if err != nil {
+		return patient{}, err
+	}
 	return p, nil
 }
 
@@ -331,6 +332,12 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 				return
 			}
 		}
+		patID := newRowID()
+		profileJSON, err := encProfile(patID, profile)
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
 		var created patient
 		err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 			var n int
@@ -344,11 +351,11 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 			}
 			row := tx.QueryRow(r.Context(), `
 				INSERT INTO patients (clinic_id, file_number, subject, names, last_names, sex, birth_date, curp, phone, email, address,
-					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by)
-				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by, id)
+				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid)
 				RETURNING `+patientCols,
 				p.ClinicID, n, in.Subject, in.Names, in.LastNames, in.Sex, in.BirthDate, in.CURP, in.Phone, in.Email, in.Address,
-				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, jsonOrEmpty(profile), quick, ack, who, p.actorName())
+				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, quick, ack, who, p.actorName(), patID)
 			var err error
 			if created, err = scanPatient(row); err != nil {
 				return err
@@ -403,6 +410,11 @@ func (s *Server) updatePatient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
+	profileJSON, err := encProfile(id, profile)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	var ack any
 	who := cur.PrivacyNoticeBy
 	if cur.PrivacyNoticeAt != nil {
@@ -416,7 +428,7 @@ func (s *Server) updatePatient(w http.ResponseWriter, r *http.Request) {
 			privacy_notice_at=$16, privacy_notice_by=$17, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+patientCols,
 		p.ClinicID, id, in.Names, in.LastNames, in.Sex, in.BirthDate, in.CURP, in.Phone, in.Email, in.Address,
-		in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, jsonOrEmpty(profile), ack, who)
+		in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, ack, who)
 	out, err := scanPatient(row)
 	if isUniqueViolation(err) {
 		writeError(w, http.StatusConflict, "Ya existe un paciente con esa CURP.")
