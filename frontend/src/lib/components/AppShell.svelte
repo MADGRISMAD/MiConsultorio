@@ -4,6 +4,7 @@
   import { page } from '$app/state';
   import { session } from '$lib/session.svelte';
   import { theme } from '$lib/theme.svelte';
+  import BranchSwitcher from './org/BranchSwitcher.svelte';
   import NotificationBell from './notifications/NotificationBell.svelte';
   import { CLINIC_KINDS, PERMISSIONS, ROLES, type Role } from '$lib/types';
   import Modal from './Modal.svelte';
@@ -48,6 +49,7 @@
       items: [
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
+        { label: 'Sucursales', href: '/organizacion', icon: 'building', perms: [PERMISSIONS.adminUsers] },
         { label: 'Solicitudes ARCO', href: '/arco-solicitudes', icon: 'shield', perms: [PERMISSIONS.adminUsers] },
         { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]
@@ -183,7 +185,7 @@
         {:else if session.clinic}
           <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
         {/if}
-        {#if !session.isPlatform}<NotificationBell />{/if}
+        {#if !session.isPlatform}<BranchSwitcher /><NotificationBell />{/if}
         <a
           href="/ajustes"
           class="icon-btn {page.url.pathname.startsWith('/ajustes') ? 'bg-app-primary/12 text-app-primary' : ''}"
