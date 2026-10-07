@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { i18n, t } from '$lib/i18n/index.svelte';
 
   interface Props {
     /** first selectable day, YYYY-MM-DD */
@@ -17,9 +18,8 @@
 
   const free = $derived(available ? new Set(available) : null);
 
-  const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-  const DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-  const DAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+  const DAYS = [1, 2, 3, 4, 5, 6, 7];
+  const monthName = (m: number) => new Date(Date.UTC(2024, m, 1)).toLocaleDateString(i18n.intl, { month: 'long', timeZone: 'UTC' });
 
   const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const [my, mm] = (() => {
@@ -57,24 +57,24 @@
   });
 
   function label(d: number) {
-    const dow = (new Date(Date.UTC(year, month, d)).getUTCDay() + 6) % 7;
-    return `${DAY_NAMES[dow]} ${d} de ${MONTHS[month]}`;
+    const weekday = new Date(Date.UTC(year, month, d)).toLocaleDateString(i18n.intl, { weekday: 'long', timeZone: 'UTC' });
+    return t('datepicker.dayLabel', { weekday, day: d, month: monthName(month) });
   }
 </script>
 
 <div class="rounded-2xl border border-app-ink/10 bg-app-panel p-3 sm:p-4">
   <div class="mb-2 flex items-center justify-between">
-    <button type="button" class="icon-btn disabled:opacity-30" onclick={() => shift(-1)} disabled={!canPrev} aria-label="Mes anterior">
+    <button type="button" class="icon-btn disabled:opacity-30" onclick={() => shift(-1)} disabled={!canPrev} aria-label={t('datepicker.prev')}>
       <Icon name="arrow-left" size={18} />
     </button>
-    <p class="text-sm font-semibold capitalize" aria-live="polite">{MONTHS[month]} {year}</p>
-    <button type="button" class="icon-btn disabled:opacity-30" onclick={() => shift(1)} disabled={!canNext} aria-label="Mes siguiente">
+    <p class="text-sm font-semibold capitalize" aria-live="polite">{monthName(month)} {year}</p>
+    <button type="button" class="icon-btn disabled:opacity-30" onclick={() => shift(1)} disabled={!canNext} aria-label={t('datepicker.next')}>
       <Icon name="arrow-right" size={18} />
     </button>
   </div>
-  <div class="grid grid-cols-7 gap-1 text-center" role="grid" aria-label="Elige una fecha">
+  <div class="grid grid-cols-7 gap-1 text-center" role="grid" aria-label={t('datepicker.label')}>
     {#each DAYS as d}
-      <span class="py-1 font-mono text-[11px] uppercase text-app-muted" aria-hidden="true">{d}</span>
+      <span class="py-1 font-mono text-[11px] uppercase text-app-muted" aria-hidden="true">{t(`datepicker.d${d}`)}</span>
     {/each}
     {#each cells as d}
       {#if d === null}
@@ -88,7 +88,7 @@
           class="grid aspect-square min-h-10 place-items-center rounded-xl text-sm transition disabled:cursor-not-allowed disabled:text-app-muted/40
             {value === day ? 'bg-app-ink font-semibold text-app-surface' : day === min ? 'font-semibold text-app-primary hover:bg-app-ink/8' : 'hover:bg-app-ink/8'}"
           disabled={off}
-          aria-label={full ? `${label(d)}, sin lugares` : label(d)}
+          aria-label={full ? t('datepicker.full', { day: label(d) }) : label(d)}
           aria-pressed={value === day}
           onclick={() => onpick(day)}>{d}</button
         >

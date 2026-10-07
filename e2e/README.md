@@ -15,6 +15,8 @@ Es un paquete aparte (no forma parte del frontend ni del backend).
 | `tests/06-factura.spec.ts` | solicitud de factura de una venta |
 | `tests/07-recuperar.spec.ts` | recuperación de contraseña con el correo capturado por el SMTP falso |
 | `tests/08-reportes.spec.ts` | pantalla `/reportes` (operación y pacientes) |
+| `tests/10-pwa.spec.ts` | manifest instalable, service worker, `/offline` sin red y `/api` que nunca se sirve de copia |
+| `tests/11-idiomas.spec.ts` | páginas públicas en español/inglés, selector de idioma y app de empleados siempre en español |
 
 ## Correr en local
 

@@ -60,6 +60,13 @@ cd frontend && npm run check
 ```
 
 Las pruebas del backend **borran el esquema `public`** de la base indicada: usa una base exclusiva para tests.
+Además: `npm run test:i18n --prefix frontend` (diccionarios es/en con las mismas claves y sin claves huérfanas) y la suite e2e en `e2e/`.
+
+## Aplicación instalable e idiomas
+
+- **PWA:** `frontend/static/manifest.webmanifest`, iconos en `frontend/static/icons/` (se regeneran con `node scripts/gen-pwa-icons.mjs`) y `frontend/src/service-worker.ts`. El service worker solo guarda el shell estático versionado; **nunca** toca `/api/*` (los datos clínicos no se guardan en el navegador). Sin red, las navegaciones muestran `/offline`. Las versiones nuevas avisan con `UpdateBanner` (no se activan solas). El servidor Go sirve `/service-worker.js` con `Cache-Control: no-cache` y `Service-Worker-Allowed: /`.
+- **Idiomas:** `frontend/src/lib/i18n/` (`t(key, params)`, diccionarios `es-MX` por defecto y `en` en `dict/`). Solo las páginas públicas para pacientes (reserva, cita, espera, portal, verificación de recetas, ARCO, error y sin conexión) están traducidas y se puede cambiar el idioma con el selector; se detecta el idioma del navegador solo ahí. La app del consultorio, los correos, los documentos impresos (recetas, carnets) y los mensajes de error del servidor siguen en español.
+- **Diagnósticos veterinarios:** `GET /api/rx/diagnoses?subject=animal&species=Perro|Gato|Conejo` devuelve un catálogo de referencia en texto libre, sin códigos de estándares con licencia (VeNom, SNOMED-CT Vet). Para personas sigue el CIE-10 parcial.
 
 ## Roles y permisos
 

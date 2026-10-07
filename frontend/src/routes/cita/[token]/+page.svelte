@@ -1,11 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { t } from '$lib/i18n/index.svelte';
   import AppointmentManage from '$lib/components/booking/AppointmentManage.svelte';
   import PublicShell from '$lib/components/booking/PublicShell.svelte';
 </script>
 
 <svelte:head>
-  <title>Tu cita · Caresia</title>
+  <title>{t('appt.pageTitle')}</title>
   <meta name="robots" content="noindex, nofollow" />
   <meta name="referrer" content="no-referrer" />
 </svelte:head>

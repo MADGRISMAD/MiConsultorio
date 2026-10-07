@@ -8,7 +8,11 @@ export const rxApi = {
       'GET',
       `/rx/medications?q=${seg(q)}&subject=${subject}${species ? `&species=${seg(species)}` : ''}&limit=${limit}`
     ),
-  diagnoses: (q: string, limit = 15) => request<{ diagnoses: Icd10[]; disclaimer: string }>('GET', `/rx/diagnoses?q=${seg(q)}&limit=${limit}`),
+  diagnoses: (q: string, limit = 15, subject: 'person' | 'animal' = 'person', species = '') =>
+    request<{ diagnoses: Icd10[]; disclaimer: string }>(
+      'GET',
+      `/rx/diagnoses?q=${seg(q)}&limit=${limit}${subject === 'animal' ? `&subject=animal${species ? `&species=${seg(species)}` : ''}` : ''}`
+    ),
 
   clinicMeds: () => request<{ medications: CatalogMed[] }>('GET', '/rx/clinic-medications').then((r) => r.medications),
   saveClinicMed: (m: ClinicMedInput, id?: string) =>

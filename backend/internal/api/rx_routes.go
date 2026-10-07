@@ -143,6 +143,10 @@ func (s *Server) searchMedications(w http.ResponseWriter, r *http.Request) {
 func (s *Server) searchDiagnoses(w http.ResponseWriter, r *http.Request) {
 	q := normText(r.URL.Query().Get("q"))
 	limit := queryLimit(r)
+	if r.URL.Query().Get("subject") == "animal" {
+		searchVetDiagnoses(w, q, normText(r.URL.Query().Get("species")), limit)
+		return
+	}
 	type hit struct {
 		e     icdEntry
 		score int
