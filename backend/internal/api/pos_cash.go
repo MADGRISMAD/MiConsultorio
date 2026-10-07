@@ -48,7 +48,8 @@ type cashSession struct {
 	Movements   []cashMovement `json:"movements"`
 }
 
-// summarizeSession computes what the register should hold. Voided sales are left out.
+// summarizeSession computes what the register should hold. Voided sales are left out. Money counts in the
+// register that was open when it was received, so abonos land in today's register, not the sale's.
 func summarizeSession(ctx context.Context, q interface {
 	queryRower
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
@@ -62,13 +63,13 @@ func summarizeSession(ctx context.Context, q interface {
 	if err != nil {
 		return c, err
 	}
-	if err := q.QueryRow(ctx, `SELECT count(*), coalesce(sum(total_cents),0) FROM sales WHERE session_id = $1 AND status = 'paid'`, id).Scan(&c.Sales, &c.SalesCents); err != nil {
+	if err := q.QueryRow(ctx, `SELECT count(*), coalesce(sum(total_cents),0) FROM sales WHERE session_id = $1 AND status IN ('paid', 'open')`, id).Scan(&c.Sales, &c.SalesCents); err != nil {
 		return c, err
 	}
 	rows, err := q.Query(ctx, `
 		SELECT sp.method, coalesce(sum(sp.amount_cents),0), count(*)
 		FROM sale_payments sp JOIN sales s ON s.id = sp.sale_id
-		WHERE s.session_id = $1 AND s.status = 'paid' GROUP BY sp.method ORDER BY sp.method`, id)
+		WHERE sp.session_id = $1 AND s.status <> 'void' GROUP BY sp.method ORDER BY sp.method`, id)
 	if err != nil {
 		return c, err
 	}

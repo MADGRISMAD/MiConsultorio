@@ -14,7 +14,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var rfcRe = regexp.MustCompile(`^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$`)
+var (
+	rfcRe        = regexp.MustCompile(`^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$`)
+	satProductRe = regexp.MustCompile(`^[0-9]{8}$`)
+	satUnitRe    = regexp.MustCompile(`^[A-Z0-9]{2,3}$`)
+)
 
 // catalogItem is a service (consultation, procedure) or a product (medicine, supplies) that can be sold.
 type catalogItem struct {
@@ -32,10 +36,15 @@ type catalogItem struct {
 	MinStock   float64 `json:"min_stock" db:"min_stock"`
 	Unit       string  `json:"unit" db:"unit"`
 	Active     bool    `json:"active" db:"active"`
+	// SAT keys for stamping; empty means the default for the item's kind.
+	SATProductCode string  `json:"sat_product_code" db:"sat_product_code"`
+	SATUnitCode    string  `json:"sat_unit_code" db:"sat_unit_code"`
+	NextExpiry     *string `json:"next_expiry" db:"next_expiry"` // earliest expiry among lots with stock
 }
 
 const catalogCols = `id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate::float8 AS tax_rate,
-	track_stock, stock::float8 AS stock, min_stock::float8 AS min_stock, unit, active`
+	track_stock, stock::float8 AS stock, min_stock::float8 AS min_stock, unit, active, sat_product_code, sat_unit_code,
+	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry`
 
 type catalogInput struct {
 	Kind       string  `json:"kind"`
@@ -51,13 +60,29 @@ type catalogInput struct {
 	MinStock   float64 `json:"min_stock"`
 	Unit       string  `json:"unit"`
 	Active     *bool   `json:"active"`
+	// Lot of the initial stock (create only).
+	LotCode        string `json:"lot_code"`
+	ExpiresOn      string `json:"expires_on"`
+	SATProductCode string `json:"sat_product_code"`
+	SATUnitCode    string `json:"sat_unit_code"`
 }
 
 func (in *catalogInput) validate() string {
 	in.Name, in.SKU, in.Barcode = strings.TrimSpace(in.Name), strings.TrimSpace(in.SKU), strings.TrimSpace(in.Barcode)
 	in.Category, in.Unit = strings.TrimSpace(in.Category), strings.TrimSpace(in.Unit)
+	in.LotCode, in.ExpiresOn = strings.TrimSpace(in.LotCode), strings.TrimSpace(in.ExpiresOn)
+	in.SATProductCode, in.SATUnitCode = strings.TrimSpace(in.SATProductCode), strings.ToUpper(strings.TrimSpace(in.SATUnitCode))
 	if in.Unit == "" {
 		in.Unit = "pza"
+	}
+	if msg := validLotInput(in.LotCode, in.ExpiresOn); msg != "" {
+		return msg
+	}
+	if in.SATProductCode != "" && !satProductRe.MatchString(in.SATProductCode) {
+		return "La clave de producto o servicio del SAT debe tener 8 dígitos."
+	}
+	if in.SATUnitCode != "" && !satUnitRe.MatchString(in.SATUnitCode) {
+		return "La clave de unidad del SAT no es válida (2 o 3 caracteres, p. ej. E48 o H87)."
 	}
 	switch {
 	case in.Kind != "service" && in.Kind != "product":
@@ -75,6 +100,9 @@ func (in *catalogInput) validate() string {
 	}
 	if in.Kind == "service" {
 		in.TrackStock, in.Stock, in.MinStock = false, 0, 0
+	}
+	if !in.TrackStock {
+		in.Stock = 0 // stock only exists, in lots, for items that track it
 	}
 	return ""
 }
@@ -148,21 +176,20 @@ func (s *Server) createCatalogItem(w http.ResponseWriter, r *http.Request) {
 	var item catalogItem
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING `+catalogCols,
-			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit)
+			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING `+catalogCols,
+			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode)
 		if err != nil {
 			return err
 		}
 		if item, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[catalogItem]); err != nil {
 			return err
 		}
-		if in.TrackStock && in.Stock > 0 {
-			if _, err := tx.Exec(r.Context(), `
-				INSERT INTO stock_movements (clinic_id, item_id, delta, reason, balance, created_by_name, note)
-				VALUES ($1,$2,$3,'initial',$3,$4,'Existencia inicial')`, p.ClinicID, item.ID, in.Stock, p.actorName()); err != nil {
-				return err
-			}
+		if err := seedInitialStock(r.Context(), tx, p.ClinicID, item.ID, in.Stock, in.LotCode, in.ExpiresOn, p.actorName()); err != nil {
+			return err
+		}
+		if in.Stock > 0 && in.ExpiresOn != "" {
+			item.NextExpiry = &in.ExpiresOn
 		}
 		return nil
 	})
@@ -199,9 +226,9 @@ func (s *Server) updateCatalogItem(w http.ResponseWriter, r *http.Request) {
 	// stock is changed only through stock movements, never by editing the item
 	rows, err := s.db.Query(r.Context(), `
 		UPDATE catalog_items SET kind=$3, name=$4, sku=$5, barcode=$6, category=$7, price_cents=$8, cost_cents=$9, tax_rate=$10,
-		       track_stock=$11, min_stock=$12, unit=$13, active=$14, updated_at=now()
+		       track_stock=$11, min_stock=$12, unit=$13, active=$14, sat_product_code=$15, sat_unit_code=$16, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+catalogCols,
-		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active)
+		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active, in.SATProductCode, in.SATUnitCode)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -274,6 +301,7 @@ type stockMovement struct {
 	Note      string  `json:"note" db:"note"`
 	Balance   float64 `json:"balance" db:"balance"`
 	By        string  `json:"by" db:"created_by_name"`
+	LotCode   string  `json:"lot_code" db:"lot_code"`
 	CreatedAt string  `json:"created_at" db:"created_at"`
 }
 
@@ -285,6 +313,11 @@ type stockInput struct {
 	Note   string  `json:"note"`
 	// SetTo, when present, sets the count to an exact value (physical inventory); Delta is ignored.
 	SetTo *float64 `json:"set_to"`
+	// Entries go into the lot with this code and expiry (created when new); LotID picks an existing lot,
+	// which is also where exits are taken from. Without it exits follow FEFO.
+	LotCode   string `json:"lot_code"`
+	ExpiresOn string `json:"expires_on"`
+	LotID     string `json:"lot_id"`
 }
 
 func (s *Server) adjustStock(w http.ResponseWriter, r *http.Request) {
@@ -298,12 +331,21 @@ func (s *Server) adjustStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Note = strings.TrimSpace(in.Note)
+	in.LotCode, in.ExpiresOn = strings.TrimSpace(in.LotCode), strings.TrimSpace(in.ExpiresOn)
 	if !hasPermission(stockReasons, in.Reason) {
 		writeError(w, http.StatusBadRequest, "Motivo inválido.")
 		return
 	}
 	if utf8.RuneCountInString(in.Note) > 200 {
 		writeError(w, http.StatusBadRequest, "La nota es demasiado larga.")
+		return
+	}
+	if msg := validLotInput(in.LotCode, in.ExpiresOn); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
+	if in.LotID != "" && !validUUID(in.LotID) {
+		writeError(w, http.StatusBadRequest, "El lote no es válido.")
 		return
 	}
 	p := principalFrom(r.Context())
@@ -335,16 +377,50 @@ func (s *Server) adjustStock(w http.ResponseWriter, r *http.Request) {
 		if (in.Reason == "purchase" && delta < 0) || (in.Reason == "loss" && delta > 0) {
 			return fail(http.StatusBadRequest, "La cantidad no corresponde al motivo.")
 		}
-		balance = cur + delta
-		if balance < 0 {
+		if cur+delta < 0 {
 			return fail(http.StatusConflict, "La existencia no puede quedar en negativo.")
 		}
-		if _, err := tx.Exec(r.Context(), `UPDATE catalog_items SET stock=$3, updated_at=now() WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id, balance); err != nil {
-			return err
+		if in.Reason == "purchase" && in.ExpiresOn != "" && in.ExpiresOn < today() {
+			return fail(http.StatusBadRequest, "No se puede dar entrada a un lote que ya caducó.")
 		}
-		_, err = tx.Exec(r.Context(), `
-			INSERT INTO stock_movements (clinic_id, item_id, delta, reason, note, balance, created_by_name) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-			p.ClinicID, id, delta, in.Reason, in.Note, balance, p.actorName())
+		op := stockOp{clinicID: p.ClinicID, itemID: id, reason: in.Reason, note: in.Note, actor: p.actorName()}
+
+		lotID := ""
+		if in.LotID != "" {
+			var lotQty float64
+			err := tx.QueryRow(r.Context(), `SELECT qty::float8 FROM stock_lots WHERE clinic_id=$1 AND item_id=$2 AND id=$3 FOR UPDATE`, p.ClinicID, id, in.LotID).Scan(&lotQty)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fail(http.StatusBadRequest, "El lote no existe en este artículo.")
+			}
+			if err != nil {
+				return err
+			}
+			if delta < 0 && lotQty+delta < 0 {
+				return fail(http.StatusConflict, "El lote no tiene tantas existencias ("+qtyStr(lotQty)+").")
+			}
+			lotID = in.LotID
+		}
+		switch {
+		case delta > 0:
+			if lotID == "" {
+				if lotID, err = ensureLot(r.Context(), tx, p.ClinicID, id, in.LotCode, in.ExpiresOn); err != nil {
+					return err
+				}
+			}
+			op.lotID = lotID
+			balance, err = stockApply(r.Context(), tx, op, delta)
+		case lotID != "":
+			op.lotID = lotID
+			balance, err = stockApply(r.Context(), tx, op, delta)
+		default:
+			// exits (losses, counts) take expired stock first like any FEFO consumption
+			var res consumeResult
+			res, err = consumeStock(r.Context(), tx, op, -delta, true, false)
+			if err == nil && res.Short > qtyEps {
+				return fail(http.StatusConflict, "Los lotes no cubren esa cantidad.")
+			}
+			balance = cur + delta
+		}
 		return err
 	})
 	if err != nil {
@@ -362,7 +438,7 @@ func (s *Server) listStockMovements(w http.ResponseWriter, r *http.Request) {
 	}
 	p := principalFrom(r.Context())
 	rows, err := s.db.Query(r.Context(), `
-		SELECT id, delta::float8 AS delta, reason, note, balance::float8 AS balance, created_by_name, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS created_at
+		SELECT id, delta::float8 AS delta, reason, note, balance::float8 AS balance, created_by_name, lot_code, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SSOF') AS created_at
 		FROM stock_movements WHERE clinic_id=$1 AND item_id=$2 ORDER BY created_at DESC LIMIT 200`, p.ClinicID, id)
 	if err != nil {
 		serverError(w, r, err)
@@ -401,10 +477,10 @@ func (s *Server) importCatalog(w http.ResponseWriter, r *http.Request) {
 		for _, in := range req.Items {
 			var id string
 			err := tx.QueryRow(r.Context(), `
-				INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+				INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 				ON CONFLICT DO NOTHING RETURNING id`,
-				p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit).Scan(&id)
+				p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode).Scan(&id)
 			if errors.Is(err, pgx.ErrNoRows) {
 				skipped = append(skipped, in.Name)
 				continue
@@ -413,12 +489,8 @@ func (s *Server) importCatalog(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			created++
-			if in.TrackStock && in.Stock > 0 {
-				if _, err := tx.Exec(r.Context(), `
-					INSERT INTO stock_movements (clinic_id, item_id, delta, reason, balance, created_by_name, note)
-					VALUES ($1,$2,$3,'initial',$3,$4,'Existencia inicial')`, p.ClinicID, id, in.Stock, p.actorName()); err != nil {
-					return err
-				}
+			if err := seedInitialStock(r.Context(), tx, p.ClinicID, id, in.Stock, in.LotCode, in.ExpiresOn, p.actorName()); err != nil {
+				return err
 			}
 		}
 		audit(r.Context(), tx, p.ClinicID, p, "catalog_import", "Importó "+itoa(created)+" artículos al catálogo", nil)

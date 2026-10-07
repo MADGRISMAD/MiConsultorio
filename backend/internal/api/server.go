@@ -158,6 +158,7 @@ func (s *Server) router() http.Handler {
 						r.With(require(PermPOSManage)).Get("/magic", s.magicStatus)
 						r.With(require(PermPOSManage)).Post("/magic/inventory", s.magicInventory)
 						r.With(require(PermPOSManage)).Post("/magic/price", s.magicPrice)
+						s.mountPosRoutes(r) // lots, consumables, commissions, abonos, CFDI stamping
 					})
 
 					r.Route("/patients", func(r chi.Router) {

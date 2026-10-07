@@ -341,6 +341,11 @@ func (s *Server) emailSale(w http.ResponseWriter, r *http.Request) {
 		text.WriteString(name + "  $" + cents(pay.AmountCents) + "\n")
 		rows.WriteString(`<tr><td style="padding:3px 0;color:#7a8b9b">` + esc(name) + `</td><td align="right" style="color:#7a8b9b">$` + cents(pay.AmountCents) + `</td></tr>`)
 	}
+	if sale.BalanceCents > 0 {
+		text.WriteString("Abonado  $" + cents(sale.PaidCents) + "\nSALDO PENDIENTE  $" + cents(sale.BalanceCents) + "\n")
+		rows.WriteString(`<tr><td style="padding:3px 0;color:#7a8b9b">Abonado</td><td align="right" style="color:#7a8b9b">$` + cents(sale.PaidCents) + `</td></tr>` +
+			`<tr><td style="padding:3px 0;font-weight:700">Saldo pendiente</td><td align="right" style="font-weight:700">$` + cents(sale.BalanceCents) + `</td></tr>`)
+	}
 	if cfg.TicketFooter != "" {
 		text.WriteString("\n" + cfg.TicketFooter + "\n")
 	}

@@ -94,7 +94,7 @@ func (s *Server) posReport(w http.ResponseWriter, r *http.Request) {
 	}
 	err := errors.Join(
 		collect(`SELECT sp.method, coalesce(sum(sp.amount_cents),0), count(*) FROM sale_payments sp JOIN sales s ON s.id=sp.sale_id
-			WHERE s.clinic_id=$1 AND s.created_at>=$2 AND s.created_at<$3 AND s.status='paid' GROUP BY 1 ORDER BY 2 DESC`,
+			WHERE s.clinic_id=$1 AND sp.created_at>=$2 AND sp.created_at<$3 AND s.status<>'void' GROUP BY 1 ORDER BY 2 DESC`,
 			func(rows pgx.Rows) error {
 				var m methodTotal
 				err := rows.Scan(&m.Method, &m.AmountCents, &m.Count)
@@ -170,7 +170,7 @@ func (s *Server) exportSales(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := s.db.Query(r.Context(), `
 		SELECT s.folio, s.created_at, s.status, s.customer_name, s.created_by_name, s.subtotal_cents, s.discount_cents, s.tax_cents, s.total_cents,
-		       coalesce((SELECT string_agg(method, '+' ORDER BY method) FROM sale_payments WHERE sale_id = s.id), '')
+		       coalesce((SELECT string_agg(method, '+' ORDER BY method) FROM sale_payments WHERE sale_id = s.id), ''), s.balance_cents
 		FROM sales s WHERE s.clinic_id=$1 AND s.created_at>=$2 AND s.created_at<$3 ORDER BY s.folio`, p.ClinicID, from, to)
 	if err != nil {
 		serverError(w, r, err)
@@ -181,16 +181,16 @@ func (s *Server) exportSales(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="ventas-`+from.Format("20060102")+`-`+to.AddDate(0, 0, -1).Format("20060102")+`.csv"`)
 	_, _ = w.Write([]byte("\xEF\xBB\xBF")) // BOM so Excel reads UTF-8
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"Folio", "Fecha", "Estado", "Cliente", "Cajero", "Subtotal", "Descuento", "IVA incluido", "Total", "Métodos"})
+	_ = cw.Write([]string{"Folio", "Fecha", "Estado", "Cliente", "Cajero", "Subtotal", "Descuento", "IVA incluido", "Total", "Métodos", "Saldo"})
 	for rows.Next() {
-		var folio, sub, disc, tax, total int
+		var folio, sub, disc, tax, total, balance int
 		var at time.Time
 		var status, cust, by, methods string
-		if err := rows.Scan(&folio, &at, &status, &cust, &by, &sub, &disc, &tax, &total, &methods); err != nil {
+		if err := rows.Scan(&folio, &at, &status, &cust, &by, &sub, &disc, &tax, &total, &methods, &balance); err != nil {
 			return
 		}
-		_ = cw.Write([]string{strconv.Itoa(folio), at.Local().Format("2006-01-02 15:04"), map[string]string{"paid": "Pagada", "void": "Cancelada"}[status],
-			csvSafe(cust), csvSafe(by), cents(sub), cents(disc), cents(tax), cents(total), methods})
+		_ = cw.Write([]string{strconv.Itoa(folio), at.Local().Format("2006-01-02 15:04"), map[string]string{"paid": "Pagada", "open": "Abierta", "void": "Cancelada"}[status],
+			csvSafe(cust), csvSafe(by), cents(sub), cents(disc), cents(tax), cents(total), methods, cents(balance)})
 	}
 	cw.Flush()
 }
@@ -223,6 +223,8 @@ type invoiceRequest struct {
 	Note       string    `json:"note"`
 	CreatedBy  string    `json:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`
+	// CfdiState is '' for manual requests, then stamped or cancelled when issued through the PAC.
+	CfdiState string `json:"cfdi_state"`
 }
 
 func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +235,7 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
 		args = append(args, st)
 	}
 	rows, err := s.db.Query(r.Context(), `
-		SELECT i.id, i.sale_id, s.folio, s.total_cents, i.rfc, i.legal_name, i.tax_regime, i.zip_code, i.cfdi_use, i.email, i.status, i.fiscal_uuid, i.note, i.created_by_name, i.created_at
+		SELECT i.id, i.sale_id, s.folio, s.total_cents, i.rfc, i.legal_name, i.tax_regime, i.zip_code, i.cfdi_use, i.email, i.status, i.fiscal_uuid, i.note, i.created_by_name, i.created_at, i.cfdi_state
 		FROM invoice_requests i JOIN sales s ON s.id = i.sale_id WHERE `+where+` ORDER BY i.created_at DESC LIMIT 300`, args...)
 	if err != nil {
 		serverError(w, r, err)
@@ -243,13 +245,13 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request) {
 	list := []invoiceRequest{}
 	for rows.Next() {
 		var x invoiceRequest
-		if err := rows.Scan(&x.ID, &x.SaleID, &x.Folio, &x.TotalCents, &x.RFC, &x.LegalName, &x.TaxRegime, &x.ZipCode, &x.CfdiUse, &x.Email, &x.Status, &x.FiscalUUID, &x.Note, &x.CreatedBy, &x.CreatedAt); err != nil {
+		if err := rows.Scan(&x.ID, &x.SaleID, &x.Folio, &x.TotalCents, &x.RFC, &x.LegalName, &x.TaxRegime, &x.ZipCode, &x.CfdiUse, &x.Email, &x.Status, &x.FiscalUUID, &x.Note, &x.CreatedBy, &x.CreatedAt, &x.CfdiState); err != nil {
 			serverError(w, r, err)
 			return
 		}
 		list = append(list, x)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"invoices": list})
+	writeJSON(w, http.StatusOK, map[string]any{"invoices": list, "stamping": map[string]any{"enabled": s.cfdiProvider() != nil}})
 }
 
 var cfdiUses = []string{"G01", "G02", "G03", "I01", "I02", "I03", "I04", "I05", "I06", "I07", "I08", "D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10", "S01", "CP01", "CN01"}
@@ -307,6 +309,9 @@ func (s *Server) createInvoice(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		if status == "open" {
+			return fail(http.StatusConflict, "La venta tiene saldo pendiente; factúrala cuando esté pagada por completo.")
+		}
 		if status != "paid" {
 			return fail(http.StatusConflict, "No se puede facturar una venta cancelada.")
 		}
@@ -361,7 +366,7 @@ func (s *Server) updateInvoice(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
 	tag, err := s.db.Exec(r.Context(), `
 		UPDATE invoice_requests SET status=$3, fiscal_uuid=$4, note=$5, updated_at=now()
-		WHERE clinic_id=$1 AND id=$2 AND status='pending'`, p.ClinicID, id, req.Status, strings.ToUpper(req.FiscalUUID), req.Note)
+		WHERE clinic_id=$1 AND id=$2 AND status='pending' AND cfdi_state=''`, p.ClinicID, id, req.Status, strings.ToUpper(req.FiscalUUID), req.Note)
 	if err != nil {
 		serverError(w, r, err)
 		return
