@@ -55,6 +55,8 @@
         { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Inventario', href: '/pos/inventario', icon: 'box', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Cuentas por cobrar', href: '/pos/cuentas', icon: 'wallet', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Comisiones', href: '/pos/comisiones', icon: 'users', perms: [PERMISSIONS.posManage], cobros: true },
         { label: 'Reportes', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true }
       ]
     }

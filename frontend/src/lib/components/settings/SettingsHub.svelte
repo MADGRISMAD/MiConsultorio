@@ -51,6 +51,7 @@
         { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin },
         { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
         { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
+        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Porcentajes por profesional, categoría o servicio', icon: 'users', show: cobros },
         { id: 'terminal', label: 'Mercado Pago y terminal', desc: 'Conecta tu cuenta y tu terminal Point', icon: 'wallet', show: cobros }
       ]
     },
