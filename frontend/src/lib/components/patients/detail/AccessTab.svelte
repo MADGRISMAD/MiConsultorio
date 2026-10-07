@@ -2,7 +2,7 @@
   import type { AccessEntry } from '$lib/types';
   import EmptyState from '../../ui/EmptyState.svelte';
   let { access }: { access: AccessEntry[] } = $props();
-  const ACTION: Record<string, string> = { view: 'Abrió el expediente', print: 'Imprimió', export: 'Exportó' };
+  const ACTION: Record<string, string> = { view: 'Abrió el expediente', print: 'Imprimió', export: 'Exportó', file_upload: 'Subió un archivo', file_view: 'Abrió un archivo', file_download: 'Descargó un archivo', file_archive: 'Archivó un archivo' };
   const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 </script>
 
