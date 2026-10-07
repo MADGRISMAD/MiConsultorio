@@ -82,8 +82,14 @@ func scanRx(row pgx.Row) (prescription, error) {
 	}
 	x.Items = []rxItem{}
 	_ = json.Unmarshal(raw, &x.Items)
+	if err := decFields("prescriptions", x.ID, rxSealed, &x.Diagnosis, &x.Instructions); err != nil {
+		return prescription{}, err
+	}
 	return x, nil
 }
+
+// rxSealed are the encrypted columns of prescriptions (items stay readable: verification and allergy checks use them).
+var rxSealed = []string{"diagnosis", "instructions"}
 
 func (s *Server) listPrescriptions(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -296,6 +302,11 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		enc = in.EncounterID
 	}
 	raw, _ := json.Marshal(items)
+	rxID, sealedDx, sealedIns := newRowID(), in.Diagnosis, in.Instructions
+	if err := encFields("prescriptions", rxID, rxSealed, &sealedDx, &sealedIns); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	var out prescription
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		var folio int
@@ -305,10 +316,10 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		row := tx.QueryRow(r.Context(), `
 			INSERT INTO prescriptions (clinic_id, patient_id, encounter_id, folio, mode, valid_until, diagnosis, items, instructions, next_visit,
 				author_id, author_name, author_title, author_license, author_institution, author_specialty_license,
-				verify_token, weight_kg, allergy_override_reason, dose_override_reason)
-			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING `+rxCols,
-			p.ClinicID, id, enc, folio, mode, valid, in.Diagnosis, raw, in.Instructions, next, p.UserID, p.actorName(), title, license, institution, specLicense,
-			newVerifyToken(), weight, in.AllergyOverrideReason, in.DoseOverrideReason)
+				verify_token, weight_kg, allergy_override_reason, dose_override_reason, id)
+			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid) RETURNING `+rxCols,
+			p.ClinicID, id, enc, folio, mode, valid, sealedDx, raw, sealedIns, next, p.UserID, p.actorName(), title, license, institution, specLicense,
+			newVerifyToken(), weight, in.AllergyOverrideReason, in.DoseOverrideReason, rxID)
 		var err error
 		if out, err = scanRx(row); err != nil {
 			return err

@@ -80,7 +80,26 @@ func loadAppointment(ctx context.Context, q rowsQuerier, clinicID, id string) (a
 	if err != nil {
 		return appointment{}, err
 	}
-	return pgx.CollectOneRow(rows, pgx.RowToStructByName[appointment])
+	a, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[appointment])
+	if err != nil {
+		return a, err
+	}
+	if a.Details, err = decField("appointments", "details", a.ID, a.Details); err != nil {
+		return appointment{}, err
+	}
+	return a, nil
+}
+
+// openAppointmentDetails decrypts the details of rows read with appointmentSelect.
+func openAppointmentDetails(list []appointment) error {
+	for i := range list {
+		d, err := decField("appointments", "details", list[i].ID, list[i].Details)
+		if err != nil {
+			return err
+		}
+		list[i].Details = d
+	}
+	return nil
 }
 
 func (a *appointmentIn) validate() string {
@@ -217,6 +236,9 @@ func (s *Server) listAppointments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[appointment])
+	if err == nil {
+		err = openAppointmentDetails(list)
+	}
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -269,13 +291,17 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		if err := s.checkSlot(r.Context(), tx, p.ClinicID, &f, ""); err != nil {
 			return err
 		}
-		var id string
-		err := tx.QueryRow(r.Context(), `
+		id := newRowID()
+		sealed, err := encField("appointments", "details", id, f.Details)
+		if err != nil {
+			return err
+		}
+		err = tx.QueryRow(r.Context(), `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id,
-				professional_id, service_id, room, phone, email, confirm_token, reminders_consent)
-			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16) RETURNING id::text`,
-			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent).Scan(&id)
+				professional_id, service_id, room, phone, email, confirm_token, reminders_consent, id)
+			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16,$17::uuid) RETURNING id::text`,
+			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, id).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -343,12 +369,16 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		sealed, err := encField("appointments", "details", id, f.Details)
+		if err != nil {
+			return err
+		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE appointments SET curp=$3, names=$4, last_names=$5, date=$6::date, start_hour=$7::time, end_hour=$8::time,
 				details=$9, patient_id=$10::uuid, professional_id=$11::uuid, service_id=$12::uuid, room=$13, phone=$14, email=$15,
 				confirm_token = coalesce(confirm_token, $16), reminders_consent=$17, updated_at=now()
 			WHERE clinic_id=$1 AND id=$2`,
-			p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID,
+			p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
 			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent); err != nil {
 			return err
 		}

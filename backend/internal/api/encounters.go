@@ -65,9 +65,16 @@ func scanEncounter(row pgx.Row, me string) (encounter, error) {
 		// Someone else's private note (e.g. psychotherapy): only the fact that it exists is shown.
 		e = encounter{ID: e.ID, PatientID: e.PatientID, Kind: e.Kind, OccurredAt: e.OccurredAt, Private: true, Hidden: true,
 			AuthorName: e.AuthorName, AuthorRole: e.AuthorRole, CreatedAt: e.CreatedAt, Measures: map[string]any{}, DiagnosisCodes: []string{}}
+		return e, nil
+	}
+	if err := decFields("encounters", e.ID, encounterSealed, &e.Subjective, &e.Exam, &e.Assessment, &e.Plan, &e.Notes); err != nil {
+		return e, err
 	}
 	return e, nil
 }
+
+// encounterSealed are the encrypted columns of encounters, in the order scanEncounter opens them.
+var encounterSealed = []string{"subjective", "exam", "assessment", "plan", "notes"}
 
 func (s *Server) patientExists(ctx context.Context, clinicID, id string) (string, error) {
 	var subject string
@@ -215,14 +222,20 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 	var license string
 	_ = s.db.QueryRow(r.Context(), `SELECT cedula FROM users WHERE id = $1`, p.UserID).Scan(&license)
 
+	encID := newRowID()
+	sub, exam, assess, plan, notes := in.Subjective, in.Exam, in.Assessment, in.Plan, in.Notes
+	if err := encFields("encounters", encID, encounterSealed, &sub, &exam, &assess, &plan, &notes); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	var out encounter
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		row := tx.QueryRow(r.Context(), `
 			INSERT INTO encounters (clinic_id, patient_id, kind, occurred_at, appointment_id, reason, subjective, measures, exam, assessment,
-				diagnosis_codes, plan, notes, private, author_id, author_name, author_role, author_license)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING `+encounterCols,
-			p.ClinicID, id, in.Kind, occurred, appt, in.Reason, in.Subjective, jsonOrEmpty(measures), in.Exam, in.Assessment, codes, in.Plan, in.Notes,
-			in.Private, p.UserID, p.actorName(), roleLabels[p.Role], license)
+				diagnosis_codes, plan, notes, private, author_id, author_name, author_role, author_license, id)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::uuid) RETURNING `+encounterCols,
+			p.ClinicID, id, in.Kind, occurred, appt, in.Reason, sub, jsonOrEmpty(measures), exam, assess, codes, plan, notes,
+			in.Private, p.UserID, p.actorName(), roleLabels[p.Role], license, encID)
 		var err error
 		if out, err = scanEncounter(row, p.UserID); err != nil {
 			return err
@@ -279,10 +292,16 @@ func (s *Server) createAddendum(w http.ResponseWriter, r *http.Request) {
 	}
 	var license string
 	_ = s.db.QueryRow(r.Context(), `SELECT cedula FROM users WHERE id = $1`, p.UserID).Scan(&license)
+	addID := newRowID()
+	sealedText, err := encField("encounters", "notes", addID, req.Text)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	row := s.db.QueryRow(r.Context(), `
-		INSERT INTO encounters (clinic_id, patient_id, kind, reason, notes, private, addendum_of, author_id, author_name, author_role, author_license)
-		VALUES ($1,$2,'adenda',$3,$4,$5,$6,$7,$8,$9,$10) RETURNING `+encounterCols,
-		p.ClinicID, patientID, req.Reason, req.Text, private, id, p.UserID, p.actorName(), roleLabels[p.Role], license)
+		INSERT INTO encounters (clinic_id, patient_id, kind, reason, notes, private, addendum_of, author_id, author_name, author_role, author_license, id)
+		VALUES ($1,$2,'adenda',$3,$4,$5,$6,$7,$8,$9,$10,$11::uuid) RETURNING `+encounterCols,
+		p.ClinicID, patientID, req.Reason, sealedText, private, id, p.UserID, p.actorName(), roleLabels[p.Role], license, addID)
 	out, err := scanEncounter(row, p.UserID)
 	if err != nil {
 		serverError(w, r, err)

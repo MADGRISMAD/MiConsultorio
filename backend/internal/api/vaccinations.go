@@ -159,8 +159,11 @@ func (s *Server) patientForSpecialty(w http.ResponseWriter, r *http.Request) (id
 		serverError(w, r, err)
 		return
 	}
-	var prof map[string]any
-	_ = json.Unmarshal(raw, &prof)
+	prof, err := decProfile(id, raw)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	species, _ = prof["species"].(string)
 	return id, subject, species, true
 }
