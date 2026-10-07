@@ -77,7 +77,7 @@
     <dl class="grid gap-4 rounded-xl bg-app-elevated p-4 text-left sm:grid-cols-3">
       <div class="sm:col-span-2"><dt class="section-title">Paciente</dt><dd class="mt-1 font-semibold">{fullName(appt)}</dd></div>
       <div><dt class="section-title">Profesional</dt><dd class="mt-1 font-semibold">{appt.professional_name || 'Sin asignar'}</dd></div>
-      <div class="sm:col-span-2"><dt class="section-title">Fecha</dt><dd class="mt-1 font-semibold capitalize">{fmtLong(appt.date)}</dd></div>
+      <div class="sm:col-span-2"><dt class="section-title">Fecha</dt><dd class="mt-1 font-semibold">{fmtLong(appt.date)}</dd></div>
       <div><dt class="section-title">Horario</dt><dd class="mt-1 font-semibold tabular-nums">{appt.startHour} – {appt.endHour}</dd></div>
       {#if appt.service_name}<div><dt class="section-title">Servicio</dt><dd class="mt-1">{appt.service_name}</dd></div>{/if}
       {#if appt.room}<div><dt class="section-title">Sala</dt><dd class="mt-1">{appt.room}</dd></div>{/if}

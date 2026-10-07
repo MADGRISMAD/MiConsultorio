@@ -256,7 +256,7 @@
     <button type="button" class="icon-btn" aria-label="Anterior" onclick={() => step(-1)}><Icon name="arrow-left" size={19} /></button>
     <button type="button" class="icon-btn" aria-label="Siguiente" onclick={() => step(1)}><Icon name="arrow-right" size={19} /></button>
   </div>
-  <h2 class="min-w-0 flex-1 truncate text-base font-semibold capitalize sm:text-lg" aria-live="polite">{rangeTitle(view === 'list' ? 'month' : view, cursor)}</h2>
+  <h2 class="min-w-0 flex-1 truncate text-base font-semibold sm:text-lg" aria-live="polite">{rangeTitle(view === 'list' ? 'month' : view, cursor)}</h2>
   <div class="inline-flex rounded-full bg-app-ink/6 p-0.5" role="group" aria-label="Vista de la agenda">
     {#each VIEWS as [k, label]}
       <button type="button" aria-pressed={view === k} class="rounded-full px-3.5 py-1.5 text-sm font-medium transition {view === k ? 'bg-app-ink text-app-surface' : 'text-app-muted hover:text-app-ink'}" onclick={() => setView(k)}>{label}</button>
@@ -328,7 +328,7 @@
                 <span class="block font-semibold">{fullName(a)}</span>
                 {#if a.service_name}<span class="block text-xs text-app-muted">{a.service_name}</span>{/if}
               </td>
-              <td class="td whitespace-nowrap capitalize">
+              <td class="td whitespace-nowrap">
                 {fmtShort(a.date)}
                 {#if a.date === today}<span class="badge ml-2 normal-case">Hoy</span>{/if}
               </td>

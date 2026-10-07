@@ -289,7 +289,7 @@ func TestAgendaSettings(t *testing.T) {
 	}
 
 	for name, mod := range map[string]map[string]any{
-		"slug short": {"booking_slug": "ab"}, "slug chars": {"booking_slug": "hola mundo"}, "slug accents": {"booking_slug": "clínica"},
+		"slug short": {"booking_slug": "a"}, "slug chars": {"booking_slug": "hola mundo"}, "slug accents": {"booking_slug": "clínica"},
 		"slug empty enabled": {"booking_slug": ""}, "slot": {"slot_minutes": 2}, "hours zero": {"remind_hours": []int{0}}, "hours big": {"remind_hours": []int{200}},
 		"hours many": {"remind_hours": []int{1, 2, 3, 4}}, "horizon": {"booking_horizon_days": 0}, "lead": {"booking_lead_hours": -1},
 	} {

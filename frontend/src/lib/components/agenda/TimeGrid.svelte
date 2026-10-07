@@ -66,7 +66,7 @@
 
   // ----- click on an empty slot -----
   function onColClick(e: MouseEvent, d: string) {
-    if (!canEdit || e.target !== e.currentTarget) return;
+    if (!canEdit || justDragged || e.target !== e.currentTarget) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const min = lo + Math.floor((e.clientY - rect.top) / PPM / slot) * slot;
     oncreate(d, fromMin(Math.min(Math.max(min, lo), hi - slot)));
@@ -156,9 +156,9 @@
     {#each days as d (d)}
       <div class="sticky top-0 z-20 border-b border-l border-app-ink/10 bg-app-panel px-2 py-2 text-center">
         {#if onday}
-          <button type="button" class="rounded-lg px-2 py-0.5 text-sm font-medium capitalize hover:bg-app-ink/5 {d === today ? 'text-app-primary' : ''}" onclick={() => onday(d)}>{fmtShort(d)}</button>
+          <button type="button" class="rounded-lg px-2 py-0.5 text-sm font-medium hover:bg-app-ink/5 {d === today ? 'text-app-primary' : ''}" onclick={() => onday(d)}>{fmtShort(d)}</button>
         {:else}
-          <span class="text-sm font-medium capitalize {d === today ? 'text-app-primary' : ''}">{fmtShort(d)}</span>
+          <span class="text-sm font-medium {d === today ? 'text-app-primary' : ''}">{fmtShort(d)}</span>
         {/if}
       </div>
     {/each}

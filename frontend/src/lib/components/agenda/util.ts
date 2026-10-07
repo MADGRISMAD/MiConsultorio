@@ -39,9 +39,11 @@ export const fromMin = (n: number) => `${pad(Math.floor(n / 60))}:${pad(n % 60)}
 const DAY_KEYS: DayKey[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 export const dayKey = (s: string): DayKey => DAY_KEYS[parseDay(s).getDay()];
 
-export const fmtLong = (s: string) => parseDay(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-export const fmtShort = (s: string) => parseDay(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
-export const fmtMonth = (s: string) => parseDay(s).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+export const fmtLong = (s: string) => cap(longFmt(s));
+const longFmt = (s: string) => parseDay(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+export const fmtShort = (s: string) => cap(parseDay(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }));
+export const fmtMonth = (s: string) => cap(parseDay(s).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
 export const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export function rangeTitle(view: string, cursor: string): string {

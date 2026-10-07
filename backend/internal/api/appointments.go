@@ -16,20 +16,21 @@ import (
 
 // appointmentIn is what the client sends to create or move an appointment.
 type appointmentIn struct {
-	PatientID      *string `json:"patient_id"`
-	Names          string  `json:"names"`
-	LastNames      string  `json:"last_names"`
-	CURP           string  `json:"CURP"`
-	Date           string  `json:"date"`
-	StartHour      string  `json:"startHour"`
-	EndHour        string  `json:"endHour"`
-	Details        string  `json:"details"`
-	ProfessionalID *string `json:"professional_id"`
-	ServiceID      *string `json:"service_id"`
-	Room           string  `json:"room"`
-	Phone          string  `json:"phone"`
-	Email          string  `json:"email"`
-	Overbook       bool    `json:"overbook"` // accept a SLOT_TAKEN conflict (never a block)
+	PatientID        *string `json:"patient_id"`
+	Names            string  `json:"names"`
+	LastNames        string  `json:"last_names"`
+	CURP             string  `json:"CURP"`
+	Date             string  `json:"date"`
+	StartHour        string  `json:"startHour"`
+	EndHour          string  `json:"endHour"`
+	Details          string  `json:"details"`
+	ProfessionalID   *string `json:"professional_id"`
+	ServiceID        *string `json:"service_id"`
+	Room             string  `json:"room"`
+	Phone            string  `json:"phone"`
+	Email            string  `json:"email"`
+	RemindersConsent bool    `json:"reminders_consent"`
+	Overbook         bool    `json:"overbook"` // accept a SLOT_TAKEN conflict (never a block)
 }
 
 type appointment struct {
@@ -57,13 +58,14 @@ type appointment struct {
 	ArrivedAt        *time.Time `json:"arrived_at" db:"arrived_at"`
 	StartedAt        *time.Time `json:"started_at" db:"started_at"`
 	FinishedAt       *time.Time `json:"finished_at" db:"finished_at"`
+	RemindersConsent bool       `json:"reminders_consent" db:"reminders_consent"`
 }
 
 const appointmentSelect = `SELECT a.id::text AS id, a.patient_id::text AS patient_id, a.names, a.last_names, a.curp,
 		to_char(a.date, 'YYYY-MM-DD') AS date, to_char(a.start_hour, 'HH24:MI') AS start_hour, to_char(a.end_hour, 'HH24:MI') AS end_hour,
 		a.details, a.professional_id::text AS professional_id, coalesce(pr.name, '') AS professional_name, a.status, a.room, a.source,
 		a.service_id::text AS service_id, coalesce(ci.name, '') AS service_name, a.phone, a.email, a.encounter_id::text AS encounter_id,
-		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at
+		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at, a.reminders_consent
 	FROM appointments a
 	LEFT JOIN users pr ON pr.id = a.professional_id
 	LEFT JOIN catalog_items ci ON ci.id = a.service_id `
@@ -269,10 +271,10 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		var id string
 		err := tx.QueryRow(r.Context(), `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id,
-				professional_id, service_id, room, phone, email, confirm_token)
-			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15) RETURNING id::text`,
+				professional_id, service_id, room, phone, email, confirm_token, reminders_consent)
+			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16) RETURNING id::text`,
 			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken()).Scan(&id)
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -343,10 +345,10 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE appointments SET curp=$3, names=$4, last_names=$5, date=$6::date, start_hour=$7::time, end_hour=$8::time,
 				details=$9, patient_id=$10::uuid, professional_id=$11::uuid, service_id=$12::uuid, room=$13, phone=$14, email=$15,
-				confirm_token = coalesce(confirm_token, $16), updated_at=now()
+				confirm_token = coalesce(confirm_token, $16), reminders_consent=$17, updated_at=now()
 			WHERE clinic_id=$1 AND id=$2`,
 			p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken()); err != nil {
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent); err != nil {
 			return err
 		}
 		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {

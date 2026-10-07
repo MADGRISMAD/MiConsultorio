@@ -123,6 +123,10 @@
     <span class="label">Correo de contacto</span>
     <input type="email" class="field" bind:value={data.email} maxlength="200" autocomplete="off" />
   </label>
+  <label class="flex cursor-pointer items-start gap-2 text-sm sm:col-span-2">
+    <input type="checkbox" bind:checked={data.reminders_consent} class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" />
+    El paciente acepta recibir recordatorios de su cita
+  </label>
   <label class="block sm:col-span-2">
     <span class="label">Notas de la cita</span>
     <textarea class="field min-h-20" bind:value={data.details} maxlength="2000"></textarea>

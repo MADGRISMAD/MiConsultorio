@@ -30,7 +30,7 @@
 
   const origin = typeof location !== 'undefined' ? location.origin : '';
   const slugPreview = $derived((s?.booking_slug ?? '').trim().toLowerCase());
-  const slugOk = $derived(/^[a-z0-9-]{3,40}$/.test(slugPreview));
+  const slugOk = $derived(/^[a-z0-9][a-z0-9-]{1,62}$/.test(slugPreview));
 
   function addRoom() {
     const r = newRoom.trim();
@@ -118,10 +118,10 @@
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
           <label class="label" for="ag-slug">Dirección de tu página de reservas</label>
-          <input id="ag-slug" type="text" class="field" bind:value={s.booking_slug} maxlength="40" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
+          <input id="ag-slug" type="text" class="field" bind:value={s.booking_slug} maxlength="63" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
           <p class="hint">
             {#if slugPreview && slugOk}Tus pacientes entrarán a <strong class="break-all text-app-ink">{origin}/reservar/{slugPreview}</strong>
-            {:else}De 3 a 40 caracteres: letras minúsculas, números y guiones.{/if}
+            {:else}Letras minúsculas, números y guiones (2 a 63 caracteres).{/if}
           </p>
         </div>
         <label class="block">
@@ -135,6 +135,15 @@
         <label class="block sm:col-span-2">
           <span class="label">Mensaje para quien reserva</span>
           <textarea class="field min-h-20" maxlength="500" bind:value={s.booking_message} placeholder="Llega 10 minutos antes. Si necesitas cancelar, avísanos con tiempo."></textarea>
+        </label>
+        <label class="flex cursor-pointer items-start gap-3 text-sm sm:col-span-2">
+          <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_show_prices} />
+          <span><span class="font-medium">Mostrar precios de los servicios</span><span class="block text-app-muted">Los precios del catálogo aparecen en la página pública.</span></span>
+        </label>
+        <label class="block">
+          <span class="label">Cancelar hasta (horas antes)</span>
+          <input type="number" min="0" max="720" class="field" bind:value={s.cancel_min_hours} />
+          <p class="hint">El paciente puede cancelar desde su enlace hasta esta anticipación.</p>
         </label>
         <label class="flex cursor-pointer items-start gap-3 text-sm sm:col-span-2">
           <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_requires_confirmation} />

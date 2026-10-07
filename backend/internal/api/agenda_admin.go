@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	slugRe  = regexp.MustCompile(`^[a-z0-9-]{3,40}$`)
+	slugRe  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 	colorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 	dayKeys = []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}
 )
@@ -368,6 +368,8 @@ type agendaSettings struct {
 	BookingHorizonDays          int      `json:"booking_horizon_days"`
 	BookingMessage              string   `json:"booking_message"`
 	BookingRequiresConfirmation bool     `json:"booking_requires_confirmation"`
+	BookingShowPrices           bool     `json:"booking_show_prices"`
+	CancelMinHours              int      `json:"cancel_min_hours"`
 	RemindEmail                 bool     `json:"remind_email"`
 	RemindWhatsapp              bool     `json:"remind_whatsapp"`
 	RemindHours                 []int    `json:"remind_hours"`
@@ -375,17 +377,17 @@ type agendaSettings struct {
 }
 
 func defaultAgendaSettings() agendaSettings {
-	return agendaSettings{SlotMinutes: 30, Rooms: []string{}, BookingLeadHours: 2, BookingHorizonDays: 30, RemindEmail: true, RemindHours: []int{24, 2}}
+	return agendaSettings{SlotMinutes: 30, Rooms: []string{}, BookingLeadHours: 2, BookingHorizonDays: 30, CancelMinHours: 2, RemindEmail: true, RemindHours: []int{24, 2}}
 }
 
 func loadAgendaSettings(r *http.Request, q queryRower, clinicID string) (agendaSettings, error) {
 	st := defaultAgendaSettings()
 	err := q.QueryRow(r.Context(), `
 		SELECT slot_minutes, rooms, booking_enabled, coalesce(booking_slug, ''), booking_lead_hours, booking_horizon_days, booking_message,
-		       booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template
+		       booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours
 		FROM agenda_settings WHERE clinic_id = $1`, clinicID).
 		Scan(&st.SlotMinutes, &st.Rooms, &st.BookingEnabled, &st.BookingSlug, &st.BookingLeadHours, &st.BookingHorizonDays, &st.BookingMessage,
-			&st.BookingRequiresConfirmation, &st.RemindEmail, &st.RemindWhatsapp, &st.RemindHours, &st.ReminderTemplate)
+			&st.BookingRequiresConfirmation, &st.RemindEmail, &st.RemindWhatsapp, &st.RemindHours, &st.ReminderTemplate, &st.BookingShowPrices, &st.CancelMinHours)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return st, nil
 	}
@@ -431,7 +433,7 @@ func (in *agendaSettings) validate() string {
 	in.Rooms = rooms
 	in.BookingSlug = strings.ToLower(strings.TrimSpace(in.BookingSlug))
 	if in.BookingSlug != "" && !slugRe.MatchString(in.BookingSlug) {
-		return "La dirección de reservas debe tener de 3 a 40 caracteres: letras minúsculas, números y guiones."
+		return "La dirección de reservas debe tener de 2 a 63 caracteres: letras minúsculas, números y guiones, y empezar con letra o número."
 	}
 	if in.BookingEnabled && in.BookingSlug == "" {
 		return "Elige una dirección para activar las reservas en línea."
@@ -441,6 +443,9 @@ func (in *agendaSettings) validate() string {
 	}
 	if in.BookingHorizonDays < 1 || in.BookingHorizonDays > 365 {
 		return "El horizonte de reservas debe estar entre 1 y 365 días."
+	}
+	if in.CancelMinHours < 0 || in.CancelMinHours > 720 {
+		return "El tiempo mínimo para cancelar debe estar entre 0 y 720 horas."
 	}
 	in.BookingMessage = strings.TrimSpace(in.BookingMessage)
 	in.ReminderTemplate = strings.TrimSpace(in.ReminderTemplate)
@@ -489,13 +494,13 @@ func (s *Server) updateAgendaSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := s.db.Exec(r.Context(), `
 		INSERT INTO agenda_settings (clinic_id, slot_minutes, rooms, booking_enabled, booking_slug, booking_lead_hours, booking_horizon_days,
-			booking_message, booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			booking_message, booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		ON CONFLICT (clinic_id) DO UPDATE SET slot_minutes = $2, rooms = $3, booking_enabled = $4, booking_slug = $5, booking_lead_hours = $6,
 			booking_horizon_days = $7, booking_message = $8, booking_requires_confirmation = $9, remind_email = $10, remind_whatsapp = $11,
-			remind_hours = $12, reminder_template = $13, updated_at = now()`,
+			remind_hours = $12, reminder_template = $13, booking_show_prices = $14, cancel_min_hours = $15, updated_at = now()`,
 		p.ClinicID, in.SlotMinutes, in.Rooms, in.BookingEnabled, slug, in.BookingLeadHours, in.BookingHorizonDays, in.BookingMessage,
-		in.BookingRequiresConfirmation, in.RemindEmail, in.RemindWhatsapp, in.RemindHours, in.ReminderTemplate)
+		in.BookingRequiresConfirmation, in.RemindEmail, in.RemindWhatsapp, in.RemindHours, in.ReminderTemplate, in.BookingShowPrices, in.CancelMinHours)
 	if isUniqueViolation(err) {
 		writeJSON(w, http.StatusConflict, errorBody{Code: "SLUG_TAKEN", Message: "Esa dirección de reservas ya la usa otro consultorio."})
 		return

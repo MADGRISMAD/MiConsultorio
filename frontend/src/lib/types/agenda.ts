@@ -25,6 +25,7 @@ export interface Appt {
   arrived_at: string | null;
   started_at: string | null;
   finished_at: string | null;
+  reminders_consent: boolean;
 }
 
 export interface ApptInput {
@@ -41,20 +42,21 @@ export interface ApptInput {
   room: string;
   phone: string;
   email: string;
+  reminders_consent: boolean;
   overbook: boolean;
 }
 
 export function emptyApptInput(): ApptInput {
   return {
     patient_id: null, names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '',
-    professional_id: null, service_id: null, room: '', phone: '', email: '', overbook: false
+    professional_id: null, service_id: null, room: '', phone: '', email: '', reminders_consent: false, overbook: false
   };
 }
 
 export function inputFromAppt(a: Appt): ApptInput {
   return {
     patient_id: a.patient_id, names: a.names, last_names: a.last_names, CURP: a.CURP, date: a.date, startHour: a.startHour, endHour: a.endHour,
-    details: a.details, professional_id: a.professional_id, service_id: a.service_id, room: a.room, phone: a.phone, email: a.email, overbook: false
+    details: a.details, professional_id: a.professional_id, service_id: a.service_id, room: a.room, phone: a.phone, email: a.email, reminders_consent: a.reminders_consent, overbook: false
   };
 }
 
@@ -108,6 +110,8 @@ export interface AgendaSettings {
   booking_horizon_days: number;
   booking_message: string;
   booking_requires_confirmation: boolean;
+  booking_show_prices: boolean;
+  cancel_min_hours: number;
   remind_email: boolean;
   remind_whatsapp: boolean;
   remind_hours: number[];
