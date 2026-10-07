@@ -38,8 +38,9 @@ services:
       CLINIC_ADMIN_EMAIL: ${CLINIC_ADMIN_EMAIL:-}
       CLINIC_ADMIN_USERNAME: ${CLINIC_ADMIN_USERNAME:-admin}
       CLINIC_ADMIN_PASSWORD: ${CLINIC_ADMIN_PASSWORD:-}
+    # Solo local: delante va un proxy con HTTPS. APP_PORT cambia el puerto si el 8080 está ocupado.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
 
 volumes:
   pgdata:
