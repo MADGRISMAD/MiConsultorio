@@ -9,6 +9,11 @@
   import EncountersTab from '$lib/components/patients/detail/EncountersTab.svelte';
   import PrescriptionBuilder from '$lib/components/patients/detail/PrescriptionBuilder.svelte';
   import PrescriptionsTab from '$lib/components/patients/detail/PrescriptionsTab.svelte';
+  import FilesTab from '$lib/components/patients/detail/FilesTab.svelte';
+  import VaccinesTab from '$lib/components/patients/detail/VaccinesTab.svelte';
+  import OdontogramTab from '$lib/components/patients/detail/OdontogramTab.svelte';
+  import BodyMapTab from '$lib/components/patients/detail/BodyMapTab.svelte';
+  import PlansTab from '$lib/components/patients/detail/PlansTab.svelte';
   import SummaryTab from '$lib/components/patients/detail/SummaryTab.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import Guard from '$lib/components/Guard.svelte';
@@ -22,7 +27,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
 
-  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'accesos';
+  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'archivos' | 'vacunas' | 'odontograma' | 'esquema' | 'planes' | 'accesos';
 
   const id = $derived(page.params.id ?? '');
   let patient = $state<Patient | null>(null);
@@ -138,10 +143,17 @@
     });
   }
 
+  const isPerson = $derived(patient?.subject === 'person');
+  const hasKind = (...k: string[]) => (schema?.kinds ?? []).some((x) => k.includes(x));
   const tabs = $derived<{ key: Tab; label: string; count?: number }[]>([
     { key: 'resumen', label: 'Resumen' },
     { key: 'bitacora', label: 'Bitácora', count: encounters.filter((e) => !e.addendum_of).length },
     { key: 'recetas', label: schema?.rx_mode === 'instructions' ? 'Indicaciones' : 'Recetas', count: prescriptions.length },
+    ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación' }] : []),
+    ...(isPerson && hasKind('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
+    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
+    ...(hasKind('DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'NUTRITION', 'PSYCHOLOGY', 'VETERINARY') ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : []),
+    { key: 'archivos', label: 'Archivos' },
     ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos' }] : [])
   ]);
   function tabKey(ev: KeyboardEvent) {
@@ -243,6 +255,16 @@
         <EncountersTab {patient} {schema} {encounters} {canWrite} onnew={openForm} onaddendum={(e) => (addendumFor = e)} />
       {:else if tab === 'recetas'}
         <PrescriptionsTab {patient} {schema} {prescriptions} {canWrite} {isAdmin} userName={session.user?.name ?? ''} onnew={newRx} onchange={refreshRx} />
+      {:else if patient && tab === 'archivos'}
+        <FilesTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'vacunas'}
+        <VaccinesTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'odontograma'}
+        <OdontogramTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'esquema'}
+        <BodyMapTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'planes'}
+        <PlansTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if tab === 'accesos' && isAdmin}
         <AccessTab {access} />
       {/if}
