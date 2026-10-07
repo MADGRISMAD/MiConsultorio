@@ -16,6 +16,7 @@
   import TicketSection from '$lib/components/pos/settings/TicketSection.svelte';
   import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
+  import InstallPrompt from '$lib/components/pwa/InstallPrompt.svelte';
   import Appearance from './Appearance.svelte';
   import ClinicSettings from './ClinicSettings.svelte';
   import AgendaSettings from './AgendaSettings.svelte';
@@ -286,6 +287,7 @@
         <ComplianceSection />
       {:else if section.id === 'apariencia'}
         <Appearance />
+        <InstallPrompt />
       {:else if section.id === 'cuenta'}
         <AccountPanel embedded />
       {:else if loadError}

@@ -5,6 +5,7 @@
   import { session } from '$lib/session.svelte';
   import { theme } from '$lib/theme.svelte';
   import BranchSwitcher from './org/BranchSwitcher.svelte';
+  import UpdateBanner from './pwa/UpdateBanner.svelte';
   import NotificationBell from './notifications/NotificationBell.svelte';
   import { CLINIC_KINDS, PERMISSIONS, ROLES, type Role } from '$lib/types';
   import Modal from './Modal.svelte';
@@ -215,6 +216,8 @@
         </p>
       </div>
     {/if}
+
+    <UpdateBanner />
 
     {#if session.user?.mustSetup2fa}
       <div class="border-b border-app-warning/30 bg-app-warning/10 px-4 py-2.5 text-center text-sm" role="alert">
