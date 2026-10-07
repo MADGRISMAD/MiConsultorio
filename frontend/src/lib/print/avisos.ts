@@ -6,7 +6,9 @@ function responsable(c: Issuer) {
   const name = l.privacy_contact || l.responsible_name || c.name;
   const address = l.privacy_address || c.address;
   const contact = [l.privacy_email && `correo ${l.privacy_email}`, (l.privacy_phone || c.phone) && `teléfono ${l.privacy_phone || c.phone}`].filter(Boolean).join(', ');
-  return { name, address, contact };
+  // Public ARCO form of the clinic (absolute so it works on paper and in PDFs).
+  const arcoUrl = c.arco_slug && typeof location !== 'undefined' ? `${location.origin}/arco/${c.arco_slug}` : '';
+  return { name, address, contact, arcoUrl };
 }
 
 const subjectName = (p: Patient | null, animal: boolean) =>
@@ -29,7 +31,7 @@ export function privacyNoticeHtml(patient: Patient | null, c: Issuer): string {
 <h2>4. Transferencias</h2>
 <p>Sus datos no se venden ni se usan con fines de mercadotecnia por terceros. Solo podrán comunicarse a autoridades sanitarias o judiciales cuando la ley lo exija, y a otros prestadores de servicios de salud ${animal ? 'veterinarios ' : ''}cuando usted lo autorice para su atención. Estas transferencias que la ley permite o exige no requieren su consentimiento adicional.</p>
 <h2>5. Derechos ARCO, revocación y limitación</h2>
-<p>Usted puede ejercer sus derechos de <strong>Acceso, Rectificación, Cancelación y Oposición (ARCO)</strong>, revocar su consentimiento o limitar el uso o divulgación de sus datos, mediante solicitud por escrito dirigida a ${e(r.name)}${r.address ? `, en ${e(r.address)}` : ''}${r.contact ? ` o por ${e(r.contact)}` : ''}. Indique su nombre, un medio para responderle, una descripción clara de lo que solicita y copia de una identificación. Responderemos en un plazo máximo de 20 días hábiles. La cancelación estará sujeta a los plazos de conservación obligatoria del expediente clínico (mínimo 5 años desde el último acto médico), durante los cuales los datos se bloquean.</p>
+<p>Usted puede ejercer sus derechos de <strong>Acceso, Rectificación, Cancelación y Oposición (ARCO)</strong>, revocar su consentimiento o limitar el uso o divulgación de sus datos, mediante solicitud por escrito dirigida a ${e(r.name)}${r.address ? `, en ${e(r.address)}` : ''}${r.contact ? ` o por ${e(r.contact)}` : ''}${r.arcoUrl ? `, o bien en línea en el formulario ${e(r.arcoUrl)}` : ''}. Indique su nombre, un medio para responderle, una descripción clara de lo que solicita y copia de una identificación. Responderemos en un plazo máximo de 20 días hábiles. La cancelación estará sujeta a los plazos de conservación obligatoria del expediente clínico (mínimo 5 años desde el último acto médico), durante los cuales los datos se bloquean.</p>
 <h2>6. Cambios al aviso</h2>
 <p>Cualquier modificación a este aviso se pondrá a su disposición en el establecimiento o por los medios de contacto que nos haya proporcionado.</p>
 <h2>7. Consentimiento</h2>

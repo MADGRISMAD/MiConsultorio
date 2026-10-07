@@ -55,7 +55,7 @@
               <p class="text-[15px] font-semibold">{it.label}</p>
               <p class="text-sm text-app-muted">{it.detail}</p>
             </div>
-            {#if it.status === 'todo' && it.link && !it.link.startsWith('/ajustes')}
+            {#if (it.status === 'todo' || it.key === 'arco_requests') && it.link && !it.link.startsWith('/ajustes')}
               <a href={it.link} class="btn-secondary shrink-0">Atender</a>
             {/if}
           </li>

@@ -795,6 +795,8 @@ export interface Issuer {
   phone: string;
   kind: ClinicKind;
   legal: Legal;
+  /** Id corto del formulario público ARCO (/arco/<id>). */
+  arco_slug?: string;
 }
 
 export interface ComplianceItem {
