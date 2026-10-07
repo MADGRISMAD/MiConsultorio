@@ -35,6 +35,7 @@ export const cfdiUseLabel = (id: string) => {
 export const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i;
 export const GENERIC_RFC = 'XAXX010101000';
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_LOOSE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const ZIP_RE = /^\d{5}$/;
 
 export const INVOICE_STATUS: Record<InvoiceRequest['status'], { label: string; tone: 'warn' | 'ok' | 'muted' }> = {

@@ -6,6 +6,7 @@
   import type { CatalogInput, CatalogItem, ItemKind } from '$lib/types';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import ConsumablesEditor from './ConsumablesEditor.svelte';
   import { UNITS, marginPct, parsePesos, pct, toCents, toPesos } from './helpers';
 
   interface Props {
@@ -35,6 +36,10 @@
   let track = $state(false);
   let stockStr = $state('');
   let minStr = $state('');
+  let lotCode = $state('');
+  let expires = $state('');
+  let satProduct = $state('');
+  let satUnit = $state('');
   let errors = $state<Record<string, string>>({});
 
   // Reset the fields every time the modal opens (not on every keystroke).
@@ -54,6 +59,10 @@
       track = i?.track_stock ?? false;
       stockStr = '';
       minStr = i && i.min_stock ? String(i.min_stock) : '';
+      lotCode = '';
+      expires = '';
+      satProduct = i?.sat_product_code ?? '';
+      satUnit = i?.sat_unit_code ?? '';
       errors = {};
       op.reset();
     });
@@ -87,6 +96,9 @@
       if (Number.isNaN(stock) || stock < 0) e.stock = 'La existencia no puede ser negativa.';
       if (Number.isNaN(min) || min < 0) e.min = 'El mínimo no puede ser negativo.';
     }
+    if (satProduct.trim() && !/^\d{8}$/.test(satProduct.trim())) e.satProduct = 'La clave del SAT tiene 8 dígitos.';
+    if (satUnit.trim() && !/^[A-Za-z0-9]{2,3}$/.test(satUnit.trim())) e.satUnit = 'La unidad del SAT tiene 2 o 3 caracteres (E48, H87…).';
+    if (expires && expires < new Date().toISOString().slice(0, 10)) e.expires = 'Ese lote ya caducó.';
     errors = e;
     if (Object.keys(e).length) return null;
     const input: CatalogInput = {
@@ -100,10 +112,16 @@
       tax_rate: tax,
       track_stock: isProduct && track,
       min_stock: isProduct && track ? min : 0,
-      unit: unit.trim() || (isProduct ? 'pza' : 'sesión')
+      unit: unit.trim() || (isProduct ? 'pza' : 'sesión'),
+      sat_product_code: satProduct.trim(),
+      sat_unit_code: satUnit.trim().toUpperCase()
     };
     if (!item) {
-      if (input.track_stock) input.stock = stock;
+      if (input.track_stock) {
+        input.stock = stock;
+        if (stock > 0 && lotCode.trim()) input.lot_code = lotCode.trim();
+        if (stock > 0 && expires) input.expires_on = expires;
+      }
     } else input.active = item.active;
     return input;
   }
@@ -221,6 +239,15 @@
                 <input id="{uid}-stock" class="field" bind:value={stockStr} inputmode="decimal" autocomplete="off" placeholder="0" aria-invalid={!!errors.stock} />
                 {#if errors.stock}<p class="mt-1 text-xs text-app-danger" role="alert">{errors.stock}</p>{/if}
               </div>
+              <div>
+                <label class="label" for="{uid}-lot">Lote (opcional)</label>
+                <input id="{uid}-lot" class="field" bind:value={lotCode} maxlength="40" autocomplete="off" placeholder="Ej. L2405" />
+              </div>
+              <div>
+                <label class="label" for="{uid}-exp">Caducidad (opcional)</label>
+                <input id="{uid}-exp" type="date" class="field" bind:value={expires} aria-invalid={!!errors.expires} />
+                {#if errors.expires}<p class="mt-1 text-xs text-app-danger" role="alert">{errors.expires}</p>{/if}
+              </div>
             {/if}
             <div>
               <label class="label" for="{uid}-min">Existencia mínima</label>
@@ -231,6 +258,26 @@
           {#if item}<p class="hint mt-3">Para cambiar las existencias usa “Entrada”, “Salida” o “Contar” en Inventario, así queda historial.</p>{/if}
         {/if}
       </div>
+    {/if}
+
+    <details class="rounded-2xl border border-app-ink/10 p-4">
+      <summary class="cursor-pointer text-sm font-medium">Datos fiscales (SAT) para facturar</summary>
+      <div class="mt-3 grid gap-4 sm:grid-cols-2">
+        <div>
+          <label class="label" for="{uid}-satp">Clave de producto o servicio</label>
+          <input id="{uid}-satp" class="field font-mono" bind:value={satProduct} inputmode="numeric" maxlength="8" autocomplete="off" placeholder={isProduct ? '01010101' : '85121800'} aria-invalid={!!errors.satProduct} />
+          <p class="hint" class:text-app-danger={!!errors.satProduct}>{errors.satProduct ?? (isProduct ? 'Si la dejas vacía se usa 01010101 (no existe en el catálogo).' : 'Si la dejas vacía se usa 85121800 (servicios médicos).')}</p>
+        </div>
+        <div>
+          <label class="label" for="{uid}-satu">Clave de unidad</label>
+          <input id="{uid}-satu" class="field font-mono uppercase" bind:value={satUnit} maxlength="3" autocomplete="off" placeholder={isProduct ? 'H87' : 'E48'} aria-invalid={!!errors.satUnit} />
+          <p class="hint" class:text-app-danger={!!errors.satUnit}>{errors.satUnit ?? (isProduct ? 'H87 = pieza.' : 'E48 = unidad de servicio.')}</p>
+        </div>
+      </div>
+    </details>
+
+    {#if kind === 'service'}
+      <ConsumablesEditor serviceId={item?.id ?? null} {open} />
     {/if}
 
     <div aria-live="polite">

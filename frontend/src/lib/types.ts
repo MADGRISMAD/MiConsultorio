@@ -293,6 +293,14 @@ export interface CatalogItem {
   min_stock: number;
   unit: string;
   active: boolean;
+  /** SAT keys used when stamping; empty means the default for the kind. */
+  sat_product_code?: string;
+  sat_unit_code?: string;
+  /** Earliest expiry among lots with stock (YYYY-MM-DD). */
+  next_expiry?: string | null;
+  /** Lot of the initial stock (create only). */
+  lot_code?: string;
+  expires_on?: string;
 }
 
 export type CatalogInput = Omit<CatalogItem, 'id' | 'active' | 'stock'> & { stock?: number; active?: boolean };
@@ -355,6 +363,7 @@ export interface SaleLineInput {
   unit_price_cents?: number;
   discount_cents?: number;
   tax_rate?: number;
+  professional_id?: string;
 }
 
 export interface SalePaymentInput {
@@ -371,6 +380,14 @@ export interface SaleInput {
   customer_name?: string;
   customer_curp?: string;
   appointment_id?: string;
+  patient_id?: string;
+  professional_id?: string;
+  plan_item_ids?: string[];
+  /** leave what the payments do not cover as a balance to collect (abonos) */
+  on_account?: boolean;
+  /** administrators only: sell expired lots, with a reason */
+  allow_expired?: boolean;
+  expired_reason?: string;
   note?: string;
   payments: SalePaymentInput[];
 }
@@ -393,6 +410,7 @@ export interface SalePayment {
   received_cents: number | null;
   change_cents: number;
   reference: string;
+  created_at?: string;
 }
 
 export interface Sale {
@@ -405,7 +423,15 @@ export interface Sale {
   discount_cents: number;
   tax_cents: number;
   total_cents: number;
-  status: 'paid' | 'void';
+  paid_cents?: number;
+  balance_cents?: number;
+  on_credit?: boolean;
+  professional_id?: string | null;
+  professional_name?: string;
+  patient_id?: string | null;
+  appointment_id?: string | null;
+  warnings?: string[];
+  status: 'paid' | 'open' | 'void';
   void_reason: string;
   voided_by: string;
   created_by: string;
@@ -482,12 +508,15 @@ export interface InvoiceRequest {
   note: string;
   created_by: string;
   created_at: string;
+  /** '' for manual requests; stamped or cancelled when issued through the PAC */
+  cfdi_state?: '' | 'stamping' | 'stamped' | 'cancelled';
 }
 
 export interface StockMovement {
   id: string;
   delta: number;
-  reason: 'initial' | 'purchase' | 'sale' | 'void' | 'adjustment' | 'loss';
+  reason: 'initial' | 'purchase' | 'sale' | 'void' | 'adjustment' | 'loss' | 'consumption';
+  lot_code?: string;
   note: string;
   balance: number;
   by: string;

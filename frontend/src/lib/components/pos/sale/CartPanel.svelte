@@ -2,6 +2,7 @@
   import { moneyCents } from '$lib/format';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { toast } from '$lib/toast.svelte';
+  import type { Professional } from '$lib/types/pos2';
   import type { Cart, CartLine, Person } from './cart.svelte';
   import { lineGross } from './cart.svelte';
   import MoneyInput from './MoneyInput.svelte';
@@ -12,12 +13,14 @@
     canEditPrice: boolean;
     /** Patients to suggest; empty when the person may not browse expedients. */
     people: Person[];
+    /** Who can be credited with the sale (commissions); empty hides the selector. */
+    professionals?: Professional[];
     showTax: boolean;
     busy: boolean;
     onfree: () => void;
     oncheckout: () => void;
   }
-  let { cart, canEditPrice, people, showTax, busy, onfree, oncheckout }: Props = $props();
+  let { cart, canEditPrice, people, professionals = [], showTax, busy, onfree, oncheckout }: Props = $props();
 
   let editing = $state<string | null>(null);
   let sugOpen = $state(false);
@@ -49,6 +52,7 @@
   function choose(p: Person) {
     cart.customer = p.name;
     cart.curp = p.curp;
+    cart.patientId = p.id ?? '';
     sugOpen = false;
   }
   function sugKey(e: KeyboardEvent) {
@@ -168,6 +172,7 @@
           aria-autocomplete={people.length ? 'list' : undefined}
           oninput={() => {
             cart.curp = '';
+            cart.patientId = '';
             sugOpen = true;
             sugIndex = 0;
           }}
@@ -177,7 +182,7 @@
         />
         {#if sugOpen && suggestions.length}
           <ul id="{uid}-sug" role="listbox" aria-label="Pacientes" class="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-app-ink/10 bg-app-panel shadow-app">
-            {#each suggestions as p, n (p.curp)}
+            {#each suggestions as p, n (p.id ?? p.name)}
               <li role="option" aria-selected={n === sugIndex}>
                 <button type="button" class="flex min-h-11 w-full items-center px-3.5 text-left text-sm hover:bg-app-elevated {n === sugIndex ? 'bg-app-elevated' : ''}" onmousedown={(e) => (e.preventDefault(), choose(p))}>{p.name}</button>
               </li>
@@ -185,6 +190,20 @@
           </ul>
         {/if}
       </div>
+      {#if professionals.length}
+        <div>
+          <label class="label" for="{uid}-pro">Profesional (opcional)</label>
+          <select id="{uid}-pro" class="field" bind:value={cart.professionalId}>
+            <option value="">Sin profesional</option>
+            {#each professionals as pr (pr.id)}<option value={pr.id}>{pr.name}</option>{/each}
+          </select>
+        </div>
+      {/if}
+      {#if cart.origin}
+        <p class="flex items-center gap-2 rounded-xl bg-app-primary/10 px-3 py-2 text-xs text-app-primary" data-testid="cart-origin">
+          <Icon name="info" size={14} />{cart.origin}
+        </p>
+      {/if}
       <div>
         <label class="label" for="{uid}-note">Nota (opcional)</label>
         <input id="{uid}-note" class="field" bind:value={cart.note} maxlength="200" autocomplete="off" placeholder="Ej. Pago de tratamiento" />

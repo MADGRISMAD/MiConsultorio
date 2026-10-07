@@ -48,7 +48,7 @@ export function blankInput(kind: ItemKind = 'service'): CatalogInput {
 }
 
 export function toInput(i: CatalogItem, patch: Partial<CatalogInput> = {}): CatalogInput {
-  const { id: _id, ...rest } = i;
+  const { id: _id, next_expiry: _expiry, ...rest } = i;
   return { ...rest, ...patch };
 }
 

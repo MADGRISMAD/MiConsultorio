@@ -1,6 +1,7 @@
 <script lang="ts">
   import EmailTicket from '$lib/components/pos/sale/EmailTicket.svelte';
   import { api } from '$lib/api';
+  import { pos2 } from '$lib/api/pos2';
   import { moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { printSale } from '$lib/printer/connection.svelte';
@@ -48,7 +49,7 @@
   });
 
   const when = (iso: string) => new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
-  const canVoid = $derived(session.has('posManage') && sale?.status === 'paid');
+  const canVoid = $derived(session.has('posManage') && (sale?.status === 'paid' || sale?.status === 'open'));
   const canInvoice = $derived(sale?.status === 'paid' && !sale.invoice_status);
 
   async function reprint() {
@@ -61,8 +62,9 @@
     e.preventDefault();
     const s = sale;
     if (!s || reason.trim().length < 3) return voidOp.fail('Escribe el motivo de la cancelación.');
-    if (await voidOp.run(() => api.pos.voidSale(s.id, reason.trim()))) {
-      toast.show(`Venta #${s.folio} cancelada`);
+    let refund = 0;
+    if (await voidOp.run(async () => void (refund = (await pos2.voidSale(s.id, reason.trim())).refund_cents))) {
+      toast.show(refund > 0 ? `Venta #${s.folio} cancelada. Devuelve ${moneyCents(refund)} a quien pagó.` : `Venta #${s.folio} cancelada`);
       voiding = false;
       onchanged();
       sale = await api.pos.sale(s.id).catch(() => s);
@@ -77,7 +79,8 @@
     <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
   {:else if sale}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm text-app-muted">
-      <Pill tone={sale.status === 'paid' ? 'ok' : 'bad'}>{sale.status === 'paid' ? 'Pagada' : 'Cancelada'}</Pill>
+      <Pill tone={sale.status === 'paid' ? 'ok' : sale.status === 'open' ? 'warn' : 'bad'}>{sale.status === 'paid' ? 'Pagada' : sale.status === 'open' ? 'Con saldo' : 'Cancelada'}</Pill>
+      {#if sale.professional_name}<span>Profesional: {sale.professional_name}</span>{/if}
       {#if sale.invoice_status}<Pill tone={sale.invoice_status === 'issued' ? 'ok' : 'warn'}>{sale.invoice_status === 'issued' ? 'Factura emitida' : 'Factura pendiente'}</Pill>{/if}
       <span>{when(sale.created_at)}{sale.created_by ? ` · atendió ${sale.created_by}` : ''}</span>
     </div>
@@ -122,17 +125,21 @@
         {#if sale.discount_cents}<div class="flex justify-between"><dt class="text-app-muted">Descuento</dt><dd>-{moneyCents(sale.discount_cents)}</dd></div>{/if}
         <div class="flex justify-between"><dt class="text-app-muted">IVA incluido</dt><dd>{moneyCents(sale.tax_cents)}</dd></div>
         <div class="flex justify-between border-t border-app-ink/10 pt-1.5 text-base font-semibold"><dt>Total</dt><dd>{moneyCents(sale.total_cents)}</dd></div>
+        {#if sale.status === 'open'}
+          <div class="flex justify-between"><dt class="text-app-muted">Abonado</dt><dd>{moneyCents(sale.paid_cents ?? 0)}</dd></div>
+          <div class="flex justify-between font-semibold text-app-warning"><dt>Saldo pendiente</dt><dd>{moneyCents(sale.balance_cents ?? 0)}</dd></div>
+        {/if}
       </dl>
     </div>
     {#if sale.note}<p class="mt-4 text-sm text-app-muted">Nota: {sale.note}</p>{/if}
 
-    {#if sale.status === 'paid'}<div class="mt-4"><EmailTicket saleId={sale.id} /></div>{/if}
+    {#if sale.status !== 'void'}<div class="mt-4"><EmailTicket saleId={sale.id} /></div>{/if}
 
     {#if printOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
 
     {#if voiding}
       <form class="mt-5 grid gap-3 rounded-xl border border-app-danger/30 bg-app-danger/5 p-4" onsubmit={doVoid}>
-        <p class="text-sm">Al cancelar, la venta deja de contar en reportes y caja, y los productos con control de existencias <strong>regresan al inventario</strong>. Si tiene una solicitud de factura pendiente, también se cancela. Esto no se puede deshacer.</p>
+        <p class="text-sm">Al cancelar, la venta deja de contar en reportes y caja, y los productos con control de existencias <strong>regresan al inventario</strong>{#if (sale.paid_cents ?? 0) > 0 && sale.status === 'open'} (se devolverá lo abonado: {moneyCents(sale.paid_cents ?? 0)}){/if}. Si tiene una solicitud de factura pendiente, también se cancela. Esto no se puede deshacer.</p>
         <div>
           <label class="label" for="void-reason">Motivo de la cancelación</label>
           <input id="void-reason" class="field" bind:value={reason} maxlength="200" required />
@@ -148,6 +155,7 @@
   {#snippet footer()}
     {#if sale}
       {#if canVoid && !voiding}<button type="button" class="btn-ghost mr-auto text-app-danger" onclick={() => (voiding = true)}>Cancelar venta</button>{/if}
+      {#if sale.status === 'open'}<a class="btn-secondary" href="/pos/cuentas"><Icon name="cash" size={18} />Registrar abono</a>{/if}
       {#if canInvoice}<button type="button" class="btn-secondary" onclick={() => oninvoice(sale!.id)}><Icon name="receipt" size={18} />Solicitar factura</button>{/if}
       <button type="button" class="btn-primary" disabled={printOp.phase === 'loading'} onclick={reprint}>
         {#if printOp.phase === 'loading'}<span class="spin"></span>{/if}Reimprimir ticket

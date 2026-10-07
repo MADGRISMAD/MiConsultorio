@@ -180,7 +180,7 @@ export const api = {
     updateItem: (id: string, i: CatalogInput) => request<{ item: CatalogItem }>('PUT', `/pos/items/${seg(id)}`, i).then((r) => r.item),
     deleteItem: (id: string) => request<{ archived: boolean }>('DELETE', `/pos/items/${seg(id)}`),
     importItems: (items: CatalogInput[]) => request<{ created: number; skipped: string[] }>('POST', '/pos/items/import', { items }),
-    adjustStock: (id: string, a: { delta?: number; set_to?: number; reason: 'purchase' | 'adjustment' | 'loss'; note?: string }) =>
+    adjustStock: (id: string, a: { delta?: number; set_to?: number; reason: 'purchase' | 'adjustment' | 'loss'; note?: string; lot_code?: string; expires_on?: string; lot_id?: string }) =>
       request<{ stock: number }>('POST', `/pos/items/${seg(id)}/stock`, a),
     stockMovements: (id: string) => request<{ movements: StockMovement[] }>('GET', `/pos/items/${seg(id)}/movements`).then((r) => r.movements),
 

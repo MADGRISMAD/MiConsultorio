@@ -11,6 +11,8 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
+  import AlertsPanel from './AlertsPanel.svelte';
+  import { dayLabel, expiryTone } from './expiry';
   import HistoryModal from './HistoryModal.svelte';
   import StockModal, { type StockMode } from './StockModal.svelte';
   import { isLow, normalize, parsePesos, qty } from './helpers';
@@ -20,8 +22,11 @@
   let all = $state<CatalogItem[]>([]);
   let loading = $state(true);
   let loadError = $state('');
+  /** bumped on every reload so the alerts follow the stock */
+  let alertsKey = $state(0);
 
   async function load() {
+    alertsKey++;
     try {
       all = (await api.pos.items()).items;
       loadError = '';
@@ -152,6 +157,7 @@
 </PageHeader>
 
 {#if !loading && !loadError}
+  <AlertsPanel refresh={alertsKey} onitem={(id) => (search = all.find((x) => x.id === id)?.name ?? '')} />
   <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {#each [['Artículos controlados', String(tracked.length), ''], ['Bajo mínimo', String(lowCount), lowCount ? 'text-app-danger' : ''], ['Valor al costo', moneyCents(costValue), ''], ['Valor a precio público', moneyCents(retailValue), '']] as [label, val, cls]}
       <div class="card p-4">
@@ -192,10 +198,10 @@
     <EmptyState icon="search" title="Sin resultados" text={filter === 'all' ? 'Ningún producto coincide con tu búsqueda.' : 'Ningún producto cumple este filtro con tu búsqueda.'} />
   {:else}
     <div class="hidden overflow-x-auto md:block">
-      <table class="w-full min-w-[46rem]">
+      <table class="w-full min-w-[52rem]">
         <thead class="border-b border-app-ink/10 bg-app-elevated">
           <tr>
-            <th class="th">Producto</th><th class="th">SKU / código</th><th class="th text-right">Existencia</th>
+            <th class="th">Producto</th><th class="th">SKU / código</th><th class="th text-right">Existencia</th><th class="th">Caducidad</th>
             {#if counting}<th class="th">Conteo</th>{/if}
             <th class="th text-right">Mínimo</th><th class="th text-right">Costo</th><th class="th text-right">Valor</th>
             {#if canManage && !counting}<th class="th"><span class="sr-only">Acciones</span></th>{/if}
@@ -209,6 +215,9 @@
               <td class="td font-medium">{i.name}{#if i.category}<span class="block text-xs font-normal text-app-muted">{i.category}</span>{/if}</td>
               <td class="td font-mono text-xs text-app-muted">{i.sku || '—'}{#if i.barcode}<span class="block">{i.barcode}</span>{/if}</td>
               <td class="td text-right">{@render stockNum(i)}{#if i.stock <= 0}<span class="pill pill-bad ml-2">Agotado</span>{:else if isLow(i)}<span class="pill pill-warn ml-2">Bajo</span>{/if}</td>
+              <td class="td whitespace-nowrap">
+                {#if i.next_expiry}<span class="pill {expiryTone(i.next_expiry) === 'muted' ? '' : `pill-${expiryTone(i.next_expiry)}`}">{dayLabel(i.next_expiry)}</span>{:else}<span class="text-app-muted">—</span>{/if}
+              </td>
               {#if counting}
                 <td class="td">
                   <div class="flex items-center gap-2">
@@ -249,6 +258,7 @@
           </div>
           <div class="flex flex-wrap items-center gap-2 text-xs text-app-muted">
             {#if i.stock <= 0}<span class="pill pill-bad">Agotado</span>{:else if isLow(i)}<span class="pill pill-warn">Bajo mínimo</span>{/if}
+            {#if i.next_expiry}<span class="pill {expiryTone(i.next_expiry) === 'muted' ? '' : `pill-${expiryTone(i.next_expiry)}`}">Caduca {dayLabel(i.next_expiry)}</span>{/if}
             <span>Valor {moneyCents(Math.max(0, i.stock) * i.cost_cents)}</span>
           </div>
           {#if counting}

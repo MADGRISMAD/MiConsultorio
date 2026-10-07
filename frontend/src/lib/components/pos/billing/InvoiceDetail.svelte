@@ -1,5 +1,6 @@
 <script lang="ts">
   import { dateShort, moneyCents } from '$lib/format';
+  import { pos2 } from '$lib/api/pos2';
   import { toast } from '$lib/toast.svelte';
   import type { InvoiceRequest } from '$lib/types';
   import Modal from '$lib/components/Modal.svelte';
@@ -12,8 +13,15 @@
     onclose: () => void;
     onissue: (i: InvoiceRequest) => void;
     oncancel: (i: InvoiceRequest) => void;
+    /** Stamp through the PAC; the button always shows and explains when it is not set up. */
+    onstamp?: (i: InvoiceRequest) => void;
+    stamping?: boolean;
+    /** Cancel a stamped CFDI (administrators). */
+    oncancelcfdi?: (i: InvoiceRequest) => void;
+    canCancelCfdi?: boolean;
   }
-  let { invoice, canManage, onclose, onissue, oncancel }: Props = $props();
+  let { invoice, canManage, onclose, onissue, oncancel, onstamp, stamping = false, oncancelcfdi, canCancelCfdi = false }: Props = $props();
+  const stamped = $derived(invoice?.cfdi_state === 'stamped');
 
   async function copy() {
     if (!invoice) return;
@@ -43,7 +51,10 @@
 
 <Modal open={!!invoice} title={invoice ? `Factura · venta #${invoice.folio}` : ''} {onclose}>
   {#if invoice}
-    <p class="mb-4"><Pill tone={INVOICE_STATUS[invoice.status].tone}>{INVOICE_STATUS[invoice.status].label}</Pill></p>
+    <p class="mb-4 flex flex-wrap gap-2">
+      <Pill tone={INVOICE_STATUS[invoice.status].tone}>{INVOICE_STATUS[invoice.status].label}</Pill>
+      {#if invoice.cfdi_state === 'stamped'}<Pill tone="ok">CFDI timbrado</Pill>{:else if invoice.cfdi_state === 'cancelled'}<Pill tone="bad">CFDI cancelado ante el SAT</Pill>{/if}
+    </p>
     <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
       {#each rows as [k, v]}
         <div><dt class="section-title">{k}</dt><dd class="mt-1 break-words">{v}</dd></div>
@@ -54,9 +65,17 @@
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={copy}>Copiar datos</button>
+    {#if invoice && invoice.cfdi_state && invoice.cfdi_state !== 'stamping'}
+      <a class="btn-secondary" href={pos2.cfdiFileUrl(invoice.id, 'xml')} download>XML</a>
+      <a class="btn-secondary" href={pos2.cfdiFileUrl(invoice.id, 'pdf')} download>PDF</a>
+    {/if}
+    {#if invoice && canCancelCfdi && stamped}
+      <button type="button" class="btn-ghost text-app-danger" onclick={() => oncancelcfdi?.(invoice)}>Cancelar CFDI</button>
+    {/if}
     {#if invoice && canManage && invoice.status === 'pending'}
       <button type="button" class="btn-ghost text-app-danger" onclick={() => oncancel(invoice)}>Cancelar solicitud</button>
-      <button type="button" class="btn-primary" onclick={() => onissue(invoice)}>Marcar como emitida</button>
+      <button type="button" class="btn-secondary" onclick={() => onissue(invoice)}>Marcar como emitida</button>
+      {#if onstamp}<button type="button" class="btn-primary" disabled={stamping} onclick={() => onstamp(invoice)}>{#if stamping}<span class="spin"></span>{/if}Timbrar CFDI</button>{/if}
     {/if}
   {/snippet}
 </Modal>

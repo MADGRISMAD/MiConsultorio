@@ -57,6 +57,11 @@ export function ticketBytes(sale: Sale, s: PosSettings, opts: { test?: boolean; 
     }
     if (pay.reference) p.line('  Ref: ' + pay.reference);
   }
+  if ((sale.balance_cents ?? 0) > 0) {
+    p.rule();
+    p.pair('Abonado', peso(sale.paid_cents ?? 0));
+    p.bold(true).pair('SALDO PENDIENTE', peso(sale.balance_cents ?? 0)).bold(false);
+  }
   if (s.ticket_footer) {
     p.rule().align('center');
     for (const l of wrap(s.ticket_footer, p.cols)) p.line(l);
@@ -120,6 +125,7 @@ export function ticketHtml(sale: Sale, s: PosSettings, opts: { test?: boolean; r
             (p.reference ? `<div class="sub">Ref: ${esc(p.reference)}</div>` : '')
         )
         .join('')}
+      ${(sale.balance_cents ?? 0) > 0 ? `<hr>${row('Abonado', peso(sale.paid_cents ?? 0))}${row('SALDO PENDIENTE', peso(sale.balance_cents ?? 0), 'b')}` : ''}
       ${s.ticket_footer ? `<hr><div class="c">${esc(s.ticket_footer).replace(/\n/g, '<br>')}</div>` : ''}
       <div class="c">Gracias por su preferencia</div>`;
   }
