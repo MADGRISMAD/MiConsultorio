@@ -69,8 +69,8 @@ El **rol** define lo que puede hacer cada persona (no hay casillas por usuario):
 | --- | --- |
 | **Administrador** | Todo en su consultorio, incluido el equipo y los roles |
 | **Médico / especialista** | Ve la agenda; lee y edita expedientes clínicos |
-| **Recepción** | Ve y administra la agenda; sin acceso a expedientes |
-| **Cajero** | Ve la agenda (los cobros llegan con el punto de venta) |
+| **Recepción** | Ve y administra la agenda; sin acceso a expedientes; cobra en el punto de venta (planes con cobros) |
+| **Cajero** | Ve la agenda; cobra, maneja la caja y ve reportes y facturas (planes con cobros) |
 | **Administrador de plataforma** | Negocios, suscripciones, pagos y equipo de plataforma |
 | **Soporte** | Consulta negocios y su actividad, sin cambiar nada |
 
@@ -81,6 +81,17 @@ Se entra con **correo o usuario** (ambos únicos en todo el sistema).
 ## Planes y suscripciones
 
 Cada consultorio tiene un plan (Básico, Crecimiento, Pro; la sección de **Cobros** solo aparece en Crecimiento y Pro) y un estado: **prueba** (14 días), **activo**, **pago atrasado** o **suspendido**. Cuando no está activo, sus datos se bloquean (la cuenta sigue entrando para ver el aviso). Un periodo pagado vencido pasa solo a "pago atrasado" tras 3 días de gracia. El administrador de plataforma cambia plan y estado, suspende y registra pagos manuales desde **Negocios**.
+
+## Cobros (punto de venta)
+
+Incluido en los planes **Crecimiento** y **Pro**. Ventanas: **Punto de venta**, **Caja** (apertura, entradas/salidas, corte con diferencia), **Servicios y precios** (catálogo), **Inventario** (entradas, mermas, conteo físico, historial), **Facturación** (solicitudes de factura con datos fiscales; el timbrado del CFDI se hace con tu contador o PAC y aquí se marca emitida con su UUID), **Reportes** (ventas, utilidad, métodos de pago, CSV) y **Ajustes de cobros** (datos fiscales, ticket, reglas, métodos de pago, Mercado Pago e impresora).
+
+- **Pagos:** efectivo (con cambio), tarjeta con terminal propia, transferencia, **Mercado Pago Point** (cobro en la terminal) y **liga/QR de Mercado Pago**. Cada consultorio conecta su propia cuenta de Mercado Pago con OAuth; los tokens se guardan cifrados (AES-GCM).
+- **Impresora térmica (58/80 mm):** desde el navegador con Web Serial, WebUSB o Web Bluetooth (Chrome/Edge sobre https o localhost), o cualquier impresora con el diálogo del navegador. Hay prueba de impresión, corte de papel y apertura de cajón.
+- **Inventario Mágico / Precio Mágico:** con `GEMINI_API_KEY`, lee una lista pegada o una foto y propone artículos para revisar antes de guardarlos, y sugiere precios a partir del costo. Cuenta como "usos de magia" del plan (Crecimiento 150, Pro 500 al mes).
+- **Suscripciones en línea:** el administrador paga su plan (mensual o anual) con Mercado Pago desde **Suscripción y plan**; un webhook firmado confirma el pago y extiende el periodo. Configura `MP_ACCESS_TOKEN`, `APP_URL` y `API_PUBLIC_URL` (ver `.env.example`).
+
+Los precios en el backend van en centavos y los importes se calculan siempre en el servidor.
 
 ## API
 
@@ -94,6 +105,9 @@ Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"messa
 | `GET/POST /team`, `PATCH /team/{id}`, `POST /team/{id}/password\|deactivate\|reactivate` | administrador del consultorio |
 | `/expedients` | lectura: médico o administrador · escritura: médico o administrador |
 | `/appointments` | lectura: todos los roles · escritura: recepción o administrador |
+| `GET /billing`, `POST /billing/checkout`, `GET /billing/checkouts/{id}` | administrador del consultorio (funciona aun con la suscripción vencida) |
+| `/pos/items`, `/pos/sales`, `/pos/cash/*`, `/pos/invoices`, `/pos/reports`, `/pos/settings`, `/pos/point/*`, `/pos/magic/*` | planes con cobros; permisos `pos`, `posReports`, `posManage` |
+| `POST /webhooks/mercadopago`, `GET /point/oauth/callback` | Mercado Pago (verificados por firma / estado firmado) |
 | `GET /platform/overview\|plans\|clinics[/{id}]` | personal de plataforma |
 | `PATCH /platform/clinics/{id}`, `POST …/suspend\|reactivate\|payments`, `/platform/staff…`, `GET /platform/activity` | administrador de plataforma |
 
