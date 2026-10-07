@@ -18,7 +18,10 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
     restart: unless-stopped
     depends_on:
       db:
@@ -61,13 +64,45 @@ services:
       MP_PLAN_BASICO_YEAR_PRICE: ${MP_PLAN_BASICO_YEAR_PRICE:-}
       MP_PLAN_CRECIMIENTO_YEAR_PRICE: ${MP_PLAN_CRECIMIENTO_YEAR_PRICE:-}
       MP_PLAN_PRO_YEAR_PRICE: ${MP_PLAN_PRO_YEAR_PRICE:-}
+      UPLOADS_DIR: /app/data/uploads
+      BUILD_COMMIT: ${BUILD_COMMIT:-}
+      BACKUP_STATUS_FILE: /backups/status.json
       TOKEN_ENC_KEY: ${TOKEN_ENC_KEY:-}
       OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
+    volumes:
+      - uploads:/app/data/uploads
+      - backups:/backups:ro # solo para que /api/health lea el estado del último respaldo
     # Solo local: delante va un proxy con HTTPS. APP_PORT cambia el puerto si el 8080 está ocupado.
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
 
+  # Respaldo diario (base de datos + archivos adjuntos) con rotación. Arranca sin configurar nada;
+  # ver docs/RESPALDOS.md para la copia externa, la retención y cómo restaurar.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-caresia}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-caresia}
+      BACKUP_DIR: /backups
+      UPLOADS_DIR: /uploads
+      BACKUP_STATUS_FILE: /backups/status.json
+      BACKUP_CRON_HOUR: ${BACKUP_CRON_HOUR:-3}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
+    volumes:
+      - backups:/backups
+      - uploads:/uploads:ro
+      - ./scripts:/scripts:ro
+    # rclone solo se instala si hay una copia externa configurada.
+    command: ["sh", "-c", "if [ -n \"$$BACKUP_RCLONE_REMOTE\" ]; then apk add --no-cache rclone >/dev/null; fi; exec sh /scripts/backup-loop.sh"]
+
 volumes:
   pgdata:
+  uploads:
+  backups:
