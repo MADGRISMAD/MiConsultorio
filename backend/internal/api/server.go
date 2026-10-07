@@ -203,6 +203,11 @@ func (s *Server) router() http.Handler {
 					s.mountRx(r)
 					s.mountPosV2(r)
 					s.mountReports(r)
+					s.mountConsultBilling(r) // pre-cuenta en la consulta
+					s.mountNotifications(r)  // avisos internos y lista de espera
+					s.mountLab(r)            // laboratorio y crecimiento
+					s.mountArco(r)           // solicitudes ARCO
+					s.mountOrg(r)            // sucursales y reportes consolidados
 					s.mountPortalAdmin(r)
 				})
 			})
