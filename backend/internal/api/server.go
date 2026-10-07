@@ -54,14 +54,13 @@ func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server
 func (s *Server) router() http.Handler {
 	cfg := s.cfg
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP, middleware.Recoverer, securityHeaders)
+	r.Use(middleware.RealIP, middleware.RequestID, requestLog, middleware.Recoverer, securityHeaders)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Use(s.sameOriginOnly)
-		r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-		})
+		r.Get("/health", s.health)
 		r.Post("/login", s.login)
+		r.Post("/login/2fa", s.loginTwoFactor)
 		r.Post("/register", s.register)
 		r.Post("/logout", s.logout)
 		r.Post("/forgot", s.forgotPassword)
@@ -94,6 +93,7 @@ func (s *Server) router() http.Handler {
 
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireSubscription)
+					r.Use(requireTwoFactorSetup)
 
 					r.With(require(PermAdminUsers)).Put("/clinic", s.updateOwnClinic)
 					r.With(require(PermAdminUsers)).Post("/clinic/setup", s.completeSetup)
@@ -178,6 +178,7 @@ func (s *Server) router() http.Handler {
 						r.With(write).Post("/{id}/archive", s.archivePatient(true))
 						r.With(write).Post("/{id}/unarchive", s.archivePatient(false))
 						r.With(require(PermAdminUsers)).Get("/{id}/access", s.patientAccess)
+						r.With(require(PermAdminUsers, PermAdminHistorials)).Get("/{id}/export", s.exportPatient)
 						r.With(clinical).Get("/{id}/encounters", s.listEncounters)
 						r.With(write).Post("/{id}/encounters", s.createEncounter)
 						r.With(clinical).Get("/{id}/prescriptions", s.listPrescriptions)
@@ -221,6 +222,7 @@ func (s *Server) router() http.Handler {
 					r.Post("/clinics/{id}/reactivate", s.reactivateClinic)
 					r.Post("/clinics/{id}/payments", s.recordPayment)
 
+					r.Get("/health", s.platformHealth)
 					r.Get("/activity", s.platformActivity)
 					r.Get("/staff", s.listStaff)
 					r.Post("/staff", s.createStaff)

@@ -72,6 +72,10 @@ export interface SessionInfo {
   billing: Billing | null;
   /** a clinic administrator who still has to finish the setup wizard */
   setupPending: boolean;
+  /** la cuenta usa verificación en dos pasos */
+  twoFactorEnabled: boolean;
+  /** el consultorio la exige y aún no está activa: los datos clínicos responden SETUP_2FA */
+  mustSetup2fa: boolean;
   professional: Professional;
 }
 
