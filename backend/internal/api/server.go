@@ -25,6 +25,8 @@ type Server struct {
 	mailer      mail.Sender  // outgoing e-mail; nil or disabled when SMTP is not configured
 	forgots     *rateLimiter // recovery requests per IP and per account
 	mailLimiter *rateLimiter // tickets e-mailed per user
+
+	portal *portalLimits // patient portal: code requests and failed sign-ins
 }
 
 // NewRouter builds the API with the SMTP sender described by cfg.
@@ -46,7 +48,7 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 
 func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server {
 	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
-		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour)}
+		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour), portal: newPortalLimits()}
 }
 
 func (s *Server) router() http.Handler {
@@ -199,6 +201,7 @@ func (s *Server) router() http.Handler {
 					s.mountRx(r)
 					s.mountPosV2(r)
 					s.mountReports(r)
+					s.mountPortalAdmin(r)
 				})
 			})
 
