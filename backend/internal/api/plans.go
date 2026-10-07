@@ -19,14 +19,16 @@ type Plan struct {
 	Description string `json:"description"`
 	// Cobros is true when the plan includes the collections section (point of sale, cash register, ...).
 	Cobros bool `json:"cobros"`
+	// MagicUses is the monthly allowance of AI actions (magic inventory and pricing).
+	MagicUses int `json:"magic_uses"`
 }
 
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false},
-	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true},
-	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true},
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 0},
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 150},
+	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500},
 }
 
 func planByID(id string) (Plan, bool) {

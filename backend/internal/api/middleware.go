@@ -82,6 +82,9 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	p.SetupPending = setupOpen && p.Role == RoleAdmin
 	if p.ClinicID != "" {
 		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
+		if pl, ok := planByID(plan); !ok || !pl.Cobros { // plans without cobros never get the POS capabilities
+			p.Permissions = withoutPOS(p.Permissions)
+		}
 	}
 	return &p, nil
 }
@@ -207,4 +210,14 @@ func securityHeaders(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withoutPOS(perms []string) []string {
+	out := make([]string, 0, len(perms))
+	for _, x := range perms {
+		if x != PermPOS && x != PermPOSReports && x != PermPOSManage {
+			out = append(out, x)
+		}
+	}
+	return out
 }

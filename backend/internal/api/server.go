@@ -35,6 +35,9 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 		r.Post("/login", s.login)
 		r.Post("/register", s.register)
 		r.Post("/logout", s.logout)
+		// Called by Mercado Pago, not by a browser session: authenticity comes from the signature and a re-fetch.
+		r.Post("/webhooks/mercadopago", s.mpWebhook)
+		r.Get("/point/oauth/callback", s.pointCallback)
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
@@ -46,6 +49,14 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(requireClinic)
 				r.Get("/clinic", s.clinicInfo)
+
+				// Paying for the plan must work even when the subscription has lapsed.
+				r.Route("/billing", func(r chi.Router) {
+					r.Use(require(PermAdminUsers))
+					r.Get("/", s.billingOverview)
+					r.Post("/checkout", s.billingCheckout)
+					r.Get("/checkouts/{id}", s.billingCheckoutStatus)
+				})
 
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireSubscription)
@@ -61,6 +72,55 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 						r.Post("/{id}/password", s.setMemberPassword)
 						r.Post("/{id}/deactivate", s.deactivateMember)
 						r.Post("/{id}/reactivate", s.reactivateMember)
+					})
+
+					r.Route("/pos", func(r chi.Router) {
+						r.Use(requireCobros)
+						r.With(require(PermPOS)).Get("/settings", s.getPosSettings)
+						r.With(require(PermPOSManage)).Put("/settings", s.updatePosSettings)
+
+						r.With(require(PermPOS)).Get("/items", s.listCatalog)
+						r.Group(func(r chi.Router) {
+							r.Use(require(PermPOSManage))
+							r.Post("/items", s.createCatalogItem)
+							r.Post("/items/import", s.importCatalog)
+							r.Put("/items/{id}", s.updateCatalogItem)
+							r.Delete("/items/{id}", s.deleteCatalogItem)
+							r.Post("/items/{id}/stock", s.adjustStock)
+							r.Get("/items/{id}/movements", s.listStockMovements)
+						})
+
+						r.With(require(PermPOS)).Post("/sales", s.createSale)
+						r.With(require(PermPOS)).Get("/sales", s.listSales)
+						r.With(require(PermPOS)).Get("/sales/{id}", s.getSale)
+						r.With(require(PermPOSManage)).Post("/sales/{id}/void", s.voidSale)
+
+						r.With(require(PermPOS)).Get("/cash/current", s.currentCash)
+						r.With(require(PermPOS)).Post("/cash/open", s.openCash)
+						r.With(require(PermPOS)).Post("/cash/movements", s.cashMovementCreate)
+						r.With(require(PermPOS)).Post("/cash/close", s.closeCash)
+						r.With(require(PermPOSReports)).Get("/cash/sessions", s.listCashSessions)
+						r.With(require(PermPOSReports)).Get("/cash/sessions/{id}", s.getCashSession)
+
+						r.With(require(PermPOSReports)).Get("/reports", s.posReport)
+						r.With(require(PermPOSReports)).Get("/reports/sales.csv", s.exportSales)
+
+						r.With(require(PermPOSReports)).Get("/invoices", s.listInvoices)
+						r.With(require(PermPOS)).Post("/invoices", s.createInvoice)
+						r.With(require(PermPOSReports)).Patch("/invoices/{id}", s.updateInvoice)
+
+						r.With(require(PermPOSManage)).Get("/point/connect", s.pointConnect)
+						r.With(require(PermPOSManage)).Post("/point/disconnect", s.pointDisconnect)
+						r.With(require(PermPOS)).Get("/point/devices", s.pointDevices)
+						r.With(require(PermPOSManage)).Patch("/point/devices/{id}", s.pointMode)
+						r.With(require(PermPOS)).Post("/point/intents", s.pointCreateIntent)
+						r.With(require(PermPOS)).Post("/mp/links", s.linkCreate)
+						r.With(require(PermPOS)).Get("/charges/{id}", s.chargeStatus)
+						r.With(require(PermPOS)).Delete("/charges/{id}", s.chargeCancel)
+
+						r.With(require(PermPOSManage)).Get("/magic", s.magicStatus)
+						r.With(require(PermPOSManage)).Post("/magic/inventory", s.magicInventory)
+						r.With(require(PermPOSManage)).Post("/magic/price", s.magicPrice)
 					})
 
 					r.Route("/expedients", func(r chi.Router) {

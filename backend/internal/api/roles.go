@@ -37,12 +37,12 @@ func isClinicRole(role string) bool   { return hasPermission(clinicRoles, role) 
 //	admin      everything, including the team
 //	doctor     sees the agenda, reads and writes clinical records
 //	reception  sees and manages the agenda, no clinical records
-//	cashier    sees the agenda (billing arrives with the POS)
+//	cashier    sees the agenda; sells, runs the register and reads sales reports (plans with cobros)
 var rolePermissions = map[string][]string{
-	RoleAdmin:     {PermAdminUsers, PermAdminAppointments, PermAdminHistorials, PermNavHistorials, PermNavAppointments},
+	RoleAdmin:     {PermAdminUsers, PermAdminAppointments, PermAdminHistorials, PermNavHistorials, PermNavAppointments, PermPOS, PermPOSReports, PermPOSManage},
 	RoleDoctor:    {PermNavAppointments, PermNavHistorials, PermAdminHistorials},
-	RoleReception: {PermNavAppointments, PermAdminAppointments},
-	RoleCashier:   {PermNavAppointments},
+	RoleReception: {PermNavAppointments, PermAdminAppointments, PermPOS},
+	RoleCashier:   {PermNavAppointments, PermPOS, PermPOSReports},
 }
 
 func permissionsFor(role string) []string {

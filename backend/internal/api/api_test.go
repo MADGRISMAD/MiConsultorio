@@ -34,7 +34,10 @@ type env struct {
 
 // setup builds a fresh database with two clinics (A on the Clínica plan, B too), each with an
 // admin, a doctor, a receptionist and a cashier, plus a platform admin ("root") and support ("help").
-func setup(t *testing.T) *env {
+func setup(t *testing.T) *env { return setupWith(t, nil) }
+
+// setupWith is setup with a chance to adjust the server configuration (provider URLs, keys).
+func setupWith(t *testing.T, mod func(*config.Config)) *env {
 	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -61,7 +64,15 @@ func setup(t *testing.T) *env {
 		}
 	}
 
-	cfg := &config.Config{JWTSecret: []byte(strings.Repeat("s", 40)), SessionTTL: 3600e9}
+	cfg := &config.Config{
+		JWTSecret: []byte(strings.Repeat("s", 40)), SessionTTL: 3600e9,
+		OAuthStateSecret: []byte(strings.Repeat("o", 32)), TokenEncKey: []byte(strings.Repeat("k", 32)),
+		MPAPIBase: "http://127.0.0.1:1", MPCurrency: "MXN", APIPublicURL: "http://api.test", AppURL: "http://app.test",
+		PlanPriceMonth: map[string]int{}, PlanPriceYear: map[string]int{},
+	}
+	if mod != nil {
+		mod(cfg)
+	}
 	e.srv = httptest.NewServer(api.NewRouter(pool, cfg))
 	t.Cleanup(e.srv.Close)
 	return e
@@ -184,7 +195,7 @@ func TestLogin(t *testing.T) {
 	for _, ident := range []string{"admin_a", "ADMIN_A", "admin_a@clinic.mx", " Admin_A@Clinic.MX "} {
 		out := e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": ident, "password": pw})
 		s := sub(out, "session")
-		if s["role"] != "admin" || s["username"] != "admin_a" || len(s["permissions"].([]any)) != 5 {
+		if s["role"] != "admin" || s["username"] != "admin_a" || len(s["permissions"].([]any)) != 8 {
 			t.Fatalf("session for %q: %v", ident, s)
 		}
 		if sub(s, "billing")["usable"] != true || sub(s, "billing")["plan"] != "crecimiento" || sub(s, "billing")["cobros"] != true {
