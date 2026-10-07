@@ -1,7 +1,16 @@
 import type { Issuer, Patient, Prescription } from '$lib/types';
 import { doc, e, fmtDate, fmtDateTime, issuerBlock, multiline, patientBlock } from './base';
 
-export function recetaHtml(rx: Prescription, patient: Patient, clinic: Issuer): string {
+/** `verify` carries the QR (a data URL generated in the browser) and the address it points to. */
+function verifyHost(url: string): string {
+  try {
+    return `${new URL(url).host}/verificar`;
+  } catch {
+    return url;
+  }
+}
+
+export function recetaHtml(rx: Prescription, patient: Patient, clinic: Issuer, verify?: { url: string; qr: string }): string {
   const instr = rx.mode === 'instructions';
   const animal = patient.subject === 'animal';
   const voided = !!rx.voided_at;
@@ -41,7 +50,8 @@ ${retained ? '<p class="small"><strong>Receta retenida por la farmacia</strong> 
 ${rx.next_visit ? `<p><span class="k">Próxima cita</span>${e(fmtDate(rx.next_visit))}</p>` : ''}
 ${voided ? `<div class="box"><strong>Receta cancelada</strong> el ${e(fmtDateTime(rx.voided_at))}${rx.voided_by ? ` por ${e(rx.voided_by)}` : ''}.${rx.void_reason ? ` Motivo: ${e(rx.void_reason)}` : ''}</div>` : ''}
 
+${verify ? `<div class="verify nobreak"><img src="${e(verify.qr)}" alt="Código QR de verificación" width="84" height="84"><div class="small"><strong>Verifica esta receta en ${e(verifyHost(verify.url))}</strong><br>Escanea el código o abre la dirección: confirma que el folio, el profesional y la vigencia son auténticos. No muestra medicamentos ni diagnóstico.<br>${e(verify.url)}</div></div>` : ''}
 <div class="sig nobreak">Firma autógrafa del ${animal ? 'Médico Veterinario' : 'médico / profesional'}<br>${e(rx.author_name)}</div>
 <div class="footer">${instr ? 'Hoja de indicaciones' : 'Receta'} emitida con Caresia.${rx.valid_until ? ` Vigente hasta el ${e(fmtDate(rx.valid_until))}.` : ''} Caresia no firma: la firma autógrafa del profesional da validez al documento.</div>`;
-  return doc(`${title} ${rx.folio}`, body, 'ol li { margin-bottom: 10px; font-size: 13px; } .footer{bottom:-12mm}');
+  return doc(`${title} ${rx.folio}`, body, 'ol li { margin-bottom: 10px; font-size: 13px; } .footer{bottom:-12mm} .verify{display:flex;gap:10px;align-items:center;margin-top:18px} .verify img{flex:none}');
 }
