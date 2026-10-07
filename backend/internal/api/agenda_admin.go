@@ -249,7 +249,7 @@ func (s *Server) createBlock(w http.ResponseWriter, r *http.Request) {
 	case to.Sub(from) > 366*24*time.Hour:
 		writeError(w, http.StatusBadRequest, "Un bloqueo no puede durar más de un año.")
 		return
-	case from.After(time.Now().AddDate(3, 0, 0)):
+	case from.After(time.Now().AddDate(5, 0, 0)):
 		writeError(w, http.StatusBadRequest, "La fecha del bloqueo está demasiado lejos.")
 		return
 	case utf8.RuneCountInString(in.Reason) > 200:

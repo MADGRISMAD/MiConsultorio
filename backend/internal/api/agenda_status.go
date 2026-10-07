@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -100,6 +101,35 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
+}
+
+// linkEncounterToAppointment ties a new bitácora entry to the appointment it came from and closes the appointment.
+func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *Principal, patientID, apptID, encounterID string) error {
+	var cur string
+	var apptPatient *string
+	err := tx.QueryRow(ctx, `SELECT status, patient_id::text FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, apptID).Scan(&cur, &apptPatient)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fail(http.StatusBadRequest, "La cita no existe en este consultorio.")
+	}
+	if err != nil {
+		return err
+	}
+	if apptPatient != nil && *apptPatient != patientID {
+		return fail(http.StatusBadRequest, "La cita pertenece a otro paciente.")
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE appointments SET encounter_id = coalesce(encounter_id, $3::uuid), status = 'completed',
+			arrived_at = coalesce(arrived_at, now()), started_at = coalesce(started_at, now()), finished_at = coalesce(finished_at, now()), updated_at = now()
+		WHERE clinic_id = $1 AND id = $2`, p.ClinicID, apptID, encounterID); err != nil {
+		return err
+	}
+	if cur != "completed" {
+		if err := s.scheduleReminders(ctx, tx, p.ClinicID, apptID); err != nil {
+			return err
+		}
+		audit(ctx, tx, p.ClinicID, p, "appointment_status", "Terminó la consulta de una cita", map[string]any{"appointment": apptID, "from": cur, "to": "completed"})
+	}
+	return nil
 }
 
 func contains(list []string, s string) bool {

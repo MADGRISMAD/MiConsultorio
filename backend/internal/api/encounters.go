@@ -227,8 +227,13 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 		if out, err = scanEncounter(row, p.UserID); err != nil {
 			return err
 		}
-		_, err = tx.Exec(r.Context(), `UPDATE patients SET last_encounter_at = $3, updated_at = now() WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id, occurred)
-		return err
+		if _, err = tx.Exec(r.Context(), `UPDATE patients SET last_encounter_at = $3, updated_at = now() WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id, occurred); err != nil {
+			return err
+		}
+		if appt == nil {
+			return nil
+		}
+		return s.linkEncounterToAppointment(r.Context(), tx, p, id, in.AppointmentID, out.ID)
 	})
 	if err != nil {
 		writeFailure(w, r, err)
