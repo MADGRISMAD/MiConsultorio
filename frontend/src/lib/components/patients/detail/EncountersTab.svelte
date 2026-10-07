@@ -1,5 +1,10 @@
 <script lang="ts">
+  import { consult } from '$lib/api/consult';
+  import { moneyCents } from '$lib/format';
+  import { session } from '$lib/session.svelte';
   import { ENCOUNTER_KINDS, type Encounter, type FieldDef, type Patient, type PatientSchema } from '$lib/types';
+  import type { Charge } from '$lib/types/consult';
+  import ConsultChargeModal from './ConsultChargeModal.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';
   import Icon from '../../ui/Icon.svelte';
   import Pill from '../../ui/Pill.svelte';
@@ -14,6 +19,24 @@
     onaddendum: (e: Encounter) => void;
   }
   let { patient, schema, encounters, canWrite, onnew, onaddendum }: Props = $props();
+
+  let charges = $state<Charge[]>([]);
+  let chargeFor = $state<Encounter | null>(null);
+  const chargeOf = (id: string) => charges.find((c) => c.encounter_id === id && c.status !== 'cancelled') ?? null;
+  const CHARGE_LABEL: Record<string, string> = { draft: 'Borrador', sent: 'Enviada a caja', charged: 'Cobrada', cancelled: 'Cancelada' };
+
+  async function loadCharges() {
+    if (!canWrite) return;
+    try {
+      charges = await consult.list({ patient_id: patient.id });
+    } catch {
+      /* the pre-account is a convenience: the notes still show */
+    }
+  }
+  $effect(() => {
+    void encounters.length;
+    void loadCharges();
+  });
 
   const defs = $derived<FieldDef[]>(schema.measures[patient.subject] ?? []);
   const byId = $derived(new Map(encounters.map((e) => [e.id, e])));
@@ -94,11 +117,27 @@
           </div>
         {/each}
         {#if canWrite && !e.hidden}
-          <div class="mt-4 border-t border-app-ink/8 pt-3">
+          {@const ch = chargeOf(e.id)}
+          <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-app-ink/8 pt-3">
             <button type="button" class="btn-ghost -ml-3" onclick={() => onaddendum(e)}><Icon name="edit" size={16} />Agregar adenda</button>
+            <button type="button" class="btn-ghost" onclick={() => (chargeFor = e)}>
+              <Icon name="receipt" size={16} />{ch ? 'Pre-cuenta' : 'Agregar pre-cuenta'}
+            </button>
+            {#if ch}
+              <span class="text-sm text-app-muted">{CHARGE_LABEL[ch.status]}{session.cobros ? ` · ${moneyCents(ch.total_cents)}` : ''} · {ch.item_count} {ch.item_count === 1 ? 'concepto' : 'conceptos'}</span>
+            {/if}
           </div>
         {/if}
       </li>
     {/each}
   </ol>
 {/if}
+
+<ConsultChargeModal
+  open={!!chargeFor}
+  patientId={patient.id}
+  encounterId={chargeFor?.id}
+  charge={chargeFor ? chargeOf(chargeFor.id) : null}
+  onclose={() => (chargeFor = null)}
+  onchanged={loadCharges}
+/>

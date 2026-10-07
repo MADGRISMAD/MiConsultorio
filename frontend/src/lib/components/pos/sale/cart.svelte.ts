@@ -47,6 +47,8 @@ export class Cart {
   appointmentId = $state('');
   /** Short text saying where the cart came from (a visit or a plan). */
   origin = $state('');
+  /** Pre-account of a consultation being charged. */
+  consultChargeId = $state('');
 
   // Set from the business settings
   defaultTax = $state(0);
@@ -148,6 +150,30 @@ export class Cart {
     });
   }
 
+  /**
+   * A line of a consultation's pre-account. Supplies it already took out of stock are not limited by the
+   * current stock (the server does not take them again when the sale carries consult_charge_id).
+   */
+  addFromCharge(item: CatalogItem | undefined, name: string, price_cents: number, tax_rate: number, qty: number, consumed: boolean) {
+    if (!item) {
+      this.addFree(name, price_cents, tax_rate, qty);
+      return;
+    }
+    this.lines.push({
+      key: uid(),
+      item_id: item.id,
+      name: item.name,
+      unit: item.unit || 'pza',
+      price_cents,
+      base_price_cents: item.price_cents,
+      tax_rate: item.tax_rate,
+      qty,
+      discount_cents: 0,
+      track_stock: item.track_stock && !consumed,
+      stock: item.stock
+    });
+  }
+
   remove(key: string) {
     this.lines = this.lines.filter((l) => l.key !== key);
   }
@@ -164,6 +190,7 @@ export class Cart {
     this.professionalId = '';
     this.appointmentId = '';
     this.origin = '';
+    this.consultChargeId = '';
     this.#store(null);
   }
 
@@ -187,6 +214,7 @@ export class Cart {
       professional_id: this.professionalId || undefined,
       appointment_id: this.appointmentId || undefined,
       plan_item_ids: planItems.length ? planItems : undefined,
+      consult_charge_id: this.consultChargeId || undefined,
       lines: this.lines.map((l) => ({
         ...(l.item_id ? { item_id: l.item_id } : { name: l.name, tax_rate: l.tax_rate }),
         qty: l.qty,
@@ -215,7 +243,8 @@ export class Cart {
       patientId: this.patientId,
       professionalId: this.professionalId,
       appointmentId: this.appointmentId,
-      origin: this.origin
+      origin: this.origin,
+      consultChargeId: this.consultChargeId
     };
   }
 
@@ -241,6 +270,7 @@ export class Cart {
       this.professionalId = String(d.professionalId ?? '');
       this.appointmentId = String(d.appointmentId ?? '');
       this.origin = String(d.origin ?? '');
+      this.consultChargeId = String(d.consultChargeId ?? '');
     } catch {
       /* corrupt or unavailable draft: start empty */
     }

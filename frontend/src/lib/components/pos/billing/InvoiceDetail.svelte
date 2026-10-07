@@ -19,8 +19,10 @@
     /** Cancel a stamped CFDI (administrators). */
     oncancelcfdi?: (i: InvoiceRequest) => void;
     canCancelCfdi?: boolean;
+    /** Open the payment complements of a stamped PPD invoice (sales on account). */
+    oncomplements?: (i: InvoiceRequest) => void;
   }
-  let { invoice, canManage, onclose, onissue, oncancel, onstamp, stamping = false, oncancelcfdi, canCancelCfdi = false }: Props = $props();
+  let { invoice, canManage, onclose, onissue, oncancel, onstamp, stamping = false, oncancelcfdi, canCancelCfdi = false, oncomplements }: Props = $props();
   const stamped = $derived(invoice?.cfdi_state === 'stamped');
 
   async function copy() {
@@ -68,6 +70,9 @@
     {#if invoice && invoice.cfdi_state && invoice.cfdi_state !== 'stamping'}
       <a class="btn-secondary" href={pos2.cfdiFileUrl(invoice.id, 'xml')} download>XML</a>
       <a class="btn-secondary" href={pos2.cfdiFileUrl(invoice.id, 'pdf')} download>PDF</a>
+    {/if}
+    {#if invoice && canManage && stamped && invoice.on_credit && oncomplements}
+      <button type="button" class="btn-secondary" onclick={() => oncomplements(invoice)}>Complementos de pago</button>
     {/if}
     {#if invoice && canCancelCfdi && stamped}
       <button type="button" class="btn-ghost text-app-danger" onclick={() => oncancelcfdi?.(invoice)}>Cancelar CFDI</button>

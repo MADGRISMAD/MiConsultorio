@@ -18,6 +18,7 @@
   import InvoiceDetail from './InvoiceDetail.svelte';
   import InvoiceIssueModal from './InvoiceIssueModal.svelte';
   import InvoiceRequestForm from './InvoiceRequestForm.svelte';
+  import PaymentComplementsModal from './PaymentComplementsModal.svelte';
   import { INVOICE_STATUS } from './fiscal';
 
   const TABS: { id: InvoiceRequest['status']; label: string; empty: string }[] = [
@@ -43,6 +44,7 @@
   let formSale = $state('');
   let detail = $state<InvoiceRequest | null>(null);
   let issuing = $state<InvoiceRequest | null>(null);
+  let complementsFor = $state<InvoiceRequest | null>(null);
   let cancelling = $state<InvoiceRequest | null>(null);
   const cancelOp = new Op();
 
@@ -171,6 +173,9 @@
               <td class="td">
                 <div class="flex justify-end gap-1">
                   <button type="button" class="btn-ghost" onclick={() => (detail = i)}>Ver</button>
+                  {#if canManage && i.on_credit && i.cfdi_state === 'stamped'}
+                    <button type="button" class="btn-secondary" onclick={() => (complementsFor = i)}>Complementos de pago</button>
+                  {/if}
                   {#if canManage && i.status === 'pending'}
                     <button type="button" class="btn-secondary" disabled={stampingId === i.id} onclick={() => stamp(i)}>{#if stampingId === i.id}<span class="spin"></span>{/if}Timbrar</button>
                     <button type="button" class="btn-ghost" onclick={() => startIssue(i)}>Marcar como emitida</button>
@@ -197,7 +202,9 @@
   oncancel={startCancel}
   onstamp={stamp}
   oncancelcfdi={(i) => ((detail = null), (cfdiCancelling = i))}
+  oncomplements={(i) => ((detail = null), (complementsFor = i))}
 />
+<PaymentComplementsModal invoice={complementsFor} onclose={() => (complementsFor = null)} />
 <CancelCfdiModal invoice={cfdiCancelling} onclose={() => (cfdiCancelling = null)} ondone={() => void load()} />
 <InvoiceIssueModal invoice={issuing} onclose={() => (issuing = null)} ondone={() => void load()} />
 <ConfirmModal open={!!cancelling} title="Cancelar solicitud" op={cancelOp} confirmLabel="Cancelar solicitud" onconfirm={confirmCancel} onclose={() => (cancelling = null)}>

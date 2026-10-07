@@ -387,6 +387,8 @@ export interface SaleInput {
   patient_id?: string;
   professional_id?: string;
   plan_item_ids?: string[];
+  /** pre-account of a consultation this sale charges (it becomes charged with the sale) */
+  consult_charge_id?: string;
   /** leave what the payments do not cover as a balance to collect (abonos) */
   on_account?: boolean;
   /** administrators only: sell expired lots, with a reason */
@@ -514,6 +516,8 @@ export interface InvoiceRequest {
   created_at: string;
   /** '' for manual requests; stamped or cancelled when issued through the PAC */
   cfdi_state?: '' | 'stamping' | 'stamped' | 'cancelled';
+  /** the sale was settled in abonos: its CFDI is PPD and each abono takes a payment complement */
+  on_credit?: boolean;
 }
 
 export interface StockMovement {

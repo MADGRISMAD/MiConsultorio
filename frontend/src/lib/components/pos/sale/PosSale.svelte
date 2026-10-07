@@ -3,7 +3,9 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
+  import { consult } from '$lib/api/consult';
   import { pos2 } from '$lib/api/pos2';
+  import type { Charge } from '$lib/types/consult';
   import type { PlanPrefill, PlanPrefillItem, Professional } from '$lib/types/pos2';
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
@@ -19,6 +21,7 @@
   import { Cart, type Person } from './cart.svelte';
   import CatalogBrowser from './CatalogBrowser.svelte';
   import CartPanel from './CartPanel.svelte';
+  import ConsultChargesPanel from './ConsultChargesPanel.svelte';
   import FreeLineModal from './FreeLineModal.svelte';
   import PaymentModal from './PaymentModal.svelte';
   import SaleDone from './SaleDone.svelte';
@@ -36,6 +39,7 @@
   let people = $state<Person[]>([]);
   let professionals = $state<Professional[]>([]);
   let planOpen = $state<PlanPrefill | null>(null);
+  let chargesKey = $state(0);
   /** a sale refused because of expired lots, waiting for an administrator's reason */
   let expiredAsk = $state<{ payments: SalePaymentInput[]; onAccount: boolean; message: string } | null>(null);
 
@@ -94,14 +98,55 @@
     }
   }
 
-  /** ?cita=<id> and ?plan=<id> load a visit or a treatment plan into the cart. */
+  /** Loads a consultation's pre-account (services and supplies) into the cart. */
+  async function loadCharge(id: string) {
+    if (!cart.empty) {
+      toast.show('Hay una cuenta en curso: termínala o vacíala antes de abrir la pre-cuenta.', 'error');
+      return;
+    }
+    try {
+      const c = await consult.get(id);
+      if (c.status !== 'sent' && c.status !== 'draft') {
+        toast.show(c.status === 'charged' ? 'Esa pre-cuenta ya fue cobrada.' : 'Esa pre-cuenta fue cancelada.', 'error');
+        chargesKey++;
+        return;
+      }
+      let billed = 0;
+      for (const i of c.items ?? []) {
+        // supplies used but not billed to the patient are not on the ticket
+        if (i.consumed && i.unit_price_cents === 0) continue;
+        const item = i.catalog_item_id ? items.find((x) => x.id === i.catalog_item_id) : undefined;
+        cart.addFromCharge(item, i.name, i.unit_price_cents, i.tax_rate, i.qty, i.consumed);
+        billed++;
+      }
+      cart.consultChargeId = c.id;
+      cart.patientId = c.patient_id;
+      cart.customer = c.patient_name;
+      cart.professionalId = c.professional_id ?? '';
+      cart.appointmentId = c.appointment_id ?? '';
+      cart.origin = `Pre-cuenta de la consulta de ${c.patient_name}${c.professional_name ? ` (${c.professional_name})` : ''}: ${billed} ${billed === 1 ? 'concepto' : 'conceptos'}. Los insumos que ya se descontaron del inventario no se descuentan otra vez.`;
+    } catch (e) {
+      toast.show(e instanceof ApiError && e.status === 404 ? 'No encontramos esa pre-cuenta.' : 'No se pudo cargar la pre-cuenta.', 'error');
+    }
+  }
+  function openCharge(c: Charge) {
+    void loadCharge(c.id);
+  }
+
+  /** ?cita=<id>, ?plan=<id> and ?precuenta=<id> load a visit, a treatment plan or a consultation's pre-account into the cart. */
   async function prefill() {
     const cita = page.url.searchParams.get('cita');
     const plan = page.url.searchParams.get('plan');
-    if (!cita && !plan) return;
+    const pre = page.url.searchParams.get('precuenta');
+    if (!cita && !plan && !pre) return;
     void goto('/pos/cobros', { replaceState: true, noScroll: true, keepFocus: true });
+    if (pre && cart.consultChargeId === pre) return; // the draft already holds it
     if (!cart.empty) {
       toast.show('Hay una cuenta en curso: termínala o vacíala antes de cargar la cita o el plan.', 'error');
+      return;
+    }
+    if (pre) {
+      await loadCharge(pre);
       return;
     }
     if (cita) {
@@ -188,6 +233,7 @@
       done = { sale, change };
       loadCash();
       loadItems().catch(() => {});
+      chargesKey++;
       if (settings.printer.auto_print) print(sale);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'LOT_EXPIRED' && isAdmin) {
@@ -268,6 +314,7 @@
   <SaleDone sale={done.sale} change={done.change} {printing} onprint={() => print(done!.sale)} onnew={() => (done = null)} />
 {:else}
   {#if !loading}<AlertsSummary />{/if}
+  {#if !loading && settings}<ConsultChargesPanel activeId={cart.consultChargeId} refreshKey={chargesKey} onopen={openCharge} />{/if}
   {#if needsCash && !loading}
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 border-app-warning/40 bg-app-warning/10 px-4 py-3" role="status">
       <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />La caja está cerrada. Ábrela para poder cobrar.</p>

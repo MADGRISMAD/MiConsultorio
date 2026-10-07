@@ -1,11 +1,16 @@
 <script lang="ts">
   import { api } from '$lib/api';
+  import { consult } from '$lib/api/consult';
   import { Op } from '$lib/op.svelte';
+  import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
+  import type { ChargeDraftLine } from '$lib/types/consult';
   import { ENCOUNTER_KINDS, type Encounter, type EncounterKind, type FieldValues, type Patient, type PatientSchema } from '$lib/types';
   import DynamicFields from '../../DynamicFields.svelte';
   import Modal from '../../Modal.svelte';
   import Icon from '../../ui/Icon.svelte';
+  import ConsultChargeEditor from './ConsultChargeEditor.svelte';
+  import { toItems } from './consultLines';
 
   interface Props {
     open: boolean;
@@ -41,6 +46,10 @@
   let notes = $state('');
   let isPrivate = $state(false);
   let error = $state('');
+  /** services and supplies of this consultation, saved as a pre-account once the note exists */
+  let chargeLines = $state<ChargeDraftLine[]>([]);
+  let sendToCash = $state(true);
+  const cobros = $derived(session.cobros);
   const op = new Op();
   let wasOpen = false;
 
@@ -58,6 +67,8 @@
       codes = [];
       codeDraft = codeError = error = '';
       isPrivate = false;
+      chargeLines = [];
+      sendToCash = true;
       op.reset();
     }
     wasOpen = open;
@@ -85,12 +96,33 @@
 
   const cleanMeasures = () => Object.fromEntries(Object.entries(measures).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length)));
 
+  /** The note is already saved (and permanent): a problem here never undoes it. */
+  async function saveCharge(enc: Encounter) {
+    try {
+      const c = await consult.create({
+        patient_id: patient.id,
+        encounter_id: enc.id,
+        ...(prefill?.appointment_id ? { appointment_id: prefill.appointment_id } : {}),
+        items: toItems(chargeLines),
+        send: cobros && sendToCash
+      });
+      for (const w of c.warnings ?? []) toast.show(w, 'error');
+      toast.show(cobros && sendToCash ? 'Pre-cuenta enviada a caja' : 'Pre-cuenta guardada');
+    } catch (e) {
+      toast.show(`La nota quedó guardada, pero la pre-cuenta no: ${e instanceof Error ? e.message : 'inténtalo de nuevo'} Agrégala desde la nota.`, 'error');
+    }
+  }
+
   async function save(thenRx: boolean) {
     error = '';
     if (codeDraft && !addCode()) return;
     const m = cleanMeasures();
     if (![reason, subjective, exam, assessment, plan, notes].some((s) => s.trim()) && !Object.keys(m).length) {
       error = 'Escribe al menos el motivo, lo que cuenta el paciente o algún otro apartado.';
+      return;
+    }
+    if (chargeLines.some((l) => !(l.qty > 0))) {
+      error = 'Revisa las cantidades de la pre-cuenta.';
       return;
     }
     let saved: Encounter | undefined;
@@ -112,6 +144,7 @@
     });
     if (ok && saved) {
       toast.show('Nota guardada en la bitácora');
+      if (chargeLines.length) await saveCharge(saved);
       onsaved(saved, thenRx);
     }
   }
@@ -176,6 +209,17 @@
       <label class="label" for="enc-notes">Notas</label>
       <textarea id="enc-notes" class="field min-h-20" rows="2" bind:value={notes}></textarea>
     </div>
+
+    <fieldset class="rounded-2xl border border-app-ink/10 p-4">
+      <legend class="section-title px-1">{cobros ? 'Servicios e insumos de esta consulta' : 'Lo realizado en esta consulta'}</legend>
+      <ConsultChargeEditor bind:lines={chargeLines} {cobros} uid="enc-form-charge" />
+      {#if cobros && chargeLines.length}
+        <label class="mt-4 flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={sendToCash} />
+          Enviar a caja al guardar la nota
+        </label>
+      {/if}
+    </fieldset>
 
     <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-app-ink/10 bg-app-elevated/60 p-4">
       <input type="checkbox" class="mt-1 h-5 w-5 accent-[rgb(var(--app-primary))]" bind:checked={isPrivate} />
