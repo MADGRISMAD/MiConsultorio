@@ -154,20 +154,21 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 // listAgendaServices is the catalog of services an appointment can be for (works on every plan).
 func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
-	rows, err := s.db.Query(r.Context(), `SELECT id::text, name FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, duration_minutes FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
 	defer rows.Close()
 	type svc struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID              string `json:"id"`
+		Name            string `json:"name"`
+		DurationMinutes *int   `json:"duration_minutes"`
 	}
 	out := []svc{}
 	for rows.Next() {
 		var v svc
-		if err := rows.Scan(&v.ID, &v.Name); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.DurationMinutes); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -352,6 +353,7 @@ func (s *Server) deleteBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "agenda_block_delete", "Quitó un bloqueo de la agenda", map[string]any{"block": id})
+	waitlistWake()
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -100,6 +100,9 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 		writeFailure(w, r, err)
 		return
 	}
+	if in.Status == "cancelled" || in.Status == "no_show" {
+		waitlistWake()
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
 }
 

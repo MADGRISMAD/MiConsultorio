@@ -266,6 +266,9 @@ func (s *Server) processDueReminders(ctx context.Context) (int, error) {
 					r.ID, msg, time.Now().Add(reminderBackoff(r.Attempts+1)))
 			default:
 				_, err = tx.Exec(ctx, `UPDATE appointment_reminders SET status = 'failed', attempts = attempts + 1, error = $2 WHERE id = $1`, r.ID, msg)
+				if err == nil {
+					s.ntfAppointmentByID(ctx, tx, r.ClinicID, r.AppointmentID, "reminder_failed", "No se pudo enviar un recordatorio", "/agenda")
+				}
 			}
 			if err != nil {
 				return err

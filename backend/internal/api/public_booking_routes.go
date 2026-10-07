@@ -40,6 +40,7 @@ func (s *Server) mountPublicBooking(r chi.Router) {
 
 	r.Get("/public/booking/{slug}", b.bookingInfo)
 	r.Get("/public/booking/{slug}/availability", b.bookingAvailability)
+	r.Get("/public/booking/{slug}/month", b.bookingMonth)
 	r.Post("/public/booking/{slug}/appointments", b.bookingCreate)
 }
 
@@ -188,6 +189,7 @@ func (b *bookingAPI) confirmByToken(w http.ResponseWriter, r *http.Request) {
 			}
 			a.Status = "confirmed"
 			audit(ctx, tx, a.ClinicID, nil, "appointment_confirmed", "Cita confirmada por el paciente desde su enlace", map[string]any{"appointment_id": a.ID})
+			b.ntfAppointmentByID(ctx, tx, a.ClinicID, a.ID, "appointment_confirmed_patient", "Un paciente confirmó su cita", "/agenda")
 		}
 		return "", nil
 	})
@@ -220,6 +222,8 @@ func (b *bookingAPI) cancelByToken(w http.ResponseWriter, r *http.Request) {
 		}
 		a.Status = "cancelled"
 		audit(ctx, tx, a.ClinicID, nil, "appointment_cancelled", "Cita cancelada por el paciente desde su enlace", map[string]any{"appointment_id": a.ID})
+		b.ntfAppointmentByID(ctx, tx, a.ClinicID, a.ID, "appointment_cancelled_patient", "Un paciente canceló su cita", "/agenda")
+		waitlistWake()
 		return "", nil
 	})
 }

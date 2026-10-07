@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -40,11 +41,13 @@ type catalogItem struct {
 	SATProductCode string  `json:"sat_product_code" db:"sat_product_code"`
 	SATUnitCode    string  `json:"sat_unit_code" db:"sat_unit_code"`
 	NextExpiry     *string `json:"next_expiry" db:"next_expiry"` // earliest expiry among lots with stock
+	// DurationMinutes is how long the service takes in the agenda; nil = the professional's slot.
+	DurationMinutes *int `json:"duration_minutes" db:"duration_minutes"`
 }
 
 const catalogCols = `id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate::float8 AS tax_rate,
 	track_stock, stock::float8 AS stock, min_stock::float8 AS min_stock, unit, active, sat_product_code, sat_unit_code,
-	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry`
+	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry, duration_minutes`
 
 type catalogInput struct {
 	Kind       string  `json:"kind"`
@@ -65,9 +68,30 @@ type catalogInput struct {
 	ExpiresOn      string `json:"expires_on"`
 	SATProductCode string `json:"sat_product_code"`
 	SATUnitCode    string `json:"sat_unit_code"`
+	// Minutes a service takes: absent keeps the current value on update, null clears it.
+	DurationMinutes json.RawMessage `json:"duration_minutes"`
+}
+
+// duration reads DurationMinutes: whether the client sent it, and the value (nil clears it).
+func (in *catalogInput) duration() (set bool, minutes *int, msg string) {
+	raw := strings.TrimSpace(string(in.DurationMinutes))
+	if raw == "" {
+		return false, nil, ""
+	}
+	if in.Kind != "service" || raw == "null" {
+		return true, nil, ""
+	}
+	var n int
+	if err := json.Unmarshal(in.DurationMinutes, &n); err != nil || n < 5 || n > 480 {
+		return true, nil, "La duración debe estar entre 5 y 480 minutos."
+	}
+	return true, &n, ""
 }
 
 func (in *catalogInput) validate() string {
+	if _, _, msg := in.duration(); msg != "" {
+		return msg
+	}
 	in.Name, in.SKU, in.Barcode = strings.TrimSpace(in.Name), strings.TrimSpace(in.SKU), strings.TrimSpace(in.Barcode)
 	in.Category, in.Unit = strings.TrimSpace(in.Category), strings.TrimSpace(in.Unit)
 	in.LotCode, in.ExpiresOn = strings.TrimSpace(in.LotCode), strings.TrimSpace(in.ExpiresOn)
@@ -173,12 +197,13 @@ func (s *Server) createCatalogItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	_, minutes, _ := in.duration()
 	var item catalogItem
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING `+catalogCols,
-			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode)
+			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code, duration_minutes)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING `+catalogCols,
+			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode, minutes)
 		if err != nil {
 			return err
 		}
@@ -223,12 +248,14 @@ func (s *Server) updateCatalogItem(w http.ResponseWriter, r *http.Request) {
 		active = *in.Active
 	}
 	p := principalFrom(r.Context())
+	durSet, minutes, _ := in.duration()
 	// stock is changed only through stock movements, never by editing the item
 	rows, err := s.db.Query(r.Context(), `
 		UPDATE catalog_items SET kind=$3, name=$4, sku=$5, barcode=$6, category=$7, price_cents=$8, cost_cents=$9, tax_rate=$10,
-		       track_stock=$11, min_stock=$12, unit=$13, active=$14, sat_product_code=$15, sat_unit_code=$16, updated_at=now()
+		       track_stock=$11, min_stock=$12, unit=$13, active=$14, sat_product_code=$15, sat_unit_code=$16,
+		       duration_minutes = CASE WHEN $17 THEN $18 WHEN $3 = 'service' THEN duration_minutes END, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+catalogCols,
-		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active, in.SATProductCode, in.SATUnitCode)
+		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active, in.SATProductCode, in.SATUnitCode, durSet, minutes)
 	if err != nil {
 		serverError(w, r, err)
 		return
