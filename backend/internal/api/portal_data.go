@@ -281,6 +281,11 @@ func (s *Server) portalPrescriptions(w http.ResponseWriter, r *http.Request) {
 		}
 		x.Items = []rxItem{}
 		_ = json.Unmarshal(raw, &x.Items)
+		var derr error
+		if x.Instructions, derr = decField("prescriptions", "instructions", x.ID, x.Instructions); derr != nil {
+			serverError(w, r, derr)
+			return
+		}
 		x.Voided, x.PatientName = x.VoidedAt != nil, names[x.PatientID]
 		list = append(list, x)
 	}

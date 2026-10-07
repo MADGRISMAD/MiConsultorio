@@ -16,11 +16,12 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/serve
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/createclinic ./cmd/createclinic \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/createplatformadmin ./cmd/createplatformadmin \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/resetpassword ./cmd/resetpassword \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/encryptfields ./cmd/encryptfields \
  && mkdir -p /out/uploads
 
 # --- Runtime: one small image serving the API and the built frontend ---
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=backend /out/server /out/createclinic /out/createplatformadmin /out/resetpassword /app/
+COPY --from=backend /out/server /out/createclinic /out/createplatformadmin /out/resetpassword /out/encryptfields /app/
 COPY --from=frontend /app/build /app/public
 # Carpeta de adjuntos con dueño "nonroot": el volumen nombrado hereda este dueño al crearse.
 COPY --from=backend --chown=65532:65532 /out/uploads /app/data/uploads

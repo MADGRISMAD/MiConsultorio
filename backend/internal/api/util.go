@@ -23,6 +23,9 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 }
 
 func serverError(w http.ResponseWriter, r *http.Request, err error) {
+	if decryptFailure(w, r, err) {
+		return
+	}
 	logf(r, "internal error: %s", logSafeErr(err))
 	writeError(w, http.StatusInternalServerError, "Error interno del servidor.")
 }

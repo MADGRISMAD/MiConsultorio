@@ -442,12 +442,17 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		if req.ServiceID != "" {
 			svc = req.ServiceID
 		}
+		newID := newRowID()
+		sealedReason, err := encField("appointments", "details", newID, req.Reason)
+		if err != nil {
+			return err
+		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, professional_id, status, source,
-			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at)
-			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now())
+			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id)
+			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid)
 			RETURNING id`,
-			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, req.Reason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders).Scan(&apptID); err != nil {
+			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID).Scan(&apptID); err != nil {
 			return err
 		}
 		audit(ctx, tx, c.ID, nil, "appointment_booked_online", "Cita reservada en línea para el "+req.Date+" a las "+req.Start,

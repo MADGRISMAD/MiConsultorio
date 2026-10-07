@@ -322,6 +322,9 @@ func (s *Server) createBlock(w http.ResponseWriter, r *http.Request) {
 		if affected, err = pgx.CollectRows(rows, pgx.RowToStructByName[appointment]); err != nil {
 			return err
 		}
+		if err = openAppointmentDetails(affected); err != nil {
+			return err
+		}
 		audit(r.Context(), tx, p.ClinicID, p, "agenda_block_create", "Bloqueó un horario de la agenda",
 			map[string]any{"block": block.ID, "from": in.DateFrom, "to": in.DateTo, "affected": len(affected)})
 		return nil
