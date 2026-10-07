@@ -777,6 +777,6 @@ export interface PatientRecord {
 
 export interface AccessEntry {
   user: string;
-  action: 'view' | 'print' | 'export';
+  action: 'view' | 'print' | 'export' | 'file_upload' | 'file_view' | 'file_download' | 'file_archive';
   at: string;
 }

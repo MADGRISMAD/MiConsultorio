@@ -4,7 +4,8 @@
     | 'sun' | 'moon' | 'logout' | 'menu' | 'x' | 'eye' | 'eye-off' | 'search' | 'plus' | 'edit' | 'trash'
     | 'check' | 'alert' | 'clock' | 'lock' | 'arrow-right' | 'arrow-left' | 'sparkles' | 'info' | 'wallet'
     | 'shield' | 'stethoscope' | 'tooth' | 'paw' | 'spine' | 'building' | 'activity' | 'user' | 'user-plus' | 'key' | 'mail'
-    | 'phone' | 'chevron-down' | 'ban' | 'refresh' | 'baby' | 'heart' | 'leaf' | 'chat' | 'droplet' | 'flower' | 'bone' | 'clock-plus';
+    | 'phone' | 'chevron-down' | 'ban' | 'refresh' | 'baby' | 'heart' | 'leaf' | 'chat' | 'droplet' | 'flower' | 'bone' | 'clock-plus'
+    | 'upload' | 'download' | 'file' | 'archive' | 'rotate' | 'zoom-in' | 'zoom-out';
 </script>
 
 <script lang="ts">
@@ -70,6 +71,13 @@
     flower: 'M12 11a3 3 0 1 0 0-.01zM12 8V4.5M12 16v3.5M8.5 12H5M19 12h-3.5M9.5 9.5 7 7M17 17l-2.5-2.5M14.5 9.5 17 7M7 17l2.5-2.5',
     bone: 'M7 5.5A2.5 2.5 0 0 0 5 9.5a2.5 2.5 0 0 0 3.5 1.5l4.5 4.5A2.5 2.5 0 0 0 14.5 19a2.5 2.5 0 0 0 4-2 2.5 2.5 0 0 0-1.5-3.5L12.5 9A2.5 2.5 0 0 0 11 5.5a2.5 2.5 0 0 0-4-0z',
     'clock-plus': 'M12 21a9 9 0 1 1 8.2-12.6M12 7v5l3 2M19 15v6M16 18h6',
+    upload: 'M12 16V4M7 9l5-5 5 5M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15',
+    download: 'M12 4v12M7 11l5 5 5-5M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15',
+    file: 'M6.5 3h7l4.5 4.5v12A1.5 1.5 0 0 1 16.5 21h-10A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3zM13.5 3v4.5H18M8.5 13h7M8.5 16.5h5',
+    archive: 'M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v2A1.5 1.5 0 0 1 18.5 9h-13A1.5 1.5 0 0 1 4 7.5zM5.5 9v9.5A1.5 1.5 0 0 0 7 20h10a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4',
+    rotate: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v5h-5',
+    'zoom-in': 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.9-4.9M10.5 7.5v6M7.5 10.5h6',
+    'zoom-out': 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.9-4.9M7.5 10.5h6',
     refresh: 'M20 11a8 8 0 0 0-14.3-4.3L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.3L20 15.5M20 20v-4.5h-4.5'
   };
 </script>
