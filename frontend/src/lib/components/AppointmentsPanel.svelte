@@ -4,10 +4,9 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { emptyAppointment, PERMISSIONS, type Appointment, type AppointmentInput, type Expedient } from '$lib/types';
+  import { emptyAppointment, PERMISSIONS, type Appointment, type AppointmentInput } from '$lib/types';
   import AppointmentForm from './AppointmentForm.svelte';
   import ConfirmModal from './ConfirmModal.svelte';
-  import ExpedientView from './ExpedientView.svelte';
   import Modal from './Modal.svelte';
   import EmptyState from './ui/EmptyState.svelte';
   import Icon from './ui/Icon.svelte';
@@ -37,19 +36,10 @@
 
   // ----- details modal -----
   let viewing = $state<Appointment | null>(null);
-  let viewingExpedient = $state<Expedient | null>(null);
   const canSeeExpedients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
 
-  async function openDetails(a: Appointment) {
+  function openDetails(a: Appointment) {
     viewing = a;
-    viewingExpedient = null;
-    if (!canSeeExpedients) return;
-    try {
-      const e = await api.expedient(a.CURP);
-      if (viewing?.id === a.id) viewingExpedient = e;
-    } catch {
-      /* no matching record: the modal says so */
-    }
   }
 
   // ----- create / edit -----
@@ -125,7 +115,7 @@
             <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td">
                 <span class="block font-semibold">{a.names} {a.last_names}</span>
-                <span class="block font-mono text-xs text-app-muted">{a.CURP}</span>
+                {#if a.CURP}<span class="block font-mono text-xs text-app-muted">{a.CURP}</span>{/if}
               </td>
               <td class="td whitespace-nowrap">
                 {longDate(a.date)}
@@ -153,19 +143,17 @@
   {#if viewing}
     <dl class="grid gap-4 rounded-xl bg-app-elevated p-4 text-left sm:grid-cols-3">
       <div><dt class="section-title">Paciente</dt><dd class="mt-1 font-semibold">{viewing.names} {viewing.last_names}</dd></div>
-      <div><dt class="section-title">CURP</dt><dd class="mt-1 font-mono text-sm">{viewing.CURP}</dd></div>
+      {#if viewing.CURP}<div><dt class="section-title">CURP</dt><dd class="mt-1 font-mono text-sm">{viewing.CURP}</dd></div>{/if}
       <div><dt class="section-title">Fecha</dt><dd class="mt-1 font-semibold">{longDate(viewing.date)}</dd></div>
       <div><dt class="section-title">Hora de inicio</dt><dd class="mt-1 font-semibold">{viewing.startHour}</dd></div>
       <div><dt class="section-title">Hora de finalización</dt><dd class="mt-1 font-semibold">{viewing.endHour}</dd></div>
       <div class="sm:col-span-3"><dt class="section-title">Detalles</dt><dd class="mt-1 whitespace-pre-wrap">{viewing.details || '—'}</dd></div>
     </dl>
-    {#if canSeeExpedients}
-      <h3 class="mb-3 mt-6 text-base font-semibold">Historial asociado</h3>
-      {#if viewingExpedient}
-        <ExpedientView expedient={viewingExpedient} />
-      {:else}
-        <p class="alert"><Icon name="info" size={18} />No se encontró un historial asociado con la CURP {viewing.CURP}</p>
-      {/if}
+    {#if viewing.patient_id && canSeeExpedients}
+      <div class="mt-5 flex flex-wrap gap-2">
+        <a class="btn-secondary" href="/pacientes/{encodeURIComponent(viewing.patient_id)}"><Icon name="folder" size={18} />Abrir expediente</a>
+        <a class="btn-primary" href="/pacientes/{encodeURIComponent(viewing.patient_id)}?cita={encodeURIComponent(viewing.id)}&motivo={encodeURIComponent(viewing.details)}"><Icon name="stethoscope" size={18} />Registrar consulta</a>
+      </div>
     {/if}
   {/if}
   {#snippet footer()}<button type="button" class="btn-secondary" onclick={() => (viewing = null)}>Cerrar</button>{/snippet}

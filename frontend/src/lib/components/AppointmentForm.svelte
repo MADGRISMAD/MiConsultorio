@@ -1,7 +1,8 @@
 <script lang="ts">
   import { addMinutes, outsideHours } from '$lib/clinic';
   import { session } from '$lib/session.svelte';
-  import type { AppointmentInput } from '$lib/types';
+  import type { AppointmentInput, PatientRow } from '$lib/types';
+  import PatientPicker from './patients/PatientPicker.svelte';
   import Icon from './ui/Icon.svelte';
 
   let { data = $bindable() }: { data: AppointmentInput } = $props();
@@ -12,22 +13,52 @@
   function onStart() {
     if (data.startHour && !data.endHour) data.endHour = addMinutes(data.startHour, settings?.appointment_minutes ?? 30);
   }
+
+  // Registered patient chosen with the picker. When editing, the row is rebuilt from the appointment itself.
+  let picked = $state<PatientRow | null>(null);
+  $effect(() => {
+    const id = data.patient_id;
+    if (!id) {
+      if (picked) picked = null;
+    } else if (picked?.id !== id) {
+      picked = { id, file_number: 0, subject: data.last_names ? 'person' : 'animal', names: data.names, last_names: data.last_names, age: null, phone: '', guardian_name: '', incomplete: false, no_privacy_notice: false, last_encounter_at: null, archived_at: null };
+    }
+  });
+  function onPick(p: PatientRow) {
+    data.patient_id = p.id;
+    data.names = p.names;
+    data.last_names = p.last_names;
+    data.CURP = '';
+  }
+  function onClear() {
+    data.patient_id = null;
+    data.names = '';
+    data.last_names = '';
+    data.CURP = '';
+  }
+  const registered = $derived(!!data.patient_id);
   const warning = $derived(outsideHours(settings, data.date, data.startHour, data.endHour));
 </script>
 
 <div class="grid gap-3 text-left sm:grid-cols-2">
-  <label class="block">
-    <span class="label">Nombre(s) *</span>
-    <input type="text" class="field" bind:value={data.names} required autocomplete="off" />
-  </label>
-  <label class="block">
-    <span class="label">Apellido(s) *</span>
-    <input type="text" class="field" bind:value={data.last_names} required autocomplete="off" />
-  </label>
-  <label class="block sm:col-span-2">
-    <span class="label">CURP *</span>
-    <input type="text" class="field uppercase" bind:value={data.CURP} required maxlength="18" minlength="18" autocomplete="off" />
-  </label>
+  <div class="sm:col-span-2">
+    <PatientPicker bind:value={picked} onpick={onPick} onclear={onClear} />
+    {#if !registered}<p class="hint">Busca un paciente registrado o escribe los datos de quien aún no lo está.</p>{/if}
+  </div>
+  {#if !registered}
+    <label class="block">
+      <span class="label">Nombre(s) *</span>
+      <input type="text" class="field" bind:value={data.names} required autocomplete="off" />
+    </label>
+    <label class="block">
+      <span class="label">Apellido(s) *</span>
+      <input type="text" class="field" bind:value={data.last_names} required autocomplete="off" />
+    </label>
+    <label class="block sm:col-span-2">
+      <span class="label">CURP <span class="font-normal text-app-muted">(opcional)</span></span>
+      <input type="text" class="field uppercase" bind:value={data.CURP} maxlength="18" autocomplete="off" />
+    </label>
+  {/if}
   <label class="block">
     <span class="label">Fecha *</span>
     <input type="date" class="field" min={today} max="2100-12-30" bind:value={data.date} required />

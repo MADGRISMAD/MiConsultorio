@@ -14,6 +14,7 @@
   /** Pass the patient to edit; leave empty to register a new one. */
   let { patient = null }: { patient?: Patient | null } = $props();
 
+  /* svelte-ignore state_referenced_locally */
   const editing = !!patient;
   const today = new Date().toISOString().slice(0, 10);
 

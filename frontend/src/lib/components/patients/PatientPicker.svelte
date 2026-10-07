@@ -160,6 +160,7 @@
               class="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 {active === i ? 'bg-app-primary/10' : 'hover:bg-app-ink/5'}"
               onmousedown={(e) => e.preventDefault()}
               onclick={() => pick(p)}
+              onkeydown={() => {}}
               onmousemove={() => (active = i)}
             >
               <span class="grid h-8 w-8 flex-none place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={16} /></span>
@@ -176,6 +177,7 @@
             class="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-app-primary {active === results.length ? 'bg-app-primary/10' : 'hover:bg-app-ink/5'}"
             onmousedown={(e) => e.preventDefault()}
             onclick={openQuick}
+            onkeydown={() => {}}
             onmousemove={() => (active = results.length)}
           >
             <Icon name="user-plus" size={18} />+ Registrar paciente nuevo
