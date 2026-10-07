@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,11 +32,25 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 	return NewRouterWithMailer(db, cfg, &mail.SMTP{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.MailFrom, Secure: cfg.SMTPSecure})
 }
 
+// NewApp is NewRouter plus the function that starts the background workers (reminders, cleanups).
+func NewApp(db *pgxpool.Pool, cfg *config.Config) (http.Handler, func(context.Context)) {
+	mailer := &mail.SMTP{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.MailFrom, Secure: cfg.SMTPSecure}
+	s := newServer(db, cfg, mailer)
+	return s.router(), s.StartBackground
+}
+
 // NewRouterWithMailer is NewRouter with an explicit mail sender (tests use a fake).
 func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) http.Handler {
-	s := &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
-		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour)}
+	return newServer(db, cfg, mailer).router()
+}
 
+func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server {
+	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
+		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour)}
+}
+
+func (s *Server) router() http.Handler {
+	cfg := s.cfg
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP, middleware.Recoverer, securityHeaders)
 
@@ -53,12 +68,14 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 		r.Post("/webhooks/mercadopago", s.mpWebhook)
 		r.Post("/point/webhook", s.mpWebhook) // same handler, the URL MiTiendita uses
 		r.Get("/point/oauth/callback", s.pointCallback)
+		s.mountPublic(r) // no session: online booking, receta verification, patient portal login
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
 			r.Get("/session", s.session)
 			r.Put("/me", s.updateProfile)
 			r.Put("/me/password", s.changeOwnPassword)
+			s.mountSecurity(r) // two-step verification endpoints
 
 			// ---- Clinic accounts: data is blocked while the subscription is not active ----
 			r.Group(func(r chi.Router) {
@@ -174,7 +191,14 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 						r.With(require(PermAdminAppointments)).Post("/", s.createAppointment)
 						r.With(require(PermAdminAppointments)).Put("/{id}", s.updateAppointment)
 						r.With(require(PermAdminAppointments)).Delete("/{id}", s.deleteAppointment)
+						s.mountAgenda(r) // status changes, availability, blocks, settings
 					})
+					s.mountAgendaRoot(r)
+					s.mountFiles(r)
+					s.mountSpecialty(r)
+					s.mountRx(r)
+					s.mountPosV2(r)
+					s.mountReports(r)
 				})
 			})
 
