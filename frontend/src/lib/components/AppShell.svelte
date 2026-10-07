@@ -45,7 +45,6 @@
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Configuración', href: '/ajustes?s=negocio', match: '/ajustes', icon: 'settings', perms: [PERMISSIONS.adminUsers] },
         { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]
     },

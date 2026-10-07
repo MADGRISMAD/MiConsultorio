@@ -196,7 +196,7 @@
 
 <div class="grid gap-6 md:grid-cols-[minmax(17rem,20rem)_minmax(0,1fr)] md:items-start {dirty ? 'pb-24' : ''}">
   <!-- Categories -->
-  <nav class="grid min-w-0 gap-5 {section && !wide ? 'hidden' : ''}" aria-label="Secciones de ajustes">
+  <nav class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 {section && !wide ? 'hidden' : ''}" aria-label="Secciones de ajustes">
     <header class="px-1">
       <h1 class="display text-[2.25rem] leading-none sm:text-5xl">Ajustes</h1>
       <p class="mt-2 text-[15px] text-app-muted">Tu consultorio, tus cobros y esta app.</p>
