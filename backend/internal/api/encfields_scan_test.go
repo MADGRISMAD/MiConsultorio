@@ -27,6 +27,7 @@ func TestEncryptedColumnsOnlyThroughHelpers(t *testing.T) {
 	otherTables := map[string]bool{
 		"middleware.go": true, "mp.go": true, "plans.go": true, "platform.go": true, "team.go": true,
 		"rx_catalog.go": true, "rx_routes.go": true, "treatment_plans.go": true, "reports_clinical.go": true, "waitlist.go": true,
+		"org_core.go": true, "org_reports.go": true, "org_routes.go": true, // read clinics.plan only
 	}
 	// Files allowed to export whole rows (to_jsonb / SELECT *) of the sealed tables.
 	wholeRow := map[string]bool{"patients_export.go": true, "vaccinations.go": true}
