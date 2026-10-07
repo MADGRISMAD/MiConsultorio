@@ -55,7 +55,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
@@ -73,7 +73,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
-const seg = encodeURIComponent;
+export const seg = encodeURIComponent;
 
 export const api = {
   login: (identifier: string, password: string) =>

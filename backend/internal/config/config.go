@@ -50,6 +50,16 @@ type Config struct {
 
 	// Magic inventory / pricing (Gemini).
 	GeminiAPIKey, GeminiModel, GeminiAPIBase string
+
+	// Attachments (radiografías, laboratorio, consentimientos): files live on disk under UploadsDir.
+	UploadsDir     string
+	MaxUploadBytes int64
+
+	// WhatsApp Business (Meta Cloud API) for reminders. Empty token or phone id disables it.
+	WhatsAppToken, WhatsAppPhoneID, WhatsAppAPIBase, WhatsAppTemplate, WhatsAppLang string
+
+	// CFDI stamping through Facturama. Empty credentials leave invoices as requests to issue by hand.
+	FacturamaUser, FacturamaPass, FacturamaBase string
 }
 
 func Load() (*Config, error) {
@@ -113,6 +123,16 @@ func Load() (*Config, error) {
 	}
 	c.GeminiAPIKey, c.GeminiModel = os.Getenv("GEMINI_API_KEY"), env("GEMINI_MODEL", "gemini-2.5-flash-lite")
 	c.GeminiAPIBase = strings.TrimRight(env("GEMINI_API_BASE", "https://generativelanguage.googleapis.com"), "/")
+	c.UploadsDir = env("UPLOADS_DIR", "data/uploads")
+	c.MaxUploadBytes = 15 << 20
+	if n, ok := envInt("MAX_UPLOAD_MB"); ok && n > 0 && n <= 200 {
+		c.MaxUploadBytes = int64(n) << 20
+	}
+	c.WhatsAppToken, c.WhatsAppPhoneID = os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_ID")
+	c.WhatsAppAPIBase = strings.TrimRight(env("WHATSAPP_API_BASE", "https://graph.facebook.com/v20.0"), "/")
+	c.WhatsAppTemplate, c.WhatsAppLang = env("WHATSAPP_TEMPLATE", "recordatorio_cita"), env("WHATSAPP_LANG", "es_MX")
+	c.FacturamaUser, c.FacturamaPass = os.Getenv("FACTURAMA_USER"), os.Getenv("FACTURAMA_PASS")
+	c.FacturamaBase = strings.TrimRight(env("FACTURAMA_BASE", "https://api.facturama.mx"), "/")
 	if c.StaticDir == "" {
 		for _, d := range []string{"../frontend/build", "frontend/build"} {
 			if _, err := os.Stat(d + "/index.html"); err == nil {
