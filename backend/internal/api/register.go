@@ -84,5 +84,6 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	audit(r.Context(), s.db, clinicID, p, "clinic_created", "Creó el consultorio "+req.ClinicName, map[string]any{"kind": req.Kind})
 	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)
+	s.welcomeEmail(req.Email, req.Name, req.ClinicName)
 	s.startSession(w, r, p)
 }

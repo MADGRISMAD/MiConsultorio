@@ -28,6 +28,7 @@ type env struct {
 	t       *testing.T
 	srv     *httptest.Server
 	pool    *pgxpool.Pool
+	mail    *fakeMailer
 	clinicA string
 	clinicB string
 }
@@ -55,7 +56,7 @@ func setupWith(t *testing.T, mod func(*config.Config)) *env {
 	if err := db.Migrate(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, pool: pool}
+	e := &env{t: t, pool: pool, mail: &fakeMailer{enabled: true}}
 	e.clinicA = e.seedClinic("a")
 	e.clinicB = e.seedClinic("b")
 	for _, u := range []struct{ user, role string }{{"root", "platform_admin"}, {"help", "platform_support"}} {
@@ -73,7 +74,7 @@ func setupWith(t *testing.T, mod func(*config.Config)) *env {
 	if mod != nil {
 		mod(cfg)
 	}
-	e.srv = httptest.NewServer(api.NewRouter(pool, cfg))
+	e.srv = httptest.NewServer(api.NewRouterWithMailer(pool, cfg, e.mail))
 	t.Cleanup(e.srv.Close)
 	return e
 }

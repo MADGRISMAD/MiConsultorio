@@ -42,6 +42,11 @@ type Config struct {
 	OAuthStateSecret                            []byte
 	TokenEncKey                                 []byte // 32 bytes, encrypts stored provider tokens
 
+	// Outgoing e-mail (password recovery, tickets, notices). Empty SMTPUser/SMTPHost disables it.
+	SMTPHost, SMTPUser, SMTPPass, MailFrom string
+	SMTPPort                               int
+	SMTPSecure                             bool
+
 	// Magic inventory / pricing (Gemini).
 	GeminiAPIKey, GeminiModel, GeminiAPIBase string
 }
@@ -81,6 +86,27 @@ func Load() (*Config, error) {
 		if n, ok := envInt("MP_PLAN_" + name + "_YEAR_PRICE"); ok {
 			c.PlanPriceYear[id] = n
 		}
+	}
+	c.SMTPHost = os.Getenv("SMTP_HOST")
+	if c.SMTPHost == "" && strings.EqualFold(os.Getenv("SMTP_SERVICE"), "gmail") {
+		c.SMTPHost = "smtp.gmail.com"
+	}
+	c.SMTPUser, c.SMTPPass = os.Getenv("SMTP_USER"), os.Getenv("SMTP_PASS")
+	c.SMTPSecure = env("SMTP_SECURE", "false") == "true"
+	c.SMTPPort = 587
+	if c.SMTPSecure {
+		c.SMTPPort = 465
+	}
+	if v := os.Getenv("SMTP_PORT"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 || n > 65535 {
+			return nil, errors.New("SMTP_PORT must be a valid port number")
+		}
+		c.SMTPPort = n
+	}
+	c.MailFrom = os.Getenv("MAIL_FROM")
+	if c.MailFrom == "" && c.SMTPUser != "" {
+		c.MailFrom = "Caresia <" + c.SMTPUser + ">"
 	}
 	c.GeminiAPIKey, c.GeminiModel = os.Getenv("GEMINI_API_KEY"), env("GEMINI_MODEL", "gemini-2.5-flash-lite")
 	c.GeminiAPIBase = strings.TrimRight(env("GEMINI_API_BASE", "https://generativelanguage.googleapis.com"), "/")

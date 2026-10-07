@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/madgrismad/miconsultorio/backend/internal/config"
+	"github.com/madgrismad/miconsultorio/backend/internal/mail"
 )
 
 type Server struct {
@@ -19,10 +20,21 @@ type Server struct {
 	cfg     *config.Config
 	limiter *rateLimiter // failed logins
 	signups *rateLimiter // registrations per IP
+
+	mailer      mail.Sender  // outgoing e-mail; nil or disabled when SMTP is not configured
+	forgots     *rateLimiter // recovery requests per IP and per account
+	mailLimiter *rateLimiter // tickets e-mailed per user
 }
 
+// NewRouter builds the API with the SMTP sender described by cfg.
 func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
-	s := &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour)}
+	return NewRouterWithMailer(db, cfg, &mail.SMTP{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.MailFrom, Secure: cfg.SMTPSecure})
+}
+
+// NewRouterWithMailer is NewRouter with an explicit mail sender (tests use a fake).
+func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) http.Handler {
+	s := &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
+		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour)}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP, middleware.Recoverer, securityHeaders)
@@ -35,6 +47,8 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 		r.Post("/login", s.login)
 		r.Post("/register", s.register)
 		r.Post("/logout", s.logout)
+		r.Post("/forgot", s.forgotPassword)
+		r.Post("/reset-password", s.resetPassword)
 		// Called by Mercado Pago, not by a browser session: authenticity comes from the signature and a re-fetch.
 		r.Post("/webhooks/mercadopago", s.mpWebhook)
 		r.Get("/point/oauth/callback", s.pointCallback)
@@ -94,6 +108,7 @@ func NewRouter(db *pgxpool.Pool, cfg *config.Config) http.Handler {
 						r.With(require(PermPOS)).Get("/sales", s.listSales)
 						r.With(require(PermPOS)).Get("/sales/{id}", s.getSale)
 						r.With(require(PermPOSManage)).Post("/sales/{id}/void", s.voidSale)
+						r.With(require(PermPOS)).Post("/sales/{id}/email", s.emailSale)
 
 						r.With(require(PermPOS)).Get("/cash/current", s.currentCash)
 						r.With(require(PermPOS)).Post("/cash/open", s.openCash)

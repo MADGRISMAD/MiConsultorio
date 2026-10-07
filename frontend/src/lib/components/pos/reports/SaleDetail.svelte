@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmailTicket from '$lib/components/pos/sale/EmailTicket.svelte';
   import { api } from '$lib/api';
   import { moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
@@ -124,6 +125,8 @@
       </dl>
     </div>
     {#if sale.note}<p class="mt-4 text-sm text-app-muted">Nota: {sale.note}</p>{/if}
+
+    {#if sale.status === 'paid'}<div class="mt-4"><EmailTicket saleId={sale.id} /></div>{/if}
 
     {#if printOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
 

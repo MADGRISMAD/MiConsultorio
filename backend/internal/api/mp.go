@@ -473,7 +473,8 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 	if !ok || !validUUID(ref) || pay.Status != "approved" {
 		return nil
 	}
-	return inTx(ctx, s.db, func(tx pgx.Tx) error {
+	var notify func()
+	err := inTx(ctx, s.db, func(tx pgx.Tx) error {
 		var clinicID, plan, period, status string
 		var amount int
 		err := tx.QueryRow(ctx, `SELECT clinic_id, plan, period, amount_cents, status FROM billing_checkouts WHERE id = $1 FOR UPDATE`, ref).
@@ -520,8 +521,17 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 			return err
 		}
 		audit(ctx, tx, clinicID, nil, "payment_online", "Pago en línea recibido: plan "+plan+" por "+itoa(months)+" mes(es), $"+cents(amount), map[string]any{"mp_payment": pid})
+		planName := plan
+		if pl, ok := planByID(plan); ok {
+			planName = pl.Name
+		}
+		notify = func() { s.paymentReceivedEmail(ctx, clinicID, planName, months, amount, end) }
 		return nil
 	})
+	if err == nil && notify != nil {
+		notify() // only after the payment is committed
+	}
+	return err
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import { moneyCents } from '$lib/format';
   import type { Sale } from '$lib/types';
+  import EmailTicket from './EmailTicket.svelte';
 
   interface Props {
     sale: Sale;
@@ -38,6 +39,7 @@
       {#if printing}<span class="spin"></span>{/if}<Icon name="receipt" size={18} />Imprimir ticket
     </button>
     <button bind:this={newBtn} type="button" class="btn-primary min-h-12" onclick={onnew}><Icon name="plus" size={18} />Nueva venta</button>
+    <div class="sm:col-span-2"><EmailTicket saleId={sale.id} /></div>
   </div>
   <a href="/pos/facturacion?venta={sale.id}" class="btn-ghost mt-2 min-h-11">Solicitar factura</a>
 </div>

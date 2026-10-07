@@ -93,6 +93,16 @@ Incluido en los planes **Crecimiento** y **Pro**. Ventanas: **Punto de venta**, 
 
 Los precios en el backend van en centavos y los importes se calculan siempre en el servidor.
 
+## Correos
+
+Con `SMTP_*` y `MAIL_FROM` en el `.env` (ver `.env.example`; con Gmail usa una contraseña de aplicación), la app envía:
+
+- **Recuperar contraseña** (`/forgot` → enlace a `/restablecer`): vale 1 hora, sirve una sola vez, cierra las sesiones abiertas y no revela si la cuenta existe. Los administradores permanentes de plataforma no lo usan: su clave la restablece otro administrador permanente.
+- **Bienvenida** al registrarse, **aviso de pago recibido** a los administradores y **ticket por correo** desde el punto de venta.
+- El correo sale en segundo plano: si el servidor SMTP falla, la venta o el registro no se detienen (el error queda en el log).
+
+Sin SMTP todo lo demás funciona, y `/forgot` muestra los pasos manuales. El aviso de *deploy* por correo es aparte: lo manda GitHub Actions (secretos `SMTP_USER`, `SMTP_PASS`, `DEPLOY_NOTIFY_TO`).
+
 ## API
 
 Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"message": "..."}` (más un `code` en casos como `SUBSCRIPTION_REQUIRED` o `SEAT_LIMIT`). La sesión es una cookie `HttpOnly` firmada; el consultorio sale siempre de la sesión (nunca de la URL), por lo que cada uno solo ve sus propios datos. Los permisos se leen de la base de datos en cada petición.
@@ -107,6 +117,8 @@ Todas las rutas viven bajo `/api`, hablan JSON y devuelven errores como `{"messa
 | `/appointments` | lectura: todos los roles · escritura: recepción o administrador |
 | `GET /billing`, `POST /billing/checkout`, `GET /billing/checkouts/{id}` | administrador del consultorio (funciona aun con la suscripción vencida) |
 | `/pos/items`, `/pos/sales`, `/pos/cash/*`, `/pos/invoices`, `/pos/reports`, `/pos/settings`, `/pos/point/*`, `/pos/magic/*` | planes con cobros; permisos `pos`, `posReports`, `posManage` |
+| `POST /forgot`, `POST /reset-password` | público (con límites por IP y cuenta) |
+| `POST /pos/sales/{id}/email` | permiso `pos` |
 | `POST /webhooks/mercadopago`, `GET /point/oauth/callback` | Mercado Pago (verificados por firma / estado firmado) |
 | `GET /platform/overview\|plans\|clinics[/{id}]` | personal de plataforma |
 | `PATCH /platform/clinics/{id}`, `POST …/suspend\|reactivate\|payments`, `/platform/staff…`, `GET /platform/activity` | administrador de plataforma |

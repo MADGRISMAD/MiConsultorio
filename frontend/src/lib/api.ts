@@ -68,6 +68,8 @@ export const api = {
   register: (r: { clinic_name: string; phone: string; name: string; email: string; username: string; password: string }) =>
     request<{ session: SessionInfo }>('POST', '/register', r).then((x) => x.session),
   logout: () => request<void>('POST', '/logout'),
+  forgotPassword: (identifier: string) => request<{ ok: boolean }>('POST', '/forgot', { identifier }),
+  resetPassword: (token: string, password: string) => request<{ ok: boolean }>('POST', '/reset-password', { token, password }),
   session: () => request<{ session: SessionInfo }>('GET', '/session').then((r) => r.session),
   clinic: () => request<{ clinic: Clinic }>('GET', '/clinic').then((r) => r.clinic),
   updateClinic: (patch: Partial<{ name: string; phone_number: string; address: string; kind: string; specialties: string[]; settings: ClinicSettings }>) =>
@@ -138,6 +140,7 @@ export const api = {
       return request<{ sales: Sale[] }>('GET', `/pos/sales?${q}`).then((r) => r.sales);
     },
     sale: (id: string) => request<{ sale: Sale }>('GET', `/pos/sales/${seg(id)}`).then((r) => r.sale),
+    emailSale: (id: string, email: string) => request<{ ok: boolean }>('POST', `/pos/sales/${seg(id)}/email`, { email }),
     voidSale: (id: string, reason: string) => request<unknown>('POST', `/pos/sales/${seg(id)}/void`, { reason }),
 
     cash: () => request<{ session: CashSession | null }>('GET', '/pos/cash/current').then((r) => r.session),
