@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -123,12 +124,17 @@ func (e *mpError) Error() string { return "mercado pago (" + strconv.Itoa(e.Stat
 // providerFailure turns a provider error into a response the user can act on.
 func providerFailure(w http.ResponseWriter, r *http.Request, err error) {
 	var me *mpError
-	if errors.As(err, &me) && (me.Status == 401 || me.Status == 403) {
-		writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER_AUTH", Message: "Mercado Pago rechazó las credenciales. Vuelve a conectar la cuenta."})
+	_ = errors.As(err, &me)
+	if me != nil && (me.Status == 401 || me.Status == 403) {
+		writeJSON(w, http.StatusConflict, errorBody{Code: "token_revoked", Message: "Mercado Pago rechazó las credenciales. Vuelve a conectar la cuenta."})
 		return
 	}
 	logf(r, "provider error: %v", err)
-	writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: "No pudimos hablar con Mercado Pago. Intenta de nuevo en un momento."})
+	msg := "No pudimos hablar con Mercado Pago. Intenta de nuevo en un momento."
+	if me != nil && me.Msg != "" {
+		msg = "Mercado Pago respondió: " + truncate(me.Msg, 160)
+	}
+	writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: msg})
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +423,13 @@ func (s *Server) mpWebhook(w http.ResponseWriter, r *http.Request) {
 	if topic == "" {
 		topic = r.URL.Query().Get("type")
 	}
+	if strings.Contains(topic, "order") || topic == "point_integration_wh" {
+		if id != "" {
+			s.syncOrderFromWebhook(r.Context(), id)
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if topic == "payment" && id != "" && s.cfg.MPAccessToken != "" {
 		if err := s.settleCheckout(r.Context(), id); err != nil {
 			logf(r, "webhook: %v", err)
@@ -464,8 +477,8 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 	}
 	if err := s.mpCall(ctx, s.cfg.MPAccessToken, http.MethodGet, "/v1/payments/"+url.PathEscape(paymentID), nil, &pay); err != nil {
 		var me *mpError
-		if errors.As(err, &me) && me.Status == 404 {
-			return nil // not ours (e.g. another account's payment)
+		if errors.As(err, &me) && (me.Status == 404 || me.Status == 401 || me.Status == 403) {
+			return nil // not ours (e.g. a payment of a clinic's own Mercado Pago account)
 		}
 		return err
 	}
@@ -580,18 +593,29 @@ func (s *Server) pointConnect(w http.ResponseWriter, r *http.Request) {
 		"client_id": {s.cfg.MPClientID}, "response_type": {"code"}, "platform_id": {"mp"},
 		"state": {s.signState(principalFrom(r.Context()).ClinicID)}, "redirect_uri": {s.oauthRedirect()},
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"url": "https://auth.mercadopago.com/authorization?" + q.Encode()})
+	writeJSON(w, http.StatusOK, map[string]any{"url": s.cfg.MPAuthBase + "/authorization?" + q.Encode()})
 }
 
 // pointCallback finishes the OAuth dance; the browser lands here from Mercado Pago.
+// On failure it goes back to the settings page with the reason, so the screen can say what happened.
 func (s *Server) pointCallback(w http.ResponseWriter, r *http.Request) {
-	back := func(result string) {
-		http.Redirect(w, r, s.cfg.AppURL+"/pos/ajustes?mp="+result, http.StatusFound)
+	back := func(result, reason, detail string) {
+		q := url.Values{"mp": {result}}
+		if reason != "" {
+			q.Set("reason", reason)
+		}
+		if detail != "" {
+			q.Set("detail", truncate(detail, 120))
+		}
+		http.Redirect(w, r, s.cfg.AppURL+"/pos/ajustes?"+q.Encode(), http.StatusFound)
+	}
+	if r.URL.Query().Get("error") != "" || r.URL.Query().Get("code") == "" {
+		back("error", "cancelled", "")
+		return
 	}
 	clinicID, ok := s.verifyState(r.URL.Query().Get("state"))
-	code := r.URL.Query().Get("code")
-	if !ok || code == "" {
-		back("error")
+	if !ok {
+		back("error", "state", "El enlace de conexión caducó o no es válido. Inténtalo de nuevo.")
 		return
 	}
 	var tok struct {
@@ -602,30 +626,38 @@ func (s *Server) pointCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	form := map[string]string{
 		"client_id": s.cfg.MPClientID, "client_secret": s.cfg.MPClientSecret, "grant_type": "authorization_code",
-		"code": code, "redirect_uri": s.oauthRedirect(),
+		"code": r.URL.Query().Get("code"), "redirect_uri": s.oauthRedirect(),
 	}
 	if err := s.mpCall(r.Context(), "", http.MethodPost, "/oauth/token", form, &tok); err != nil || tok.AccessToken == "" {
 		logf(r, "oauth exchange: %v", err)
-		back("error")
+		detail := "Mercado Pago no aceptó la autorización."
+		var me *mpError
+		if errors.As(err, &me) && me.Msg != "" {
+			detail = me.Msg
+		}
+		back("error", "oauth_failed", detail)
 		return
 	}
 	at, err1 := s.seal(tok.AccessToken)
 	rt, err2 := s.seal(tok.RefreshToken)
 	if err1 != nil || err2 != nil {
-		back("error")
+		back("error", "unknown", "")
 		return
 	}
 	expires := time.Now().Add(time.Duration(tok.ExpiresIn) * time.Second)
+	if tok.ExpiresIn == 0 {
+		expires = time.Now().Add(180 * 24 * time.Hour)
+	}
 	if _, err := s.db.Exec(r.Context(), `
 		INSERT INTO mp_accounts (clinic_id, mp_user_id, access_token, refresh_token, expires_at) VALUES ($1,$2,$3,$4,$5)
 		ON CONFLICT (clinic_id) DO UPDATE SET mp_user_id=$2, access_token=$3, refresh_token=$4, expires_at=$5, connected_at=now()`,
 		clinicID, strconv.FormatInt(tok.UserID, 10), at, rt, expires); err != nil {
 		logf(r, "save mp account: %v", err)
-		back("error")
+		back("error", "unknown", "")
 		return
 	}
 	audit(r.Context(), s.db, clinicID, nil, "mp_connected", "Conectó su cuenta de Mercado Pago", nil)
-	back("ok")
+	back("ok", "", "")
 }
 
 func (s *Server) pointDisconnect(w http.ResponseWriter, r *http.Request) {
@@ -680,71 +712,93 @@ func (s *Server) clinicToken(ctx context.Context, clinicID string) (string, erro
 }
 
 // ---------------------------------------------------------------------------
-// Point terminals and payment links
+// Point terminal (Orders API, same flow as MiTiendita) and payment links
 // ---------------------------------------------------------------------------
 
-type pointDevice struct {
+// flexFloat reads a JSON number or a numeric string ("10.50").
+type flexFloat float64
+
+func (f *flexFloat) UnmarshalJSON(b []byte) error {
+	t := strings.Trim(string(b), `"`)
+	if t == "" || t == "null" {
+		*f = 0
+		return nil
+	}
+	v, err := strconv.ParseFloat(t, 64)
+	if err != nil {
+		return err
+	}
+	*f = flexFloat(v)
+	return nil
+}
+
+type mpTerminal struct {
 	ID            string `json:"id"`
+	PosID         any    `json:"pos_id,omitempty"`
+	StoreID       any    `json:"store_id,omitempty"`
+	ExternalPosID string `json:"external_pos_id,omitempty"`
 	OperatingMode string `json:"operating_mode"`
-	PosID         int64  `json:"pos_id"`
-	StoreID       string `json:"store_id"`
 }
 
-func (s *Server) pointDevices(w http.ResponseWriter, r *http.Request) {
-	token, err := s.clinicToken(r.Context(), principalFrom(r.Context()).ClinicID)
-	if err != nil {
-		writeFailure(w, r, err)
-		return
-	}
+func (s *Server) listTerminals(ctx context.Context, token string) ([]mpTerminal, error) {
 	var out struct {
-		Devices []pointDevice `json:"devices"`
+		Data struct {
+			Terminals []mpTerminal `json:"terminals"`
+		} `json:"data"`
+		Terminals []mpTerminal `json:"terminals"`
 	}
-	if err := s.mpCall(r.Context(), token, http.MethodGet, "/point/integration-api/devices", nil, &out); err != nil {
-		providerFailure(w, r, err)
-		return
+	if err := s.mpCall(ctx, token, http.MethodGet, "/terminals/v1/list?limit=50", nil, &out); err != nil {
+		return nil, err
 	}
-	if out.Devices == nil {
-		out.Devices = []pointDevice{}
+	if len(out.Data.Terminals) > 0 {
+		return out.Data.Terminals, nil
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"devices": out.Devices})
+	return out.Terminals, nil
 }
 
-// pointMode switches a terminal to PDV (it only charges what the app sends it).
-func (s *Server) pointMode(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	var req struct {
-		Mode string `json:"mode"`
-	}
-	if !decode(w, r, &req) {
-		return
-	}
-	if req.Mode != "PDV" && req.Mode != "STANDALONE" {
-		writeError(w, http.StatusBadRequest, "Modo inválido.")
-		return
-	}
-	token, err := s.clinicToken(r.Context(), principalFrom(r.Context()).ClinicID)
+func (s *Server) setTerminalMode(ctx context.Context, token, id, mode string) error {
+	body := map[string]any{"terminals": []map[string]string{{"id": id, "operating_mode": mode}}}
+	return s.mpCall(ctx, token, http.MethodPatch, "/terminals/v1/setup", body, nil)
+}
+
+type terminalView struct {
+	mpTerminal
+	Label      string `json:"label"`
+	Registered bool   `json:"registered"`
+}
+
+// pointTerminals lists the Point terminals of the connected account, marking the one the clinic uses.
+func (s *Server) pointTerminals(w http.ResponseWriter, r *http.Request) {
+	p := principalFrom(r.Context())
+	token, err := s.clinicToken(r.Context(), p.ClinicID)
 	if err != nil {
 		writeFailure(w, r, err)
 		return
 	}
-	if err := s.mpCall(r.Context(), token, http.MethodPatch, "/point/integration-api/devices/"+url.PathEscape(id), map[string]string{"operating_mode": req.Mode}, nil); err != nil {
+	list, err := s.listTerminals(r.Context(), token)
+	if err != nil {
 		providerFailure(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	var registered string
+	_ = s.db.QueryRow(r.Context(), `SELECT terminal_id FROM mp_accounts WHERE clinic_id = $1`, p.ClinicID).Scan(&registered)
+	out := make([]terminalView, 0, len(list))
+	for _, t := range list {
+		label := t.ExternalPosID
+		if label == "" {
+			label = t.ID
+		}
+		out = append(out, terminalView{mpTerminal: t, Label: label, Registered: t.ID == registered && registered != ""})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"terminals": out})
 }
 
-func (s *Server) pointCreateIntent(w http.ResponseWriter, r *http.Request) {
+// pointRegister chooses the terminal and puts it in PDV mode, so it only charges what the app sends.
+func (s *Server) pointRegister(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		DeviceID    string `json:"device_id"`
-		AmountCents int    `json:"amount_cents"`
-		Reference   string `json:"reference"`
+		TerminalID string `json:"terminal_id"`
 	}
 	if !decode(w, r, &req) {
-		return
-	}
-	if req.DeviceID == "" || len(req.DeviceID) > 80 || req.AmountCents < 100 || !okCents(req.AmountCents) {
-		writeError(w, http.StatusBadRequest, "Elige la terminal y un monto válido (mínimo $1.00).")
 		return
 	}
 	p := principalFrom(r.Context())
@@ -753,26 +807,153 @@ func (s *Server) pointCreateIntent(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, r, err)
 		return
 	}
+	list, err := s.listTerminals(r.Context(), token)
+	if err != nil {
+		providerFailure(w, r, err)
+		return
+	}
+	var found *mpTerminal
+	for i := range list {
+		if list[i].ID == req.TerminalID && req.TerminalID != "" {
+			found = &list[i]
+		}
+	}
+	if found == nil {
+		writeJSON(w, http.StatusNotFound, errorBody{Code: "terminal_not_found", Message: "Esa terminal no pertenece a tu cuenta de Mercado Pago."})
+		return
+	}
+	if err := s.setTerminalMode(r.Context(), token, found.ID, "PDV"); err != nil {
+		providerFailure(w, r, err)
+		return
+	}
+	label := found.ExternalPosID
+	if label == "" {
+		label = found.ID
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE mp_accounts SET terminal_id = $2, terminal_label = $3 WHERE clinic_id = $1`, p.ClinicID, found.ID, label); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	audit(r.Context(), s.db, p.ClinicID, p, "mp_terminal", "Registró la terminal de Mercado Pago "+label, nil)
+	writeJSON(w, http.StatusOK, map[string]any{"terminal_id": found.ID, "label": label})
+}
+
+type pointState struct {
+	Configured    bool   `json:"configured"` // account connected and terminal chosen
+	Connected     bool   `json:"connected"`
+	OK            bool   `json:"ok"` // can charge right now
+	Code          string `json:"code"`
+	Message       string `json:"message"`
+	TerminalLabel string `json:"terminal_label,omitempty"`
+}
+
+// preflight answers "can we charge on the terminal right now?".
+func (s *Server) preflight(ctx context.Context, clinicID string) pointState {
+	var terminal, label string
+	err := s.db.QueryRow(ctx, `SELECT terminal_id, terminal_label FROM mp_accounts WHERE clinic_id = $1`, clinicID).Scan(&terminal, &label)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pointState{Code: "not_connected", Message: "Conecta tu cuenta de Mercado Pago para cobrar con terminal."}
+	}
+	if err != nil {
+		return pointState{Connected: true, Code: "check_failed", Message: "No pudimos revisar la terminal."}
+	}
+	if terminal == "" {
+		return pointState{Connected: true, Code: "no_terminal", Message: "Elige tu terminal para cobrar con tarjeta."}
+	}
+	st := pointState{Configured: true, Connected: true, TerminalLabel: label}
+	token, err := s.clinicToken(ctx, clinicID)
+	if err != nil {
+		st.Code, st.Message = "check_failed", "No pudimos revisar la terminal."
+		var he *httpError
+		if errors.As(err, &he) {
+			st.Code, st.Message = "not_connected", he.Msg
+		}
+		return st
+	}
+	list, err := s.listTerminals(ctx, token)
+	if err != nil {
+		st.Code, st.Message = "check_failed", "No pudimos hablar con Mercado Pago para revisar la terminal."
+		var me *mpError
+		if errors.As(err, &me) && (me.Status == 401 || me.Status == 403) {
+			st.Code, st.Message = "token_revoked", "Mercado Pago rechazó la conexión. Reconecta tu cuenta."
+		}
+		return st
+	}
+	for _, t := range list {
+		if t.ID != terminal {
+			continue
+		}
+		if t.OperatingMode != "" && t.OperatingMode != "PDV" {
+			if err := s.setTerminalMode(ctx, token, terminal, "PDV"); err != nil {
+				st.Code, st.Message = "check_failed", "No pudimos poner la terminal en modo PDV."
+				return st
+			}
+		}
+		st.OK, st.Code, st.Message = true, "ready", "Terminal lista"
+		return st
+	}
+	st.Code, st.Message = "terminal_missing", "Tu terminal ya no aparece vinculada a tu cuenta. Vuelve a registrarla."
+	return st
+}
+
+func (s *Server) pointStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.preflight(r.Context(), principalFrom(r.Context()).ClinicID))
+}
+
+// pointCharge creates the order on the registered terminal; the sale later "consumes" the approved charge.
+func (s *Server) pointCharge(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AmountCents int `json:"amount_cents"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if req.AmountCents < 100 || !okCents(req.AmountCents) {
+		writeError(w, http.StatusBadRequest, "El monto debe ser de al menos $1.00.")
+		return
+	}
+	p := principalFrom(r.Context())
+	if st := s.preflight(r.Context(), p.ClinicID); !st.OK {
+		writeJSON(w, http.StatusConflict, errorBody{Code: st.Code, Message: st.Message})
+		return
+	}
+	token, err := s.clinicToken(r.Context(), p.ClinicID)
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	var terminal string
+	if err := s.db.QueryRow(r.Context(), `SELECT terminal_id FROM mp_accounts WHERE clinic_id = $1`, p.ClinicID).Scan(&terminal); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	ref := "caresia:" + p.ClinicID[:8] + ":" + strconv.FormatInt(time.Now().Unix(), 10)
-	var out struct {
+	body := map[string]any{
+		"type": "point", "external_reference": ref, "description": "Cobro Caresia",
+		"transactions": map[string]any{"payments": []map[string]string{{"amount": cents(req.AmountCents)}}},
+		"config":       map[string]any{"point": map[string]string{"terminal_id": terminal}, "payment_method": map[string]string{"default_type": "debit_card"}},
+	}
+	var order struct {
 		ID string `json:"id"`
 	}
-	body := map[string]any{"amount": req.AmountCents, "additional_info": map[string]any{"external_reference": ref, "print_on_terminal": true}}
-	if err := s.mpCall(r.Context(), token, http.MethodPost, "/point/integration-api/devices/"+url.PathEscape(req.DeviceID)+"/payment-intents", body, &out); err != nil {
+	if err := s.mpCall(r.Context(), token, http.MethodPost, "/v1/orders", body, &order); err != nil || order.ID == "" {
 		var me *mpError
-		if errors.As(err, &me) && me.Status == 409 {
-			writeError(w, http.StatusConflict, "La terminal tiene un cobro pendiente. Cancélalo en la terminal o espera a que termine.")
+		if errors.As(err, &me) && regexp.MustCompile(`(?i)already has an order|en espera`).MatchString(me.Msg) {
+			writeJSON(w, http.StatusConflict, errorBody{Code: "terminal_busy", Message: "La terminal tiene un cobro pendiente. Termínalo o cancélalo en la terminal."})
 			return
+		}
+		if err == nil {
+			err = errors.New("mercado pago: la orden no trae id")
 		}
 		providerFailure(w, r, err)
 		return
 	}
 	if _, err := s.db.Exec(r.Context(), `INSERT INTO mp_charges (id, clinic_id, kind, device_id, amount_cents, external_ref) VALUES ($1,$2,'point',$3,$4,$5)`,
-		out.ID, p.ClinicID, req.DeviceID, req.AmountCents, ref); err != nil {
+		order.ID, p.ClinicID, terminal, req.AmountCents, ref); err != nil {
 		serverError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"id": out.ID, "status": "open"})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": order.ID, "status": "open"})
 }
 
 type chargeRow struct {
@@ -782,23 +963,90 @@ type chargeRow struct {
 	AmountCents int    `json:"amount_cents"`
 	PayURL      string `json:"pay_url,omitempty"`
 	Used        bool   `json:"used"`
+	Detail      string `json:"detail,omitempty"`
 }
 
-func (s *Server) loadCharge(ctx context.Context, clinicID, id string) (chargeRow, string, string, error) {
+func (s *Server) loadCharge(ctx context.Context, clinicID, id string) (chargeRow, string, error) {
 	var c chargeRow
-	var device, ref string
+	var ref string
 	var sale *string
-	err := s.db.QueryRow(ctx, `SELECT id, kind, status, amount_cents, pay_url, device_id, external_ref, sale_id::text FROM mp_charges WHERE clinic_id=$1 AND id=$2`, clinicID, id).
-		Scan(&c.ID, &c.Kind, &c.Status, &c.AmountCents, &c.PayURL, &device, &ref, &sale)
+	err := s.db.QueryRow(ctx, `SELECT id, kind, status, amount_cents, pay_url, external_ref, sale_id::text FROM mp_charges WHERE clinic_id=$1 AND id=$2`, clinicID, id).
+		Scan(&c.ID, &c.Kind, &c.Status, &c.AmountCents, &c.PayURL, &ref, &sale)
 	c.Used = sale != nil
-	return c, device, ref, err
+	return c, ref, err
 }
 
-// pointIntentStatus polls the terminal's intent and, once finished, confirms the payment with Mercado Pago.
+// syncCharge asks Mercado Pago (the source of truth) what happened and updates the charge. Idempotent.
+func (s *Server) syncCharge(ctx context.Context, clinicID string, c chargeRow, ref string) (chargeRow, error) {
+	if c.Status != "open" {
+		return c, nil
+	}
+	token, err := s.clinicToken(ctx, clinicID)
+	if err != nil {
+		return c, err
+	}
+	switch c.Kind {
+	case "point":
+		var order struct {
+			Status       string `json:"status"`
+			Transactions struct {
+				Payments []struct {
+					ID         string    `json:"id"`
+					Amount     flexFloat `json:"amount"`
+					PaidAmount flexFloat `json:"paid_amount"`
+				} `json:"payments"`
+			} `json:"transactions"`
+		}
+		if err := s.mpCall(ctx, token, http.MethodGet, "/v1/orders/"+url.PathEscape(c.ID), nil, &order); err != nil {
+			return c, err
+		}
+		switch st := strings.ToLower(order.Status); st {
+		case "processed":
+			var paid float64
+			var payID string
+			if len(order.Transactions.Payments) > 0 {
+				pay := order.Transactions.Payments[0]
+				paid, payID = float64(pay.PaidAmount), pay.ID
+				if paid == 0 {
+					paid = float64(pay.Amount)
+				}
+			}
+			if int(paid*100+0.5) != c.AmountCents {
+				c.Status, c.Detail = s.setCharge(ctx, c.ID, "error"), "El monto cobrado en la terminal no coincide con la cuenta."
+				return c, nil
+			}
+			if payID == "" {
+				payID = c.ID
+			}
+			_, _ = s.db.Exec(ctx, `UPDATE mp_charges SET status='approved', mp_payment_id=$3 WHERE clinic_id=$1 AND id=$2 AND status='open'`, clinicID, c.ID, payID)
+			c.Status = "approved"
+		case "failed", "canceled", "cancelled", "expired":
+			c.Status = s.setCharge(ctx, c.ID, "canceled")
+		}
+	case "link":
+		var found struct {
+			Results []struct {
+				ID     int64  `json:"id"`
+				Status string `json:"status"`
+			} `json:"results"`
+		}
+		if err := s.mpCall(ctx, token, http.MethodGet, "/v1/payments/search?external_reference="+url.QueryEscape(ref), nil, &found); err != nil {
+			return c, err
+		}
+		for _, pay := range found.Results {
+			if pay.Status == "approved" {
+				c.Status = s.confirmPayment(ctx, token, clinicID, c.ID, strconv.FormatInt(pay.ID, 10), c.AmountCents)
+				break
+			}
+		}
+	}
+	return c, nil
+}
+
 func (s *Server) chargeStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	p := principalFrom(r.Context())
-	c, device, ref, err := s.loadCharge(r.Context(), p.ClinicID, id)
+	c, ref, err := s.loadCharge(r.Context(), p.ClinicID, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Cobro no encontrado.")
 		return
@@ -807,58 +1055,15 @@ func (s *Server) chargeStatus(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	if c.Status == "open" {
-		token, err := s.clinicToken(r.Context(), p.ClinicID)
-		if err != nil {
+	c, err = s.syncCharge(r.Context(), p.ClinicID, c, ref)
+	if err != nil {
+		var he *httpError
+		if errors.As(err, &he) {
 			writeFailure(w, r, err)
-			return
+		} else {
+			providerFailure(w, r, err)
 		}
-		switch c.Kind {
-		case "point":
-			var in struct {
-				State   string `json:"state"`
-				Payment struct {
-					ID int64 `json:"id"`
-				} `json:"payment"`
-			}
-			if err := s.mpCall(r.Context(), token, http.MethodGet, "/point/integration-api/payment-intents/"+url.PathEscape(id), nil, &in); err != nil {
-				var me *mpError
-				if errors.As(err, &me) && me.Status == 404 {
-					in.State = "CANCELED"
-				} else {
-					providerFailure(w, r, err)
-					return
-				}
-			}
-			switch strings.ToUpper(in.State) {
-			case "FINISHED", "PROCESSED":
-				if in.Payment.ID != 0 {
-					c.Status = s.confirmPayment(r.Context(), token, p.ClinicID, id, strconv.FormatInt(in.Payment.ID, 10), c.AmountCents)
-				}
-			case "CANCELED", "ABANDONED", "EXPIRED":
-				c.Status = s.setCharge(r.Context(), id, "canceled")
-			case "ERROR":
-				c.Status = s.setCharge(r.Context(), id, "error")
-			}
-		case "link":
-			var found struct {
-				Results []struct {
-					ID     int64  `json:"id"`
-					Status string `json:"status"`
-				} `json:"results"`
-			}
-			if err := s.mpCall(r.Context(), token, http.MethodGet, "/v1/payments/search?external_reference="+url.QueryEscape(ref), nil, &found); err != nil {
-				providerFailure(w, r, err)
-				return
-			}
-			for _, pay := range found.Results {
-				if pay.Status == "approved" {
-					c.Status = s.confirmPayment(r.Context(), token, p.ClinicID, id, strconv.FormatInt(pay.ID, 10), c.AmountCents)
-					break
-				}
-			}
-		}
-		_ = device
+		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"charge": c})
 }
@@ -868,7 +1073,7 @@ func (s *Server) setCharge(ctx context.Context, id, status string) string {
 	return status
 }
 
-// confirmPayment re-reads the payment from Mercado Pago before trusting it.
+// confirmPayment re-reads a payment from Mercado Pago before trusting it (payment links).
 func (s *Server) confirmPayment(ctx context.Context, token, clinicID, chargeID, paymentID string, wantCents int) string {
 	var pay struct {
 		Status string  `json:"status"`
@@ -890,10 +1095,11 @@ func (s *Server) confirmPayment(ctx context.Context, token, clinicID, chargeID, 
 	return "open"
 }
 
+// chargeCancel cancels the order on the terminal; if it was paid at that very moment, says so.
 func (s *Server) chargeCancel(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	p := principalFrom(r.Context())
-	c, device, _, err := s.loadCharge(r.Context(), p.ClinicID, id)
+	c, ref, err := s.loadCharge(r.Context(), p.ClinicID, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Cobro no encontrado.")
 		return
@@ -912,16 +1118,66 @@ func (s *Server) chargeCancel(w http.ResponseWriter, r *http.Request) {
 			writeFailure(w, r, err)
 			return
 		}
-		if err := s.mpCall(r.Context(), token, http.MethodDelete, "/point/integration-api/devices/"+url.PathEscape(device)+"/payment-intents/"+url.PathEscape(id), nil, nil); err != nil {
+		// If it can no longer be cancelled, the sync below tells what happened.
+		_ = s.mpCall(r.Context(), token, http.MethodPost, "/v1/orders/"+url.PathEscape(id)+"/cancel", nil, nil)
+		if c, err = s.syncCharge(r.Context(), p.ClinicID, c, ref); err != nil {
+			providerFailure(w, r, err)
+			return
+		}
+		if c.Status == "open" {
+			c.Status = s.setCharge(r.Context(), id, "canceled")
+		}
+	} else {
+		c.Status = s.setCharge(r.Context(), id, "canceled")
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"charge": c})
+}
+
+// refundCharges gives the money back for the Mercado Pago charges of a sale (called when it is voided).
+// It runs before the sale is cancelled and is idempotent: a charge already refunded is skipped.
+func (s *Server) refundCharges(ctx context.Context, clinicID, saleID string) error {
+	rows, err := s.db.Query(ctx, `SELECT id, kind, coalesce(mp_payment_id, '') FROM mp_charges WHERE clinic_id=$1 AND sale_id=$2 AND status='approved' AND refunded_at IS NULL`, clinicID, saleID)
+	if err != nil {
+		return err
+	}
+	type ch struct{ id, kind, pay string }
+	var list []ch
+	for rows.Next() {
+		var c ch
+		if err := rows.Scan(&c.id, &c.kind, &c.pay); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, c)
+	}
+	rows.Close()
+	if len(list) == 0 {
+		return nil
+	}
+	token, err := s.clinicToken(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	for _, c := range list {
+		path := "/v1/orders/" + url.PathEscape(c.id) + "/refund"
+		if c.kind == "link" {
+			path = "/v1/payments/" + url.PathEscape(c.pay) + "/refunds"
+		}
+		if err := s.mpCall(ctx, token, http.MethodPost, path, nil, nil); err != nil {
 			var me *mpError
-			if !errors.As(err, &me) || me.Status != 404 {
-				providerFailure(w, r, err)
-				return
+			if !(errors.As(err, &me) && regexp.MustCompile(`(?i)already.*refund|ya.*reembols|fully refunded`).MatchString(me.Msg)) {
+				msg := "Mercado Pago no pudo devolver el dinero"
+				if me != nil && me.Msg != "" {
+					msg += ": " + me.Msg
+				}
+				return &httpError{Status: http.StatusBadGateway, Code: "refund_failed", Msg: msg + ". La venta no se canceló."}
 			}
 		}
+		if _, err := s.db.Exec(ctx, `UPDATE mp_charges SET refunded_at = now() WHERE id = $1`, c.id); err != nil {
+			return err
+		}
 	}
-	s.setCharge(r.Context(), id, "canceled")
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	return nil
 }
 
 // linkCreate makes a Checkout Pro link the patient can pay from their phone (QR on the screen).
@@ -1003,4 +1259,20 @@ func claimCharge(ctx context.Context, tx pgx.Tx, clinicID, kind, id string, amou
 		return *payID, nil
 	}
 	return id, nil
+}
+
+// syncOrderFromWebhook refreshes a terminal charge when Mercado Pago announces a change.
+// The polling POS screen would find out anyway; this just makes it faster and survives a closed tab.
+func (s *Server) syncOrderFromWebhook(ctx context.Context, orderID string) {
+	var clinicID, ref string
+	if err := s.db.QueryRow(ctx, `SELECT clinic_id::text, external_ref FROM mp_charges WHERE id = $1 AND status = 'open'`, orderID).Scan(&clinicID, &ref); err != nil {
+		return
+	}
+	c, _, err := s.loadCharge(ctx, clinicID, orderID)
+	if err != nil {
+		return
+	}
+	if _, err := s.syncCharge(ctx, clinicID, c, ref); err != nil {
+		log.Printf("order webhook: %v", err)
+	}
 }

@@ -51,6 +51,7 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 		r.Post("/reset-password", s.resetPassword)
 		// Called by Mercado Pago, not by a browser session: authenticity comes from the signature and a re-fetch.
 		r.Post("/webhooks/mercadopago", s.mpWebhook)
+		r.Post("/point/webhook", s.mpWebhook) // same handler, the URL MiTiendita uses
 		r.Get("/point/oauth/callback", s.pointCallback)
 
 		r.Group(func(r chi.Router) {
@@ -126,9 +127,10 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 
 						r.With(require(PermPOSManage)).Get("/point/connect", s.pointConnect)
 						r.With(require(PermPOSManage)).Post("/point/disconnect", s.pointDisconnect)
-						r.With(require(PermPOS)).Get("/point/devices", s.pointDevices)
-						r.With(require(PermPOSManage)).Patch("/point/devices/{id}", s.pointMode)
-						r.With(require(PermPOS)).Post("/point/intents", s.pointCreateIntent)
+						r.With(require(PermPOS)).Get("/point/status", s.pointStatus)
+						r.With(require(PermPOSManage)).Get("/point/terminals", s.pointTerminals)
+						r.With(require(PermPOSManage)).Post("/point/terminal", s.pointRegister)
+						r.With(require(PermPOS)).Post("/point/charges", s.pointCharge)
 						r.With(require(PermPOS)).Post("/mp/links", s.linkCreate)
 						r.With(require(PermPOS)).Get("/charges/{id}", s.chargeStatus)
 						r.With(require(PermPOS)).Delete("/charges/{id}", s.chargeCancel)

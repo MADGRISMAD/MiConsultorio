@@ -5,7 +5,7 @@
   import { api, ApiError } from '$lib/api';
   import { moneyCents } from '$lib/format';
   import { toast } from '$lib/toast.svelte';
-  import { PAY_METHODS, type PayMethod, type PointDevice, type PosSettings, type SalePaymentInput } from '$lib/types';
+  import { PAY_METHODS, type PayMethod, type PointState, type PosSettings, type SalePaymentInput } from '$lib/types';
   import MoneyInput from './MoneyInput.svelte';
   import QrCode from './QrCode.svelte';
 
@@ -41,9 +41,8 @@
   let formError = $state('');
 
   // Mercado Pago
-  let devices = $state<PointDevice[]>([]);
-  let devicesLoaded = $state(false);
-  let deviceId = $state('');
+  let pointState = $state<PointState | null>(null);
+  let pointLoaded = $state(false);
   let charge = $state<LiveCharge | null>(null);
   let starting = $state(false);
   let mpError = $state('');
@@ -89,23 +88,27 @@
     if (!methods.includes(method)) method = methods[0];
   });
   $effect(() => {
-    if (open && method === 'mp_point' && !devicesLoaded) untrack(loadDevices);
+    if (open && method === 'mp_point' && !pointLoaded) untrack(loadPoint);
   });
 
-  async function loadDevices() {
-    devicesLoaded = true;
+  /** Is the account connected and the terminal ready? Same check MiTiendita runs before charging. */
+  async function loadPoint() {
+    pointLoaded = true;
     try {
-      devices = await api.pos.pointDevices();
-      if (!deviceId && devices.length) deviceId = devices[0].id;
+      pointState = await api.pos.pointStatus();
+      mpMissing = !pointState.ok && ['not_connected', 'no_terminal', 'terminal_missing', 'token_revoked'].includes(pointState.code);
     } catch (e) {
-      devicesLoaded = false;
+      pointLoaded = false;
       handleMpError(e);
     }
   }
 
+  const NEEDS_SETTINGS = ['MP_NOT_CONNECTED', 'not_connected', 'no_terminal', 'terminal_missing', 'token_revoked'];
   function handleMpError(e: unknown) {
-    if (e instanceof ApiError && e.code === 'MP_NOT_CONNECTED') mpMissing = true;
-    else mpError = e instanceof Error ? e.message : 'No se pudo conectar con Mercado Pago.';
+    if (e instanceof ApiError && NEEDS_SETTINGS.includes(e.code)) {
+      mpMissing = true;
+      mpError = e.message;
+    } else mpError = e instanceof Error ? e.message : 'No se pudo conectar con Mercado Pago.';
   }
 
   function addLine(line: SalePaymentInput) {
@@ -167,11 +170,10 @@
     mpError = '';
     if (!amount || amount <= 0) return void (formError = 'Escribe el monto a cobrar.');
     if (amount > remaining) return void (formError = `El monto supera lo que falta (${moneyCents(remaining)}).`);
-    if (method === 'mp_point' && !deviceId) return void (formError = 'Elige la terminal.');
     starting = true;
     try {
       if (method === 'mp_point') {
-        const r = await api.pos.pointCharge(deviceId, amount);
+        const r = await api.pos.pointCharge(amount);
         charge = { id: r.id, kind: 'point', amount, status: 'open' };
       } else {
         const r = await api.pos.payLink(amount, `Cobro ${settings.business_name || 'Caresia'}`);
@@ -311,18 +313,13 @@
           {:else}
             <MoneyInput id="{uid}-amt" label="Monto" bind:cents={amount} onenter={startCharge} />
             {#if method === 'mp_point'}
-              <div>
-                <label class="label" for="{uid}-dev">Terminal</label>
-                {#if devicesLoaded && !devices.length && !mpMissing}
-                  <p class="text-sm text-app-muted">No hay terminales vinculadas. Vincúlalas en <a class="underline" href="/pos/ajustes">Ajustes de cobros</a>.</p>
-                {:else}
-                  <select id="{uid}-dev" class="field" bind:value={deviceId} disabled={!devices.length}>
-                    {#each devices as d (d.id)}<option value={d.id}>{d.id}{d.operating_mode ? ` · ${d.operating_mode}` : ''}</option>{/each}
-                  </select>
-                {/if}
-              </div>
+              {#if pointState?.ok}
+                <p class="flex items-center gap-2 text-sm text-app-muted"><Icon name="check" size={16} class="text-app-accent" />Terminal lista{pointState.terminal_label ? `: ${pointState.terminal_label}` : ''}</p>
+              {:else if pointState}
+                <p class="alert" role="alert"><Icon name="alert" size={18} />{pointState.message} <a class="underline" href="/pos/ajustes">Ir a Ajustes de cobros</a></p>
+              {/if}
             {/if}
-            <button type="button" class="btn-primary btn-lg min-h-12" disabled={starting || mpMissing || (method === 'mp_point' && !deviceId)} onclick={startCharge}>
+            <button type="button" class="btn-primary btn-lg min-h-12" disabled={starting || mpMissing || (method === 'mp_point' && !!pointState && !pointState.ok)} onclick={startCharge}>
               {#if starting}<span class="spin"></span>{/if}{method === 'mp_point' ? 'Enviar cobro a la terminal' : 'Generar liga de pago'}
             </button>
           {/if}

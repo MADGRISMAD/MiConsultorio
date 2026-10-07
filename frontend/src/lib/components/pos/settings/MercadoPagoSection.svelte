@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { api, ApiError } from '$lib/api';
+  import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { PointDevice, ProviderStatus } from '$lib/types';
+  import type { PointState, PointTerminal, ProviderStatus } from '$lib/types';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Pill from '$lib/components/ui/Pill.svelte';
@@ -16,27 +16,31 @@
 
   const connectOp = new Op();
   const disconnectOp = new Op();
-  const modeOp = new Op();
+  const registerOp = new Op();
   let confirmOff = $state(false);
-  let devices = $state<PointDevice[]>([]);
-  let devLoading = $state(false);
-  let devError = $state('');
-  let switching = $state('');
+  let terminals = $state<PointTerminal[]>([]);
+  let ready = $state<PointState | null>(null);
+  let loading = $state(false);
+  let loadError = $state('');
+  let choosing = $state('');
 
-  async function loadDevices() {
-    devLoading = true;
-    devError = '';
+  async function load() {
+    loading = true;
+    loadError = '';
     try {
-      devices = await api.pos.pointDevices();
+      [terminals, ready] = await Promise.all([api.pos.pointTerminals(), api.pos.pointStatus()]);
     } catch (e) {
-      devError = e instanceof Error ? e.message : 'No se pudieron cargar las terminales.';
+      loadError = e instanceof Error ? e.message : 'No se pudieron cargar las terminales.';
     } finally {
-      devLoading = false;
+      loading = false;
     }
   }
   $effect(() => {
-    if (providers.point_connected) void loadDevices();
-    else devices = [];
+    if (providers.point_connected) void load();
+    else {
+      terminals = [];
+      ready = null;
+    }
   });
 
   async function connect() {
@@ -50,15 +54,15 @@
       onchanged();
     }
   }
-  async function toPdv(d: PointDevice) {
-    switching = d.id;
-    if (await modeOp.run(() => api.pos.pointMode(d.id, 'PDV'))) {
-      toast.show('Terminal en modo PDV. Si no cambia sola, reiníciala.');
-      await loadDevices();
+  async function use(t: PointTerminal) {
+    choosing = t.id;
+    if (await registerOp.run(() => api.pos.pointRegister(t.id))) {
+      toast.show('Terminal registrada y en modo PDV');
+      await load();
     }
-    switching = '';
+    choosing = '';
   }
-  const modeLabel = (m: string) => (m === 'PDV' ? 'Modo PDV' : m === 'STANDALONE' ? 'Modo independiente' : m || 'Desconocido');
+  const modeLabel = (m: string) => (m === 'PDV' ? 'Modo PDV' : m === 'STANDALONE' ? 'Modo independiente' : m || 'Modo desconocido');
 </script>
 
 <section class="card p-6">
@@ -90,33 +94,43 @@
 
     <div class="mt-5">
       <div class="flex items-center justify-between gap-2">
-        <h3 class="text-sm font-semibold">Terminales Point</h3>
-        <button type="button" class="icon-btn" aria-label="Actualizar terminales" onclick={loadDevices}><Icon name="refresh" size={18} /></button>
+        <h3 class="text-sm font-semibold">Terminal Point</h3>
+        <button type="button" class="icon-btn" aria-label="Actualizar terminales" onclick={load}><Icon name="refresh" size={18} /></button>
       </div>
-      {#if devLoading && !devices.length}
+      {#if ready}
+        <p class="mt-2 flex items-start gap-2 text-sm {ready.ok ? 'text-app-accent' : 'text-app-muted'}">
+          <Icon name={ready.ok ? 'check' : 'info'} size={18} class="mt-px flex-none" />
+          <span>{ready.ok ? `Lista para cobrar${ready.terminal_label ? ` en ${ready.terminal_label}` : ''}.` : ready.message}</span>
+        </p>
+      {/if}
+      {#if loading && !terminals.length}
         <div class="mt-2 h-12 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
-      {:else if devError}
-        <p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{devError}</p>
-      {:else if !devices.length}
+      {:else if loadError}
+        <p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+      {:else if !terminals.length}
         <p class="mt-2 text-sm text-app-muted">No encontramos terminales vinculadas a tu cuenta. Vincula tu Point desde la app de Mercado Pago y actualiza.</p>
       {:else}
         <ul class="mt-2 divide-y divide-app-ink/10 rounded-xl border border-app-ink/10">
-          {#each devices as d (d.id)}
+          {#each terminals as t (t.id)}
             <li class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
               <div class="min-w-0">
-                <p class="truncate font-mono text-[13px]">{d.id}</p>
-                <p class="mt-0.5"><Pill tone={d.operating_mode === 'PDV' ? 'ok' : 'warn'}>{modeLabel(d.operating_mode)}</Pill></p>
+                <p class="truncate font-medium">{t.label}</p>
+                <p class="truncate font-mono text-[12px] text-app-muted">{t.id}</p>
+                <p class="mt-1 flex flex-wrap gap-1.5">
+                  {#if t.registered}<Pill tone="ok">En uso</Pill>{/if}
+                  <Pill tone={t.operating_mode === 'PDV' ? 'ok' : 'warn'}>{modeLabel(t.operating_mode)}</Pill>
+                </p>
               </div>
-              {#if d.operating_mode !== 'PDV'}
-                <button type="button" class="btn-secondary" disabled={!!switching} onclick={() => toPdv(d)}>
-                  {#if switching === d.id}<span class="spin"></span>{/if}Cambiar a modo PDV
+              {#if !t.registered}
+                <button type="button" class="btn-secondary" disabled={!!choosing} onclick={() => use(t)}>
+                  {#if choosing === t.id}<span class="spin"></span>{/if}Usar esta terminal
                 </button>
               {/if}
             </li>
           {/each}
         </ul>
-        {#if modeOp.phase === 'error'}<p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{modeOp.message}</p>{/if}
-        <p class="hint">En modo PDV la terminal recibe el monto desde Caresia y solo falta que el paciente pase su tarjeta. En modo independiente se captura el monto a mano en la terminal y Caresia no puede enviarle cobros.</p>
+        {#if registerOp.phase === 'error'}<p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{registerOp.message}</p>{/if}
+        <p class="hint">Al elegirla, la terminal pasa a modo PDV: recibe el monto desde Caresia y solo falta que el paciente pase su tarjeta. Cancelar una venta pagada con la terminal devuelve el dinero en Mercado Pago.</p>
       {/if}
     </div>
   {/if}

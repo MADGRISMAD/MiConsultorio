@@ -36,6 +36,7 @@ type Config struct {
 	MPAccessToken, MPPublicKey, MPWebhookSecret string
 	MPClientID, MPClientSecret, MPOAuthRedirect string
 	MPAPIBase                                   string // override in tests
+	MPAuthBase                                  string // where the owner authorizes the connection (country site)
 	MPCurrency                                  string
 	MPSandbox                                   bool
 	PlanPriceMonth, PlanPriceYear               map[string]int // MXN overrides per plan id
@@ -72,10 +73,12 @@ func Load() (*Config, error) {
 		ClinicAdminPassword: first("CLINIC_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
 	}
 	c.AppURL = strings.TrimRight(os.Getenv("APP_URL"), "/")
-	c.APIPublicURL = strings.TrimRight(os.Getenv("API_PUBLIC_URL"), "/")
+	// API_PUBLIC_URL is the server's address WITHOUT "/api" (routes add it); accept it with the suffix too.
+	c.APIPublicURL = strings.TrimSuffix(strings.TrimRight(os.Getenv("API_PUBLIC_URL"), "/"), "/api")
 	c.MPAccessToken, c.MPPublicKey, c.MPWebhookSecret = os.Getenv("MP_ACCESS_TOKEN"), os.Getenv("MP_PUBLIC_KEY"), os.Getenv("MP_WEBHOOK_SECRET")
 	c.MPClientID, c.MPClientSecret, c.MPOAuthRedirect = os.Getenv("MP_CLIENT_ID"), os.Getenv("MP_CLIENT_SECRET"), os.Getenv("MP_OAUTH_REDIRECT")
 	c.MPAPIBase = strings.TrimRight(env("MP_API_BASE", "https://api.mercadopago.com"), "/")
+	c.MPAuthBase = strings.TrimRight(env("MP_AUTH_BASE", "https://auth.mercadopago.com.mx"), "/")
 	c.MPCurrency = env("MP_CURRENCY", "MXN")
 	c.MPSandbox = env("MP_SANDBOX", "false") == "true"
 	c.PlanPriceMonth, c.PlanPriceYear = map[string]int{}, map[string]int{}

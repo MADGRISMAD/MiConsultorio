@@ -483,6 +483,18 @@ func (s *Server) voidSale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	// Card money goes back first (idempotent); if Mercado Pago refuses, the sale stays as it was.
+	var st string
+	if err := s.db.QueryRow(r.Context(), `SELECT status FROM sales WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id).Scan(&st); err == nil && st == "paid" {
+		var invoiced bool
+		_ = s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM invoice_requests WHERE sale_id=$1 AND status='issued')`, id).Scan(&invoiced)
+		if !invoiced {
+			if err := s.refundCharges(r.Context(), p.ClinicID, id); err != nil {
+				writeFailure(w, r, err)
+				return
+			}
+		}
+	}
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		var status string
 		var folio int

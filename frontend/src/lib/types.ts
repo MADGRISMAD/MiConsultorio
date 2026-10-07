@@ -546,11 +546,21 @@ export interface StockMovement {
   created_at: string;
 }
 
-export interface PointDevice {
+export interface PointTerminal {
   id: string;
+  label: string;
   operating_mode: string;
-  pos_id: number;
-  store_id: string;
+  registered: boolean;
+}
+
+/** Whether the clinic can charge on its Point terminal right now (like MiTiendita's /point/status). */
+export interface PointState {
+  configured: boolean;
+  connected: boolean;
+  ok: boolean;
+  code: string;
+  message: string;
+  terminal_label?: string;
 }
 
 export interface Charge {

@@ -239,11 +239,15 @@ func TestPOSIsolationBetweenClinics(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 type fakeMP struct {
-	mu       sync.Mutex
-	payments map[string]map[string]any // id -> payment
-	intents  map[string]map[string]any
-	prefs    int
-	canceled []string
+	mu               sync.Mutex
+	payments         map[string]map[string]any // id -> payment
+	intents          map[string]map[string]any
+	prefs            int
+	canceled         []string
+	refunded         []string
+	mode             string
+	setups           int
+	busy, refundFail bool
 }
 
 func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
@@ -274,17 +278,6 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 		}
 		reply(w, map[string]any{"results": res})
 	})
-	mux.HandleFunc("/v1/payments/", func(w http.ResponseWriter, r *http.Request) {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		p, ok := f.payments[strings.TrimPrefix(r.URL.Path, "/v1/payments/")]
-		if !ok {
-			w.WriteHeader(404)
-			reply(w, map[string]any{"message": "not found"})
-			return
-		}
-		reply(w, p)
-	})
 	mux.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]string
 		_ = json.NewDecoder(r.Body).Decode(&body)
@@ -295,37 +288,89 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 		}
 		reply(w, map[string]any{"access_token": "clinic-token", "refresh_token": "clinic-refresh", "expires_in": 15552000, "user_id": 424242})
 	})
-	mux.HandleFunc("/point/integration-api/devices", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/terminals/v1/list", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer clinic-token" {
 			w.WriteHeader(401)
 			return
 		}
-		reply(w, map[string]any{"devices": []any{map[string]any{"id": "PAX_A910__SN1", "operating_mode": "PDV", "pos_id": 1, "store_id": "s1"}}})
-	})
-	mux.HandleFunc("/point/integration-api/devices/", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		switch {
-		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/payment-intents"):
-			id := fmt.Sprintf("intent-%d", len(f.intents)+1)
-			f.intents[id] = map[string]any{"id": id, "state": "OPEN"}
-			reply(w, map[string]any{"id": id})
-		case r.Method == "DELETE":
-			f.canceled = append(f.canceled, r.URL.Path)
-			w.WriteHeader(200)
-		default:
-			reply(w, map[string]any{})
+		mode := f.mode
+		if mode == "" {
+			mode = "PDV"
 		}
+		reply(w, map[string]any{"data": map[string]any{"terminals": []any{map[string]any{"id": "PAX_A910__SN1", "operating_mode": mode, "external_pos_id": "CAJA1"}}}})
 	})
-	mux.HandleFunc("/point/integration-api/payment-intents/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/terminals/v1/setup", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		in, ok := f.intents[strings.TrimPrefix(r.URL.Path, "/point/integration-api/payment-intents/")]
-		if !ok {
-			w.WriteHeader(404)
+		f.setups++
+		f.mode = "PDV"
+		reply(w, map[string]any{})
+	})
+	mux.HandleFunc("/v1/orders", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.busy {
+			w.WriteHeader(409)
+			reply(w, map[string]any{"message": "The terminal already has an order"})
 			return
 		}
-		reply(w, in)
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		id := fmt.Sprintf("ord-%d", len(f.intents)+1)
+		pays := body["transactions"].(map[string]any)["payments"].([]any)
+		f.intents[id] = map[string]any{"id": id, "status": "created", "amount": pays[0].(map[string]any)["amount"], "terminal": body["config"].(map[string]any)["point"].(map[string]any)["terminal_id"]}
+		w.WriteHeader(201)
+		reply(w, map[string]any{"id": id, "status": "created"})
+	})
+	mux.HandleFunc("/v1/orders/", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		rest := strings.TrimPrefix(r.URL.Path, "/v1/orders/")
+		id, action, _ := strings.Cut(rest, "/")
+		in, ok := f.intents[id]
+		if !ok {
+			w.WriteHeader(404)
+			reply(w, map[string]any{"message": "order not found"})
+			return
+		}
+		switch action {
+		case "cancel":
+			f.canceled = append(f.canceled, id)
+			in["status"] = "canceled"
+			reply(w, in)
+		case "refund":
+			if f.refundFail {
+				w.WriteHeader(400)
+				reply(w, map[string]any{"message": "refund not allowed"})
+				return
+			}
+			f.refunded = append(f.refunded, "order:"+id)
+			reply(w, map[string]any{})
+		default:
+			reply(w, in)
+		}
+	})
+	mux.HandleFunc("/v1/payments/", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		rest := strings.TrimPrefix(r.URL.Path, "/v1/payments/")
+		if id, ok := strings.CutSuffix(rest, "/refunds"); ok && r.Method == "POST" {
+			f.refunded = append(f.refunded, "payment:"+id)
+			reply(w, map[string]any{})
+			return
+		}
+		if rest == "search" {
+			return
+		}
+		p, ok := f.payments[rest]
+		if !ok {
+			w.WriteHeader(404)
+			reply(w, map[string]any{"message": "not found"})
+			return
+		}
+		reply(w, p)
 	})
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -431,36 +476,43 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	fake, srv := newFakeMP(t)
 	e := setupWith(t, func(c *config.Config) {
 		c.MPAPIBase, c.MPClientID, c.MPClientSecret = srv.URL, "client", "secret"
+		c.MPAuthBase = "https://auth.mercadopago.com.mx"
 	})
 	admin, cash := e.login("admin_a"), e.login("cash_a")
 
 	// not connected yet
-	if code, out := cash.do("GET", "/api/pos/point/devices", nil); code != 409 || out["code"] != "MP_NOT_CONNECTED" {
-		t.Fatalf("devices before connecting: %d %v", code, out)
+	if st := cash.expect(200, "GET", "/api/pos/point/status", nil); st["code"] != "not_connected" || st["ok"] != false {
+		t.Fatalf("status before connecting: %v", st)
+	}
+	if code, out := cash.do("POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000}); code != 409 || out["code"] != "not_connected" {
+		t.Fatalf("charging before connecting: %d %v", code, out)
 	}
 	cash.expect(403, "GET", "/api/pos/point/connect", nil)
 	u, err := url.Parse(admin.expect(200, "GET", "/api/pos/point/connect", nil)["url"].(string))
-	if err != nil || u.Host != "auth.mercadopago.com" || u.Query().Get("client_id") != "client" {
+	if err != nil || u.Host != "auth.mercadopago.com.mx" || u.Query().Get("client_id") != "client" || u.Query().Get("redirect_uri") != "http://api.test/api/point/oauth/callback" {
 		t.Fatalf("connect url: %v %v", u, err)
 	}
 	state := u.Query().Get("state")
 
 	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	callback := func(code, st string) string {
-		res, err := noRedirect.Get(e.srv.URL + "/api/point/oauth/callback?code=" + code + "&state=" + url.QueryEscape(st))
+	callback := func(q string) string {
+		res, err := noRedirect.Get(e.srv.URL + "/api/point/oauth/callback?" + q)
 		if err != nil {
 			t.Fatal(err)
 		}
 		res.Body.Close()
 		return res.Header.Get("Location")
 	}
-	if loc := callback("good-code", "forged.state"); !strings.HasSuffix(loc, "mp=error") {
-		t.Fatalf("forged state must fail: %s", loc)
+	if loc := callback("code=good-code&state=" + url.QueryEscape("forged.state")); !strings.Contains(loc, "mp=error") || !strings.Contains(loc, "reason=state") {
+		t.Fatalf("forged state must fail with a reason: %s", loc)
 	}
-	if loc := callback("bad-code", state); !strings.HasSuffix(loc, "mp=error") {
-		t.Fatalf("bad code must fail: %s", loc)
+	if loc := callback("code=bad-code&state=" + url.QueryEscape(state)); !strings.Contains(loc, "reason=oauth_failed") || !strings.Contains(loc, "detail=invalid+code") {
+		t.Fatalf("a rejected code must say why: %s", loc)
 	}
-	if loc := callback("good-code", state); loc != "http://app.test/pos/ajustes?mp=ok" {
+	if loc := callback("error=access_denied&state=" + url.QueryEscape(state)); !strings.Contains(loc, "reason=cancelled") {
+		t.Fatalf("cancelling on Mercado Pago: %s", loc)
+	}
+	if loc := callback("code=good-code&state=" + url.QueryEscape(state)); loc != "http://app.test/pos/ajustes?mp=ok" {
 		t.Fatalf("callback: %s", loc)
 	}
 	// tokens are encrypted at rest
@@ -471,59 +523,139 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	if sub(admin.expect(200, "GET", "/api/pos/settings", nil), "providers")["point_connected"] != true {
 		t.Fatal("providers must report the connection")
 	}
-	if n := len(cash.expect(200, "GET", "/api/pos/point/devices", nil)["devices"].([]any)); n != 1 {
-		t.Fatalf("devices: %d", n)
+
+	// connected but no terminal chosen
+	if st := cash.expect(200, "GET", "/api/pos/point/status", nil); st["code"] != "no_terminal" || st["connected"] != true {
+		t.Fatalf("status without terminal: %v", st)
+	}
+	cash.expect(403, "GET", "/api/pos/point/terminals", nil)
+	terms := admin.expect(200, "GET", "/api/pos/point/terminals", nil)["terminals"].([]any)
+	if len(terms) != 1 || terms[0].(map[string]any)["label"] != "CAJA1" || terms[0].(map[string]any)["registered"] != false {
+		t.Fatalf("terminals: %v", terms)
+	}
+	admin.expect(404, "POST", "/api/pos/point/terminal", map[string]any{"terminal_id": "OTRA"})
+	admin.expect(200, "POST", "/api/pos/point/terminal", map[string]any{"terminal_id": "PAX_A910__SN1"})
+	if fake.setups != 1 {
+		t.Fatalf("registering must put the terminal in PDV mode, setups=%d", fake.setups)
+	}
+	if st := cash.expect(200, "GET", "/api/pos/point/status", nil); st["ok"] != true || st["terminal_label"] != "CAJA1" {
+		t.Fatalf("ready status: %v", st)
+	}
+	// a terminal that drifted out of PDV mode is fixed before charging
+	fake.mu.Lock()
+	fake.mode = "STANDALONE"
+	fake.mu.Unlock()
+	cash.expect(200, "GET", "/api/pos/point/status", nil)
+	if fake.setups != 2 {
+		t.Fatalf("a terminal outside PDV must be switched back, setups=%d", fake.setups)
 	}
 
-	// enable the method, sell with the terminal
+	// enable the methods, sell with the terminal
 	set := sub(admin.expect(200, "GET", "/api/pos/settings", nil), "settings")
 	set["methods"] = []any{"cash", "card", "transfer", "mp_point", "mp_link"}
 	admin.expect(200, "PUT", "/api/pos/settings", set)
 	svc := newItem(admin, map[string]any{"kind": "service", "name": "Consulta", "price_cents": 50000})
 	cash.expect(201, "POST", "/api/pos/cash/open", map[string]any{"opening_cents": 0})
-	sale := func(intent string) (int, map[string]any) {
+	sale := func(intent string, amount int) (int, map[string]any) {
 		return cash.do("POST", "/api/pos/sales", map[string]any{"lines": []map[string]any{{"item_id": svc, "qty": 1}},
-			"payments": []map[string]any{{"method": "mp_point", "amount_cents": 50000, "intent_id": intent}}})
+			"payments": []map[string]any{{"method": "mp_point", "amount_cents": amount, "intent_id": intent}}})
 	}
 
-	cash.expect(400, "POST", "/api/pos/point/intents", map[string]any{"device_id": "PAX_A910__SN1", "amount_cents": 5})
-	in := cash.expect(201, "POST", "/api/pos/point/intents", map[string]any{"device_id": "PAX_A910__SN1", "amount_cents": 50000})
+	cash.expect(400, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 5})
+	fake.mu.Lock()
+	fake.busy = true
+	fake.mu.Unlock()
+	if code, out := cash.do("POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000}); code != 409 || out["code"] != "terminal_busy" {
+		t.Fatalf("busy terminal: %d %v", code, out)
+	}
+	fake.mu.Lock()
+	fake.busy = false
+	fake.mu.Unlock()
+	in := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000})
 	iid := in["id"].(string)
-	if code, _ := sale(iid); code != 409 {
+	if code, _ := sale(iid, 50000); code != 409 {
 		t.Fatalf("an unapproved terminal payment must not close a sale, got %d", code)
 	}
 	if st := sub(cash.expect(200, "GET", "/api/pos/charges/"+iid, nil), "charge")["status"]; st != "open" {
 		t.Fatalf("status: %v", st)
 	}
-	fake.addPayment("777", "x", 500, "approved")
+	// the terminal reports a different amount than asked: flagged, never approved
 	fake.mu.Lock()
-	fake.intents[iid] = map[string]any{"id": iid, "state": "FINISHED", "payment": map[string]any{"id": 777}}
+	fake.intents[iid]["status"] = "processed"
+	fake.intents[iid]["transactions"] = map[string]any{"payments": []any{map[string]any{"id": "777", "amount": "500.00", "paid_amount": "400.00"}}}
+	fake.mu.Unlock()
+	if st := sub(cash.expect(200, "GET", "/api/pos/charges/"+iid, nil), "charge")["status"]; st != "error" {
+		t.Fatalf("a mismatching amount must not be approved, got %v", st)
+	}
+	in = cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000})
+	iid = in["id"].(string)
+	fake.mu.Lock()
+	fake.intents[iid]["status"] = "processed"
+	fake.intents[iid]["transactions"] = map[string]any{"payments": []any{map[string]any{"id": "778", "amount": "500.00", "paid_amount": "500.00"}}}
 	fake.mu.Unlock()
 	if st := sub(cash.expect(200, "GET", "/api/pos/charges/"+iid, nil), "charge")["status"]; st != "approved" {
-		t.Fatalf("a finished, approved intent must be approved, got %v", st)
+		t.Fatalf("a processed order for the right amount must be approved, got %v", st)
 	}
-	if code, out := sale("nope"); code != 400 {
+	if code, out := sale("nope", 50000); code != 400 {
 		t.Fatalf("unknown intent: %d %v", code, out)
 	}
-	if code, out := cash.do("POST", "/api/pos/sales", map[string]any{"lines": []map[string]any{{"item_id": svc, "qty": 1}},
-		"payments": []map[string]any{{"method": "mp_point", "amount_cents": 40000, "intent_id": iid}}}); code != 400 {
+	if code, out := sale(iid, 40000); code != 400 {
 		t.Fatalf("a different amount must be rejected: %d %v", code, out)
 	}
-	code, out := sale(iid)
-	if code != 201 || sub(out, "sale")["payments"].([]any)[0].(map[string]any)["reference"] != "777" {
+	code, out := sale(iid, 50000)
+	if code != 201 || sub(out, "sale")["payments"].([]any)[0].(map[string]any)["reference"] != "778" {
 		t.Fatalf("sale with the terminal: %d %v", code, out)
 	}
-	if code, _ := sale(iid); code != 409 {
+	if code, _ := sale(iid, 50000); code != 409 {
 		t.Fatalf("a terminal payment must be usable once, got %d", code)
 	}
 
-	// cancel an open intent
-	in2 := cash.expect(201, "POST", "/api/pos/point/intents", map[string]any{"device_id": "PAX_A910__SN1", "amount_cents": 1000})
-	cash.expect(200, "DELETE", "/api/pos/charges/"+in2["id"].(string), nil)
+	// voiding the sale refunds the card; if Mercado Pago refuses, the sale stays
+	sid := sub(out, "sale")["id"].(string)
+	fake.mu.Lock()
+	fake.refundFail = true
+	fake.mu.Unlock()
+	if code, o := admin.do("POST", "/api/pos/sales/"+sid+"/void", map[string]any{"reason": "Error"}); code != 502 || o["code"] != "refund_failed" {
+		t.Fatalf("a refused refund must stop the void: %d %v", code, o)
+	}
+	if st := sub(admin.expect(200, "GET", "/api/pos/sales/"+sid, nil), "sale")["status"]; st != "paid" {
+		t.Fatalf("the sale must stay paid after a failed refund, got %v", st)
+	}
+	fake.mu.Lock()
+	fake.refundFail = false
+	fake.mu.Unlock()
+	admin.expect(200, "POST", "/api/pos/sales/"+sid+"/void", map[string]any{"reason": "Error"})
+	if len(fake.refunded) != 1 || fake.refunded[0] != "order:"+iid {
+		t.Fatalf("the order must be refunded exactly once: %v", fake.refunded)
+	}
+
+	// cancel an open charge
+	in2 := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 1000})
+	if st := sub(cash.expect(200, "DELETE", "/api/pos/charges/"+in2["id"].(string), nil), "charge")["status"]; st != "canceled" {
+		t.Fatalf("cancel: %v", st)
+	}
 	if len(fake.canceled) != 1 {
 		t.Fatalf("the terminal must be told to cancel: %v", fake.canceled)
 	}
 	cash.expect(409, "DELETE", "/api/pos/charges/"+in2["id"].(string), nil)
+
+	// the order webhook refreshes a charge without anyone polling
+	in3 := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 2000})
+	fake.mu.Lock()
+	fake.intents[in3["id"].(string)]["status"] = "processed"
+	fake.intents[in3["id"].(string)]["transactions"] = map[string]any{"payments": []any{map[string]any{"id": "900", "amount": "20.00", "paid_amount": "20.00"}}}
+	fake.mu.Unlock()
+	body, _ := json.Marshal(map[string]any{"type": "order", "data": map[string]any{"id": in3["id"]}})
+	res, err := http.Post(e.srv.URL+"/api/point/webhook", "application/json", strings.NewReader(string(body)))
+	if err != nil || res.StatusCode != 200 {
+		t.Fatalf("order webhook: %v %v", err, res)
+	}
+	res.Body.Close()
+	var st3 string
+	_ = e.pool.QueryRow(t.Context(), `SELECT status FROM mp_charges WHERE id=$1`, in3["id"]).Scan(&st3)
+	if st3 != "approved" {
+		t.Fatalf("the webhook must settle the charge, got %q", st3)
+	}
 
 	// payment link
 	link := cash.expect(201, "POST", "/api/pos/mp/links", map[string]any{"amount_cents": 50000, "title": "Consulta"})
@@ -543,7 +675,9 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	// another clinic cannot touch these charges; disconnect works
 	e.login("admin_b").expect(404, "GET", "/api/pos/charges/"+lid, nil)
 	admin.expect(200, "POST", "/api/pos/point/disconnect", nil)
-	cash.expect(409, "GET", "/api/pos/point/devices", nil)
+	if st := cash.expect(200, "GET", "/api/pos/point/status", nil); st["code"] != "not_connected" {
+		t.Fatalf("after disconnecting: %v", st)
+	}
 }
 
 func TestMagicInventoryAndPrices(t *testing.T) {

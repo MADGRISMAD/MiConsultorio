@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api } from '$lib/api';
@@ -48,10 +49,22 @@
   $effect(() => {
     const mp = page.url.searchParams.get('mp');
     if (!mp) return;
-    if (mp === 'ok') toast.show('Cuenta de Mercado Pago conectada');
-    else toast.show('No se pudo conectar Mercado Pago. Inténtalo de nuevo.', 'error', 6000);
-    void goto('/pos/ajustes', { replaceState: true, noScroll: true, keepFocus: true });
-    void refreshProviders();
+    const reason = page.url.searchParams.get('reason') ?? '';
+    const detail = page.url.searchParams.get('detail') ?? '';
+    // Once per visit: the toast store and the reload below must not re-trigger this effect.
+    untrack(() => {
+      if (mp === 'ok') toast.show('Cuenta de Mercado Pago conectada');
+      else {
+        const why: Record<string, string> = {
+          cancelled: 'Cancelaste la autorización en Mercado Pago.',
+          state: 'El enlace de conexión caducó. Inténtalo de nuevo.',
+          oauth_failed: `Mercado Pago no aceptó la conexión${detail ? `: ${detail}` : ''}. Revisa que la URL de redireccionamiento de tu aplicación sea exactamente la que usa este servidor.`
+        };
+        toast.show(why[reason] ?? 'No se pudo conectar Mercado Pago. Inténtalo de nuevo.', 'error', 9000);
+      }
+      void goto('/pos/ajustes', { replaceState: true, noScroll: true, keepFocus: true });
+      void refreshProviders();
+    });
   });
 
   function validate(v: PosSettings): string {
