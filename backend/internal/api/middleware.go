@@ -38,6 +38,9 @@ type Principal struct {
 	Cedula, CedulaInstitution, CedulaSpecialty, SpecialtyTitle string
 	// SetupPending: a clinic administrator whose clinic has not finished the setup wizard.
 	SetupPending bool
+	// TwoFactorEnabled: the person confirmed an authenticator app. MustSetup2FA: the clinic's policy
+	// asks for it and they have not set it up yet (clinical routes answer SETUP_2FA until they do).
+	TwoFactorEnabled, MustSetup2FA bool
 }
 
 func (p *Principal) isPlatform() bool { return p.ClinicID == "" }
@@ -66,14 +69,15 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	var p Principal
 	var plan, status, reason string
 	var setupOpen bool
+	var policy string
 	var trialEnds, periodEnd *time.Time
 	err := q.QueryRow(ctx, `
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
-		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false)
+		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none')
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
-			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen)
+			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen, &p.TwoFactorEnabled, &policy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser
 	}
@@ -82,6 +86,7 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	}
 	p.Permissions = permissionsFor(p.Role)
 	p.SetupPending = setupOpen && p.Role == RoleAdmin
+	p.MustSetup2FA = p.ClinicID != "" && !p.TwoFactorEnabled && twoFactorRequired(policy, p.Role)
 	if p.ClinicID != "" {
 		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
 		if pl, ok := planByID(plan); !ok || !pl.Cobros { // plans without cobros never get the POS capabilities

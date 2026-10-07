@@ -23,7 +23,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 }
 
 func serverError(w http.ResponseWriter, r *http.Request, err error) {
-	logf(r, "internal error: %v", err)
+	logf(r, "internal error: %s", logSafeErr(err))
 	writeError(w, http.StatusInternalServerError, "Error interno del servidor.")
 }
 

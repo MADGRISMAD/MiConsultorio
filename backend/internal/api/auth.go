@@ -80,6 +80,9 @@ type sessionInfo struct {
 	Billing     *billingInfo `json:"billing"` // nil for platform staff
 	// SetupPending is true for a clinic administrator who still has to finish the setup wizard.
 	SetupPending bool `json:"setupPending"`
+	// TwoFactorEnabled: this account uses an authenticator app. MustSetup2fa: the clinic requires it and it is not set up yet.
+	TwoFactorEnabled bool `json:"twoFactorEnabled"`
+	MustSetup2fa     bool `json:"mustSetup2fa"`
 	// Professional is the data that goes on recetas and notes (cédula profesional, school, title).
 	Professional professionalInfo `json:"professional"`
 }
@@ -95,6 +98,7 @@ func sessionOf(p *Principal) sessionInfo {
 	info := sessionInfo{
 		UserID: p.UserID, ClinicID: p.ClinicID, Username: p.Username, Name: p.Name, Email: p.Email,
 		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions, SetupPending: p.SetupPending,
+		TwoFactorEnabled: p.TwoFactorEnabled, MustSetup2fa: p.MustSetup2FA,
 		Professional: professionalInfo{Cedula: p.Cedula, Institution: p.CedulaInstitution, SpecialtyLicense: p.CedulaSpecialty, Title: p.SpecialtyTitle},
 	}
 	if p.Billing != nil {
@@ -154,6 +158,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	// Said only after the password checked out, so it can't be used to probe for accounts.
 	if p.Disabled {
 		writeError(w, http.StatusForbidden, "Esta cuenta está desactivada. Contacta al administrador de tu consultorio.")
+		return
+	}
+	if p.TwoFactorEnabled { // the password alone is not a session: a short-lived challenge asks for the code
+		s.beginTwoFactor(w, r, p)
 		return
 	}
 	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)

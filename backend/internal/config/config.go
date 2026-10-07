@@ -60,6 +60,9 @@ type Config struct {
 
 	// CFDI stamping through Facturama. Empty credentials leave invoices as requests to issue by hand.
 	FacturamaUser, FacturamaPass, FacturamaBase string
+
+	// Operation: build identifier shown by /api/health and the file where scripts/backup.sh records its last run.
+	BuildCommit, BackupStatusFile string
 }
 
 func Load() (*Config, error) {
@@ -133,6 +136,7 @@ func Load() (*Config, error) {
 	c.WhatsAppTemplate, c.WhatsAppLang = env("WHATSAPP_TEMPLATE", "recordatorio_cita"), env("WHATSAPP_LANG", "es_MX")
 	c.FacturamaUser, c.FacturamaPass = os.Getenv("FACTURAMA_USER"), os.Getenv("FACTURAMA_PASS")
 	c.FacturamaBase = strings.TrimRight(env("FACTURAMA_BASE", "https://api.facturama.mx"), "/")
+	c.BuildCommit, c.BackupStatusFile = os.Getenv("BUILD_COMMIT"), os.Getenv("BACKUP_STATUS_FILE")
 	if c.StaticDir == "" {
 		for _, d := range []string{"../frontend/build", "frontend/build"} {
 			if _, err := os.Stat(d + "/index.html"); err == nil {

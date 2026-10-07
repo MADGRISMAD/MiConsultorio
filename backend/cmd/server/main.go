@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,7 +16,27 @@ import (
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
 )
 
+// healthcheck asks the local server for /api/health (the image has no curl): exit 0 when it answers 200.
+func healthcheck() {
+	addr := os.Getenv("ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	if strings.HasPrefix(addr, ":") {
+		addr = "127.0.0.1" + addr
+	}
+	client := http.Client{Timeout: 4 * time.Second}
+	res, err := client.Get("http://" + addr + "/api/health")
+	if err != nil || res.StatusCode != http.StatusOK {
+		os.Exit(1)
+	}
+}
+
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		healthcheck()
+		return
+	}
 	if p := config.LoadDotEnv(); p != "" {
 		log.Printf("Configuración cargada desde %s", p)
 	}
