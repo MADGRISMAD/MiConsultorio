@@ -61,7 +61,7 @@
   <div class="flex flex-wrap items-center gap-2">
     <Pill tone={e.kind === 'adenda' ? 'warn' : 'info'}>{ENCOUNTER_KINDS[e.kind] ?? e.kind}</Pill>
     {#if e.private}<Pill tone="muted"><Icon name="lock" size={12} />Privada</Pill>{/if}
-    <span class="text-sm font-medium capitalize">{dt(e.occurred_at)}</span>
+    <span class="text-sm font-medium first-letter:uppercase">{dt(e.occurred_at)}</span>
     {#if late(e)}<span class="text-xs text-app-muted">· registrada el {dt(e.created_at)}</span>{/if}
   </div>
   <p class="mt-1 text-sm text-app-muted">
