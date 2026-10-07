@@ -81,3 +81,46 @@ jobs:
 
       - name: Comprobar que responde
         run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors https://miconsultorio.15-235-62-27.sslip.io/api/health
+
+  # Avisa por correo cómo terminó el deploy (bien o mal). Si faltan los secretos de correo, no hace nada.
+  notify-deploy:
+    needs: [deploy-backend]
+    if: always() && needs.deploy-backend.result != 'skipped' && needs.deploy-backend.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviar correo
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          NOTIFY_TO: ${{ secrets.DEPLOY_NOTIFY_TO }}
+          RESULT: ${{ needs.deploy-backend.result }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ] || [ -z "$NOTIFY_TO" ]; then
+            echo "Faltan SMTP_USER, SMTP_PASS o DEPLOY_NOTIFY_TO: no se envía correo."
+            exit 0
+          fi
+          HOST="${SMTP_HOST:-smtp.gmail.com}"; PORT="${SMTP_PORT:-587}"
+          FROM="${MAIL_FROM:-Caresia <$SMTP_USER>}"
+          if [ "$RESULT" = "success" ]; then
+            SUBJECT="✅ Caresia: deploy en producción correcto"
+            STATUS="El deploy terminó bien y la API responde."
+          else
+            SUBJECT="❌ Caresia: el deploy en producción falló"
+            STATUS="El deploy NO terminó bien. Revisa el detalle en el enlace."
+          fi
+          SUBJECT_B64="=?UTF-8?B?$(printf '%s' "$SUBJECT" | base64 -w0)?="
+          {
+            printf 'From: %s\r\nTo: %s\r\nSubject: %s\r\n' "$FROM" "$NOTIFY_TO" "$SUBJECT_B64"
+            printf 'MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n'
+            printf '%s\r\n\r\nCommit: %s\r\nAutor: %s\r\nMensaje: %s\r\n\r\nDetalle: %s\r\n' "$STATUS" "${SHA:0:7}" "$ACTOR" "$(printf '%s' "$COMMIT_MSG" | head -n1)" "$RUN_URL"
+          } > mail.txt
+          curl -fsS --ssl-reqd --url "smtp://$HOST:$PORT" --user "$SMTP_USER:$SMTP_PASS" \
+            --mail-from "$SMTP_USER" $(for r in ${NOTIFY_TO//,/ }; do printf -- '--mail-rcpt %s ' "$r"; done) \
+            --upload-file mail.txt
