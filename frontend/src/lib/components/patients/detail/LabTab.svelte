@@ -189,7 +189,7 @@
           Mostrar historial de correcciones ({historyCount})
         </label>
       {/if}
-      <ul class="grid gap-4">
+      <ul class="grid grid-cols-[minmax(0,1fr)] gap-4">
         {#each orders as o (o.id)}
           {@const att = fileOf(o.attachment_id)}
           <li class="card p-4 sm:p-5 {o.status === 'cancelado' ? 'opacity-80' : ''}">

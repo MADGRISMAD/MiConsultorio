@@ -74,7 +74,7 @@
 
 <section aria-labelledby="gr-set">
   <h3 id="gr-set" class="section-title mb-3">Tablas de crecimiento (OMS / CDC)</h3>
-  <div class="grid max-w-3xl gap-4">
+  <div class="grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-4">
     <p class="text-sm text-app-muted">
       Para ver percentiles y valores Z en la pestaña Crecimiento del expediente, carga aquí las tablas oficiales en CSV. El sistema no trae tablas incluidas: descárgalas de la OMS o del CDC y súbelas. Cada carga se guarda como una versión nueva (no se sobrescribe nada) y queda en la bitácora con su fuente. El formato y los enlaces de descarga están en <code>docs/CRECIMIENTO.md</code>.
     </p>
