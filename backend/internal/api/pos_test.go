@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -248,6 +249,7 @@ type fakeMP struct {
 	mode             string
 	setups           int
 	busy, refundFail bool
+	orderFailure     string // when set, POST /v1/orders answers with this Orders-API error code
 }
 
 func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
@@ -312,12 +314,24 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		if f.busy {
+			// Orders API error shape: {"errors":[{"code","message","details"}]}
 			w.WriteHeader(409)
-			reply(w, map[string]any{"message": "The terminal already has an order"})
+			reply(w, map[string]any{"errors": []map[string]any{{"code": "already_queued_order_on_terminal", "message": "There is already an order queued on the terminal", "details": []string{"terminal_id"}}}})
 			return
 		}
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
+		// The real API only takes letters, digits, "-" and "_" in external_reference.
+		if ref, _ := body["external_reference"].(string); !regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`).MatchString(ref) {
+			w.WriteHeader(400)
+			reply(w, map[string]any{"errors": []map[string]any{{"code": "invalid_external_reference", "message": "external_reference has invalid characters", "details": []string{"external_reference"}}}})
+			return
+		}
+		if f.orderFailure != "" {
+			w.WriteHeader(400)
+			reply(w, map[string]any{"errors": []map[string]any{{"code": f.orderFailure, "message": "The terminal cannot take orders in its current mode", "details": []string{"config.point.terminal_id"}}}})
+			return
+		}
 		id := fmt.Sprintf("ord-%d", len(f.intents)+1)
 		pays := body["transactions"].(map[string]any)["payments"].([]any)
 		f.intents[id] = map[string]any{"id": id, "status": "created", "amount": pays[0].(map[string]any)["amount"], "terminal": body["config"].(map[string]any)["point"].(map[string]any)["terminal_id"]}
@@ -570,6 +584,15 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	}
 	fake.mu.Lock()
 	fake.busy = false
+	fake.orderFailure = "invalid_operating_mode"
+	fake.mu.Unlock()
+	// The real reason from Mercado Pago must reach the user (it used to be hidden behind a generic message).
+	if code, out := cash.do("POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000}); code != 502 || out["code"] != "PROVIDER" ||
+		!strings.Contains(fmt.Sprint(out["message"]), "cannot take orders") || !strings.Contains(fmt.Sprint(out["message"]), "invalid_operating_mode") {
+		t.Fatalf("provider reason hidden: %d %v", code, out)
+	}
+	fake.mu.Lock()
+	fake.orderFailure = ""
 	fake.mu.Unlock()
 	in := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 50000})
 	iid := in["id"].(string)

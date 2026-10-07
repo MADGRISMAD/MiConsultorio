@@ -97,16 +97,7 @@ func (s *Server) mpCall(ctx context.Context, token, method, path string, body, o
 	defer res.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if res.StatusCode >= 300 {
-		var e struct {
-			Message string `json:"message"`
-			Error   string `json:"error"`
-		}
-		_ = json.Unmarshal(data, &e)
-		msg := e.Message
-		if msg == "" {
-			msg = e.Error
-		}
-		return &mpError{Status: res.StatusCode, Msg: msg}
+		return parseMPError(res.StatusCode, data)
 	}
 	if out != nil && len(data) > 0 {
 		return json.Unmarshal(data, out)
@@ -117,9 +108,72 @@ func (s *Server) mpCall(ctx context.Context, token, method, path string, body, o
 type mpError struct {
 	Status int
 	Msg    string
+	Code   string // machine-readable reason (Orders API "errors[].code", classic API "cause[].code")
 }
 
-func (e *mpError) Error() string { return "mercado pago (" + strconv.Itoa(e.Status) + "): " + e.Msg }
+// parseMPError reads the three error shapes Mercado Pago uses: the Orders API ({"errors":[{code,message,details}]}),
+// the classic API ({"message","error","cause":[{code,description}]}) and a bare {"error"}.
+func parseMPError(status int, data []byte) *mpError {
+	var e struct {
+		Message string `json:"message"`
+		Error   string `json:"error"`
+		Errors  []struct {
+			Code    string   `json:"code"`
+			Message string   `json:"message"`
+			Details []string `json:"details"`
+		} `json:"errors"`
+		Cause []struct {
+			Code        any    `json:"code"`
+			Description string `json:"description"`
+		} `json:"cause"`
+	}
+	_ = json.Unmarshal(data, &e)
+	me := &mpError{Status: status, Msg: e.Message}
+	if me.Msg == "" {
+		me.Msg = e.Error
+	}
+	for _, it := range e.Errors {
+		if me.Code == "" {
+			me.Code = it.Code
+		}
+		parts := []string{}
+		if it.Message != "" {
+			parts = append(parts, it.Message)
+		}
+		parts = append(parts, it.Details...)
+		if len(parts) > 0 {
+			if me.Msg != "" {
+				me.Msg += "; "
+			}
+			me.Msg += strings.Join(parts, " — ")
+		}
+	}
+	for _, c := range e.Cause {
+		if me.Code == "" && c.Code != nil {
+			me.Code = fmt.Sprint(c.Code)
+		}
+		if c.Description != "" && !strings.Contains(me.Msg, c.Description) {
+			if me.Msg != "" {
+				me.Msg += "; "
+			}
+			me.Msg += c.Description
+		}
+	}
+	if me.Msg == "" && me.Code == "" {
+		// Unknown body: keep a short, non-sensitive trace for the logs and the user.
+		me.Msg = "respuesta " + strconv.Itoa(status) + " sin detalle"
+	}
+	return me
+}
+
+func (e *mpError) Error() string {
+	return "mercado pago (" + strconv.Itoa(e.Status) + "): " + e.Msg + func() string {
+		if e.Code != "" {
+			return " [" + e.Code + "]"
+		}
+		return ""
+	}()
+}
 
 // providerFailure turns a provider error into a response the user can act on.
 func providerFailure(w http.ResponseWriter, r *http.Request, err error) {
@@ -133,6 +187,11 @@ func providerFailure(w http.ResponseWriter, r *http.Request, err error) {
 	msg := "No pudimos hablar con Mercado Pago. Intenta de nuevo en un momento."
 	if me != nil && me.Msg != "" {
 		msg = "Mercado Pago respondió: " + truncate(me.Msg, 160)
+		if me.Code != "" {
+			msg += " (" + truncate(me.Code, 60) + ")"
+		}
+	} else if err != nil && strings.Contains(err.Error(), "context deadline") {
+		msg = "Mercado Pago tardó demasiado en responder. Revisa que la terminal esté encendida y con internet, e inténtalo de nuevo."
 	}
 	writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: msg})
 }
@@ -931,7 +990,8 @@ func (s *Server) pointCharge(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	ref := "caresia:" + p.ClinicID[:8] + ":" + strconv.FormatInt(time.Now().Unix(), 10)
+	// The Orders API only accepts letters, digits, "-" and "_" in external_reference.
+	ref := "caresia_" + p.ClinicID[:8] + "_" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	body := map[string]any{
 		"type": "point", "external_reference": ref, "description": "Cobro Caresia",
 		"transactions": map[string]any{"payments": []map[string]string{{"amount": cents(req.AmountCents)}}},
@@ -942,7 +1002,7 @@ func (s *Server) pointCharge(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.mpCall(r.Context(), token, http.MethodPost, "/v1/orders", body, &order); err != nil || order.ID == "" {
 		var me *mpError
-		if errors.As(err, &me) && regexp.MustCompile(`(?i)already has an order|en espera`).MatchString(me.Msg) {
+		if errors.As(err, &me) && regexp.MustCompile(`(?i)already has an order|en espera|already_queued|queued_order`).MatchString(me.Msg+" "+me.Code) {
 			writeJSON(w, http.StatusConflict, errorBody{Code: "terminal_busy", Message: "La terminal tiene un cobro pendiente. Termínalo o cancélalo en la terminal."})
 			return
 		}
