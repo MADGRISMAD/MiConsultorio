@@ -5,6 +5,7 @@
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { securityApi } from '$lib/api/security';
 
   let identifier = $state('');
   let password = $state('');
@@ -13,6 +14,15 @@
   let missing = $state({ identifier: false, password: false });
   let idEl = $state<HTMLInputElement>();
   const op = new Op();
+
+  // second step (two-step verification): the server answers a correct password with a short-lived challenge
+  let challenge = $state('');
+  let code = $state('');
+  let useRecovery = $state(false);
+  let codeEl = $state<HTMLInputElement>();
+  $effect(() => {
+    if (challenge) codeEl?.focus();
+  });
 
   $effect(() => {
     if (session.status === 'authenticated') goto(session.home, { replaceState: true });
@@ -28,8 +38,33 @@
       op.fail('Escribe tu correo o usuario y tu contraseña.');
       return;
     }
-    const ok = await op.run(() => session.login(identifier.trim(), password));
-    if (!ok) password = '';
+    const ok = await op.run(async () => {
+      const r = await securityApi.login(identifier.trim(), password);
+      if (r.needs_2fa) {
+        challenge = r.challenge;
+        return;
+      }
+      session.clinic = null;
+      session.setUser(r.session);
+    });
+    if (!ok || challenge) password = '';
+  }
+
+  async function submitCode(e: SubmitEvent) {
+    e.preventDefault();
+    if (!code.trim()) return op.fail(useRecovery ? 'Escribe un código de recuperación.' : 'Escribe el código de 6 dígitos de tu app.');
+    const ok = await op.run(async () => {
+      const r = await securityApi.login2fa(challenge, code.trim(), useRecovery);
+      session.clinic = null;
+      session.setUser(r.session);
+    });
+    if (!ok) code = '';
+  }
+
+  function backToPassword() {
+    challenge = code = '';
+    useRecovery = false;
+    op.reset();
   }
 </script>
 
@@ -44,6 +79,30 @@
       <p class="mt-3 text-[15px] text-app-muted">Entra para ver tu agenda, tus pacientes y tu consultorio.</p>
     </header>
 
+    {#if challenge}
+      <form class="grid gap-4" novalidate onsubmit={submitCode}>
+        <h2 class="text-lg font-semibold">Verificación en dos pasos</h2>
+        <p class="text-sm text-app-muted">
+          {useRecovery ? 'Escribe uno de tus códigos de recuperación. Cada uno sirve una sola vez.' : 'Escribe el código de 6 dígitos que muestra tu app de autenticación.'}
+        </p>
+        {#if op.phase === 'error'}
+          <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+        {/if}
+        <div>
+          <label class="label" for="login-code">{useRecovery ? 'Código de recuperación' : 'Código de 6 dígitos'}</label>
+          <input id="login-code" bind:this={codeEl} class="field font-mono text-lg tracking-widest" type="text" inputmode={useRecovery ? 'text' : 'numeric'} autocomplete="one-time-code" autocapitalize="none" spellcheck="false" bind:value={code} />
+        </div>
+        <button type="submit" class="btn-primary btn-lg" disabled={op.phase === 'loading'}>
+          {#if op.phase === 'loading'}<span class="spin"></span>Verificando…{:else}Verificar y entrar{/if}
+        </button>
+        <div class="flex flex-wrap justify-between gap-2 text-sm">
+          <button type="button" class="font-medium text-app-primary hover:underline" onclick={() => { useRecovery = !useRecovery; code = ''; op.reset(); }}>
+            {useRecovery ? 'Usar el código de mi app' : 'Usar un código de recuperación'}
+          </button>
+          <button type="button" class="font-medium text-app-muted hover:text-app-ink" onclick={backToPassword}>← Volver</button>
+        </div>
+      </form>
+    {:else}
     <form class="grid gap-4" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}
         <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
@@ -72,6 +131,7 @@
         {#if op.phase === 'loading'}<span class="spin"></span>Entrando…{:else}Entrar{/if}
       </button>
     </form>
+    {/if}
 
     <div class="mt-6 grid gap-2.5 border-t border-app-ink/10 pt-5 text-center text-sm text-app-muted">
       <span>¿Aún no tienes cuenta?</span>

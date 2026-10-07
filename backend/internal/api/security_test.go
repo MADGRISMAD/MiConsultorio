@@ -8,9 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/madgrismad/miconsultorio/backend/internal/config"
 )
 
 // secCode computes the current authenticator code the way an app would, from the otpauth URI's secret.
@@ -284,5 +288,32 @@ func TestHealth(t *testing.T) {
 	ph := e.login("root").expect(200, "GET", "/api/platform/health", nil)
 	if ph["active_clinics"].(float64) != 2 || ph["db_size_bytes"].(float64) <= 0 {
 		t.Fatalf("platform health: %v", ph)
+	}
+}
+
+func TestHealthReportsBackupState(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "status.json")
+	e := setupWith(t, func(c *config.Config) { c.BackupStatusFile = file; c.BuildCommit = "abc1234" })
+	if out := e.anon().expect(200, "GET", "/api/health", nil); out["version"] != "abc1234" || out["backup"] != nil {
+		t.Fatalf("no status file yet: %v", out)
+	}
+	write := func(status string, finished time.Time) {
+		body := fmt.Sprintf(`{"status":%q,"finished_at":%q,"file":"caresia-db-x.dump","size_bytes":10}`, status, finished.UTC().Format(time.RFC3339))
+		if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("ok", time.Now().Add(-2*time.Hour))
+	out := e.anon().expect(200, "GET", "/api/health", nil)
+	if out["status"] != "ok" || sub(out, "backup")["ok"] != true || sub(out, "backup")["file"] != nil {
+		t.Fatalf("fresh backup: %v", out)
+	}
+	write("ok", time.Now().Add(-72*time.Hour))
+	if out := e.anon().expect(200, "GET", "/api/health", nil); out["status"] != "degraded" || sub(out, "backup")["stale"] != true {
+		t.Fatalf("stale backup: %v", out)
+	}
+	write("failed", time.Now())
+	if out := e.anon().expect(200, "GET", "/api/health", nil); out["status"] != "degraded" {
+		t.Fatalf("failed backup: %v", out)
 	}
 }

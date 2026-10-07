@@ -8,6 +8,7 @@
   import Icon from './ui/Icon.svelte';
   import PageHeader from './ui/PageHeader.svelte';
   import RolePill from './ui/RolePill.svelte';
+  import TwoFactorSection from './security/TwoFactorSection.svelte';
 
   let { embedded = false }: { /** inside the settings hub, which already shows the title */ embedded?: boolean } = $props();
 
@@ -130,4 +131,6 @@
       <div><button type="submit" class="btn-primary" disabled={pwOp.phase === 'loading'}>Cambiar contraseña</button></div>
     </form>
   </section>
+
+  <div class="lg:col-span-2"><TwoFactorSection /></div>
 </div>
