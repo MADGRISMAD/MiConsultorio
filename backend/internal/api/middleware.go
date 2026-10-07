@@ -34,6 +34,8 @@ type Principal struct {
 	TokenVersion int
 	Disabled     bool
 	Billing      *Billing // nil for platform staff
+	// Professional data printed on recetas and notes.
+	Cedula, CedulaInstitution, CedulaSpecialty, SpecialtyTitle string
 	// SetupPending: a clinic administrator whose clinic has not finished the setup wizard.
 	SetupPending bool
 }
@@ -66,11 +68,11 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	var setupOpen bool
 	var trialEnds, periodEnd *time.Time
 	err := q.QueryRow(ctx, `
-		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version,
+		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
 		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false)
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
 		WHERE u.id = $1`, id).
-		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion,
+		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
 			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser

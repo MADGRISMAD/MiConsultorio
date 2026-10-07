@@ -78,6 +78,9 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 
 					r.With(require(PermAdminUsers)).Put("/clinic", s.updateOwnClinic)
 					r.With(require(PermAdminUsers)).Post("/clinic/setup", s.completeSetup)
+					r.Get("/clinic/legal", s.getLegal)
+					r.With(require(PermAdminUsers)).Put("/clinic/legal", s.updateLegal)
+					r.With(require(PermAdminUsers)).Get("/clinic/compliance", s.compliance)
 
 					r.Route("/team", func(r chi.Router) {
 						r.Use(require(PermAdminUsers))
@@ -140,13 +143,30 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 						r.With(require(PermPOSManage)).Post("/magic/price", s.magicPrice)
 					})
 
-					r.Route("/expedients", func(r chi.Router) {
-						r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/", s.listExpedients)
-						r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/{curp}", s.getExpedient)
-						r.With(require(PermAdminHistorials)).Post("/", s.createExpedient)
-						r.With(require(PermAdminHistorials)).Put("/{curp}", s.updateExpedient)
-						r.With(require(PermAdminHistorials)).Delete("/{curp}", s.deleteExpedient)
+					r.Route("/patients", func(r chi.Router) {
+						clinical := require(PermNavHistorials, PermAdminHistorials)
+						write := require(PermAdminHistorials)
+						front := require(PermAdminAppointments, PermNavHistorials, PermAdminHistorials)
+						r.With(front).Get("/lookup", s.lookupPatients)
+						r.With(front).Get("/schema", s.patientSchema)
+						r.With(require(PermAdminAppointments, PermAdminHistorials)).Post("/quick", s.createPatient(true))
+						r.With(clinical).Get("/", s.listPatients)
+						r.With(write).Post("/", s.createPatient(false))
+						r.With(clinical).Get("/{id}", s.getPatient)
+						r.With(write).Put("/{id}", s.updatePatient)
+						r.With(require(PermAdminAppointments, PermAdminHistorials)).Post("/{id}/privacy", s.recordPrivacy)
+						r.With(write).Post("/{id}/archive", s.archivePatient(true))
+						r.With(write).Post("/{id}/unarchive", s.archivePatient(false))
+						r.With(require(PermAdminUsers)).Get("/{id}/access", s.patientAccess)
+						r.With(clinical).Get("/{id}/encounters", s.listEncounters)
+						r.With(write).Post("/{id}/encounters", s.createEncounter)
+						r.With(clinical).Get("/{id}/prescriptions", s.listPrescriptions)
+						r.With(write).Post("/{id}/prescriptions", s.createPrescription)
+						r.With(clinical).Get("/{id}/record", s.patientRecord)
 					})
+					r.With(require(PermAdminHistorials)).Post("/encounters/{id}/addendum", s.createAddendum)
+					r.With(require(PermNavHistorials, PermAdminHistorials)).Get("/prescriptions/{id}", s.prescriptionPrintData)
+					r.With(require(PermAdminHistorials)).Post("/prescriptions/{id}/void", s.voidPrescription)
 
 					r.Route("/appointments", func(r chi.Router) {
 						r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/", s.listAppointments)

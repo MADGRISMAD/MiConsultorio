@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -12,13 +13,14 @@ import (
 )
 
 type appointmentFields struct {
-	Names     string `json:"names" db:"names"`
-	LastNames string `json:"last_names" db:"last_names"`
-	CURP      string `json:"CURP" db:"curp"`
-	Date      string `json:"date" db:"date"`
-	StartHour string `json:"startHour" db:"start_hour"`
-	EndHour   string `json:"endHour" db:"end_hour"`
-	Details   string `json:"details" db:"details"`
+	PatientID *string `json:"patient_id" db:"patient_id"`
+	Names     string  `json:"names" db:"names"`
+	LastNames string  `json:"last_names" db:"last_names"`
+	CURP      string  `json:"CURP" db:"curp"`
+	Date      string  `json:"date" db:"date"`
+	StartHour string  `json:"startHour" db:"start_hour"`
+	EndHour   string  `json:"endHour" db:"end_hour"`
+	Details   string  `json:"details" db:"details"`
 }
 
 type appointment struct {
@@ -26,7 +28,7 @@ type appointment struct {
 	appointmentFields
 }
 
-const appointmentCols = `id, curp, names, last_names, to_char(date, 'YYYY-MM-DD') AS date,
+const appointmentCols = `id, patient_id::text AS patient_id, curp, names, last_names, to_char(date, 'YYYY-MM-DD') AS date,
 	to_char(start_hour, 'HH24:MI') AS start_hour, to_char(end_hour, 'HH24:MI') AS end_hour, details`
 
 func (a *appointmentFields) validate() string {
@@ -37,10 +39,17 @@ func (a *appointmentFields) validate() string {
 	if utf8.RuneCountInString(a.Details) > 2000 || utf8.RuneCountInString(a.Names) > 200 || utf8.RuneCountInString(a.LastNames) > 200 {
 		return "Uno de los campos es demasiado largo."
 	}
-	if a.Names == "" || a.LastNames == "" || a.CURP == "" || a.Date == "" || a.StartHour == "" || a.EndHour == "" {
+	if a.PatientID != nil && *a.PatientID == "" {
+		a.PatientID = nil
+	}
+	if a.PatientID != nil && !validUUID(*a.PatientID) {
+		return "El paciente no es válido."
+	}
+	// Someone without a registered patient still needs full name; a registered patient (a person or an animal) may have no surname.
+	if a.Names == "" || (a.PatientID == nil && a.LastNames == "") || a.Date == "" || a.StartHour == "" || a.EndHour == "" {
 		return "Faltan campos por llenar."
 	}
-	if !curpRe.MatchString(a.CURP) {
+	if a.CURP != "" && !curpRe.MatchString(a.CURP) {
 		return "La CURP debe tener 18 caracteres alfanuméricos."
 	}
 	if _, err := time.Parse("2006-01-02", a.Date); err != nil {
@@ -108,10 +117,14 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if !s.patientBelongs(r.Context(), p.ClinicID, f.PatientID) {
+		writeError(w, http.StatusBadRequest, "El paciente no existe en este consultorio.")
+		return
+	}
 	rows, err := s.db.Query(r.Context(), `
-		INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details)
-		VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8) RETURNING `+appointmentCols,
-		p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details)
+		INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id)
+		VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid) RETURNING `+appointmentCols,
+		p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -139,11 +152,15 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if !s.patientBelongs(r.Context(), p.ClinicID, f.PatientID) {
+		writeError(w, http.StatusBadRequest, "El paciente no existe en este consultorio.")
+		return
+	}
 	rows, err := s.db.Query(r.Context(), `
 		UPDATE appointments SET curp=$3, names=$4, last_names=$5, date=$6::date, start_hour=$7::time, end_hour=$8::time,
-			details=$9, updated_at=now()
+			details=$9, patient_id=$10::uuid, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+appointmentCols,
-		p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details)
+		p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, f.Details, f.PatientID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -194,4 +211,13 @@ func validUUID(s string) bool {
 		}
 	}
 	return true
+}
+
+// patientBelongs is true when no patient is given or the patient is one of this clinic's.
+func (s *Server) patientBelongs(ctx context.Context, clinicID string, id *string) bool {
+	if id == nil {
+		return true
+	}
+	var ok bool
+	return s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM patients WHERE clinic_id = $1 AND id = $2)`, clinicID, *id).Scan(&ok) == nil && ok
 }

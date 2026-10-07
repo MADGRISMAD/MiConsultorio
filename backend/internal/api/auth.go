@@ -80,12 +80,22 @@ type sessionInfo struct {
 	Billing     *billingInfo `json:"billing"` // nil for platform staff
 	// SetupPending is true for a clinic administrator who still has to finish the setup wizard.
 	SetupPending bool `json:"setupPending"`
+	// Professional is the data that goes on recetas and notes (cédula profesional, school, title).
+	Professional professionalInfo `json:"professional"`
+}
+
+type professionalInfo struct {
+	Cedula           string `json:"cedula"`
+	Institution      string `json:"institution"`
+	SpecialtyLicense string `json:"specialty_license"`
+	Title            string `json:"title"`
 }
 
 func sessionOf(p *Principal) sessionInfo {
 	info := sessionInfo{
 		UserID: p.UserID, ClinicID: p.ClinicID, Username: p.Username, Name: p.Name, Email: p.Email,
 		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions, SetupPending: p.SetupPending,
+		Professional: professionalInfo{Cedula: p.Cedula, Institution: p.CedulaInstitution, SpecialtyLicense: p.CedulaSpecialty, Title: p.SpecialtyTitle},
 	}
 	if p.Billing != nil {
 		b := p.Billing.info(time.Now())

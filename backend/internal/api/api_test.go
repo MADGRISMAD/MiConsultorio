@@ -261,7 +261,7 @@ func TestRoleMatrix(t *testing.T) {
 	for _, tc := range cases {
 		c := e.login(tc.user)
 		got := []int{
-			status(c, "GET", "/api/team"), status(c, "GET", "/api/expedients"), status(c, "POST", "/api/expedients"),
+			status(c, "GET", "/api/team"), status(c, "GET", "/api/patients/"), status(c, "POST", "/api/patients/"),
 			status(c, "GET", "/api/appointments"), status(c, "POST", "/api/appointments"), status(c, "GET", "/api/platform/overview"),
 		}
 		want := []int{tc.team, tc.expGet, tc.expPost, tc.apGet, tc.apPost, tc.platform}
@@ -272,7 +272,7 @@ func TestRoleMatrix(t *testing.T) {
 	// platform staff can't touch clinic data at all
 	for _, u := range []string{"root", "help"} {
 		c := e.login(u)
-		for _, p := range []string{"/api/clinic", "/api/team", "/api/expedients", "/api/appointments"} {
+		for _, p := range []string{"/api/clinic", "/api/team", "/api/patients/", "/api/appointments"} {
 			if got := status(c, "GET", p); got != 403 {
 				t.Errorf("%s GET %s: got %d want 403", u, p, got)
 			}
@@ -335,45 +335,6 @@ func TestAppointmentsCRUD(t *testing.T) {
 	recep.expect(404, "GET", "/api/appointments/"+id, nil)
 }
 
-var exp = map[string]any{"CURP": "mejj700312hdfdrr04", "names": "Jorge", "last_names": "Medina", "sex": "Hombre", "date_of_birth": "1970-03-12", "weight": "78", "diabetes": true}
-
-func TestExpedientsCRUD(t *testing.T) {
-	e := setup(t)
-	doc := e.login("doc_a")
-
-	x := sub(doc.expect(201, "POST", "/api/expedients", exp), "expedient")
-	if x["CURP"] != "MEJJ700312HDFDRR04" || x["date_of_birth"] != "1970-03-12" || x["diabetes"] != true || x["age"].(float64) < 50 {
-		t.Fatalf("created: %v", x)
-	}
-	doc.expect(409, "POST", "/api/expedients", exp)
-
-	invalid := map[string]any{"CURP": "MEJJ700312HDFDRR04", "names": "J", "last_names": "M", "sex": "Otro", "date_of_birth": "1970-03-12"}
-	doc.expect(400, "POST", "/api/expedients", invalid)
-	invalid["sex"] = "Hombre"
-	invalid["date_of_birth"] = "2999-01-01"
-	doc.expect(400, "POST", "/api/expedients", invalid)
-
-	upd := map[string]any{}
-	for k, v := range exp {
-		upd[k] = v
-	}
-	upd["diabetes"] = false
-	upd["allergies"] = true
-	doc.expect(200, "PUT", "/api/expedients/MEJJ700312HDFDRR04", upd)
-	got := sub(doc.expect(200, "GET", "/api/expedients/mejj700312hdfdrr04", nil), "expedient")
-	if got["diabetes"] != false || got["allergies"] != true {
-		t.Fatalf("update: %v", got)
-	}
-
-	other := e.login("doc_b")
-	other.expect(404, "GET", "/api/expedients/MEJJ700312HDFDRR04", nil)
-	other.expect(404, "DELETE", "/api/expedients/MEJJ700312HDFDRR04", nil)
-	other.expect(201, "POST", "/api/expedients", exp) // same CURP in another clinic is fine
-
-	doc.expect(204, "DELETE", "/api/expedients/MEJJ700312HDFDRR04", nil)
-	doc.expect(404, "GET", "/api/expedients/MEJJ700312HDFDRR04", nil)
-}
-
 // ---------------------------------------------------------------------------
 // Team
 // ---------------------------------------------------------------------------
@@ -423,12 +384,12 @@ func TestTeamManagement(t *testing.T) {
 	admin.expect(200, "PATCH", "/api/team/"+lid, map[string]any{"role": "doctor"})
 	laura.expect(401, "GET", "/api/appointments", nil)
 	laura = e.loginPw("laura", newPw)
-	laura.expect(200, "GET", "/api/expedients", nil)
+	laura.expect(200, "GET", "/api/patients/", nil)
 	admin.expect(400, "PATCH", "/api/team/"+lid, map[string]any{"role": "emperor"})
 
 	// password reset by the admin ends the session and the old password stops working
 	admin.expect(204, "POST", "/api/team/"+lid+"/password", map[string]any{"password": "brand-new-password"})
-	laura.expect(401, "GET", "/api/expedients", nil)
+	laura.expect(401, "GET", "/api/patients/", nil)
 	e.anon().expect(401, "POST", "/api/login", map[string]string{"identifier": "laura", "password": pw})
 	e.anon().expect(401, "POST", "/api/login", map[string]string{"identifier": "laura", "password": "long-enough-pw"})
 	e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": "laura", "password": "brand-new-password"})
@@ -436,9 +397,9 @@ func TestTeamManagement(t *testing.T) {
 	// deactivation locks them out at once, even with a live session
 	laura = e.anon()
 	laura.expect(200, "POST", "/api/login", map[string]string{"identifier": "laura", "password": "brand-new-password"})
-	laura.expect(200, "GET", "/api/expedients", nil)
+	laura.expect(200, "GET", "/api/patients/", nil)
 	admin.expect(204, "POST", "/api/team/"+lid+"/deactivate", nil)
-	laura.expect(401, "GET", "/api/expedients", nil)
+	laura.expect(401, "GET", "/api/patients/", nil)
 	e.anon().expect(403, "POST", "/api/login", map[string]string{"identifier": "laura", "password": "brand-new-password"})
 	admin.expect(204, "POST", "/api/team/"+lid+"/reactivate", nil)
 	e.anon().expect(200, "POST", "/api/login", map[string]string{"identifier": "laura", "password": "brand-new-password"})
@@ -948,7 +909,11 @@ func TestMigrationFromPermissions(t *testing.T) {
 		 ('11111111-1111-1111-1111-111111111111', 'doc',   'x', '{navHistorials,adminHistorials}', '2024-01-02'),
 		 ('11111111-1111-1111-1111-111111111111', 'recep', 'x', '{adminAppointments,navAppointments}', '2024-01-03'),
 		 ('11111111-1111-1111-1111-111111111111', 'solo',  'x', '{}', '2024-01-04'),
-		 ('22222222-2222-2222-2222-222222222222', 'admin', 'x', '{adminUsers}', '2024-02-01')`); err != nil {
+		 ('22222222-2222-2222-2222-222222222222', 'admin', 'x', '{adminUsers}', '2024-02-01');
+		INSERT INTO expedients (clinic_id, curp, names, last_names, sex, date_of_birth, occupation, weight, diabetes, cancer, tabaquism, surgeries, fractures)
+		 VALUES ('11111111-1111-1111-1111-111111111111', 'MEJJ700312HDFDRR04', 'Jorge', 'Medina', 'Hombre', '1970-03-12', 'Chofer', '78', true, true, true, true, true);
+		INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour)
+		 VALUES ('11111111-1111-1111-1111-111111111111', 'MEJJ700312HDFDRR04', 'Jorge', 'Medina', '2030-01-01', '09:00', '10:00')`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Migrate(ctx, pool); err != nil {
@@ -981,6 +946,22 @@ func TestMigrationFromPermissions(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `UPDATE clinics SET kind = 'PEDIATRICS', specialties = '{NUTRITION}' WHERE name = 'Vieja 1'`); err != nil {
 		t.Fatalf("new kinds must be accepted: %v", err)
+	}
+	// the old expedient became a patient with its antecedentes mapped, and the appointment points at it
+	var fileNo int
+	var subject, occupation, tobacco, legacy string
+	var chronic []byte
+	if err := pool.QueryRow(ctx, `SELECT file_number, subject, profile->>'occupation', profile->>'tobacco', profile->>'legacy_notes', profile->'chronic_conditions'
+		FROM patients WHERE curp = 'MEJJ700312HDFDRR04'`).Scan(&fileNo, &subject, &occupation, &tobacco, &legacy, &chronic); err != nil {
+		t.Fatalf("expedient must become a patient: %v", err)
+	}
+	if fileNo != 1 || subject != "person" || occupation != "Chofer" || tobacco != "Diario" || !strings.Contains(legacy, "Peso: 78") || !strings.Contains(legacy, "Fracturas") ||
+		!strings.Contains(string(chronic), "Diabetes") || !strings.Contains(string(chronic), "Cáncer") {
+		t.Fatalf("patient from expedient: %d %s %s %s %q %s", fileNo, subject, occupation, tobacco, legacy, chronic)
+	}
+	var linked bool
+	if err := pool.QueryRow(ctx, `SELECT a.patient_id = p.id FROM appointments a JOIN patients p ON p.curp = a.curp`).Scan(&linked); err != nil || !linked {
+		t.Fatalf("appointments must point at the migrated patient: %v %v", linked, err)
 	}
 	var status string
 	if err := pool.QueryRow(ctx, `SELECT billing_status FROM clinics WHERE name = 'Vieja 1'`).Scan(&status); err != nil || status != "active" {

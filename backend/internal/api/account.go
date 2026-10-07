@@ -2,17 +2,25 @@ package api
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
+var cedulaRe = regexp.MustCompile(`^[0-9]{7,8}$`)
+
 // updateProfile lets anyone edit their own name and phone.
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name  string `json:"name"`
 		Phone string `json:"phone"`
+		// Professional data for prescriptions and notes; nil leaves the stored value alone.
+		Cedula            *string `json:"cedula"`
+		CedulaInstitution *string `json:"cedula_institution"`
+		CedulaSpecialty   *string `json:"cedula_specialty"`
+		SpecialtyTitle    *string `json:"specialty_title"`
 	}
 	if !decode(w, r, &req) {
 		return
@@ -25,8 +33,25 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "El teléfono es demasiado largo.")
 		return
 	}
+	pro := []*string{req.Cedula, req.CedulaInstitution, req.CedulaSpecialty, req.SpecialtyTitle}
+	for _, f := range pro {
+		if f != nil {
+			*f = strings.TrimSpace(*f)
+			if len([]rune(*f)) > 160 {
+				writeError(w, http.StatusBadRequest, "Uno de los datos profesionales es demasiado largo.")
+				return
+			}
+		}
+	}
+	if req.Cedula != nil && *req.Cedula != "" && !cedulaRe.MatchString(*req.Cedula) {
+		writeError(w, http.StatusBadRequest, "La cédula profesional son 7 u 8 dígitos.")
+		return
+	}
 	p := principalFrom(r.Context())
-	if _, err := s.db.Exec(r.Context(), `UPDATE users SET name = $2, phone = $3 WHERE id = $1`, p.UserID, strings.TrimSpace(req.Name), strings.TrimSpace(req.Phone)); err != nil {
+	if _, err := s.db.Exec(r.Context(), `
+		UPDATE users SET name = $2, phone = $3, cedula = coalesce($4, cedula), cedula_institution = coalesce($5, cedula_institution),
+		       cedula_specialty = coalesce($6, cedula_specialty), specialty_title = coalesce($7, specialty_title)
+		WHERE id = $1`, p.UserID, strings.TrimSpace(req.Name), strings.TrimSpace(req.Phone), req.Cedula, req.CedulaInstitution, req.CedulaSpecialty, req.SpecialtyTitle); err != nil {
 		serverError(w, r, err)
 		return
 	}
