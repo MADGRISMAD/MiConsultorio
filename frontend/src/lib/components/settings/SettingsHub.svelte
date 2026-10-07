@@ -20,6 +20,7 @@
   import ClinicSettings from './ClinicSettings.svelte';
   import AgendaSettings from './AgendaSettings.svelte';
   import ComplianceSection from './ComplianceSection.svelte';
+  import PortalSettings from './PortalSettings.svelte';
 
   interface Item {
     id: string;
@@ -46,6 +47,7 @@
         { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, giro, especialidades y horario', icon: 'building', show: admin },
         { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
+        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean citas, recetas y vacunas', icon: 'user', show: admin },
         { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin },
         { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
         { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
@@ -267,6 +269,8 @@
         <ClinicSettings />
       {:else if section.id === 'agenda'}
         <AgendaSettings />
+      {:else if section.id === 'portal'}
+        <PortalSettings />
       {:else if section.id === 'cumplimiento'}
         <ComplianceSection />
       {:else if section.id === 'apariencia'}

@@ -118,4 +118,3 @@ func TestCatalogIntegrity(t *testing.T) {
 		seen[d.Code] = true
 	}
 }
-
