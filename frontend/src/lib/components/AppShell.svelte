@@ -14,6 +14,8 @@
   interface NavItem {
     label: string;
     href: string;
+    /** path prefix that marks the item as current when it differs from href */
+    match?: string;
     icon: IconName;
     /** any one of these capabilities grants access; omitted = everyone signed in */
     perms?: string[];
@@ -43,7 +45,7 @@
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Configuración', href: '/configuracion', icon: 'settings', perms: [PERMISSIONS.adminUsers] },
+        { label: 'Configuración', href: '/ajustes?s=negocio', match: '/ajustes', icon: 'settings', perms: [PERMISSIONS.adminUsers] },
         { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]
     },
@@ -55,8 +57,7 @@
         { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Inventario', href: '/pos/inventario', icon: 'box', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true },
-        { label: 'Ajustes de cobros', href: '/pos/ajustes', icon: 'settings', perms: [PERMISSIONS.posManage], cobros: true }
+        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true }
       ]
     }
   ];
@@ -133,7 +134,7 @@
               <li>
                 <a
                   href={item.href}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
+                  aria-current={isActive(item.match ?? item.href.split('?')[0]) ? 'page' : undefined}
                   class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink aria-[current=page]:bg-app-primary/10 aria-[current=page]:text-app-primary"
                 >
                   <Icon name={item.icon} size={20} />
@@ -177,6 +178,15 @@
         {:else if session.clinic}
           <span class="badge hidden sm:inline-flex">{CLINIC_KINDS[session.clinic.kind]?.label ?? session.clinic.kind}</span>
         {/if}
+        <a
+          href="/ajustes"
+          class="icon-btn {page.url.pathname.startsWith('/ajustes') ? 'bg-app-primary/12 text-app-primary' : ''}"
+          title="Ajustes"
+          aria-label="Ajustes"
+          aria-current={page.url.pathname.startsWith('/ajustes') ? 'page' : undefined}
+        >
+          <Icon name="settings" size={20} />
+        </a>
         <button
           type="button"
           class="icon-btn"

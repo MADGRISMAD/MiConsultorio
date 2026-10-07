@@ -600,14 +600,14 @@ func (s *Server) pointConnect(w http.ResponseWriter, r *http.Request) {
 // On failure it goes back to the settings page with the reason, so the screen can say what happened.
 func (s *Server) pointCallback(w http.ResponseWriter, r *http.Request) {
 	back := func(result, reason, detail string) {
-		q := url.Values{"mp": {result}}
+		q := url.Values{"mp": {result}, "s": {"terminal"}}
 		if reason != "" {
 			q.Set("reason", reason)
 		}
 		if detail != "" {
 			q.Set("detail", truncate(detail, 120))
 		}
-		http.Redirect(w, r, s.cfg.AppURL+"/pos/ajustes?"+q.Encode(), http.StatusFound)
+		http.Redirect(w, r, s.cfg.AppURL+"/ajustes?"+q.Encode(), http.StatusFound)
 	}
 	if r.URL.Query().Get("error") != "" || r.URL.Query().Get("code") == "" {
 		back("error", "cancelled", "")

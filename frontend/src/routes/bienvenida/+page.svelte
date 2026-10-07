@@ -22,7 +22,7 @@
     if (session.status === 'anonymous') goto('/login', { replaceState: true });
     else if (session.status === 'authenticated') {
       if (session.isPlatform || session.user?.role !== 'admin') goto(session.home, { replaceState: true });
-      else if (!session.user.setupPending) goto('/configuracion', { replaceState: true });
+      else if (!session.user.setupPending) goto('/ajustes?s=negocio', { replaceState: true });
     }
   });
   $effect(() => {

@@ -9,6 +9,8 @@
   import PageHeader from './ui/PageHeader.svelte';
   import RolePill from './ui/RolePill.svelte';
 
+  let { embedded = false }: { /** inside the settings hub, which already shows the title */ embedded?: boolean } = $props();
+
   const u = $derived(session.user);
 
   let name = $state(session.user?.name ?? '');
@@ -33,7 +35,7 @@
   }
 </script>
 
-<PageHeader title="Mi cuenta" subtitle="Tus datos y tu contraseña." />
+{#if !embedded}<PageHeader title="Mi cuenta" subtitle="Tus datos y tu contraseña." />{/if}
 
 <div class="grid gap-4 lg:grid-cols-2">
   <section class="card p-6">

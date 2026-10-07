@@ -512,7 +512,7 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	if loc := callback("error=access_denied&state=" + url.QueryEscape(state)); !strings.Contains(loc, "reason=cancelled") {
 		t.Fatalf("cancelling on Mercado Pago: %s", loc)
 	}
-	if loc := callback("code=good-code&state=" + url.QueryEscape(state)); loc != "http://app.test/pos/ajustes?mp=ok" {
+	if loc := callback("code=good-code&state=" + url.QueryEscape(state)); loc != "http://app.test/ajustes?mp=ok&s=terminal" {
 		t.Fatalf("callback: %s", loc)
 	}
 	// tokens are encrypted at rest

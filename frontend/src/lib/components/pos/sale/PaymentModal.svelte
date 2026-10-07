@@ -281,7 +281,7 @@
         {#if mpMissing}
           <div class="alert" role="alert">
             <Icon name="alert" size={18} />
-            <span>Mercado Pago no está conectado. <a class="underline" href="/pos/ajustes">Conéctalo en Ajustes de cobros</a>.</span>
+            <span>Mercado Pago no está conectado. <a class="underline" href="/ajustes?s=terminal">Conéctalo en Ajustes</a>.</span>
           </div>
         {/if}
 
@@ -316,7 +316,7 @@
               {#if pointState?.ok}
                 <p class="flex items-center gap-2 text-sm text-app-muted"><Icon name="check" size={16} class="text-app-accent" />Terminal lista{pointState.terminal_label ? `: ${pointState.terminal_label}` : ''}</p>
               {:else if pointState}
-                <p class="alert" role="alert"><Icon name="alert" size={18} />{pointState.message} <a class="underline" href="/pos/ajustes">Ir a Ajustes de cobros</a></p>
+                <p class="alert" role="alert"><Icon name="alert" size={18} />{pointState.message} <a class="underline" href="/ajustes?s=terminal">Ir a Ajustes</a></p>
               {/if}
             {/if}
             <button type="button" class="btn-primary btn-lg min-h-12" disabled={starting || mpMissing || (method === 'mp_point' && !!pointState && !pointState.ok)} onclick={startCharge}>

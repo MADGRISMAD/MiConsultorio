@@ -1,10 +1,11 @@
 <script lang="ts">
-  import Guard from '$lib/components/Guard.svelte';
-  import SettingsPanel from '$lib/components/pos/settings/SettingsPanel.svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+
+  // Old address (also where Mercado Pago used to send people back): keep the query, e.g. ?mp=ok
+  $effect(() => {
+    const q = new URLSearchParams(page.url.search);
+    q.set('s', 'terminal');
+    void goto(`/ajustes?${q}`, { replaceState: true });
+  });
 </script>
-
-<svelte:head><title>Ajustes de cobros · Caresia</title></svelte:head>
-
-<Guard title="Ajustes de cobros" permissions={['posManage']} cobros>
-  <SettingsPanel />
-</Guard>
