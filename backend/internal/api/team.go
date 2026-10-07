@@ -54,8 +54,8 @@ func seatUsage(ctx context.Context, q queryRower, clinicID string) (seats, error
 	var s seats
 	err := q.QueryRow(ctx, `
 		SELECT c.plan,
-		       count(u.id) FILTER (WHERE NOT u.disabled),
-		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'doctor')
+		       count(u.id) FILTER (WHERE NOT u.disabled AND u.linked_owner_id IS NULL),
+		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'doctor' AND u.linked_owner_id IS NULL)
 		FROM clinics c LEFT JOIN users u ON u.clinic_id = c.id
 		WHERE c.id = $1 GROUP BY c.plan`, clinicID).Scan(&s.Plan, &s.UsedUsers, &s.UsedDoctors)
 	if err != nil {
@@ -117,6 +117,10 @@ func requireAdminLeft(ctx context.Context, tx pgx.Tx, clinicID string) error {
 func loadMember(ctx context.Context, tx pgx.Tx, clinicID, id string) (person, error) {
 	if !validUUID(id) {
 		return person{}, fail(http.StatusNotFound, "Cuenta no encontrada.")
+	}
+	var linked bool
+	if err := tx.QueryRow(ctx, `SELECT linked_owner_id IS NOT NULL FROM users WHERE id = $1 AND clinic_id = $2`, id, clinicID).Scan(&linked); err == nil && linked {
+		return person{}, fail(http.StatusForbidden, "Esta cuenta la administra el dueño de la organización y no se puede modificar desde la sucursal.")
 	}
 	rows, err := tx.Query(ctx, `SELECT `+personCols+` FROM users WHERE id = $1 AND clinic_id = $2 FOR UPDATE`, id, clinicID)
 	if err != nil {

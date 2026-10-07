@@ -41,6 +41,11 @@ type Principal struct {
 	// TwoFactorEnabled: the person confirmed an authenticator app. MustSetup2FA: the clinic's policy
 	// asks for it and they have not set it up yet (clinical routes answer SETUP_2FA until they do).
 	TwoFactorEnabled, MustSetup2FA bool
+	// LinkedOwnerID is set on a branch administrator account: the organization owner it acts for.
+	// OwnerTV and OwnerDisabled are that owner's token version and whether they are deactivated or no longer an administrator.
+	LinkedOwnerID string
+	OwnerTV       int
+	OwnerDisabled bool
 }
 
 func (p *Principal) isPlatform() bool { return p.ClinicID == "" }
@@ -71,23 +76,32 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	var setupOpen bool
 	var policy string
 	var trialEnds, periodEnd *time.Time
+	var branchOff, ownerTOTP bool
 	err := q.QueryRow(ctx, `
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
-		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none')
-		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id
+		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none'),
+		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled OR o.role <> 'admin', false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false)
+		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id LEFT JOIN users o ON o.id = u.linked_owner_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
-			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen, &p.TwoFactorEnabled, &policy)
+			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen, &p.TwoFactorEnabled, &policy,
+			&p.LinkedOwnerID, &p.OwnerTV, &p.OwnerDisabled, &ownerTOTP, &branchOff)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser
 	}
 	if err != nil {
 		return nil, err
 	}
+	if p.LinkedOwnerID != "" { // a branch administrator is the owner at work: the owner's two-step state applies
+		p.TwoFactorEnabled = ownerTOTP
+	}
 	p.Permissions = permissionsFor(p.Role)
 	p.SetupPending = setupOpen && p.Role == RoleAdmin
 	p.MustSetup2FA = p.ClinicID != "" && !p.TwoFactorEnabled && twoFactorRequired(policy, p.Role)
 	if p.ClinicID != "" {
+		if branchOff { // branch taken out of service by the owner: same lock as a suspended clinic
+			status, reason = "suspended", "Esta sucursal fue dada de baja por el dueño de la organización."
+		}
 		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
 		if pl, ok := planByID(plan); !ok || !pl.Cobros { // plans without cobros never get the POS capabilities
 			p.Permissions = withoutPOS(p.Permissions)
@@ -105,13 +119,13 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "No has iniciado sesión.")
 			return
 		}
-		userID, tv, err := s.parseToken(c.Value)
+		cl, err := s.parseClaims(c.Value)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Tu sesión no es válida o expiró.")
 			return
 		}
-		p, err := loadPrincipal(r.Context(), s.db, userID)
-		if errors.Is(err, errNoUser) || (err == nil && (p.Disabled || p.TokenVersion != tv)) {
+		p, err := loadPrincipal(r.Context(), s.db, cl.Subject)
+		if errors.Is(err, errNoUser) || (err == nil && (p.Disabled || p.TokenVersion != cl.TV || !linkedSessionValid(p, cl))) {
 			writeError(w, http.StatusUnauthorized, "Tu sesión terminó. Vuelve a entrar.")
 			return
 		}
@@ -227,4 +241,13 @@ func withoutPOS(perms []string) []string {
 		}
 	}
 	return out
+}
+
+// linkedSessionValid ties a branch administrator's session to its owner: the token must carry the owner's
+// token version, so deactivating the owner or changing their password/role ends those sessions too.
+func linkedSessionValid(p *Principal, c *claims) bool {
+	if p.LinkedOwnerID == "" {
+		return c.OTV == nil
+	}
+	return !p.OwnerDisabled && c.OTV != nil && *c.OTV == p.OwnerTV
 }

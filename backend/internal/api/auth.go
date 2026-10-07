@@ -21,9 +21,20 @@ var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("caresia-dummy-password"),
 type claims struct {
 	jwt.RegisteredClaims
 	TV int `json:"tv"` // token version: bumping it on the user ends every session of that account
+	// OTV is the organization owner's token version, present only in sessions of a branch administrator.
+	OTV *int `json:"otv,omitempty"`
 }
 
-func (s *Server) issueToken(userID string, tokenVersion int) (string, error) {
+// issueSession signs the session of p, binding a branch administrator's token to its owner's version.
+func (s *Server) issueSession(p *Principal) (string, error) {
+	if p.LinkedOwnerID == "" {
+		return s.issueTokenFor(p.UserID, p.TokenVersion, nil)
+	}
+	otv := p.OwnerTV
+	return s.issueTokenFor(p.UserID, p.TokenVersion, &otv)
+}
+
+func (s *Server) issueTokenFor(userID string, tokenVersion int, ownerTV *int) (string, error) {
 	now := time.Now()
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -31,18 +42,19 @@ func (s *Server) issueToken(userID string, tokenVersion int) (string, error) {
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.cfg.SessionTTL)),
 		},
-		TV: tokenVersion,
+		TV:  tokenVersion,
+		OTV: ownerTV,
 	}).SignedString(s.cfg.JWTSecret)
 }
 
-func (s *Server) parseToken(raw string) (userID string, tokenVersion int, err error) {
+func (s *Server) parseClaims(raw string) (*claims, error) {
 	var c claims
 	tok, err := jwt.ParseWithClaims(raw, &c, func(*jwt.Token) (any, error) { return s.cfg.JWTSecret, nil },
 		jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
 	if err != nil || !tok.Valid || c.Subject == "" {
-		return "", 0, errors.New("invalid token")
+		return nil, errors.New("invalid token")
 	}
-	return c.Subject, c.TV, nil
+	return &c, nil
 }
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
@@ -55,7 +67,7 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 
 // startSession signs the user in: sets the cookie and writes the session.
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, p *Principal) {
-	token, err := s.issueToken(p.UserID, p.TokenVersion)
+	token, err := s.issueSession(p)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -132,7 +144,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	// E-mails always contain '@' and usernames never do, so at most one account matches.
 	var id, hash string
 	err := s.db.QueryRow(r.Context(),
-		`SELECT id, password_hash FROM users WHERE lower(email) = $1 OR lower(username) = $1`, ident).Scan(&id, &hash)
+		`SELECT id, password_hash FROM users WHERE (lower(email) = $1 OR lower(username) = $1) AND linked_owner_id IS NULL`, ident).Scan(&id, &hash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 		s.limiter.fail(key)

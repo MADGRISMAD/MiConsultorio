@@ -21,14 +21,16 @@ type Plan struct {
 	Cobros bool `json:"cobros"`
 	// MagicUses is the monthly allowance of AI actions (magic inventory and pricing).
 	MagicUses int `json:"magic_uses"`
+	// MaxBranches is how many active branches (clinics, the matrix included) one organization may run under the plan.
+	MaxBranches int `json:"max_branches"`
 }
 
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 0},
-	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 150},
-	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500},
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 0, MaxBranches: 1},
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 150, MaxBranches: 3},
+	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10},
 }
 
 func planByID(id string) (Plan, bool) {
