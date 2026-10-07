@@ -82,7 +82,7 @@
 </script>
 
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-  <RangeBar bind:from bind:to bind:preset />
+  <div class="min-w-0 max-w-full"><RangeBar bind:from bind:to bind:preset /></div>
   <a href={orgApi.csvUrl(from, to)} download class="btn-secondary"><Icon name="download" size={18} />Exportar CSV</a>
 </div>
 
@@ -91,7 +91,7 @@
 {#if loading && !report}
   <div class="card"><LoadingRows /></div>
 {:else if report && selected}
-  <div class="grid gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
+  <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
       {#each cards as k}
         <div class="card p-4">
