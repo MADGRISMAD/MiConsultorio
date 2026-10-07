@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
+  import ExportButton from '$lib/components/patients/ExportButton.svelte';
   import AccessTab from '$lib/components/patients/detail/AccessTab.svelte';
   import AddendumModal from '$lib/components/patients/detail/AddendumModal.svelte';
   import EncounterForm from '$lib/components/patients/detail/EncounterForm.svelte';
@@ -205,6 +206,7 @@
           <button type="button" class="btn-secondary" disabled={busy === 'rec'} onclick={() => run('rec', () => printExpediente(patient!.id))}>
             {#if busy === 'rec'}<span class="spin"></span>{:else}<Icon name="folder" size={16} />{/if}Imprimir expediente
           </button>
+          {#if isAdmin || canWrite}<ExportButton patientId={patient.id} fileNumber={patient.file_number} />{/if}
           <div class="relative">
             <button type="button" class="btn-secondary" aria-haspopup="menu" aria-expanded={docsOpen} onclick={(ev) => { ev.stopPropagation(); docsOpen = !docsOpen; }}>Documentos<Icon name="chevron-down" size={16} /></button>
             {#if docsOpen}

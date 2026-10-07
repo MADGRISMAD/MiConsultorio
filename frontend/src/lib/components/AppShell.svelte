@@ -208,6 +208,12 @@
       </div>
     {/if}
 
+    {#if session.user?.mustSetup2fa}
+      <div class="border-b border-app-warning/30 bg-app-warning/10 px-4 py-2.5 text-center text-sm" role="alert">
+        Tu consultorio exige verificación en dos pasos para ver datos clínicos. <a href="/cuenta" class="font-semibold underline">Actívala en Mi cuenta</a>.
+      </div>
+    {/if}
+
     <main class="page-fade mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
       {@render children()}
     </main>
