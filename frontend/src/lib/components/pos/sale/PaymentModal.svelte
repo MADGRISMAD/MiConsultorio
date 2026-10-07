@@ -17,9 +17,20 @@
     /** Error from the last attempt to register the sale. */
     error: string;
     onclose: () => void;
-    onconfirm: (payments: SalePaymentInput[]) => void;
+    onconfirm: (payments: SalePaymentInput[], onAccount: boolean) => void;
+    /** Offer "cobrar a abonos": what the payments do not cover stays as a balance. */
+    allowCredit?: boolean;
+    /** Why credit is not available right now (shown instead of the switch). */
+    creditBlocked?: string;
+    /** Registering an abono on an open sale: paying less than the total is the point. */
+    partial?: boolean;
+    title?: string;
+    totalLabel?: string;
   }
-  let { open, total, settings, busy, error, onclose, onconfirm }: Props = $props();
+  let { open, total, settings, busy, error, onclose, onconfirm, allowCredit = false, creditBlocked = '', partial = false, title = 'Cobrar', totalLabel = 'Total a cobrar' }: Props = $props();
+
+  let onAccount = $state(false);
+  const flexible = $derived(partial || onAccount);
 
   interface PayLine extends SalePaymentInput {
     id: number;
@@ -126,7 +137,7 @@
       addLine({ method, amount_cents: amount, reference: reference.trim() || undefined });
     }
     // A single payment that covers the whole account closes the sale right away: one tap instead of two.
-    if (remaining === 0 && !busy) onconfirm(payments.map(({ id: _id, ...p }) => p));
+    if (remaining === 0 && !busy) onconfirm(payments.map(({ id: _id, ...p }) => p), onAccount);
   }
 
   // ---- Mercado Pago charges ----
@@ -214,19 +225,31 @@
   const uid = $props.id();
 </script>
 
-<Modal {open} title="Cobrar" {onclose} wide>
+<Modal {open} {title} {onclose} wide>
   <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
     <!-- left: total + payments so far -->
     <div class="space-y-4">
       <div class="rounded-2xl bg-app-elevated p-4" aria-live="polite">
-        <p class="section-title">Total a cobrar</p>
+        <p class="section-title">{totalLabel}</p>
         <p class="display text-5xl tabular-nums">{moneyCents(total)}</p>
         <p class="mt-1 text-sm {remaining === 0 ? 'font-medium text-app-accent' : remaining < 0 ? 'font-medium text-app-danger' : 'text-app-muted'}">
-          {#if remaining > 0}Falta <strong class="tabular-nums">{moneyCents(remaining)}</strong>
+          {#if remaining > 0 && flexible}{partial ? 'Quedará un saldo de' : 'Quedará a abonos'} <strong class="tabular-nums">{moneyCents(remaining)}</strong>
+          {:else if remaining > 0}Falta <strong class="tabular-nums">{moneyCents(remaining)}</strong>
           {:else if remaining === 0}Pagos completos
           {:else}Los pagos exceden el total por {moneyCents(-remaining)}{/if}
         </p>
       </div>
+
+      {#if allowCredit}
+        {#if creditBlocked}
+          <p class="text-xs text-app-muted">{creditBlocked}</p>
+        {:else}
+          <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl p-3 ring-1 ring-inset ring-app-ink/15 has-[:checked]:bg-app-primary/10 has-[:checked]:ring-app-primary">
+            <input type="checkbox" class="mt-1 h-4 w-4" bind:checked={onAccount} disabled={waiting} />
+            <span class="text-sm"><span class="block font-medium">Cobrar a abonos</span><span class="block text-xs text-app-muted">Recibe un anticipo (puede ser $0) y deja el resto como saldo por cobrar.</span></span>
+          </label>
+        {/if}
+      {/if}
 
       {#if payments.length}
         <ul class="divide-y divide-app-ink/10 rounded-2xl ring-1 ring-inset ring-app-ink/10" aria-label="Pagos registrados">
@@ -378,10 +401,10 @@
     <button
       type="button"
       class="btn-primary min-h-11 px-6"
-      disabled={busy || remaining !== 0 || waiting || payments.length === 0}
-      onclick={() => onconfirm(payments.map(({ id: _id, ...p }) => p))}
+      disabled={busy || waiting || remaining < 0 || (partial ? payments.length === 0 : onAccount ? false : remaining !== 0 || payments.length === 0)}
+      onclick={() => onconfirm(payments.map(({ id: _id, ...p }) => p), onAccount)}
     >
-      {#if busy}<span class="spin"></span>{/if}Confirmar cobro
+      {#if busy}<span class="spin"></span>{/if}{partial ? 'Registrar abono' : onAccount && remaining > 0 ? 'Confirmar a abonos' : 'Confirmar cobro'}
     </button>
   {/snippet}
 </Modal>

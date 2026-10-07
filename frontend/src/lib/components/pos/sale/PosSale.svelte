@@ -1,11 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
+  import { pos2 } from '$lib/api/pos2';
+  import type { PlanPrefill, PlanPrefillItem, Professional } from '$lib/types/pos2';
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
   import { printSale } from '$lib/printer/connection.svelte';
   import { PERMISSIONS, type CashSession, type CatalogItem, type PosSettings, type Sale, type SalePaymentInput } from '$lib/types';
+  import AlertsSummary from './AlertsSummary.svelte';
+  import ExpiredOverrideModal from './ExpiredOverrideModal.svelte';
+  import PlanPicker from './PlanPicker.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import OpenCashModal from '../cash/OpenCashModal.svelte';
@@ -27,6 +34,10 @@
   let loading = $state(true);
   let loadError = $state('');
   let people = $state<Person[]>([]);
+  let professionals = $state<Professional[]>([]);
+  let planOpen = $state<PlanPrefill | null>(null);
+  /** a sale refused because of expired lots, waiting for an administrator's reason */
+  let expiredAsk = $state<{ payments: SalePaymentInput[]; onAccount: boolean; message: string } | null>(null);
 
   let payOpen = $state(false);
   let payKey = $state(0);
@@ -43,6 +54,8 @@
 
   const canEditPrice = $derived(session.has(PERMISSIONS.posManage));
   const canSeeExpedients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
+  const isAdmin = $derived(session.user?.role === 'admin');
+  const creditBlocked = $derived(cart.customer.trim() || cart.patientId ? '' : 'Para cobrar a abonos indica el paciente o el nombre del cliente en la cuenta.');
   const needsCash = $derived(!!settings?.require_open_cash && !cash);
   const inCart = $derived(new Map(cart.lines.filter((l) => l.item_id).map((l) => [l.item_id!, cart.lines.filter((x) => x.item_id === l.item_id).reduce((a, x) => a + x.qty, 0)])));
 
@@ -73,6 +86,7 @@
       settings = s.settings;
       cart.configure(settings);
       await Promise.all([loadItems(), loadCash()]);
+      void prefill();
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'No se pudo cargar el punto de venta.';
     } finally {
@@ -80,12 +94,65 @@
     }
   }
 
+  /** ?cita=<id> and ?plan=<id> load a visit or a treatment plan into the cart. */
+  async function prefill() {
+    const cita = page.url.searchParams.get('cita');
+    const plan = page.url.searchParams.get('plan');
+    if (!cita && !plan) return;
+    void goto('/pos/cobros', { replaceState: true, noScroll: true, keepFocus: true });
+    if (!cart.empty) {
+      toast.show('Hay una cuenta en curso: termínala o vacíala antes de cargar la cita o el plan.', 'error');
+      return;
+    }
+    if (cita) {
+      try {
+        const a = await pos2.appointment(cita);
+        cart.appointmentId = a.id;
+        cart.patientId = a.patient_id ?? '';
+        cart.customer = `${a.names} ${a.last_names}`.trim();
+        cart.professionalId = a.professional_id ?? '';
+        cart.origin = `Cobro de la cita de ${cart.customer}. Al cobrar, la cita se marca como completada.`;
+        if (a.sale_id) toast.show('Esta cita ya tiene una venta registrada.', 'error');
+        const svc = a.service_id ? items.find((i) => i.id === a.service_id) : undefined;
+        if (svc) add(svc);
+        else toast.show('La cita no tiene un servicio del catálogo: agrega los conceptos a cobrar.');
+      } catch (e) {
+        toast.show(e instanceof ApiError && e.status === 404 ? 'No encontramos esa cita.' : 'No se pudo cargar la cita.', 'error');
+      }
+    }
+    if (plan) {
+      try {
+        planOpen = await pos2.plan(plan);
+      } catch (e) {
+        toast.show(e instanceof ApiError && e.status === 404 ? 'No encontramos ese plan de tratamiento.' : 'No se pudo cargar el plan de tratamiento.', 'error');
+      }
+    }
+  }
+
+  function addPlanItems(plan: PlanPrefill, picked: PlanPrefillItem[]) {
+    for (const p of picked) {
+      const item = p.catalog_item_id ? items.find((i) => i.id === p.catalog_item_id) : undefined;
+      if (item) cart.addPlanned(item, p.unit_price_cents, p.qty, p.id);
+      else cart.addFree(`${p.description}${p.tooth ? ` · diente ${p.tooth}` : ''}`, p.unit_price_cents, p.tax_rate, p.qty, p.id);
+    }
+    cart.patientId = plan.patient_id;
+    cart.customer = plan.patient_name;
+    cart.origin = `Plan de tratamiento «${plan.title}»: ${picked.length} ${picked.length === 1 ? 'concepto' : 'conceptos'}.`;
+    planOpen = null;
+  }
+
   onMount(() => {
     load();
+    pos2
+      .professionals()
+      .then((r) => (professionals = r))
+      .catch(() => {
+        /* the selector simply does not show */
+      });
     if (canSeeExpedients) {
       api
         .patients.list()
-        .then((r) => (people = r.map((e) => ({ name: `${e.names} ${e.last_names}`.trim(), curp: '' }))))
+        .then((r) => (people = r.map((e) => ({ id: e.id, name: `${e.names} ${e.last_names}`.trim(), curp: '' }))))
         .catch(() => {
           /* plain text field then */
         });
@@ -106,22 +173,27 @@
     } else payOpen = true;
   }
 
-  async function submit(payments: SalePaymentInput[]) {
+  async function submit(payments: SalePaymentInput[], onAccount = false, override?: string) {
     if (!settings) return;
     paying = true;
     payError = '';
     try {
-      const sale = await api.pos.createSale(cart.toInput(payments));
+      const extra = { on_account: onAccount || undefined, ...(override ? { allow_expired: true, expired_reason: override } : {}) };
+      const sale = await api.pos.createSale(cart.toInput(payments, extra));
       const change = payments.reduce((a, p) => a + Math.max(0, (p.received_cents ?? p.amount_cents) - p.amount_cents), 0);
       cart.clear();
       payOpen = false;
+      expiredAsk = null;
       payKey++;
       done = { sale, change };
       loadCash();
       loadItems().catch(() => {});
       if (settings.printer.auto_print) print(sale);
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'CASH_CLOSED') {
+      if (e instanceof ApiError && e.code === 'LOT_EXPIRED' && isAdmin) {
+        payOpen = false;
+        expiredAsk = { payments, onAccount, message: e.message };
+      } else if (e instanceof ApiError && e.code === 'CASH_CLOSED') {
         retry = payments;
         afterCash = 'retry';
         payOpen = false;
@@ -129,7 +201,7 @@
         cashOpen = true;
       } else {
         payError = e instanceof Error ? e.message : 'No se pudo registrar la venta.';
-        if (e instanceof ApiError && e.code === 'NO_STOCK') loadItems().catch(() => {});
+        if (e instanceof ApiError && (e.code === 'NO_STOCK' || e.code === 'LOT_EXPIRED')) loadItems().catch(() => {});
       }
     } finally {
       paying = false;
@@ -176,6 +248,7 @@
 
 <PageHeader title="Punto de venta" subtitle="Cobra servicios y productos, divide el pago y entrega el ticket.">
   {#snippet actions()}
+    <a href="/pos/cuentas" class="btn-secondary min-h-9 px-3.5 text-[13px]"><Icon name="wallet" size={15} />Cuentas por cobrar</a>
     {#if cash}
       <a href="/pos/caja" class="pill pill-ok min-h-9 px-3.5 text-[13px]" title="Ver caja">
         <Icon name="cash" size={15} />Caja abierta · desde {sinceText(cash.opened_at)} · {cash.sales} {cash.sales === 1 ? 'venta' : 'ventas'}
@@ -194,6 +267,7 @@
 {:else if done && settings}
   <SaleDone sale={done.sale} change={done.change} {printing} onprint={() => print(done!.sale)} onnew={() => (done = null)} />
 {:else}
+  {#if !loading}<AlertsSummary />{/if}
   {#if needsCash && !loading}
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 border-app-warning/40 bg-app-warning/10 px-4 py-3" role="status">
       <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />La caja está cerrada. Ábrela para poder cobrar.</p>
@@ -205,7 +279,7 @@
     <CatalogBrowser {items} {loading} allowNegative={settings?.allow_negative_stock ?? false} {inCart} onadd={add} />
 
     <aside class="min-w-0 lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col">
-      <CartPanel {cart} {canEditPrice} {people} showTax={settings?.show_tax_line ?? true} busy={loading || !settings} onfree={() => (freeOpen = true)} oncheckout={checkoutClicked} />
+      <CartPanel {cart} {canEditPrice} {people} {professionals} showTax={settings?.show_tax_line ?? true} busy={loading || !settings} onfree={() => (freeOpen = true)} oncheckout={checkoutClicked} />
     </aside>
   </div>
 
@@ -223,8 +297,26 @@
 
 {#if settings}
   {#key payKey}
-    <PaymentModal open={payOpen} total={cart.total} {settings} busy={paying} error={payError} onclose={() => (payOpen = false)} onconfirm={submit} />
+    <PaymentModal
+      open={payOpen}
+      total={cart.total}
+      {settings}
+      busy={paying}
+      error={payError}
+      allowCredit
+      {creditBlocked}
+      onclose={() => (payOpen = false)}
+      onconfirm={(p, acc) => submit(p, acc)}
+    />
   {/key}
+  <ExpiredOverrideModal
+    open={!!expiredAsk}
+    message={expiredAsk?.message ?? ''}
+    busy={paying}
+    onclose={() => ((expiredAsk = null), (payOpen = true))}
+    onconfirm={(reason) => expiredAsk && submit(expiredAsk.payments, expiredAsk.onAccount, reason)}
+  />
+  <PlanPicker plan={planOpen} onclose={() => (planOpen = null)} onadd={addPlanItems} />
   <FreeLineModal open={freeOpen} defaultTax={settings.default_tax_rate} onclose={() => (freeOpen = false)} onadd={(n, p, t) => cart.addFree(n, p, t)} />
 {/if}
 <OpenCashModal open={cashOpen} onclose={cashDismissed} onopened={cashOpened} />

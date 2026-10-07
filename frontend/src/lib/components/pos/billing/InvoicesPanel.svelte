@@ -1,7 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { api } from '$lib/api';
+  import { api, ApiError } from '$lib/api';
+  import { pos2 } from '$lib/api/pos2';
   import { dateShort, moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
@@ -13,6 +14,7 @@
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import Pill from '$lib/components/ui/Pill.svelte';
+  import CancelCfdiModal from './CancelCfdiModal.svelte';
   import InvoiceDetail from './InvoiceDetail.svelte';
   import InvoiceIssueModal from './InvoiceIssueModal.svelte';
   import InvoiceRequestForm from './InvoiceRequestForm.svelte';
@@ -25,6 +27,12 @@
   ];
 
   const canManage = $derived(session.has('posReports'));
+  const canCancelCfdi = $derived(session.has('posManage'));
+  /** the server has PAC credentials, so invoices can be stamped from here */
+  let stampEnabled = $state(false);
+  let stampingId = $state('');
+  let cfdiCancelling = $state<InvoiceRequest | null>(null);
+  let notConfigured = $state(false);
   let tab = $state<InvoiceRequest['status']>('pending');
   let rows = $state<InvoiceRequest[]>([]);
   let loading = $state(true);
@@ -43,8 +51,8 @@
     loading = true;
     error = '';
     try {
-      const r = await api.pos.invoices(tab);
-      if (my === seq) rows = r;
+      const r = await pos2.invoices(tab);
+      if (my === seq) (rows = r.invoices), (stampEnabled = r.stamping);
     } catch (e) {
       if (my === seq) error = e instanceof Error ? e.message : 'No se pudieron cargar las solicitudes.';
     } finally {
@@ -78,6 +86,25 @@
     cancelOp.reset();
     cancelling = i;
   }
+  async function stamp(i: InvoiceRequest) {
+    if (!stampEnabled) {
+      notConfigured = true;
+      return;
+    }
+    stampingId = i.id;
+    try {
+      const r = await pos2.stamp(i.id);
+      detail = null;
+      toast.show(r.emailed ? 'CFDI timbrado y enviado por correo' : 'CFDI timbrado');
+      for (const w of r.warnings) toast.show(w, 'error');
+      tab = 'issued';
+      void load();
+    } catch (e) {
+      toast.show(e instanceof ApiError || e instanceof Error ? e.message : 'No se pudo timbrar.', 'error');
+    } finally {
+      stampingId = '';
+    }
+  }
   async function confirmCancel() {
     const i = cancelling;
     if (!i) return;
@@ -97,8 +124,19 @@
 
 <p class="mb-5 flex items-start gap-2.5 rounded-xl bg-app-primary/10 px-3.5 py-3 text-sm text-app-primary">
   <Icon name="info" size={18} />
-  <span>Caresia guarda los datos fiscales de cada solicitud; el timbrado del CFDI lo haces con tu contador o proveedor y aquí marcas la factura como emitida con su folio fiscal (UUID).</span>
+    {#if stampEnabled}
+    <span>Caresia guarda los datos fiscales de cada solicitud y puede <strong>timbrar el CFDI 4.0</strong> por ti. También puedes emitirla por tu cuenta y marcarla como emitida con su folio fiscal (UUID).</span>
+  {:else}
+    <span>Caresia guarda los datos fiscales de cada solicitud; el timbrado del CFDI lo haces con tu contador o proveedor y aquí marcas la factura como emitida con su folio fiscal (UUID).</span>
+  {/if}
 </p>
+{#if notConfigured}
+  <p class="alert mb-5" role="alert">
+    <Icon name="alert" size={18} />
+    <span>El timbrado automático aún no está configurado en el servidor (faltan las credenciales del proveedor de facturación). Mientras tanto marca la factura como emitida con su folio fiscal.</span>
+    <button type="button" class="btn-ghost ml-auto min-h-9" onclick={() => (notConfigured = false)}>Entendido</button>
+  </p>
+{/if}
 
 <div class="mb-4 flex gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1 sm:w-fit" role="tablist" aria-label="Estado de la solicitud">
   {#each TABS as t}
@@ -134,7 +172,8 @@
                 <div class="flex justify-end gap-1">
                   <button type="button" class="btn-ghost" onclick={() => (detail = i)}>Ver</button>
                   {#if canManage && i.status === 'pending'}
-                    <button type="button" class="btn-secondary" onclick={() => startIssue(i)}>Marcar como emitida</button>
+                    <button type="button" class="btn-secondary" disabled={stampingId === i.id} onclick={() => stamp(i)}>{#if stampingId === i.id}<span class="spin"></span>{/if}Timbrar</button>
+                    <button type="button" class="btn-ghost" onclick={() => startIssue(i)}>Marcar como emitida</button>
                     <button type="button" class="icon-btn danger" aria-label="Cancelar solicitud de la venta #{i.folio}" onclick={() => startCancel(i)}><Icon name="ban" size={18} /></button>
                   {/if}
                 </div>
@@ -148,7 +187,18 @@
 </div>
 
 <InvoiceRequestForm open={formOpen} saleId={formSale} onclose={() => (formOpen = false)} onsaved={() => { tab = 'pending'; void load(); }} />
-<InvoiceDetail invoice={detail} {canManage} onclose={() => (detail = null)} onissue={startIssue} oncancel={startCancel} />
+<InvoiceDetail
+  invoice={detail}
+  {canManage}
+  {canCancelCfdi}
+  stamping={!!detail && stampingId === detail.id}
+  onclose={() => (detail = null)}
+  onissue={startIssue}
+  oncancel={startCancel}
+  onstamp={stamp}
+  oncancelcfdi={(i) => ((detail = null), (cfdiCancelling = i))}
+/>
+<CancelCfdiModal invoice={cfdiCancelling} onclose={() => (cfdiCancelling = null)} ondone={() => void load()} />
 <InvoiceIssueModal invoice={issuing} onclose={() => (issuing = null)} ondone={() => void load()} />
 <ConfirmModal open={!!cancelling} title="Cancelar solicitud" op={cancelOp} confirmLabel="Cancelar solicitud" onconfirm={confirmCancel} onclose={() => (cancelling = null)}>
   {#if cancelling}La solicitud de la venta #{cancelling.folio} ({cancelling.legal_name}) quedará cancelada. La venta podrá volver a solicitarse.{/if}

@@ -15,9 +15,13 @@ export interface CartLine {
   discount_cents: number;
   track_stock: boolean;
   stock: number;
+  /** Treatment plan item this line charges. */
+  plan_item_id?: string;
 }
 
 export interface Person {
+  /** Patient id, when the person comes from the expedients. */
+  id?: string;
   name: string;
   curp: string;
 }
@@ -37,6 +41,12 @@ export class Cart {
   customer = $state('');
   curp = $state('');
   note = $state('');
+  /** Registered patient being charged (the name above is then taken from the expediente). */
+  patientId = $state('');
+  professionalId = $state('');
+  appointmentId = $state('');
+  /** Short text saying where the cart came from (a visit or a plan). */
+  origin = $state('');
 
   // Set from the business settings
   defaultTax = $state(0);
@@ -116,8 +126,26 @@ export class Cart {
     return null;
   }
 
-  addFree(name: string, price_cents: number, tax_rate: number) {
-    this.lines.push({ key: uid(), name, unit: 'pza', price_cents, base_price_cents: price_cents, tax_rate, qty: 1, discount_cents: 0, track_stock: false, stock: 0 });
+  addFree(name: string, price_cents: number, tax_rate: number, qty = 1, plan_item_id?: string) {
+    this.lines.push({ key: uid(), name, unit: 'pza', price_cents, base_price_cents: price_cents, tax_rate, qty, discount_cents: 0, track_stock: false, stock: 0, plan_item_id });
+  }
+
+  /** A catalog item at the price agreed in a plan. */
+  addPlanned(item: CatalogItem, price_cents: number, qty: number, plan_item_id: string) {
+    this.lines.push({
+      key: uid(),
+      item_id: item.id,
+      name: item.name,
+      unit: item.unit || 'pza',
+      price_cents,
+      base_price_cents: item.price_cents,
+      tax_rate: item.tax_rate,
+      qty,
+      discount_cents: 0,
+      track_stock: item.track_stock,
+      stock: item.stock,
+      plan_item_id
+    });
   }
 
   remove(key: string) {
@@ -132,6 +160,10 @@ export class Cart {
     this.customer = '';
     this.curp = '';
     this.note = '';
+    this.patientId = '';
+    this.professionalId = '';
+    this.appointmentId = '';
+    this.origin = '';
     this.#store(null);
   }
 
@@ -147,8 +179,14 @@ export class Cart {
     }
   }
 
-  toInput(payments: SalePaymentInput[]): SaleInput {
+  toInput(payments: SalePaymentInput[], extra: Partial<SaleInput> = {}): SaleInput {
+    const planItems = [...new Set(this.lines.map((l) => l.plan_item_id).filter((x): x is string => !!x))];
     return {
+      ...extra,
+      patient_id: this.patientId || undefined,
+      professional_id: this.professionalId || undefined,
+      appointment_id: this.appointmentId || undefined,
+      plan_item_ids: planItems.length ? planItems : undefined,
       lines: this.lines.map((l) => ({
         ...(l.item_id ? { item_id: l.item_id } : { name: l.name, tax_rate: l.tax_rate }),
         qty: l.qty,
@@ -173,13 +211,17 @@ export class Cart {
       discPct: this.discPct,
       customer: this.customer,
       curp: this.curp,
-      note: this.note
+      note: this.note,
+      patientId: this.patientId,
+      professionalId: this.professionalId,
+      appointmentId: this.appointmentId,
+      origin: this.origin
     };
   }
 
   save() {
     const s = this.snapshot();
-    this.#store(s.lines.length || s.customer || s.note ? s : null);
+    this.#store(s.lines.length || s.customer || s.note || s.patientId ? s : null);
   }
 
   restore() {
@@ -195,6 +237,10 @@ export class Cart {
       this.customer = String(d.customer ?? '');
       this.curp = String(d.curp ?? '');
       this.note = String(d.note ?? '');
+      this.patientId = String(d.patientId ?? '');
+      this.professionalId = String(d.professionalId ?? '');
+      this.appointmentId = String(d.appointmentId ?? '');
+      this.origin = String(d.origin ?? '');
     } catch {
       /* corrupt or unavailable draft: start empty */
     }

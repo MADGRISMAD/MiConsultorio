@@ -8,6 +8,7 @@
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import Pill from '$lib/components/ui/Pill.svelte';
   import InvoiceRequestForm from '../billing/InvoiceRequestForm.svelte';
+  import CommissionsReport from './CommissionsReport.svelte';
   import SaleDetail from './SaleDetail.svelte';
   import { PRESETS, presetRange, type Preset } from './range';
 
@@ -235,6 +236,8 @@
       {/if}
     </section>
 
+    <CommissionsReport {from} {to} />
+
     <!-- inventory -->
     <section class="card p-5">
       <div class="flex flex-wrap items-center justify-between gap-2">
@@ -267,6 +270,7 @@
       <select class="field w-auto" aria-label="Estado" bind:value={status}>
         <option value="">Todas</option>
         <option value="paid">Pagadas</option>
+        <option value="open">Con saldo</option>
         <option value="void">Canceladas</option>
       </select>
     </div>
@@ -290,7 +294,7 @@
                 <td class="td max-w-[14rem] truncate">{s.customer_name || '—'}</td>
                 <td class="td text-app-muted">{s.created_by || '—'}</td>
                 <td class="td text-right font-medium {s.status === 'void' ? 'text-app-muted line-through' : ''}">{moneyCents(s.total_cents)}</td>
-                <td class="td"><span class="flex flex-wrap gap-1"><Pill tone={s.status === 'paid' ? 'ok' : 'bad'}>{s.status === 'paid' ? 'Pagada' : 'Cancelada'}</Pill>{#if s.invoice_status}<Pill tone="info">Factura</Pill>{/if}</span></td>
+                <td class="td"><span class="flex flex-wrap gap-1"><Pill tone={s.status === 'paid' ? 'ok' : s.status === 'open' ? 'warn' : 'bad'}>{s.status === 'paid' ? 'Pagada' : s.status === 'open' ? `Saldo ${moneyCents(s.balance_cents ?? 0)}` : 'Cancelada'}</Pill>{#if s.invoice_status}<Pill tone="info">Factura</Pill>{/if}</span></td>
               </tr>
             {/each}
           </tbody>

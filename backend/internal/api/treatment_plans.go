@@ -70,11 +70,6 @@ type treatmentPlan struct {
 	Events          []planEvent `json:"events,omitempty"`
 }
 
-type planQuerier interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-}
-
 func lineTotal(qty float64, unit int) int { return int(math.Round(qty * float64(unit))) }
 
 const planCols = `p.id::text, p.patient_id::text, trim(pt.names || ' ' || pt.last_names), p.title, p.status, p.notes, p.professional_id::text,
@@ -104,7 +99,7 @@ func (t *treatmentPlan) sum() {
 	}
 }
 
-func loadPlanItems(ctx context.Context, q planQuerier, planIDs []string) (map[string][]planItem, error) {
+func loadPlanItems(ctx context.Context, q rowsQuerier, planIDs []string) (map[string][]planItem, error) {
 	out := map[string][]planItem{}
 	if len(planIDs) == 0 {
 		return out, nil
@@ -128,7 +123,7 @@ func loadPlanItems(ctx context.Context, q planQuerier, planIDs []string) (map[st
 	return out, rows.Err()
 }
 
-func loadPlan(ctx context.Context, q planQuerier, clinicID, id string, withEvents bool) (treatmentPlan, error) {
+func loadPlan(ctx context.Context, q rowsQuerier, clinicID, id string, withEvents bool) (treatmentPlan, error) {
 	t, err := scanPlan(q.QueryRow(ctx, `SELECT `+planCols+` FROM treatment_plans p JOIN patients pt ON pt.id = p.patient_id WHERE p.clinic_id=$1 AND p.id=$2`, clinicID, id))
 	if err != nil {
 		return t, err
