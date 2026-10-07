@@ -3,7 +3,10 @@ export const PERMISSIONS = {
   adminAppointments: 'adminAppointments',
   adminHistorials: 'adminHistorials',
   navHistorials: 'navHistorials',
-  navAppointments: 'navAppointments'
+  navAppointments: 'navAppointments',
+  pos: 'pos',
+  posReports: 'posReports',
+  posManage: 'posManage'
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -95,6 +98,7 @@ export interface Plan {
   max_doctors: number | null;
   description: string;
   cobros: boolean;
+  magic_uses: number;
 }
 
 export interface ClinicRow {
@@ -303,10 +307,10 @@ export function emptyAppointment(): AppointmentInput {
 
 /** What each clinic role can do, for the "who can do what" table (the server decides for real). */
 export const ROLE_PERMISSIONS: Record<ClinicRole, string[]> = {
-  admin: ['navAppointments', 'adminAppointments', 'navHistorials', 'adminHistorials', 'adminUsers'],
+  admin: ['navAppointments', 'adminAppointments', 'navHistorials', 'adminHistorials', 'adminUsers', 'pos', 'posReports', 'posManage'],
   doctor: ['navAppointments', 'navHistorials', 'adminHistorials'],
-  reception: ['navAppointments', 'adminAppointments'],
-  cashier: ['navAppointments']
+  reception: ['navAppointments', 'adminAppointments', 'pos'],
+  cashier: ['navAppointments', 'pos', 'posReports']
 };
 
 export const CAPABILITY_ROWS: [string, string][] = [
@@ -314,5 +318,274 @@ export const CAPABILITY_ROWS: [string, string][] = [
   ['Crear y editar citas', 'adminAppointments'],
   ['Ver expedientes clínicos', 'navHistorials'],
   ['Crear y editar expedientes', 'adminHistorials'],
-  ['Administrar el equipo', 'adminUsers']
+  ['Administrar el equipo', 'adminUsers'],
+  ['Cobrar y manejar la caja (planes con cobros)', 'pos'],
+  ['Ver reportes de ventas y facturas', 'posReports'],
+  ['Editar catálogo, inventario y ajustes de cobros', 'posManage']
 ];
+
+// ---------------------------------------------------------------------------
+// Cobros (point of sale). Money is always in cents.
+// ---------------------------------------------------------------------------
+
+export type ItemKind = 'service' | 'product';
+
+export interface CatalogItem {
+  id: string;
+  kind: ItemKind;
+  name: string;
+  sku: string;
+  barcode: string;
+  category: string;
+  price_cents: number;
+  cost_cents: number;
+  tax_rate: number;
+  track_stock: boolean;
+  stock: number;
+  min_stock: number;
+  unit: string;
+  active: boolean;
+}
+
+export type CatalogInput = Omit<CatalogItem, 'id' | 'active' | 'stock'> & { stock?: number; active?: boolean };
+
+export type PayMethod = 'cash' | 'card' | 'transfer' | 'mp_point' | 'mp_link' | 'other';
+
+export const PAY_METHODS: Record<PayMethod, { label: string; hint: string }> = {
+  cash: { label: 'Efectivo', hint: 'Calcula el cambio' },
+  card: { label: 'Tarjeta (terminal propia)', hint: 'Registra la referencia del voucher' },
+  transfer: { label: 'Transferencia', hint: 'SPEI o depósito' },
+  mp_point: { label: 'Terminal Mercado Pago Point', hint: 'Cobro en la terminal conectada' },
+  mp_link: { label: 'Liga de pago Mercado Pago', hint: 'El paciente paga desde su celular' },
+  other: { label: 'Otro', hint: 'Vales, cortesía pagada, etc.' }
+};
+
+export interface PrinterPrefs {
+  kind: 'browser' | 'usb' | 'serial' | 'bluetooth';
+  width: 58 | 80;
+  copies: number;
+  auto_print: boolean;
+  open_drawer: boolean;
+  cut: boolean;
+}
+
+export interface PosSettings {
+  business_name: string;
+  legal_name: string;
+  rfc: string;
+  tax_regime: string;
+  tax_address: string;
+  zip_code: string;
+  phone: string;
+  ticket_header: string;
+  ticket_footer: string;
+  show_tax_line: boolean;
+  currency: 'MXN' | 'USD';
+  default_tax_rate: number;
+  allow_negative_stock: boolean;
+  require_open_cash: boolean;
+  allow_discounts: boolean;
+  max_discount_pct: number;
+  methods: PayMethod[];
+  printer: PrinterPrefs;
+}
+
+export interface ProviderStatus {
+  mp_configured: boolean;
+  point_available: boolean;
+  point_connected: boolean;
+  point_account?: string;
+  magic_available: boolean;
+  mp_public_key?: string;
+  sandbox: boolean;
+}
+
+export interface SaleLineInput {
+  item_id?: string;
+  name?: string;
+  qty: number;
+  unit_price_cents?: number;
+  discount_cents?: number;
+  tax_rate?: number;
+}
+
+export interface SalePaymentInput {
+  method: PayMethod;
+  amount_cents: number;
+  received_cents?: number;
+  reference?: string;
+  intent_id?: string;
+}
+
+export interface SaleInput {
+  lines: SaleLineInput[];
+  discount_cents?: number;
+  customer_name?: string;
+  customer_curp?: string;
+  appointment_id?: string;
+  note?: string;
+  payments: SalePaymentInput[];
+}
+
+export interface SaleLine {
+  id: string;
+  item_id: string | null;
+  kind: ItemKind;
+  name: string;
+  qty: number;
+  unit_price_cents: number;
+  tax_rate: number;
+  discount_cents: number;
+  total_cents: number;
+}
+
+export interface SalePayment {
+  method: PayMethod;
+  amount_cents: number;
+  received_cents: number | null;
+  change_cents: number;
+  reference: string;
+}
+
+export interface Sale {
+  id: string;
+  folio: number;
+  customer_name: string;
+  customer_curp: string;
+  note: string;
+  subtotal_cents: number;
+  discount_cents: number;
+  tax_cents: number;
+  total_cents: number;
+  status: 'paid' | 'void';
+  void_reason: string;
+  voided_by: string;
+  created_by: string;
+  created_at: string;
+  lines?: SaleLine[];
+  payments?: SalePayment[];
+  invoice_status?: 'pending' | 'issued' | null;
+}
+
+export interface MethodTotal {
+  method: PayMethod;
+  amount_cents: number;
+  count: number;
+}
+
+export interface CashMovement {
+  id: string;
+  kind: 'in' | 'out';
+  amount_cents: number;
+  concept: string;
+  by: string;
+  created_at: string;
+}
+
+export interface CashSession {
+  id: string;
+  opened_by: string;
+  opened_at: string;
+  opening_cents: number;
+  closed_by: string;
+  closed_at: string | null;
+  counted_cents: number | null;
+  expected_cents: number;
+  diff_cents: number | null;
+  note: string;
+  sales: number;
+  sales_cents: number;
+  cash_in_cents: number;
+  moves_in_cents: number;
+  moves_out_cents: number;
+  by_method: MethodTotal[];
+  movements: CashMovement[] | null;
+}
+
+export interface PosReport {
+  sales: number;
+  void_sales: number;
+  total_cents: number;
+  tax_cents: number;
+  discount_cents: number;
+  avg_ticket_cents: number;
+  cost_cents: number;
+  margin_cents: number;
+  by_method: MethodTotal[];
+  by_day: { day: string; sales: number; total_cents: number }[];
+  by_user: { name: string; sales: number; total_cents: number }[];
+  top_items: { name: string; kind: ItemKind; qty: number; total_cents: number; margin_cents: number }[];
+  inventory: { items: number; low_stock: number; value_cents: number; retail_cents: number };
+}
+
+export interface InvoiceRequest {
+  id: string;
+  sale_id: string;
+  folio: number;
+  total_cents: number;
+  rfc: string;
+  legal_name: string;
+  tax_regime: string;
+  zip_code: string;
+  cfdi_use: string;
+  email: string;
+  status: 'pending' | 'issued' | 'cancelled';
+  fiscal_uuid: string;
+  note: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface StockMovement {
+  id: string;
+  delta: number;
+  reason: 'initial' | 'purchase' | 'sale' | 'void' | 'adjustment' | 'loss';
+  note: string;
+  balance: number;
+  by: string;
+  created_at: string;
+}
+
+export interface PointDevice {
+  id: string;
+  operating_mode: string;
+  pos_id: number;
+  store_id: string;
+}
+
+export interface Charge {
+  id: string;
+  kind: 'point' | 'link';
+  status: 'open' | 'approved' | 'canceled' | 'error';
+  amount_cents: number;
+  pay_url?: string;
+  used: boolean;
+}
+
+export interface MagicItem {
+  name: string;
+  kind: ItemKind;
+  category: string;
+  price_cents: number;
+  cost_cents: number;
+  stock: number;
+  unit: string;
+  barcode: string;
+}
+
+export interface PlanOffer extends Plan {
+  month_cents: number;
+  year_cents: number;
+  online: boolean;
+}
+
+export interface CheckoutRow {
+  id: string;
+  plan: string;
+  period: 'month' | 'year';
+  amount_cents: number;
+  status: 'pending' | 'paid' | 'failed' | 'expired';
+  init_point: string;
+  created_at: string;
+  paid_at: string | null;
+}

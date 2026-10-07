@@ -2,7 +2,7 @@
   import { api } from '$lib/api';
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
-  import { POS_WINDOWS } from '$lib/pos';
+  import { POS_LINKS } from '$lib/pos';
   import { CLINIC_KINDS, PERMISSIONS, type Appointment } from '$lib/types';
   import Guard from '$lib/components/Guard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -128,10 +128,9 @@
       <section class="card p-5 sm:p-6 {canAppointments ? '' : 'lg:col-span-2'}">
         <div class="mb-4 flex items-center gap-2">
           <h2 class="display text-3xl">Cobros</h2>
-          <span class="badge-soon">Próximamente</span>
         </div>
         <ul class="grid gap-1.5 {canAppointments ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}">
-          {#each POS_WINDOWS as w}
+          {#each POS_LINKS.filter((l) => session.has(l.perm)) as w}
             <li>
               <a href="/pos/{w.slug}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink">
                 <Icon name={w.icon} size={19} />{w.title}

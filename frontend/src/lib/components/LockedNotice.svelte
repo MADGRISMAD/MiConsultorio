@@ -22,5 +22,10 @@
   <p class="mt-2 text-sm text-app-muted">
     {isAdmin ? 'Tus datos están a salvo y no se pierde nada.' : 'Avísale al administrador de tu consultorio.'}
   </p>
+  {#if isAdmin}
+    <a class="btn-primary mt-7" href="/suscripcion"><Icon name="wallet" size={18} />Elegir plan y pagar</a>
+    <a class="btn-ghost mt-2" href="mailto:{contactEmail}?subject={encodeURIComponent('Suscripción de mi consultorio en Caresia')}"><Icon name="mail" size={18} />Hablar con Caresia</a>
+  {:else}
   <a class="btn-primary mt-7" href="mailto:{contactEmail}?subject={encodeURIComponent('Suscripción de mi consultorio en Caresia')}"><Icon name="mail" size={18} />Contactar a Caresia</a>
+  {/if}
 </div>

@@ -308,7 +308,7 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 			"currency_id": s.cfg.MPCurrency, "unit_price": float64(amount) / 100,
 		}},
 		"external_reference":   "caresia:" + id,
-		"back_urls":            s.returnURLs("/cuenta?pago="),
+		"back_urls":            s.returnURLs("/suscripcion?pago="),
 		"auto_return":          "approved",
 		"statement_descriptor": "CARESIA",
 	}

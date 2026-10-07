@@ -43,18 +43,20 @@
         { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
         { label: 'Administrar historiales', href: '/admin/admin-historiales', icon: 'folder', perms: [PERMISSIONS.adminHistorials] },
         { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Configuración', href: '/configuracion', icon: 'settings', perms: [PERMISSIONS.adminUsers] }
+        { label: 'Configuración', href: '/configuracion', icon: 'settings', perms: [PERMISSIONS.adminUsers] },
+        { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
       ]
     },
     {
       title: 'Cobros',
       items: [
-        { label: 'Punto de venta', href: '/pos/cobros', icon: 'cash', soon: true, cobros: true },
-        { label: 'Caja', href: '/pos/caja', icon: 'wallet', soon: true, cobros: true },
-        { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', soon: true, cobros: true },
-        { label: 'Inventario', href: '/pos/inventario', icon: 'box', soon: true, cobros: true },
-        { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', soon: true, cobros: true },
-        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', soon: true, cobros: true }
+        { label: 'Punto de venta', href: '/pos/cobros', icon: 'cash', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Caja', href: '/pos/caja', icon: 'wallet', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Inventario', href: '/pos/inventario', icon: 'box', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true },
+        { label: 'Ajustes de cobros', href: '/pos/ajustes', icon: 'settings', perms: [PERMISSIONS.posManage], cobros: true }
       ]
     }
   ];
