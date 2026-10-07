@@ -140,7 +140,7 @@ func (s *Server) wlClinic(ctx context.Context, clinicID string) (*bookingClinic,
 		SELECT c.id::text, c.name, c.kind, c.address, c.phone_number, c.settings, coalesce(c.settings->>'timezone', ''),
 		       coalesce(a.booking_horizon_days, 30), coalesce(a.slot_minutes, 30)
 		FROM clinics c LEFT JOIN agenda_settings a ON a.clinic_id = c.id
-		WHERE c.id = $1 AND c.billing_status IN ('active', 'trialing', 'past_due')`, clinicID).
+		WHERE c.id = $1 AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL`, clinicID).
 		Scan(&c.ID, &c.Name, &c.Kind, &c.Address, &c.Phone, &settings, &tz, &c.HorizonDays, &c.SlotMinutes)
 	if err != nil {
 		return nil, err

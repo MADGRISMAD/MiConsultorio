@@ -127,7 +127,7 @@ func (s *Server) loadPortalClinic(ctx context.Context, slug, clinicID string) (*
 	err := s.db.QueryRow(ctx, `
 		SELECT c.id, c.name, c.address, c.phone_number, coalesce(c.settings->>'timezone', ''), a.portal_welcome, coalesce(a.booking_slug, ''), a.cancel_min_hours
 		FROM agenda_settings a JOIN clinics c ON c.id = a.clinic_id
-		WHERE a.portal_enabled AND c.billing_status IN ('active', 'trialing', 'past_due')
+		WHERE a.portal_enabled AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL
 		  AND (($1 <> '' AND lower(a.booking_slug) = $1) OR ($2 <> '' AND c.id = NULLIF($2, '')::uuid))`, slug, clinicID).
 		Scan(&c.ID, &c.Name, &c.Address, &c.Phone, &tz, &c.Welcome, &c.Slug, &c.CancelMinHours)
 	if err != nil {

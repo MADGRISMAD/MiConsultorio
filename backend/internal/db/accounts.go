@@ -123,6 +123,29 @@ type ClinicParams struct {
 
 // CreateClinic inserts a clinic and its administrator in one transaction.
 func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (clinicID string, err error) {
+	if strings.TrimSpace(p.AdminName) == "" {
+		p.AdminName = p.AdminUsername
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	clinicID, err = InsertClinic(ctx, tx, p)
+	if err != nil {
+		return "", err
+	}
+	if _, err := InsertUser(ctx, tx, UserParams{
+		ClinicID: clinicID, Name: p.AdminName, Email: p.AdminEmail, Username: p.AdminUsername, Password: p.AdminPassword, Role: RoleAdmin,
+	}); err != nil {
+		return "", fmt.Errorf("create admin: %w", err)
+	}
+	return clinicID, tx.Commit(ctx)
+}
+
+// InsertClinic inserts the clinic row alone (defaults, trial and setup state included) inside tx.
+// Branches reuse it so they start exactly like any other clinic.
+func InsertClinic(ctx context.Context, tx pgx.Tx, p ClinicParams) (clinicID string, err error) {
 	if p.Kind == "" {
 		p.Kind = "GENERAL_MEDICAL"
 	}
@@ -138,27 +161,13 @@ func CreateClinic(ctx context.Context, pool *pgxpool.Pool, p ClinicParams) (clin
 	default:
 		return "", fmt.Errorf("estado de suscripción inválido: %q", p.Status)
 	}
-	if strings.TrimSpace(p.AdminName) == "" {
-		p.AdminName = p.AdminUsername
-	}
-
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer tx.Rollback(ctx)
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO clinics (name, email, phone_number, address, image_url, kind, plan, billing_status, trial_ends_at, setup_completed_at)
 		VALUES ($1, lower($2), $3, $4, $5, $6, $7, $8, $9, CASE WHEN $10 THEN now() END) RETURNING id`,
 		p.Name, p.AdminEmail, p.Phone, p.Address, p.ImageURL, p.Kind, p.Plan, p.Status, trialEnds, p.SetupDone).Scan(&clinicID); err != nil {
 		return "", fmt.Errorf("create clinic: %w", err)
 	}
-	if _, err := InsertUser(ctx, tx, UserParams{
-		ClinicID: clinicID, Name: p.AdminName, Email: p.AdminEmail, Username: p.AdminUsername, Password: p.AdminPassword, Role: RoleAdmin,
-	}); err != nil {
-		return "", fmt.Errorf("create admin: %w", err)
-	}
-	return clinicID, tx.Commit(ctx)
+	return clinicID, nil
 }
 
 // EnsureFirstClinic creates the clinic described by p when the database has none,

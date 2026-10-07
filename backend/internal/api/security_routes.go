@@ -570,7 +570,7 @@ func (s *Server) loginTwoFactor(w http.ResponseWriter, r *http.Request) {
 	}
 	s.limiter.reset(userKey)
 	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, uid)
-	token, err := s.issueToken(p.UserID, p.TokenVersion)
+	token, err := s.issueSession(p)
 	if err != nil {
 		serverError(w, r, err)
 		return

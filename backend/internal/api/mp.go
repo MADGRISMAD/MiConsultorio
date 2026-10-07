@@ -283,6 +283,10 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if he := orgBillingBlock(r.Context(), s.db, p.ClinicID, offer.ID); he != nil {
+		writeFailure(w, r, he)
+		return
+	}
 
 	// The new plan must fit the people already on the account.
 	var users, doctors int

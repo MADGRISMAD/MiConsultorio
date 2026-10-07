@@ -41,7 +41,7 @@ func (s *Server) loadBookingClinic(ctx context.Context, slug string) (*bookingCl
 		       a.booking_message, a.booking_requires_confirmation, a.booking_show_prices, a.booking_lead_hours, a.booking_horizon_days, a.slot_minutes
 		FROM agenda_settings a JOIN clinics c ON c.id = a.clinic_id
 		WHERE lower(a.booking_slug) = $1 AND a.booking_enabled
-		  AND c.billing_status IN ('active', 'trialing', 'past_due')`, slug).
+		  AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL`, slug).
 		Scan(&c.ID, &c.Name, &c.Kind, &c.Address, &c.Phone, &settings, &tz,
 			&c.Message, &c.RequiresConfirmation, &c.ShowPrices, &c.LeadHours, &c.HorizonDays, &c.SlotMinutes)
 	if err != nil {
