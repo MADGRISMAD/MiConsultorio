@@ -36,7 +36,8 @@
       items: [
         { label: 'Inicio', href: '/', icon: 'home' },
         { label: 'Citas', href: '/admin/navegar-citas', icon: 'calendar', perms: [PERMISSIONS.navAppointments] },
-        { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] }
+        { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] },
+        { label: 'Reportes clínicos', href: '/reportes', icon: 'chart', perms: [PERMISSIONS.adminUsers, PERMISSIONS.navHistorials] }
       ]
     },
     {
@@ -57,7 +58,7 @@
         { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Cuentas por cobrar', href: '/pos/cuentas', icon: 'wallet', perms: [PERMISSIONS.pos], cobros: true },
         { label: 'Comisiones', href: '/pos/comisiones', icon: 'users', perms: [PERMISSIONS.posManage], cobros: true },
-        { label: 'Reportes', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true }
+        { label: 'Reportes de ventas', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true }
       ]
     }
   ];
