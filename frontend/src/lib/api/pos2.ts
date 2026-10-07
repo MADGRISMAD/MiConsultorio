@@ -10,6 +10,9 @@ import type {
   PosAlerts,
   Professional,
   Receivables,
+  ReturnInfo,
+  ReturnInput,
+  ReturnResult,
   StampResult,
   StockLot,
   VoidResult
@@ -36,6 +39,9 @@ export const pos2 = {
 
   receivables: () => request<Receivables>('GET', '/pos/receivables'),
   addPayments: (saleId: string, payments: SalePaymentInput[]) => request<{ sale: Sale }>('POST', `/pos/sales/${seg(saleId)}/payments`, { payments }).then((r) => r.sale),
+  returnInfo: (saleId: string) => request<ReturnInfo>('GET', `/pos/sales/${seg(saleId)}/returns`),
+  createReturn: (saleId: string, body: ReturnInput) =>
+    request<{ return: ReturnResult }>('POST', `/pos/sales/${seg(saleId)}/returns`, body).then((r) => r.return),
   voidSale: (id: string, reason: string) => request<VoidResult>('POST', `/pos/sales/${seg(id)}/void`, { reason }),
 
   /** invoice requests plus whether the server can stamp CFDI (credentials configured) */

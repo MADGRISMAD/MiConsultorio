@@ -41,6 +41,9 @@ type posReport struct {
 	TaxCents       int           `json:"tax_cents"`
 	DiscountCents  int           `json:"discount_cents"`
 	AvgTicketCents int           `json:"avg_ticket_cents"`
+	ReturnsCount   int           `json:"returns_count"`
+	ReturnsCents   int           `json:"returns_cents"`
+	NetCents       int           `json:"net_cents"` // sales minus returns
 	CostCents      int           `json:"cost_cents"`
 	MarginCents    int           `json:"margin_cents"`
 	ByMethod       []methodTotal `json:"by_method"`
@@ -78,6 +81,12 @@ func (s *Server) posReport(w http.ResponseWriter, r *http.Request) {
 	if rep.Sales > 0 {
 		rep.AvgTicketCents = rep.TotalCents / rep.Sales
 	}
+	if err := s.db.QueryRow(ctx, `SELECT count(*), coalesce(sum(total_cents),0)::int FROM sale_returns WHERE clinic_id=$1 AND created_at >= $2 AND created_at < $3`,
+		p.ClinicID, from, to).Scan(&rep.ReturnsCount, &rep.ReturnsCents); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	rep.NetCents = rep.TotalCents - rep.ReturnsCents
 
 	collect := func(sql string, scan func(pgx.Rows) error) error {
 		rows, err := s.db.Query(ctx, sql, p.ClinicID, from, to)
@@ -134,6 +143,29 @@ func (s *Server) posReport(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		serverError(w, r, err)
 		return
+	}
+	// Money that went back to customers comes off the methods it left through.
+	if rrows, qerr := s.db.Query(ctx, `
+		SELECT rf.method, coalesce(sum(rf.amount_cents),0)::int, count(*) FROM sale_return_refunds rf JOIN sale_returns r ON r.id = rf.return_id
+		WHERE r.clinic_id=$1 AND r.created_at>=$2 AND r.created_at<$3 GROUP BY 1`, p.ClinicID, from, to); qerr == nil {
+		for rrows.Next() {
+			var m string
+			var c, n int
+			if rrows.Scan(&m, &c, &n) != nil {
+				continue
+			}
+			found := false
+			for i := range rep.ByMethod {
+				if rep.ByMethod[i].Method == m {
+					rep.ByMethod[i].AmountCents -= c
+					found = true
+				}
+			}
+			if !found {
+				rep.ByMethod = append(rep.ByMethod, methodTotal{Method: m, AmountCents: -c, Count: n})
+			}
+		}
+		rrows.Close()
 	}
 	var cost, margin int64
 	if err := s.db.QueryRow(ctx, `

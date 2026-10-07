@@ -11,6 +11,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Pill from '$lib/components/ui/Pill.svelte';
+  import ReturnModal from './ReturnModal.svelte';
 
   interface Props {
     saleId: string | null;
@@ -26,6 +27,8 @@
   let loading = $state(false);
   let error = $state('');
   let voiding = $state(false);
+  let returning = $state<string | null>(null);
+  let returnedCents = $state(0);
   let reason = $state('');
   const voidOp = new Op();
   const printOp = new Op();
@@ -36,17 +39,27 @@
     sale = null;
     error = '';
     voiding = false;
+    returnedCents = 0;
     reason = '';
     voidOp.reset();
     printOp.reset();
     loading = true;
     api.pos.sale(id).then(
       (s) => {
-        if (id === saleId) sale = s;
+        if (id === saleId) {
+          sale = s;
+          if (s.status === 'paid') loadReturned(id);
+        }
       },
       (e) => (error = e instanceof Error ? e.message : 'No se pudo cargar la venta.')
     ).finally(() => (loading = false));
   });
+
+  /** How much of the sale already came back, to show it next to the total. */
+  function loadReturned(id: string) {
+    pos2.returnInfo(id).then((i) => (returnedCents = i.returned_cents), () => (returnedCents = 0));
+  }
+  const canReturn = $derived(session.has('pos') && sale?.status === 'paid' && returnedCents < (sale?.total_cents ?? 0));
 
   const when = (iso: string) => new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
   const canVoid = $derived(session.has('posManage') && (sale?.status === 'paid' || sale?.status === 'open'));
@@ -125,6 +138,7 @@
         {#if sale.discount_cents}<div class="flex justify-between"><dt class="text-app-muted">Descuento</dt><dd>-{moneyCents(sale.discount_cents)}</dd></div>{/if}
         <div class="flex justify-between"><dt class="text-app-muted">IVA incluido</dt><dd>{moneyCents(sale.tax_cents)}</dd></div>
         <div class="flex justify-between border-t border-app-ink/10 pt-1.5 text-base font-semibold"><dt>Total</dt><dd>{moneyCents(sale.total_cents)}</dd></div>
+        {#if returnedCents > 0}<div class="flex justify-between text-app-warning"><dt>Devuelto</dt><dd>-{moneyCents(returnedCents)}</dd></div>{/if}
         {#if sale.status === 'open'}
           <div class="flex justify-between"><dt class="text-app-muted">Abonado</dt><dd>{moneyCents(sale.paid_cents ?? 0)}</dd></div>
           <div class="flex justify-between font-semibold text-app-warning"><dt>Saldo pendiente</dt><dd>{moneyCents(sale.balance_cents ?? 0)}</dd></div>
@@ -155,6 +169,7 @@
   {#snippet footer()}
     {#if sale}
       {#if canVoid && !voiding}<button type="button" class="btn-ghost mr-auto text-app-danger" onclick={() => (voiding = true)}>Cancelar venta</button>{/if}
+      {#if canReturn}<button type="button" class="btn-secondary" onclick={() => (returning = sale!.id)}><Icon name="refresh" size={18} />Devolución</button>{/if}
       {#if sale.status === 'open'}<a class="btn-secondary" href="/pos/cuentas"><Icon name="cash" size={18} />Registrar abono</a>{/if}
       {#if canInvoice}<button type="button" class="btn-secondary" onclick={() => oninvoice(sale!.id)}><Icon name="receipt" size={18} />Solicitar factura</button>{/if}
       <button type="button" class="btn-primary" disabled={printOp.phase === 'loading'} onclick={reprint}>
@@ -163,3 +178,15 @@
     {/if}
   {/snippet}
 </Modal>
+
+<ReturnModal
+  saleId={returning}
+  onclose={() => (returning = null)}
+  ondone={async () => {
+    onchanged();
+    if (sale) {
+      loadReturned(sale.id);
+      sale = await api.pos.sale(sale.id).catch(() => sale);
+    }
+  }}
+/>

@@ -723,6 +723,11 @@ func (s *Server) voidSale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	var hasReturns bool
+	if err := s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM sale_returns WHERE clinic_id=$1 AND sale_id=$2)`, p.ClinicID, id).Scan(&hasReturns); err == nil && hasReturns {
+		writeJSON(w, http.StatusConflict, errorBody{Code: "HAS_RETURNS", Message: "La venta ya tiene devoluciones; no se puede cancelar completa. Devuelve lo que falte."})
+		return
+	}
 	// Card money goes back first (idempotent); if Mercado Pago refuses, the sale stays as it was.
 	var st string
 	if err := s.db.QueryRow(r.Context(), `SELECT status FROM sales WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id).Scan(&st); err == nil && (st == "paid" || st == "open") {

@@ -362,7 +362,56 @@ func (s *Server) commissionData(r *http.Request) (from, to time.Time, totals []c
 		totals[i].BaseCents += l.BaseCents
 		totals[i].Cents += l.Cents
 	}
-	return from, to, totals, lines, 0, "", rows.Err()
+	if err := rows.Err(); err != nil {
+		return from, to, nil, nil, 0, "", err
+	}
+	rows.Close()
+	// Returns reverse the commission of what came back, as negative lines dated on the return.
+	rwhere := `r.clinic_id = $1 AND r.created_at >= $2 AND r.created_at < $3`
+	rargs := []any{p.ClinicID, from, to}
+	switch {
+	case prof == "none":
+		rwhere += ` AND coalesce(ri.professional_id, s.professional_id) IS NULL`
+	case prof != "":
+		rargs = append(rargs, prof)
+		rwhere += ` AND coalesce(ri.professional_id, s.professional_id) = $4`
+	}
+	rrows, err := s.db.Query(r.Context(), `
+		SELECT r.folio, r.created_at, coalesce(ri.professional_id, s.professional_id)::text, coalesce(u.name, ''), ri.name || ' (devolución)',
+		       ri.commission_cents, ri.commission_base_cents
+		FROM sale_return_items ri JOIN sale_returns r ON r.id = ri.return_id JOIN sales s ON s.id = r.sale_id
+		LEFT JOIN users u ON u.id = coalesce(ri.professional_id, s.professional_id)
+		WHERE `+rwhere+` AND ri.commission_cents > 0 ORDER BY r.created_at, r.folio`, rargs...)
+	if err != nil {
+		return from, to, nil, nil, 0, "", err
+	}
+	defer rrows.Close()
+	for rrows.Next() {
+		var l commissionLine
+		var cents, base int
+		if err := rrows.Scan(&l.Folio, &l.Date, &l.ProfessionalID, &l.Professional, &l.Item, &cents, &base); err != nil {
+			return from, to, nil, nil, 0, "", err
+		}
+		l.Cents, l.BaseCents = -cents, -base
+		if l.Professional == "" {
+			l.Professional = "Sin profesional"
+		}
+		lines = append(lines, l)
+		key := "none"
+		if l.ProfessionalID != nil {
+			key = *l.ProfessionalID
+		}
+		i, ok := index[key]
+		if !ok {
+			i = len(totals)
+			index[key] = i
+			totals = append(totals, commissionTotal{ProfessionalID: l.ProfessionalID, Professional: l.Professional})
+		}
+		totals[i].Lines++
+		totals[i].BaseCents += l.BaseCents
+		totals[i].Cents += l.Cents
+	}
+	return from, to, totals, lines, 0, "", rrows.Err()
 }
 
 func (s *Server) commissionReport(w http.ResponseWriter, r *http.Request) {

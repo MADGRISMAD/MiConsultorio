@@ -249,7 +249,8 @@ type fakeMP struct {
 	mode             string
 	setups           int
 	busy, refundFail bool
-	orderFailure     string // when set, POST /v1/orders answers with this Orders-API error code
+	refundBodies     []map[string]any // bodies sent with order refunds (partial ones carry the amount)
+	orderFailure     string           // when set, POST /v1/orders answers with this Orders-API error code
 }
 
 func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
@@ -361,6 +362,9 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 				return
 			}
 			f.refunded = append(f.refunded, "order:"+id)
+			var rb map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&rb)
+			f.refundBodies = append(f.refundBodies, rb)
 			reply(w, map[string]any{})
 		default:
 			reply(w, in)
@@ -633,6 +637,49 @@ func TestPointTerminalAndLinks(t *testing.T) {
 		t.Fatalf("a terminal payment must be usable once, got %d", code)
 	}
 
+	// A partial return refunds only that part on the terminal order (and keeps the rest refundable).
+	pin := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 100000})
+	iid2 := pin["id"].(string)
+	fake.mu.Lock()
+	fake.intents[iid2]["status"] = "processed"
+	fake.intents[iid2]["transactions"] = map[string]any{"payments": []any{map[string]any{"id": "900", "amount": "1000.00", "paid_amount": "1000.00"}}}
+	fake.mu.Unlock()
+	cash.expect(200, "GET", "/api/pos/charges/"+iid2, nil)
+	two := sub(cash.expect(201, "POST", "/api/pos/sales", map[string]any{"lines": []map[string]any{{"item_id": svc, "qty": 2}},
+		"payments": []map[string]any{{"method": "mp_point", "amount_cents": 100000, "intent_id": iid2}}}), "sale")
+	twoID := two["id"].(string)
+	line := two["lines"].([]any)[0].(map[string]any)["id"].(string)
+	ret := sub(cash.expect(201, "POST", "/api/pos/sales/"+twoID+"/returns", map[string]any{"reason": "Solo vino uno",
+		"lines": []map[string]any{{"sale_item_id": line, "qty": 1}}}), "return")
+	if num(ret, "total_cents") != 50000 || ret["refunds"].([]any)[0].(map[string]any)["method"] != "mp_point" {
+		t.Fatalf("partial return: %v", ret)
+	}
+	fake.mu.Lock()
+	partial := fake.refundBodies[len(fake.refundBodies)-1]
+	fake.mu.Unlock()
+	tr, _ := partial["transactions"].([]any)
+	if len(tr) != 1 || tr[0].(map[string]any)["id"] != "900" || tr[0].(map[string]any)["amount"] != "500.00" {
+		t.Fatalf("a partial refund must name the payment and the amount: %v", partial)
+	}
+	// Mercado Pago refusing keeps everything as it was
+	fake.mu.Lock()
+	fake.refundFail = true
+	fake.mu.Unlock()
+	if code, o := cash.do("POST", "/api/pos/sales/"+twoID+"/returns", map[string]any{"reason": "El otro",
+		"lines": []map[string]any{{"sale_item_id": line, "qty": 1}}}); code != 502 || o["code"] != "refund_failed" {
+		t.Fatalf("a refused refund must stop the return: %d %v", code, o)
+	}
+	fake.mu.Lock()
+	fake.refundFail = false
+	fake.mu.Unlock()
+	if info := cash.expect(200, "GET", "/api/pos/sales/"+twoID+"/returns", nil); num(info, "returned_cents") != 50000 {
+		t.Fatalf("the failed return must not be recorded: %v", info)
+	}
+	// the sale with returns cannot be voided as a whole
+	if code, o := admin.do("POST", "/api/pos/sales/"+twoID+"/void", map[string]any{"reason": "x"}); code != 409 || o["code"] != "HAS_RETURNS" {
+		t.Fatalf("void after a return: %d %v", code, o)
+	}
+
 	// voiding the sale refunds the card; if Mercado Pago refuses, the sale stays
 	sid := sub(out, "sale")["id"].(string)
 	fake.mu.Lock()
@@ -648,7 +695,13 @@ func TestPointTerminalAndLinks(t *testing.T) {
 	fake.refundFail = false
 	fake.mu.Unlock()
 	admin.expect(200, "POST", "/api/pos/sales/"+sid+"/void", map[string]any{"reason": "Error"})
-	if len(fake.refunded) != 1 || fake.refunded[0] != "order:"+iid {
+	refundsOfOrder := 0
+	for _, r := range fake.refunded {
+		if r == "order:"+iid {
+			refundsOfOrder++
+		}
+	}
+	if refundsOfOrder != 1 {
 		t.Fatalf("the order must be refunded exactly once: %v", fake.refunded)
 	}
 

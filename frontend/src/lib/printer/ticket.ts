@@ -1,5 +1,6 @@
 import type { PosSettings, Sale } from '$lib/types';
 import { PAY_METHODS } from '$lib/types';
+import type { ReturnResult } from '$lib/types/pos2';
 import { EscPos, wrap } from './escpos';
 
 const peso = (cents: number) =>
@@ -130,6 +131,35 @@ export function ticketHtml(sale: Sale, s: PosSettings, opts: { test?: boolean; r
       <div class="c">Gracias por su preferencia</div>`;
   }
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${opts.test ? 'Prueba' : 'Ticket #' + sale.folio}</title>
+<style>
+@page { size: ${s.printer.width}mm auto; margin: 2mm; }
+* { box-sizing: border-box; }
+body { width: ${w}; margin: 0 auto; font: 12px/1.35 'Courier New', ui-monospace, monospace; color: #000; }
+.c { text-align: center; } .b { font-weight: 700; } .big { font-size: 15px; }
+.row { display: flex; justify-content: space-between; gap: 8px; } .row span:first-child { overflow-wrap: anywhere; }
+.sub { padding-left: 4px; font-size: 11px; }
+hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
+</style></head><body>${head}${body}</body></html>`;
+}
+
+/** The return note (nota de devolución) for the browser's print dialog. */
+export function returnTicketHtml(ret: ReturnResult, s: PosSettings): string {
+  const w = s.printer.width === 58 ? '54mm' : '76mm';
+  const row = (l: string, r: string, cls = '') => `<div class="row ${cls}"><span>${esc(l)}</span><span>${esc(r)}</span></div>`;
+  const head = [
+    `<div class="c b big">${esc(s.business_name || 'Mi consultorio')}</div>`,
+    s.rfc ? `<div class="c">RFC: ${esc(s.rfc)}</div>` : '',
+    s.phone ? `<div class="c">Tel. ${esc(s.phone)}</div>` : ''
+  ].join('');
+  const body = `<hr><div class="c b">NOTA DE DEVOLUCIÓN #${ret.folio}</div>
+    ${row('Venta #' + ret.sale_folio, when(ret.created_at))}
+    ${ret.created_by_name ? `<div>Atendió: ${esc(ret.created_by_name)}</div>` : ''}<hr>
+    ${ret.lines.map((l) => row(`${qty(l.qty)} x ${l.name}`, peso(l.amount_cents))).join('')}<hr>
+    ${row('TOTAL DEVUELTO', peso(ret.total_cents), 'b big')}<hr>
+    ${ret.refunds.map((r) => row('Devuelto en ' + (PAY_METHODS[r.method as keyof typeof PAY_METHODS]?.label.replace(/ \(.*\)/, '') ?? r.method), peso(r.amount_cents))).join('')}
+    <div class="sub">Motivo: ${esc(ret.reason)}</div>
+    <br><br><div class="c">______________________</div><div class="c">Firma de quien recibe</div>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Devolución #${ret.folio}</title>
 <style>
 @page { size: ${s.printer.width}mm auto; margin: 2mm; }
 * { box-sizing: border-box; }

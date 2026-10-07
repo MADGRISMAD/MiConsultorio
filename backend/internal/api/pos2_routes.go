@@ -17,6 +17,10 @@ func (s *Server) mountPosRoutes(r chi.Router) {
 	r.With(require(PermPOS)).Get("/items/{id}/consumables", s.getConsumables)
 	r.With(require(PermPOSManage)).Put("/items/{id}/consumables", s.setConsumables)
 
+	// returns of part of a sale
+	r.With(require(PermPOS)).Get("/sales/{id}/returns", s.saleReturnInfo)
+	r.With(require(PermPOS)).Post("/sales/{id}/returns", s.createSaleReturn)
+
 	// professionals and commissions
 	r.With(require(PermPOS)).Get("/professionals", s.posProfessionals)
 	r.With(require(PermPOSManage, PermPOSReports)).Get("/commission-rules", s.listCommissionRules)

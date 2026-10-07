@@ -164,3 +164,55 @@ export interface PlanPrefill {
   total_cents: number;
   items: PlanPrefillItem[];
 }
+
+// ---- Devoluciones ----
+export interface ReturnableLine {
+  sale_item_id: string;
+  name: string;
+  kind: string;
+  qty: number;
+  returned_qty: number;
+  returnable_qty: number;
+  returnable_cents: number;
+  unit_cents: number;
+  tracks_stock: boolean;
+}
+
+export interface PastReturn {
+  id: string;
+  folio: number;
+  total_cents: number;
+  reason: string;
+  credit_note_pending: boolean;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface ReturnInfo {
+  sale: { id: string; folio: number; status: string; total_cents: number; invoiced: boolean };
+  lines: ReturnableLine[];
+  refundable: { method: string; amount_cents: number; count: number }[];
+  returns: PastReturn[];
+  can_return: boolean;
+  returned_cents: number;
+}
+
+export interface ReturnInput {
+  reason: string;
+  lines: { sale_item_id: string; qty: number; restock?: boolean }[];
+  refunds?: { method: string; amount_cents: number }[];
+}
+
+export interface ReturnResult {
+  id: string;
+  folio: number;
+  sale_id: string;
+  sale_folio: number;
+  total_cents: number;
+  reason: string;
+  created_at: string;
+  created_by_name: string;
+  credit_note_pending: boolean;
+  lines: { name: string; qty: number; amount_cents: number; restocked: boolean }[];
+  refunds: { method: string; amount_cents: number }[];
+}
