@@ -20,7 +20,7 @@
 <fieldset>
   <legend class="label">¿Qué tipo de consultorio es?</legend>
   <p class="hint mb-3 !mt-0">Elige el principal. Lo usamos para ajustar la experiencia a tu especialidad.</p>
-  <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3" role="radiogroup" aria-label="Tipo de consultorio">
+  <div class="grid grid-cols-1 gap-2.5 min-[440px]:grid-cols-2 sm:grid-cols-3" role="radiogroup" aria-label="Tipo de consultorio">
     {#each CLINIC_KIND_KEYS as k}
       {@const on = kind === k}
       <button
@@ -32,8 +32,8 @@
       >
         <span class="grid h-9 w-9 flex-none place-items-center rounded-lg {on ? 'bg-app-primary text-app-on-primary' : 'bg-app-ink/8 text-app-muted'}"><Icon name={CLINIC_KINDS[k].icon} size={19} /></span>
         <span class="min-w-0">
-          <strong class="block truncate text-sm font-semibold {on ? 'text-app-primary' : ''}">{CLINIC_KINDS[k].label}</strong>
-          <small class="block truncate text-xs text-app-muted">{CLINIC_KINDS[k].hint}</small>
+          <strong class="block text-sm font-semibold {on ? 'text-app-primary' : ''}">{CLINIC_KINDS[k].label}</strong>
+          <small class="block text-xs text-app-muted">{CLINIC_KINDS[k].hint}</small>
         </span>
       </button>
     {/each}

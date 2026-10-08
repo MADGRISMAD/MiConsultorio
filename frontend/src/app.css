@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* A grid without explicit columns sizes its one track to its widest child, which on a phone pushes the
+   whole page wider than the screen. Give it a shrinkable track; any grid-cols-* utility still wins. */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;

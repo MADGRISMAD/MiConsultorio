@@ -77,7 +77,7 @@
 </script>
 
 <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-  <div class="flex flex-wrap items-end gap-3">
+  <div class="flex min-w-0 max-w-full flex-wrap items-end gap-3">
     <RangeBar bind:from bind:to bind:preset />
     {#if report?.scope === 'clinic' && known.length > 1}
       <div>
@@ -103,7 +103,7 @@
 {#if loading && !report}
   <div class="card"><LoadingRows /></div>
 {:else if report}
-  <div class="grid gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
+  <div class="grid grid-cols-1 gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {#each [
         { label: 'Consultas', value: String(report.encounters.total), sub: 'Consulta, seguimiento y procedimiento' },
@@ -154,7 +154,7 @@
       {/if}
     </section>
 
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section class="card p-5">
         <h2 class="display text-2xl">Citas por estado</h2>
         {#if !report.appointments.total}

@@ -45,21 +45,21 @@
   <div class="card"><LoadingRows /></div>
 {:else}
   <div class="grid gap-4">
-    <form class="card p-6" onsubmit={(e) => { e.preventDefault(); void save(dataOp, { name, phone_number: phone, address }, 'Datos guardados'); }}>
+    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(dataOp, { name, phone_number: phone, address }, 'Datos guardados'); }}>
       <h2 class="display mb-5 text-3xl">Nombre y contacto</h2>
       <ClinicFields bind:name bind:phone bind:address />
       {#if dataOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{dataOp.message}</p>{/if}
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
 
-    <form class="card p-6" onsubmit={(e) => { e.preventDefault(); void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
+    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
       <h2 class="display mb-5 text-3xl">Giro y especialidades</h2>
       <SpecialtyPicker bind:kind bind:specialties />
       {#if kindOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{kindOp.message}</p>{/if}
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={kindOp.phase === 'loading'}>Guardar giro</button></div>
     </form>
 
-    <form class="card p-6" onsubmit={(e) => { e.preventDefault(); void save(hoursOp, { settings: $state.snapshot(settings) }, 'Horario guardado'); }}>
+    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(hoursOp, { settings: $state.snapshot(settings) }, 'Horario guardado'); }}>
       <h2 class="display mb-1 text-3xl">Horario y citas</h2>
       <p class="mb-5 text-sm text-app-muted">Ahora: {summarizeHours(settings)} · citas de {settings.appointment_minutes} min</p>
       <HoursEditor bind:settings />

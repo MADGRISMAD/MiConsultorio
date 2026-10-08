@@ -86,7 +86,7 @@
 {#if loading && !report}
   <div class="card"><LoadingRows /></div>
 {:else if report}
-  <div class="grid gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
+  <div class="grid grid-cols-1 gap-4 transition-opacity {loading ? 'opacity-60' : ''}" aria-busy={loading}>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {#each [
         { label: 'Pacientes atendidos', value: report.visits.patients, sub: 'Con consulta en el periodo' },
@@ -102,7 +102,7 @@
       {/each}
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section class="card p-5">
         <h2 class="display text-2xl">Nuevos y recurrentes por mes</h2>
         <p class="mt-1 text-sm text-app-muted">Nuevo: su primera consulta fue ese mes. Recurrente: ya tenía consultas antes.</p>
@@ -215,7 +215,7 @@
       {/if}
     </section>
 
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <section class="card p-5">
         <h2 class="display text-2xl">Edad y sexo (personas)</h2>
         {#if !report.people.total}

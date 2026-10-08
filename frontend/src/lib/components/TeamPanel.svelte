@@ -195,7 +195,7 @@
 
 <section class="card mt-4 overflow-hidden" aria-label="Qué puede hacer cada rol">
   <div class="px-5 pb-2 pt-5"><h2 class="display text-2xl">Qué puede hacer cada rol</h2></div>
-  <div class="overflow-x-auto">
+  <div class="relative overflow-x-auto">
     <table class="w-full min-w-[34rem] text-sm">
       <thead>
         <tr class="border-b border-app-ink/10">

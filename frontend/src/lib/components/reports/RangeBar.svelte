@@ -14,8 +14,8 @@
   }
 </script>
 
-<div class="flex flex-wrap items-end gap-3">
-  <div class="flex gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1" role="group" aria-label="Periodo">
+<div class="flex min-w-0 max-w-full flex-wrap items-end gap-3">
+  <div class="flex max-w-full min-w-0 gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1" role="group" aria-label="Periodo">
     {#each RANGE_PRESETS as p}
       <button type="button" aria-pressed={preset === p.id} class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition {preset === p.id ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => pick(p.id)}>{p.label}</button>
     {/each}

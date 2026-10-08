@@ -23,17 +23,17 @@
   <ul class="divide-y divide-app-ink/8 overflow-hidden rounded-xl border border-app-ink/10">
     {#each WEEKDAYS as [key, label]}
       {@const h = settings.hours[key]}
-      <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 {h.open ? '' : 'bg-app-ink/[0.03]'}">
-        <label class="flex w-36 cursor-pointer items-center gap-3 text-sm font-medium">
+      <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4 {h.open ? '' : 'bg-app-ink/[0.03]'}">
+        <label class="flex w-full cursor-pointer sm:w-36 items-center gap-3 text-sm font-medium">
           <input type="checkbox" class="peer sr-only" bind:checked={h.open} />
           <span class="relative h-5 w-9 flex-none rounded-full bg-app-ink/15 transition peer-checked:bg-app-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-app-primary/60 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4" aria-hidden="true"></span>
           <span class={h.open ? '' : 'text-app-muted'}>{label}</span>
         </label>
         {#if h.open}
-          <div class="flex items-center gap-2 text-sm">
-            <input type="time" step="900" class="field !min-h-9 !w-auto !py-1" bind:value={h.start} aria-label="Apertura del {label}" required />
+          <div class="flex w-full items-center gap-2 text-sm sm:w-auto">
+            <input type="time" step="900" class="field !min-h-9 !w-auto min-w-0 flex-1 !py-1 sm:flex-none" bind:value={h.start} aria-label="Apertura del {label}" required />
             <span class="text-app-muted">a</span>
-            <input type="time" step="900" class="field !min-h-9 !w-auto !py-1" bind:value={h.end} aria-label="Cierre del {label}" required />
+            <input type="time" step="900" class="field !min-h-9 !w-auto min-w-0 flex-1 !py-1 sm:flex-none" bind:value={h.end} aria-label="Cierre del {label}" required />
           </div>
         {:else}
           <span class="text-sm text-app-muted">Cerrado</span>

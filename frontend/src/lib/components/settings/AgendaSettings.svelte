@@ -212,13 +212,13 @@
               <ul class="divide-y divide-app-ink/8 overflow-hidden rounded-xl border border-app-ink/10">
                 {#each DAYS as [d, label]}
                   <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-3.5 py-2.5 text-sm">
-                    <span class="w-24 font-medium">{label}</span>
+                    <span class="w-full font-medium sm:w-24">{label}</span>
                     <div class="flex flex-1 flex-wrap items-center gap-2">
                       {#each p.hours[d] ?? [] as r, ri}
-                        <span class="flex items-center gap-1.5">
-                          <input type="time" step="900" class="field !min-h-9 !w-auto !py-1" bind:value={r[0]} aria-label="{label}, inicio del tramo {ri + 1}" />
+                        <span class="flex w-full items-center gap-1.5 sm:w-auto">
+                          <input type="time" step="900" class="field !min-h-9 !w-auto min-w-0 flex-1 !py-1 sm:flex-none" bind:value={r[0]} aria-label="{label}, inicio del tramo {ri + 1}" />
                           <span class="text-app-muted">a</span>
-                          <input type="time" step="900" class="field !min-h-9 !w-auto !py-1" bind:value={r[1]} aria-label="{label}, fin del tramo {ri + 1}" />
+                          <input type="time" step="900" class="field !min-h-9 !w-auto min-w-0 flex-1 !py-1 sm:flex-none" bind:value={r[1]} aria-label="{label}, fin del tramo {ri + 1}" />
                           <button type="button" class="icon-btn danger !h-8 !w-8" aria-label="Quitar el tramo {ri + 1} del {label}" onclick={() => removeRange(p, d, ri)}><Icon name="x" size={16} /></button>
                         </span>
                       {/each}

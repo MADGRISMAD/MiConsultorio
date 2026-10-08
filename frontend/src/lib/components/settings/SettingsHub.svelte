@@ -218,8 +218,8 @@
                   <a href={item.to} class="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink">
                     <Icon name={item.icon} size={20} class="flex-none" />
                     <span class="min-w-0 flex-1">
-                      <span class="block truncate text-[15px] font-medium">{item.label}</span>
-                      <small class="block truncate text-xs font-normal">{item.desc}</small>
+                      <span class="block text-[15px] font-medium">{item.label}</span>
+                      <small class="block text-xs font-normal">{item.desc}</small>
                     </span>
                     <Icon name="chevron-down" size={16} class="-rotate-90 flex-none opacity-60" />
                   </a>
@@ -235,7 +235,7 @@
                       <span class="flex min-w-0 items-center gap-1.5 text-[15px] font-medium">
                         <span class="truncate">{item.label}</span>{#if dirtyIn(item.id)}<i class="h-2 w-2 flex-none rounded-full bg-app-warning" aria-label="Con cambios sin guardar"></i>{/if}
                       </span>
-                      <small class="block truncate text-xs font-normal {on ? 'text-app-primary/80' : ''}">{item.desc}</small>
+                      <small class="block text-xs font-normal {on ? 'text-app-primary/80' : ''}">{item.desc}</small>
                     </span>
                     <Icon name="chevron-down" size={16} class="-rotate-90 flex-none opacity-60" />
                   </button>
