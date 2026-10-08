@@ -151,7 +151,7 @@
   const dentitions: { v: Dentition; label: string }[] = [
     { v: 'adult', label: 'Adulto (32)' },
     { v: 'child', label: 'Niño (20)' },
-    { v: 'mixed', label: 'Mixta (niño + adulto)' }
+    { v: 'mixed', label: 'Mixta' }
   ];
 </script>
 
@@ -180,7 +180,15 @@
   </div>
 
   {#if !viewed && patient.age != null}
-    <p class="hint mb-3">Según su edad ({patient.age} años) se muestra la dentición {dentitions.find((d) => d.v === work.dentition)?.label.replace(/ \(.*\)/, '').toLowerCase()}. Puedes cambiarla si hace falta (por ejemplo, dientes de leche que aún no se caen).</p>
+    {@const auto = dentitions.find((d) => d.v === autoDentition(patient.age, work))?.label.replace(/ \(.*\)/, '').toLowerCase()}
+    <p class="hint mb-3">
+      {#if work.dentition === autoDentition(patient.age, work)}
+        Según su edad ({patient.age} años) se muestra la dentición {auto}.
+      {:else}
+        Por su edad ({patient.age} años) correspondería la dentición {auto}; elegiste otra manualmente.
+      {/if}
+      «Mixta» es solo para cuando el paciente aún conserva algunos dientes de leche junto a los definitivos; en un adulto normal usa «Adulto».
+    </p>
   {/if}
 
   {#if viewed}
