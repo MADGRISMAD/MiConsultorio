@@ -183,8 +183,8 @@
                   <a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:bg-app-ink/[0.04] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20 {search.trim() && !pet.matched ? 'border-app-ink/8 opacity-60' : 'border-app-ink/12'}">
                     <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name="paw" size={17} /></span>
                     <span class="min-w-0">
-                      <span class="block truncate font-semibold">{pet.names} <span class="font-mono text-xs font-normal text-app-muted">#{pet.file_number}</span></span>
-                      <span class="block truncate text-xs text-app-muted">{[pet.species, pet.last_visit ? `visita ${ago(pet.last_visit)}` : 'Sin consultas'].filter(Boolean).join(' · ')}</span>
+                      <span class="flex items-center gap-2"><span class="truncate font-semibold">{pet.names}</span>{#if pet.species}<span class="pill pill-info flex-none">{pet.species}</span>{/if}</span>
+                      <span class="block truncate text-xs text-app-muted"><span class="font-mono">#{pet.file_number}</span> · {pet.last_visit ? `visita ${ago(pet.last_visit)}` : 'Sin consultas'}</span>
                     </span>
                   </a>
                 </li>
@@ -227,8 +227,8 @@
                 <a href={href(p)} class="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20">
                   <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={17} /></span>
                   <span class="min-w-0">
-                    <span class="block font-semibold">{fullName(p)}</span>
-                    {#if p.subject === 'animal'}<span class="block text-xs text-app-muted">{[p.species, p.guardian_name ? `dueño: ${p.guardian_name}` : '', p.guardian_phone].filter(Boolean).join(' · ')}</span>{/if}
+                    <span class="flex items-center gap-2"><span class="font-semibold">{fullName(p)}</span>{#if p.subject === 'animal' && p.species}<span class="pill pill-info flex-none">{p.species}</span>{/if}</span>
+                    {#if p.subject === 'animal'}<span class="block text-xs text-app-muted">{[p.guardian_name ? `dueño: ${p.guardian_name}` : '', p.guardian_phone].filter(Boolean).join(' · ')}</span>{/if}
                     {#if p.incomplete || p.no_privacy_notice || p.archived_at}<span class="mt-1 flex flex-wrap gap-1.5">{@render pills(p)}</span>{/if}
                   </span>
                 </a>
@@ -249,8 +249,8 @@
           <a href={href(p)} class="flex items-start gap-3 px-4 py-3.5 transition hover:bg-app-ink/[0.03] focus-visible:bg-app-ink/[0.04] focus-visible:outline-none">
             <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={18} /></span>
             <span class="min-w-0 flex-1">
-              <span class="block font-semibold">{fullName(p)} <span class="font-mono text-xs font-normal text-app-muted">#{p.file_number}</span></span>
-              <span class="block text-sm text-app-muted">{subtitle(p) || 'Sin edad registrada'}</span>
+              <span class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">{fullName(p)} <span class="font-mono text-xs font-normal text-app-muted">#{p.file_number}</span>{#if p.subject === 'animal' && p.species}<span class="pill pill-info">{p.species}</span>{/if}</span>
+              <span class="block text-sm text-app-muted">{subtitle(p, false) || 'Sin edad registrada'}</span>
               <span class="mt-0.5 block text-xs text-app-muted">{p.phone || 'Sin teléfono'} · {lastVisit(p)}</span>
               {#if p.incomplete || p.no_privacy_notice || p.archived_at}<span class="mt-1.5 flex flex-wrap gap-1.5">{@render pills(p)}</span>{/if}
             </span>

@@ -30,6 +30,7 @@ test('un propietario con varias mascotas, y dos mascotas con el mismo nombre', a
   await expect(card.getByText(`Max${id}`)).toBeVisible();
   await expect(card.getByText(`Luna${id}`)).toBeVisible();
   await expect(card.getByText('2 mascotas')).toBeVisible();
+  await expect(card.getByText('Perro').first()).toBeVisible(); // the species is shown on each pet
 
   // searching the shared pet name shows each Max under its own owner
   await page.getByLabel('Buscar pacientes').fill(`Max${id}`);
@@ -39,6 +40,7 @@ test('un propietario con varias mascotas, y dos mascotas con el mismo nombre', a
   // by pet: one line per animal, each with its owner
   await page.getByRole('button', { name: 'Por mascota' }).click();
   await expect(page.getByText(`dueño: ${luis}`).first()).toBeVisible();
+  await expect(page.getByText('Perro').first()).toBeVisible();
   await expect(page.getByText(`dueño: ${marco}`).first()).toBeVisible();
 
   // a new pet of an owner already registered: the owner comes preselected from the card

@@ -191,8 +191,9 @@
         <div class="min-w-0 flex-1 basis-72">
           <p class="section-title">Expediente No. {patient.file_number}</p>
           <h1 class="display mt-1 break-words text-[2.25rem] leading-[1.05] sm:text-5xl">{fullName}</h1>
+          {#if animal && species}<span class="pill pill-info mt-2 inline-flex text-sm" aria-label="Especie: {species}"><Icon name="paw" size={14} />{species}</span>{/if}
           <p class="mt-2 text-[15px] text-app-muted">
-            {#if animal}{species}{species && (ageText || patient.guardian_name) ? ' · ' : ''}{/if}{ageText}{#if animal && patient.guardian_name}{ageText ? ' · ' : ''}Propietario: {patient.guardian_name}{/if}
+            {ageText}{#if animal && patient.guardian_name}{ageText ? ' · ' : ''}Propietario: {patient.guardian_name}{/if}
           </p>
           {#if patient.phone || (animal && patient.guardian_phone) || patient.email}
             <p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-app-muted">

@@ -276,7 +276,7 @@ func (s *Server) lookupPatients(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for i := range list {
-		list[i].Species, list[i].LastEncounterAt = "", nil // not their business
+		list[i].LastEncounterAt = nil // the visit history is not the front desk's business (the species helps tell pets apart)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"patients": list})
 }

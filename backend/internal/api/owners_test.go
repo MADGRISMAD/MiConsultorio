@@ -77,6 +77,13 @@ func TestOwnersGroupPetsAndTellSameNamedPetsApart(t *testing.T) {
 		}
 	}
 
+	// the front desk's lookup also tells the species (it helps tell two pets apart) but not the visit history
+	for _, r := range recep.expect(200, "GET", "/api/patients/lookup?q=max", nil)["patients"].([]any) {
+		if m := r.(map[string]any); m["species"] != "Perro" || m["last_encounter_at"] != nil || m["guardian_name"] == "" {
+			t.Fatalf("lookup row: %v", m)
+		}
+	}
+
 	// the picker of the forms
 	got := recep.expect(200, "GET", "/api/patients/owners?q=luis", nil)["owners"].([]any)
 	if len(got) != 2 {

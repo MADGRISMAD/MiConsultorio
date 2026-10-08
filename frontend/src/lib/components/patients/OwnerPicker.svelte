@@ -40,7 +40,7 @@
     return () => clearTimeout(t);
   });
 
-  const petsText = (o: OwnerListItem) => (o.pets.length ? o.pets.map((p) => p.names).join(', ') : 'Sin mascotas activas');
+  const petsText = (o: OwnerListItem) => (o.pets.length ? o.pets.map((p) => (p.species ? `${p.names} (${p.species})` : p.names)).join(', ') : 'Sin mascotas activas');
 
   function pick(o: OwnerListItem) {
     open = false;

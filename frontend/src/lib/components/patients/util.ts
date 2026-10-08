@@ -23,10 +23,10 @@ export const fullName = (p: { names: string; last_names: string }) => `${p.names
 export const SUBJECT_LABEL: Record<Subject, string> = { person: 'Persona', animal: 'Animal' };
 
 /** Second line under a patient's name: age and species for animals (with owner), age for people. */
-export function subtitle(p: PatientRow): string {
+export function subtitle(p: PatientRow, withSpecies = true): string {
   const parts: string[] = [];
   if (p.subject === 'animal') {
-    if (p.species) parts.push(p.species);
+    if (withSpecies && p.species) parts.push(p.species);
     const a = ageText(p.age);
     if (a) parts.push(a);
     if (p.guardian_name) parts.push(`dueño: ${p.guardian_name}`);

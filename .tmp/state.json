@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "caresia_session",
-      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MjY1YjRjNy01ZWRkLTRmMjQtODZmNi0xNWE2OGYyMWI5ZmMiLCJleHAiOjE3OTE1Mzg0ODIsImlhdCI6MTc5MTQ5NTI4MiwidHYiOjB9.4PrPq1t_rVMA_uTBNzpFULRcREEiMZAIkES5gT1u_Z4",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYTM0N2VhMS04ZTZjLTQ0ZjMtYWE0Mi05ODI3ODE5ZjgzYzAiLCJleHAiOjE3OTE1Mzg5MjUsImlhdCI6MTc5MTQ5NTcyNSwidHYiOjB9.oXBiAa83rf_OrPxni3FEXPybCleRZ2W7ygUcqPqd2HM",
       "domain": "localhost",
       "path": "/",
-      "expires": 1791538482.18,
+      "expires": 1791538925.823,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"

@@ -122,8 +122,8 @@
     <div class="flex items-center gap-3 rounded-xl border border-app-ink/15 bg-app-elevated px-3.5 py-2.5" aria-labelledby="{uid}-l" role="group">
       <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={value.subject === 'animal' ? 'paw' : 'user'} size={18} /></span>
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-semibold">{fullName(value)}</span>
-        <span class="block truncate text-xs text-app-muted">#{value.file_number}{subtitle(value) ? ` · ${subtitle(value)}` : ''}{value.phone ? ` · ${value.phone}` : ''}</span>
+        <span class="flex items-center gap-2"><span class="truncate font-semibold">{fullName(value)}</span>{#if value.subject === 'animal' && value.species}<span class="pill pill-info flex-none">{value.species}</span>{/if}</span>
+        <span class="block truncate text-xs text-app-muted">#{value.file_number}{subtitle(value, false) ? ` · ${subtitle(value, false)}` : ''}{value.phone ? ` · ${value.phone}` : ''}</span>
       </span>
       <button type="button" class="btn-ghost -mr-1 min-h-9 px-3" onclick={clear}>Cambiar</button>
     </div>
@@ -165,8 +165,8 @@
             >
               <span class="grid h-8 w-8 flex-none place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={16} /></span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold">{fullName(p)} <span class="font-normal text-app-muted">#{p.file_number}</span></span>
-                <span class="block truncate text-xs text-app-muted">{[subtitle(p), p.phone || p.guardian_phone].filter(Boolean).join(' · ') || 'Sin más datos'}</span>
+                <span class="flex items-center gap-2 text-sm font-semibold"><span class="truncate">{fullName(p)} <span class="font-normal text-app-muted">#{p.file_number}</span></span>{#if p.subject === 'animal' && p.species}<span class="pill pill-info flex-none">{p.species}</span>{/if}</span>
+                <span class="block truncate text-xs text-app-muted">{[subtitle(p, false), p.phone || p.guardian_phone].filter(Boolean).join(' · ') || 'Sin más datos'}</span>
               </span>
             </li>
           {/each}
