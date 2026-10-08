@@ -52,7 +52,7 @@
   }
 </script>
 
-<div class="overflow-x-auto rounded-2xl border border-app-ink/10 bg-app-panel p-3">
+<div class="w-full max-w-full overflow-x-auto rounded-2xl border border-app-ink/10 bg-app-panel p-3">
   <svg
     bind:this={svg}
     viewBox="0 0 {width} {height}"

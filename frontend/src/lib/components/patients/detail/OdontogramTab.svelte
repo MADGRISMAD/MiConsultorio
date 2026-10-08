@@ -171,8 +171,8 @@
 {:else if error}
   <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
 {:else}
-  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-    <p class="max-w-xl text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
+  <div class="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+    <p class="min-w-0 max-w-xl flex-1 basis-64 text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
     <div class="flex flex-wrap gap-2">
       <div role="radiogroup" aria-label="Dentición" class="inline-flex rounded-full bg-app-ink/5 p-1">
         {#each offered as d (d.v)}
@@ -233,7 +233,7 @@
 
   <OdontogramChart data={shown} {selected} {highlight} {readonly} onpick={pick} onkey={key} />
 
-  <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+  <div class="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
     <section class="card p-4 sm:p-5" aria-live="polite">
       <h3 class="display text-xl">{selected != null ? `Pieza ${selected}` : 'Pieza'}</h3>
       {#if selected == null}
@@ -252,14 +252,6 @@
                 onclick={() => toggleSurface(selected!, sh.surface, tool)}
               >
                 {SURFACE_NAMES[sh.surface]}{#if st}<span class="rounded px-1 text-[11px] font-bold text-white" style="background:{stateDef(st)?.color}">{stateDef(st)?.letter}</span>{/if}
-              </button>
-            {/each}
-          </div>
-          <p class="section-title mt-3">Toda la pieza</p>
-          <div class="mt-1 flex flex-wrap gap-1.5">
-            {#each STATES.filter((s) => s.whole || s.id === 'fractura') as s (s.id)}
-              <button type="button" class="btn-secondary !min-h-9 !px-3" aria-pressed={tooth?.state === s.id} onclick={() => toggleWhole(selected!, s.id)}>
-                <span class="grid h-4 w-4 place-items-center rounded text-[10px] font-bold text-white" style="background:{s.color}" aria-hidden="true">{s.letter}</span>{s.label}
               </button>
             {/each}
           </div>
