@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { labApi } from '$lib/api/lab';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
@@ -53,6 +54,10 @@
   let rxOpen = $state(false);
   let rxEncounter = $state<{ id?: string; diagnosis?: string }>({});
 
+  /** Giros that order or interpret lab studies. The others keep their studies in Archivos. */
+  const LAB_KINDS = ['GENERAL_MEDICAL', 'INTERNAL_MEDICINE', 'PEDIATRICS', 'GYNECOLOGY', 'DERMATOLOGY', 'ORTHOPEDICS', 'VETERINARY'];
+  let hasLabData = $state(false);
+
   async function load() {
     try {
       const [p, s, e, r] = await Promise.all([api.patients.get(id), api.patients.schema(), api.patients.encounters(id), api.patients.prescriptions(id)]);
@@ -61,6 +66,7 @@
       encounters = e;
       prescriptions = r;
       loadError = '';
+      if (!(s.kinds ?? []).some((k) => LAB_KINDS.includes(k))) labApi.orders(id).then((o) => (hasLabData = o.length > 0)).catch(() => {});
       if (isAdmin) api.patients.access(id).then((a) => (access = a)).catch(() => {});
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) notFound = true;
@@ -149,6 +155,7 @@
 
   const isPerson = $derived(patient?.subject === 'person');
   const hasKind = (...k: string[]) => (schema?.kinds ?? []).some((x) => k.includes(x));
+  const labGiro = $derived(hasKind(...LAB_KINDS));
   const hasMeasures = $derived(encounters.some((e) => ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')));
   const showGrowth = $derived(hasKind('PEDIATRICS') || patient?.subject === 'animal' || hasMeasures);
   const tabs = $derived<{ key: Tab; label: string; count?: number }[]>([
@@ -160,7 +167,7 @@
     ...(isPerson && hasKind('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
     ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
     ...(hasKind('DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'NUTRITION', 'PSYCHOLOGY', 'VETERINARY') ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : []),
-    { key: 'laboratorio', label: 'Laboratorio' },
+    ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio' }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento' }] : []),
     { key: 'archivos', label: 'Archivos' },
     ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos' }] : [])
