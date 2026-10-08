@@ -148,6 +148,17 @@
       toast.show(e instanceof Error ? e.message : 'No se pudo imprimir.', 'error');
     }
   }
+  /** Options that make sense for the age: kids get baby teeth + mixed, adults permanent + mixed, the transition years all three.
+   *  The one in use is always offered so it never disappears. */
+  const offered = $derived.by(() => {
+    const age = patient.age;
+    const keep = shown.dentition;
+    return dentitions.filter((d) => {
+      if (age == null || d.v === keep || d.v === 'mixed') return true;
+      if (age >= 6 && age < 13) return true;
+      return d.v === (age < 6 ? 'child' : 'adult');
+    });
+  });
   const dentitions: { v: Dentition; label: string }[] = [
     { v: 'adult', label: 'Adulto (32)' },
     { v: 'child', label: 'Niño (20)' },
@@ -164,7 +175,7 @@
     <p class="max-w-xl text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
     <div class="flex flex-wrap gap-2">
       <div role="radiogroup" aria-label="Dentición" class="inline-flex rounded-full bg-app-ink/5 p-1">
-        {#each dentitions as d}
+        {#each offered as d (d.v)}
           <button
             type="button"
             role="radio"
