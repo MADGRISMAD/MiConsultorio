@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
@@ -58,9 +59,12 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 	}
 	p := principalFrom(r.Context())
 	var out appointment
+	var chargeID string
+	var chargeCents int
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
-		var cur, prof string
-		err := tx.QueryRow(r.Context(), `SELECT status, coalesce(professional_id::text, '') FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, id).Scan(&cur, &prof)
+		var cur, prof, date, start string
+		err := tx.QueryRow(r.Context(), `SELECT status, coalesce(professional_id::text, ''), to_char(date, 'YYYY-MM-DD'), to_char(start_hour, 'HH24:MI')
+			FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, id).Scan(&cur, &prof, &date, &start)
 		if err != nil {
 			return err
 		}
@@ -71,6 +75,9 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 			e := fail(http.StatusConflict, "No se puede pasar una cita de «"+statusName(cur)+"» a «"+statusName(in.Status)+"».")
 			e.Code = "INVALID_TRANSITION"
 			return e
+		}
+		if he := apptTimeGate(clinicLocation(r.Context(), tx, p.ClinicID), date, start, in.Status, apptNow()); he != nil {
+			return he
 		}
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE appointments SET status = $3,
@@ -90,6 +97,9 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 		}
 		audit(r.Context(), tx, p.ClinicID, p, "appointment_status", statusLabels[in.Status]+" una cita",
 			map[string]any{"appointment": id, "from": cur, "to": in.Status, "reason": in.Reason})
+		if in.Status == "completed" {
+			chargeID, chargeCents = s.tryAutoCharge(r.Context(), tx, p, id)
+		}
 		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -103,14 +113,22 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 	if in.Status == "cancelled" || in.Status == "no_show" {
 		waitlistWake()
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
+	resp := map[string]any{"appointment": out}
+	if chargeID != "" {
+		resp["charge"] = map[string]any{"id": chargeID, "total_cents": chargeCents}
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
+
+// apptNow is the clock the appointment rules use (tests move it).
+var apptNow = time.Now
 
 // linkEncounterToAppointment ties a new bitácora entry to the appointment it came from and closes the appointment.
 func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *Principal, patientID, apptID, encounterID string) error {
-	var cur string
+	var cur, date, start string
 	var apptPatient *string
-	err := tx.QueryRow(ctx, `SELECT status, patient_id::text FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, apptID).Scan(&cur, &apptPatient)
+	err := tx.QueryRow(ctx, `SELECT status, patient_id::text, to_char(date, 'YYYY-MM-DD'), to_char(start_hour, 'HH24:MI')
+		FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`, p.ClinicID, apptID).Scan(&cur, &apptPatient, &date, &start)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fail(http.StatusBadRequest, "La cita no existe en este consultorio.")
 	}
@@ -119,6 +137,11 @@ func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *P
 	}
 	if apptPatient != nil && *apptPatient != patientID {
 		return fail(http.StatusBadRequest, "La cita pertenece a otro paciente.")
+	}
+	if apptTimeGate(clinicLocation(ctx, tx, p.ClinicID), date, start, "in_progress", apptNow()) != nil {
+		// A note written before the visit's time is kept with the appointment, but does not close it.
+		_, err := tx.Exec(ctx, `UPDATE appointments SET encounter_id = coalesce(encounter_id, $3::uuid), updated_at = now() WHERE clinic_id = $1 AND id = $2`, p.ClinicID, apptID, encounterID)
+		return err
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE appointments SET encounter_id = coalesce(encounter_id, $3::uuid), status = 'completed',
@@ -131,6 +154,7 @@ func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *P
 			return err
 		}
 		audit(ctx, tx, p.ClinicID, p, "appointment_status", "Terminó la consulta de una cita", map[string]any{"appointment": apptID, "from": cur, "to": "completed"})
+		s.tryAutoCharge(ctx, tx, p, apptID)
 	}
 	return nil
 }

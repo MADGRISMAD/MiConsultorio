@@ -3,6 +3,7 @@
   import { agendaApi } from '$lib/api/agenda';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
+  import { moneyCents } from '$lib/format';
   import { toast } from '$lib/toast.svelte';
   import { PERMISSIONS } from '$lib/types';
   import { STATUS_META, type Appt, type ApptStatus } from '$lib/types/agenda';
@@ -35,6 +36,24 @@
     op.reset();
   });
 
+  // What the appointment's time allows: arrival and start from one hour before, finishing and no-show once it began.
+  let now = $state(Date.now());
+  $effect(() => {
+    const t = setInterval(() => (now = Date.now()), 30_000);
+    return () => clearInterval(t);
+  });
+  const opened = $derived(!appt?.opens_at || now >= Date.parse(appt.opens_at));
+  const started = $derived(!appt?.starts_at || now >= Date.parse(appt.starts_at));
+  const at = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+  const timeHint = $derived.by(() => {
+    if (!appt) return '';
+    if (['scheduled', 'confirmed', 'arrived'].includes(appt.status) && !opened) return `Todavía no es hora: la llegada y la consulta se pueden marcar desde el ${at(appt.opens_at)} (una hora antes de la cita).`;
+    if (['arrived', 'in_progress'].includes(appt.status) && !started) return `Se podrá terminar o marcar como no asistió a partir del ${at(appt.starts_at)}.`;
+    if (['scheduled', 'confirmed'].includes(appt.status) && opened && !started) return `No asistió se podrá marcar a partir del ${at(appt.starts_at)}.`;
+    return '';
+  });
+
   const canStatus = $derived(!!appt && (session.has(PERMISSIONS.adminAppointments) || (session.user?.role === 'doctor' && appt.professional_id === session.user.userId)));
   const canExpedient = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
   const canCharge = $derived(session.cobros && session.has(PERMISSIONS.pos));
@@ -44,9 +63,15 @@
   async function change(status: ApptStatus, why = '') {
     if (!appt) return;
     const id = appt.id;
-    if (await op.run(async () => onchanged(await agendaApi.setStatus(id, status, why)))) {
+    let charge: Appt['charge'];
+    if (await op.run(async () => {
+      const a = await agendaApi.setStatus(id, status, why);
+      charge = a.charge;
+      onchanged(a);
+    })) {
       cancelling = false;
       noShowAsk = false;
+      if (status === 'completed') toast.show(charge ? `Cita terminada. La consulta (${moneyCents(charge.total_cents)}) ya está en caja para cobrarse.` : 'Cita terminada');
       if (status === 'cancelled') toast.show('Cita cancelada');
       else if (status === 'confirmed') toast.show('Cita confirmada');
     }
@@ -108,18 +133,19 @@
             <button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => change('confirmed')}><Icon name="check" size={18} />Confirmar</button>
           {/if}
           {#if appt.status === 'scheduled' || appt.status === 'confirmed'}
-            <button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => change('arrived')}><Icon name="user" size={18} />Llegó</button>
+            <button type="button" class="btn-secondary" disabled={op.phase === 'loading' || !opened} title={opened ? undefined : timeHint} onclick={() => change('arrived')}><Icon name="user" size={18} />Llegó</button>
           {/if}
           {#if ['scheduled', 'confirmed', 'arrived'].includes(appt.status) && appt.patient_id && canExpedient}
-            <button type="button" class="btn-primary" disabled={op.phase === 'loading'} onclick={startConsult}><Icon name="stethoscope" size={18} />Iniciar consulta</button>
+            <button type="button" class="btn-primary" disabled={op.phase === 'loading' || !opened} title={opened ? undefined : timeHint} onclick={startConsult}><Icon name="stethoscope" size={18} />Iniciar consulta</button>
           {/if}
           {#if appt.status === 'in_progress'}
             {#if appt.patient_id && canExpedient}
               <a class="btn-primary" href={consultUrl(appt)}><Icon name="stethoscope" size={18} />Continuar consulta</a>
             {/if}
-            <button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => change('completed')}><Icon name="check" size={18} />Terminar</button>
+            <button type="button" class="btn-secondary" disabled={op.phase === 'loading' || !started} title={started ? undefined : timeHint} onclick={() => change('completed')}><Icon name="check" size={18} />Terminar</button>
           {/if}
         {/if}
+        {#if timeHint && canStatus}<p class="basis-full text-sm text-app-muted" role="note">{timeHint}</p>{/if}
         {#if appt.status === 'completed' && appt.patient_id && canExpedient}
           <a class="btn-secondary" href="/pacientes/{encodeURIComponent(appt.patient_id)}"><Icon name="folder" size={18} />Abrir expediente</a>
         {/if}
@@ -127,7 +153,7 @@
           <a class="btn-secondary" href="/pos/cobros?cita={encodeURIComponent(appt.id)}"><Icon name="cash" size={18} />Cobrar</a>
         {/if}
         {#if canStatus && ['scheduled', 'confirmed', 'arrived'].includes(appt.status)}
-          <button type="button" class="btn-ghost" onclick={() => (noShowAsk = true)}><Icon name="ban" size={18} />No asistió</button>
+          <button type="button" class="btn-ghost" disabled={!started} title={started ? undefined : timeHint} onclick={() => (noShowAsk = true)}><Icon name="ban" size={18} />No asistió</button>
           <button type="button" class="btn-ghost text-app-danger" onclick={() => (cancelling = true)}><Icon name="x" size={18} />Cancelar</button>
         {/if}
       </div>

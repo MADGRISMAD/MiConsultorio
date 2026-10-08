@@ -304,6 +304,8 @@ export interface CatalogItem {
   next_expiry?: string | null;
   /** Minutes the service takes in the agenda; null/absent = the professional's slot. */
   duration_minutes?: number | null;
+  /** Set on the services every clinic starts with ("consulta"): re-priceable, never deleted. */
+  system_key?: string | null;
   /** Lot of the initial stock (create only). */
   lot_code?: string;
   expires_on?: string;

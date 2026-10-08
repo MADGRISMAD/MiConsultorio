@@ -194,7 +194,8 @@
 {/snippet}
 
 {#snippet statusCell(i: CatalogItem)}
-  {#if !i.active}<span class="pill">Archivado</span>
+  {#if i.system_key && i.active}<span class="pill pill-ok" title="Es el servicio con el que se cobran las citas al terminar. Ajusta su precio.">Cobro de citas</span>
+  {:else if !i.active}<span class="pill">Archivado</span>
   {:else if isLow(i)}<span class="pill pill-bad">{i.stock <= 0 ? 'Agotado' : 'Bajo mínimo'}</span>
   {:else}<span class="pill pill-ok">Activo</span>{/if}
 {/snippet}
@@ -202,7 +203,7 @@
 {#snippet rowActions(i: CatalogItem)}
   {#if i.active}
     <button type="button" class="icon-btn" aria-label="Editar {i.name}" onclick={() => openEdit(i)}><Icon name="edit" size={17} /></button>
-    <button type="button" class="icon-btn danger" aria-label="Archivar o eliminar {i.name}" onclick={() => ((deleting = i), delOp.reset())}><Icon name="trash" size={17} /></button>
+    {#if !i.system_key}<button type="button" class="icon-btn danger" aria-label="Archivar o eliminar {i.name}" onclick={() => ((deleting = i), delOp.reset())}><Icon name="trash" size={17} /></button>{/if}
   {:else}
     <button type="button" class="btn-ghost min-h-8 px-3 text-xs" onclick={() => restore(i)}><Icon name="refresh" size={14} />Reactivar</button>
   {/if}

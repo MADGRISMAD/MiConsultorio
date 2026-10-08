@@ -59,6 +59,25 @@ type appointment struct {
 	StartedAt        *time.Time `json:"started_at" db:"started_at"`
 	FinishedAt       *time.Time `json:"finished_at" db:"finished_at"`
 	RemindersConsent bool       `json:"reminders_consent" db:"reminders_consent"`
+	// StartsAt is the appointment's date and time in the clinic's time zone as an instant; OpensAt is when it can
+	// start being worked (arrival, consultation). Both are filled in by decorateAppointments.
+	StartsAt *time.Time `json:"starts_at" db:"-"`
+	OpensAt  *time.Time `json:"opens_at" db:"-"`
+}
+
+// apptEarlyWindow is how long before its time an appointment can be marked as arrived or started.
+const apptEarlyWindow = 60 * time.Minute
+
+// decorateAppointments computes StartsAt and OpensAt for rows read with appointmentSelect.
+func decorateAppointments(loc *time.Location, list []appointment) {
+	for i := range list {
+		t, err := time.ParseInLocation("2006-01-02 15:04", list[i].Date+" "+list[i].StartHour, loc)
+		if err != nil {
+			continue
+		}
+		o := t.Add(-apptEarlyWindow)
+		list[i].StartsAt, list[i].OpensAt = &t, &o
+	}
 }
 
 const appointmentSelect = `SELECT a.id::text AS id, a.patient_id::text AS patient_id, a.names, a.last_names, a.curp,
@@ -87,7 +106,9 @@ func loadAppointment(ctx context.Context, q rowsQuerier, clinicID, id string) (a
 	if a.Details, err = decField("appointments", "details", a.ID, a.Details); err != nil {
 		return appointment{}, err
 	}
-	return a, nil
+	one := []appointment{a}
+	decorateAppointments(clinicLocation(ctx, q, clinicID), one)
+	return one[0], nil
 }
 
 // openAppointmentDetails decrypts the details of rows read with appointmentSelect.
@@ -238,6 +259,9 @@ func (s *Server) listAppointments(w http.ResponseWriter, r *http.Request) {
 	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[appointment])
 	if err == nil {
 		err = openAppointmentDetails(list)
+		if err == nil {
+			decorateAppointments(clinicLocation(r.Context(), s.db, p.ClinicID), list)
+		}
 	}
 	if err != nil {
 		serverError(w, r, err)

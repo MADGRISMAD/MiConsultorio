@@ -220,8 +220,11 @@ func TestPOSIsolationBetweenClinics(t *testing.T) {
 	e := setup(t)
 	a, b := e.login("admin_a"), e.login("admin_b")
 	id := newItem(a, map[string]any{"kind": "service", "name": "Solo de A", "price_cents": 100})
-	if n := len(b.expect(200, "GET", "/api/pos/items", nil)["items"].([]any)); n != 0 {
-		t.Fatalf("clinic B sees %d items of A", n)
+	// clinic B only has what every clinic starts with ("Consulta"), nothing of A's
+	for _, it := range b.expect(200, "GET", "/api/pos/items", nil)["items"].([]any) {
+		if it.(map[string]any)["name"] != "Consulta" {
+			t.Fatalf("clinic B sees an item of A: %v", it)
+		}
 	}
 	b.expect(404, "PUT", "/api/pos/items/"+id, map[string]any{"kind": "service", "name": "Hack", "price_cents": 1})
 	b.expect(404, "DELETE", "/api/pos/items/"+id, nil)
@@ -800,7 +803,7 @@ func TestMagicInventoryAndPrices(t *testing.T) {
 		t.Fatal("services never carry stock")
 	}
 	// nothing was saved by the preview
-	if n := len(admin.expect(200, "GET", "/api/pos/items", nil)["items"].([]any)); n != 0 {
+	if n := len(admin.expect(200, "GET", "/api/pos/items", nil)["items"].([]any)); n != 1 { // the default "Consulta" only
 		t.Fatalf("preview must not save: %d", n)
 	}
 	// confirm: import

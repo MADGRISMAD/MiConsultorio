@@ -14,7 +14,7 @@ export const agendaApi = {
   update: (id: string, input: ApptInput) => request<{ appointment: Appt }>('PUT', `/appointments/${seg(id)}`, input).then((r) => r.appointment),
   remove: (id: string) => request<void>('DELETE', `/appointments/${seg(id)}`),
   setStatus: (id: string, status: ApptStatus, reason = '') =>
-    request<{ appointment: Appt }>('POST', `/appointments/${seg(id)}/status`, { status, reason }).then((r) => r.appointment),
+    request<{ appointment: Appt; charge?: { id: string; total_cents: number } }>('POST', `/appointments/${seg(id)}/status`, { status, reason }).then((r) => ({ ...r.appointment, charge: r.charge })),
 
   professionals: () => request<{ professionals: Professional[] }>('GET', '/agenda/professionals').then((r) => r.professionals),
   saveProfessional: (id: string, input: ProfessionalInput) =>

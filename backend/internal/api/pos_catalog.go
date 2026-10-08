@@ -43,11 +43,13 @@ type catalogItem struct {
 	NextExpiry     *string `json:"next_expiry" db:"next_expiry"` // earliest expiry among lots with stock
 	// DurationMinutes is how long the service takes in the agenda; nil = the professional's slot.
 	DurationMinutes *int `json:"duration_minutes" db:"duration_minutes"`
+	// SystemKey marks the services every clinic starts with ("consulta"): they can be renamed or re-priced, never deleted.
+	SystemKey *string `json:"system_key" db:"system_key"`
 }
 
 const catalogCols = `id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate::float8 AS tax_rate,
 	track_stock, stock::float8 AS stock, min_stock::float8 AS min_stock, unit, active, sat_product_code, sat_unit_code,
-	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry, duration_minutes`
+	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry, duration_minutes, system_key`
 
 type catalogInput struct {
 	Kind       string  `json:"kind"`
@@ -286,6 +288,13 @@ func (s *Server) deleteCatalogItem(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
 	var archived bool
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
+		var system bool
+		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM catalog_items WHERE clinic_id=$1 AND id=$2 AND system_key IS NOT NULL)`, p.ClinicID, id).Scan(&system); err != nil {
+			return err
+		}
+		if system {
+			return &httpError{Status: http.StatusConflict, Code: "SYSTEM_ITEM", Msg: "«Consulta» es el servicio con el que se cobran las citas. Puedes cambiarle el nombre y el precio, pero no eliminarlo."}
+		}
 		var used bool
 		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM sale_items WHERE item_id = $1)`, id).Scan(&used); err != nil {
 			return err

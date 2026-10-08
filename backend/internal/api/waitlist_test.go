@@ -92,7 +92,7 @@ func (w *wlEnv) count(sql string, args ...any) int {
 func (w *wlEnv) service() string {
 	w.t.Helper()
 	var id string
-	if err := w.pool.QueryRow(context.Background(), `SELECT id FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' LIMIT 1`, w.clinicA).Scan(&id); err != nil {
+	if err := w.pool.QueryRow(context.Background(), `SELECT id FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND system_key IS NULL LIMIT 1`, w.clinicA).Scan(&id); err != nil {
 		w.t.Fatal(err)
 	}
 	return id
@@ -129,7 +129,13 @@ func TestServiceDuration(t *testing.T) {
 	admin.expect(200, "PUT", path, map[string]any{"duration_minutes": 60})
 
 	list := recep.expect(200, "GET", "/api/agenda/services", nil)["services"].([]any)
-	if len(list) != 1 || list[0].(map[string]any)["duration_minutes"] != float64(60) {
+	found := false
+	for _, it := range list { // the clinic's own service and the default "Consulta"
+		if m := it.(map[string]any); m["name"] == "Consulta general" && m["duration_minutes"] == float64(60) {
+			found = true
+		}
+	}
+	if len(list) != 2 || !found {
 		t.Fatalf("agenda services: %v", list)
 	}
 	if other.expect(200, "GET", "/api/agenda/services", nil)["services"] == nil {

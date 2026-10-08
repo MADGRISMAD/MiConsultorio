@@ -2,7 +2,20 @@ package api_test
 
 import (
 	"testing"
+	"time"
+
+	"github.com/madgrismad/miconsultorio/backend/internal/api"
 )
+
+// at moves the appointment clock to a moment of the 2030-06-03 visits (Mexico City time).
+func at(t *testing.T, h, m int) func() {
+	t.Helper()
+	loc, err := time.LoadLocation("America/Mexico_City")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return api.SetApptClock(func() time.Time { return time.Date(2030, 6, 3, h, m, 0, 0, loc) })
+}
 
 func apptBody(extra map[string]any) map[string]any {
 	m := map[string]any{"names": "Ana", "last_names": "Pérez", "date": "2030-06-03", "startHour": "09:00", "endHour": "09:30"}
@@ -199,6 +212,19 @@ func TestAgendaStatusTransitions(t *testing.T) {
 	set(recep, id, "bogus", 400)
 	set(recep, id, "confirmed", 200)
 	set(recep, id, "confirmed", 409)
+	// Too early: the visit is on 2030-06-03 09:00, and nothing can be marked a day (or hours) before.
+	for _, st := range []string{"arrived"} {
+		if code, o := recep.do("POST", "/api/appointments/"+id+"/status", map[string]any{"status": st}); code != 409 || o["code"] != "TOO_EARLY" {
+			t.Fatalf("%s a year early: %d %v", st, code, o)
+		}
+	}
+	restore := at(t, 7, 30) // 90 minutes before: still too early (the window opens one hour before)
+	defer func() { restore() }()
+	if code, o := recep.do("POST", "/api/appointments/"+id+"/status", map[string]any{"status": "arrived"}); code != 409 || o["code"] != "TOO_EARLY" {
+		t.Fatalf("arrival 90 minutes early: %d %v", code, o)
+	}
+	restore()
+	restore = at(t, 8, 30) // inside the window
 	a := sub(set(recep, id, "arrived", 200), "appointment")
 	if a["arrived_at"] == nil || a["started_at"] != nil {
 		t.Fatalf("arrived: %v", a)
@@ -211,6 +237,12 @@ func TestAgendaStatusTransitions(t *testing.T) {
 		t.Fatalf("started: %v", a)
 	}
 	set(recep, id, "cancelled", 409) // in consultation cannot be cancelled
+	// it cannot be closed before its time even if it was started
+	if code, o := doc.do("POST", "/api/appointments/"+id+"/status", map[string]any{"status": "completed"}); code != 409 || o["code"] != "TOO_EARLY" {
+		t.Fatalf("completing before the appointment's time: %d %v", code, o)
+	}
+	restore()
+	restore = at(t, 9, 10)
 	a = sub(set(doc, id, "completed", 200), "appointment")
 	if a["finished_at"] == nil || a["status"] != "completed" {
 		t.Fatalf("finished: %v", a)
@@ -223,6 +255,16 @@ func TestAgendaStatusTransitions(t *testing.T) {
 		t.Fatal("cancel reason")
 	}
 	set(recep, c1, "confirmed", 409)
+	// a visit cannot be marked as missed before its time
+	early := mk("10:00", docID)
+	if code, o := recep.do("POST", "/api/appointments/"+early+"/status", map[string]any{"status": "no_show"}); code != 409 || o["code"] != "TOO_EARLY" {
+		t.Fatalf("no-show before the time: %d %v", code, o)
+	}
+	restore()
+	restore = at(t, 10, 5)
+	set(recep, early, "no_show", 200)
+	restore()
+	restore = at(t, 23, 0)
 	set(recep, mk("10:00", docID), "no_show", 200)
 	set(doc, mk("11:00", docID), "cancelled", 200)
 	set(doc, mk("11:00", e.userID("admin_a")), "cancelled", 403)
@@ -249,9 +291,16 @@ func TestAgendaEncounterLink(t *testing.T) {
 	foreign := sub(e.login("recep_b").expect(201, "POST", "/api/appointments", apptBody(nil)), "appointment")["id"]
 	doc.expect(400, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Dolor", "appointment_id": foreign})
 
-	enc := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Dolor", "appointment_id": id}), "encounter")
+	// a note written long before the visit is kept with the appointment but does not close it
+	early := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Antes de tiempo", "appointment_id": id}), "encounter")
+	if got := sub(recep.expect(200, "GET", "/api/appointments/"+id, nil), "appointment"); got["status"] != "scheduled" || got["encounter_id"] != early["id"] {
+		t.Fatalf("a note before the time must not close the appointment: %v", got)
+	}
+	restore := at(t, 9, 10)
+	defer restore()
+	doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Dolor", "appointment_id": id})
 	got := sub(recep.expect(200, "GET", "/api/appointments/"+id, nil), "appointment")
-	if got["status"] != "completed" || got["encounter_id"] != enc["id"] || got["finished_at"] == nil {
+	if got["status"] != "completed" || got["encounter_id"] != early["id"] || got["finished_at"] == nil {
 		t.Fatalf("link: %v", got)
 	}
 }

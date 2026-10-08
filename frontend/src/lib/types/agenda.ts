@@ -26,6 +26,11 @@ export interface Appt {
   started_at: string | null;
   finished_at: string | null;
   reminders_consent: boolean;
+  /** the appointment's date and time (clinic zone) as an instant, and when it can start being worked (one hour before) */
+  starts_at: string | null;
+  opens_at: string | null;
+  /** present only on the answer that closed the appointment: the consultation was queued at the register */
+  charge?: { id: string; total_cents: number };
 }
 
 export interface ApptInput {

@@ -100,11 +100,16 @@ func TestPublicBookingInfoAndIsolation(t *testing.T) {
 	if len(pros) != 1 || pros[0].(map[string]any)["id"] != b.pro {
 		t.Fatalf("professionals must be only clinic A's bookable ones: %v", pros)
 	}
-	if len(svcs) != 1 || svcs[0].(map[string]any)["name"] != "Consulta general" {
-		t.Fatalf("only services: %v", svcs)
+	// only services (the clinic's own plus the default "Consulta" every clinic starts with), never products
+	names := map[string]bool{}
+	for _, sv := range svcs {
+		names[sv.(map[string]any)["name"].(string)] = true
+		if _, has := sv.(map[string]any)["price_cents"]; has {
+			t.Fatal("prices must stay hidden unless the clinic publishes them")
+		}
 	}
-	if _, has := svcs[0].(map[string]any)["price_cents"]; has {
-		t.Fatal("prices must stay hidden unless the clinic publishes them")
+	if len(svcs) != 2 || !names["Consulta general"] || !names["Consulta"] {
+		t.Fatalf("only services: %v", svcs)
 	}
 	b.exec(`UPDATE agenda_settings SET booking_show_prices = true WHERE clinic_id = $1`, b.clinicA)
 	svcs = sub(anon.expect(200, "GET", "/api/public/booking/"+b.slugA, nil), "booking")["services"].([]any)
@@ -556,7 +561,7 @@ func TestRemindersUseThePatientsConsentAndContact(t *testing.T) {
 	// a late reminder is only created when the visit is more than 30 minutes away
 	loc, _ := time.LoadLocation("America/Mexico_City")
 	soon := time.Now().In(loc).Add(time.Hour)
-	b.exec(`UPDATE appointments SET date = $2, start_hour = $3 WHERE id = $1`, apptID, soon.Format("2006-01-02"), soon.Format("15:04"))
+	b.exec(`UPDATE appointments SET date = $2, start_hour = $3, end_hour = '23:59' WHERE id = $1`, apptID, soon.Format("2006-01-02"), soon.Format("15:04"))
 	if err := api.ScheduleRemindersFor(context.Background(), b.pool, b.cfg, b.mail, b.clinicA, apptID); err != nil {
 		t.Fatal(err)
 	}
