@@ -121,7 +121,7 @@
     for (const fd of fields) {
       if (fd.required && fd.type !== 'bool' && empty(profile[fd.key])) pe[fd.key] = 'Este dato es obligatorio.';
     }
-    if (!ack) e.ack = 'Confirma que el paciente recibió el aviso de privacidad.';
+    if (!noticeDate && !ack) e.ack = 'Confirma que el paciente recibió el aviso de privacidad.';
     errors = e;
     profileErrors = pe;
     return !Object.keys(e).length && !Object.keys(pe).length;
