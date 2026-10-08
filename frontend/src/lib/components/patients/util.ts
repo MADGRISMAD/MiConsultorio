@@ -29,7 +29,7 @@ export function subtitle(p: PatientRow): string {
     if (p.species) parts.push(p.species);
     const a = ageText(p.age);
     if (a) parts.push(a);
-    if (p.guardian_name) parts.push(`de ${p.guardian_name}`);
+    if (p.guardian_name) parts.push(`dueño: ${p.guardian_name}`);
   } else {
     const a = ageText(p.age);
     if (a) parts.push(a);

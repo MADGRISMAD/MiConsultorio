@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { api } from '$lib/api';
+  import { ownersApi } from '$lib/api/owners';
   import { dateShort } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { FieldValues, Patient, PatientInput, PatientSchema, Subject } from '$lib/types';
+  import type { OwnerListItem } from '$lib/types/owners';
   import DynamicFields from '../DynamicFields.svelte';
+  import OwnerPicker from './OwnerPicker.svelte';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
   import { ageFrom, ageText } from './util';
@@ -42,6 +46,20 @@
   /* svelte-ignore state_referenced_locally */
   let profile = $state<FieldValues>({ ...(patient?.profile ?? {}) });
   let ack = $state(false);
+  // animals: the owner picked from the clinic's list (their fields are read-only while one is picked)
+  let owner = $state<OwnerListItem | null>(null);
+  function pickOwner(o: OwnerListItem) {
+    owner = o;
+    f.guardian_name = o.name;
+    f.guardian_phone = o.phone;
+    f.guardian_email = o.email;
+  }
+  function clearOwner() {
+    owner = null;
+    f.guardian_name = '';
+    f.guardian_phone = '';
+    f.guardian_email = '';
+  }
 
   let errors = $state<Record<string, string>>({});
   let profileErrors = $state<Record<string, string>>({});
@@ -52,6 +70,12 @@
       const s = await api.patients.schema();
       schema = s;
       if (!editing && !s.subjects.includes(subject)) subject = s.subjects[0] ?? 'person';
+      // "+ Mascota" from an owner opens the form with that owner already picked
+      const wanted = editing ? patient?.owner_id : page.url.searchParams.get('propietario');
+      if (wanted && s.subjects.includes('animal')) {
+        if (!editing) subject = 'animal';
+        ownersApi.get(wanted).then(pickOwner, () => {});
+      }
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'No se pudo cargar el formulario.';
     }
@@ -133,6 +157,7 @@
       guardian_relation: animal ? '' : f.guardian_relation.trim(),
       guardian_phone: f.guardian_phone.trim(),
       guardian_email: f.guardian_email.trim(),
+      owner_id: animal ? (owner?.id ?? null) : null,
       profile,
       privacy_ack: true
     };
@@ -253,15 +278,18 @@
         {:else if minor}El paciente es menor de edad ({ageText(age)}): los datos del padre, madre o tutor son obligatorios.
         {:else}Opcional para personas adultas. Se vuelve obligatorio si el paciente es menor de 18 años.{/if}
       </p>
+      {#if animal}
+        <div class="mb-4"><OwnerPicker selected={owner} onpick={pickOwner} onclear={clearOwner} id="pf-owner-search" /></div>
+      {/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="pf-guardian_name">{animal ? 'Nombre del propietario' : 'Nombre completo'}{#if guardianRequired} <span class="text-app-danger" aria-hidden="true">*</span>{/if}</label>
-          <input id="pf-guardian_name" class="field" bind:value={f.guardian_name} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_name} aria-describedby={errors.guardian_name ? 'pf-guardian_name-h' : undefined} />
+          <input id="pf-guardian_name" class="field" bind:value={f.guardian_name} readonly={!!owner} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_name} aria-describedby={errors.guardian_name ? 'pf-guardian_name-h' : undefined} />
           {@render err('guardian_name')}
         </div>
         <div>
           <label class="label" for="pf-guardian_phone">Teléfono{#if guardianRequired} <span class="text-app-danger" aria-hidden="true">*</span>{/if}</label>
-          <input id="pf-guardian_phone" class="field" type="tel" bind:value={f.guardian_phone} maxlength="20" autocomplete="off" aria-invalid={!!errors.guardian_phone} aria-describedby={errors.guardian_phone ? 'pf-guardian_phone-h' : undefined} />
+          <input id="pf-guardian_phone" class="field" type="tel" bind:value={f.guardian_phone} readonly={!!owner} maxlength="20" autocomplete="off" aria-invalid={!!errors.guardian_phone} aria-describedby={errors.guardian_phone ? 'pf-guardian_phone-h' : undefined} />
           {@render err('guardian_phone')}
         </div>
         {#if !animal}
@@ -272,7 +300,7 @@
         {/if}
         <div>
           <label class="label" for="pf-guardian_email">Correo electrónico</label>
-          <input id="pf-guardian_email" class="field" type="email" bind:value={f.guardian_email} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_email} aria-describedby={errors.guardian_email ? 'pf-guardian_email-h' : undefined} />
+          <input id="pf-guardian_email" class="field" type="email" bind:value={f.guardian_email} readonly={!!owner} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_email} aria-describedby={errors.guardian_email ? 'pf-guardian_email-h' : undefined} />
           {@render err('guardian_email')}
         </div>
       </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Encounter, Patient, PatientSchema } from '$lib/types';
   import Icon from '../../ui/Icon.svelte';
+  import OwnerCard from './OwnerCard.svelte';
   import { measureRows, show } from './util';
 
   interface Props {
@@ -58,6 +59,7 @@
 {/snippet}
 
 <div class="space-y-4">
+  {#if animal}<OwnerCard patientId={p.id} />{/if}
   {#if signs.length}
     <section class="card p-5" aria-label="Últimos signos">
       <p class="section-title flex items-center gap-2"><Icon name="activity" size={14} />Últimos signos · {new Date(last!.occurred_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>

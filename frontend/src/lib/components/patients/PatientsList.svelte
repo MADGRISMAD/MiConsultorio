@@ -1,15 +1,19 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api } from '$lib/api';
+  import { ownersApi } from '$lib/api/owners';
   import { ago } from '$lib/format';
   import { session } from '$lib/session.svelte';
   import { PERMISSIONS, type PatientRow } from '$lib/types';
+  import type { OwnerGroup, OwnerRef } from '$lib/types/owners';
   import EmptyState from '../ui/EmptyState.svelte';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
   import PageHeader from '../ui/PageHeader.svelte';
   import Pill from '../ui/Pill.svelte';
+  import OwnerEditModal from './OwnerEditModal.svelte';
   import { ageText, fullName, subtitle } from './util';
 
   type Tab = 'activos' | 'pendientes' | 'archivados';
@@ -22,6 +26,34 @@
   const tab = $derived<Tab>(page.url.searchParams.get('pendientes') === '1' ? 'pendientes' : page.url.searchParams.get('archivados') === '1' ? 'archivados' : 'activos');
   const canCreate = $derived(session.has(PERMISSIONS.adminHistorials));
 
+  const canEditOwner = $derived(session.has(PERMISSIONS.adminHistorials) || session.has(PERMISSIONS.adminAppointments));
+
+  // Clinics with animals can read the list by owner (one card per owner with all of their pets) or by patient.
+  type View = 'owner' | 'patient';
+  let animals = $state(false);
+  let view = $state<View>('owner');
+  try {
+    if (localStorage.getItem('caresia_patients_view') === 'patient') view = 'patient';
+  } catch {
+    /* no storage: the default view */
+  }
+  function setView(v: View) {
+    view = v;
+    try {
+      localStorage.setItem('caresia_patients_view', v);
+    } catch {
+      /* ignore */
+    }
+  }
+  onMount(() => {
+    api.patients.schema().then((s) => (animals = s.subjects.includes('animal')), () => {});
+  });
+  const byOwner = $derived(animals && view === 'owner' && tab !== 'pendientes');
+  let groups = $state<OwnerGroup[]>([]);
+  let orphans = $state<PatientRow[]>([]);
+  let editingOwner = $state<OwnerRef | null>(null);
+  let reloadKey = $state(0);
+
   let search = $state('');
   let items = $state<PatientRow[]>([]);
   let loading = $state(true);
@@ -32,14 +64,21 @@
   $effect(() => {
     const t = tab;
     const q = search.trim();
+    const grouped = byOwner;
+    reloadKey;
     const mine = ++seq;
     loading = true;
     const timer = setTimeout(
       async () => {
         try {
-          const r = await api.patients.list({ q, archived: t === 'archivados', pending: t === 'pendientes' });
+          const [r, g] = await Promise.all([
+            api.patients.list({ q, archived: t === 'archivados', pending: t === 'pendientes' }),
+            grouped ? ownersApi.grouped({ q, archived: t === 'archivados' }) : Promise.resolve(null)
+          ]);
           if (mine !== seq) return;
           items = r;
+          groups = g?.groups ?? [];
+          orphans = g?.orphans ?? [];
           loadError = '';
         } catch (e) {
           if (mine !== seq) return;
@@ -56,6 +95,11 @@
   function setTab(p: string) {
     goto(`/pacientes${p}`, { replaceState: true, keepFocus: true, noScroll: true });
   }
+
+  /** In the by-owner view the flat table only keeps the people (animals are in the owner cards). */
+  const rows = $derived(byOwner ? items.filter((p) => p.subject !== 'animal') : items);
+  const empty = $derived(byOwner ? groups.length === 0 && orphans.length === 0 && rows.length === 0 : items.length === 0);
+  const petHref = (id: string) => `/pacientes/${encodeURIComponent(id)}`;
 
   const href = (p: PatientRow) => `/pacientes/${encodeURIComponent(p.id)}`;
   const lastVisit = (p: PatientRow) => (p.last_encounter_at ? ago(p.last_encounter_at) : 'Sin consultas');
@@ -89,6 +133,12 @@
     <Icon name="search" size={18} class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-app-muted" />
     <input type="search" class="field pl-10" placeholder="Buscar por nombre, CURP, teléfono o número…" aria-label="Buscar pacientes" autocomplete="off" bind:value={search} />
   </div>
+  {#if animals && tab !== 'pendientes'}
+    <div class="flex gap-1 rounded-full bg-app-ink/6 p-1" role="group" aria-label="Cómo ver la lista">
+      <button type="button" aria-pressed={view === 'owner'} class="min-h-9 rounded-full px-4 text-sm font-medium transition {view === 'owner' ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}" onclick={() => setView('owner')}>Por propietario</button>
+      <button type="button" aria-pressed={view === 'patient'} class="min-h-9 rounded-full px-4 text-sm font-medium transition {view === 'patient' ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}" onclick={() => setView('patient')}>Por mascota</button>
+    </div>
+  {/if}
   <div class="flex gap-1 rounded-full bg-app-ink/6 p-1" role="tablist" aria-label="Filtrar expedientes">
     {#each TABS as t (t.id)}
       <button
@@ -102,15 +152,60 @@
 </div>
 
 <div class="card overflow-hidden" aria-busy={loading}>
-  {#if loading && items.length === 0}
+  {#if loading && items.length === 0 && groups.length === 0}
     <LoadingRows />
   {:else if loadError}
     <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
-  {:else if items.length === 0}
+  {:else if empty}
     <EmptyState icon={search.trim() ? 'search' : 'folder'} title={search.trim() ? 'Sin resultados' : tab === 'pendientes' ? 'Nada pendiente' : tab === 'archivados' ? 'No hay expedientes archivados' : 'Aún no hay pacientes'} text={emptyText}>
       {#if canCreate && tab === 'activos' && !search.trim()}<a href="/pacientes/nuevo" class="btn-primary"><Icon name="plus" size={18} stroke={2.2} />Nuevo paciente</a>{/if}
     </EmptyState>
   {:else}
+    {#if byOwner && (groups.length > 0 || orphans.length > 0)}
+      <ul class="divide-y divide-app-ink/8 {loading ? 'opacity-60' : ''}" aria-label="Propietarios y sus mascotas">
+        {#each groups as g (g.owner.id)}
+          <li class="px-4 py-4">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="flex items-center gap-2 font-semibold"><Icon name="user" size={17} class="flex-none text-app-primary" /><span class="truncate">{g.owner.name}</span></p>
+                <p class="mt-0.5 text-sm text-app-muted">{[g.owner.phone, g.owner.email].filter(Boolean).join(' · ') || 'Sin datos de contacto'} · {g.pets.length === 1 ? '1 mascota' : `${g.pets.length} mascotas`}</p>
+              </div>
+              {#if canEditOwner && tab === 'activos'}
+                <div class="flex gap-1.5">
+                  <button type="button" class="btn-ghost !min-h-9 px-3 text-sm" onclick={() => (editingOwner = g.owner)}><Icon name="edit" size={15} />Datos del propietario</button>
+                  {#if canCreate}<a href="/pacientes/nuevo?propietario={encodeURIComponent(g.owner.id)}" class="btn-secondary !min-h-9 px-3 text-sm"><Icon name="plus" size={15} stroke={2.2} />Mascota</a>{/if}
+                </div>
+              {/if}
+            </div>
+            <ul class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {#each g.pets as pet (pet.id)}
+                <li>
+                  <a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:bg-app-ink/[0.04] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20 {search.trim() && !pet.matched ? 'border-app-ink/8 opacity-60' : 'border-app-ink/12'}">
+                    <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name="paw" size={17} /></span>
+                    <span class="min-w-0">
+                      <span class="block truncate font-semibold">{pet.names} <span class="font-mono text-xs font-normal text-app-muted">#{pet.file_number}</span></span>
+                      <span class="block truncate text-xs text-app-muted">{[pet.species, pet.last_visit ? `visita ${ago(pet.last_visit)}` : 'Sin consultas'].filter(Boolean).join(' · ')}</span>
+                    </span>
+                  </a>
+                </li>
+              {/each}
+            </ul>
+          </li>
+        {/each}
+        {#if orphans.length > 0}
+          <li class="px-4 py-4">
+            <p class="font-semibold">Mascotas sin propietario registrado</p>
+            <ul class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {#each orphans as pet (pet.id)}
+                <li><a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border border-app-ink/12 px-3 py-2.5 hover:bg-app-ink/[0.04]"><Icon name="paw" size={17} class="text-app-primary" /><span class="font-semibold">{pet.names}</span> <span class="font-mono text-xs text-app-muted">#{pet.file_number}</span></a></li>
+              {/each}
+            </ul>
+          </li>
+        {/if}
+      </ul>
+    {/if}
+    {#if rows.length > 0 && byOwner && (groups.length > 0 || orphans.length > 0)}<p class="section-title border-t border-app-ink/10 px-4 pb-1 pt-4">Personas</p>{/if}
+    {#if rows.length > 0}
     <!-- tablet and desktop -->
     <div class="hidden overflow-x-auto md:block {loading ? 'opacity-60' : ''}">
       <table class="w-full min-w-[44rem]">
@@ -125,7 +220,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-app-ink/8">
-          {#each items as p (p.id)}
+          {#each rows as p (p.id)}
             <tr class="transition hover:bg-app-ink/[0.03]">
               <td class="td font-mono text-xs text-app-muted">{p.file_number}</td>
               <td class="td">
@@ -133,7 +228,7 @@
                   <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={17} /></span>
                   <span class="min-w-0">
                     <span class="block font-semibold">{fullName(p)}</span>
-                    {#if p.subject === 'animal'}<span class="block text-xs text-app-muted">{[p.species, p.guardian_name ? `de ${p.guardian_name}` : ''].filter(Boolean).join(' · ')}</span>{/if}
+                    {#if p.subject === 'animal'}<span class="block text-xs text-app-muted">{[p.species, p.guardian_name ? `dueño: ${p.guardian_name}` : '', p.guardian_phone].filter(Boolean).join(' · ')}</span>{/if}
                     {#if p.incomplete || p.no_privacy_notice || p.archived_at}<span class="mt-1 flex flex-wrap gap-1.5">{@render pills(p)}</span>{/if}
                   </span>
                 </a>
@@ -149,7 +244,7 @@
 
     <!-- phones -->
     <ul class="divide-y divide-app-ink/8 md:hidden {loading ? 'opacity-60' : ''}">
-      {#each items as p (p.id)}
+      {#each rows as p (p.id)}
         <li>
           <a href={href(p)} class="flex items-start gap-3 px-4 py-3.5 transition hover:bg-app-ink/[0.03] focus-visible:bg-app-ink/[0.04] focus-visible:outline-none">
             <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={18} /></span>
@@ -164,7 +259,10 @@
         </li>
       {/each}
     </ul>
+    {/if}
   {/if}
 </div>
+
+<OwnerEditModal owner={editingOwner} onclose={() => (editingOwner = null)} onchanged={() => reloadKey++} />
 
 <p class="mt-4 text-xs text-app-muted">Los expedientes no se borran: se archivan y se conservan al menos 5 años (NOM-004-SSA3-2012).</p>

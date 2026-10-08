@@ -37,6 +37,7 @@ type patient struct {
 	GuardianRelation string         `json:"guardian_relation"`
 	GuardianPhone    string         `json:"guardian_phone"`
 	GuardianEmail    string         `json:"guardian_email"`
+	OwnerID          *string        `json:"owner_id"` // animals: the owner record the guardian_* columns copy
 	Profile          map[string]any `json:"profile"`
 	Incomplete       bool           `json:"incomplete"`
 	PrivacyNoticeAt  *time.Time     `json:"privacy_notice_at"`
@@ -49,14 +50,14 @@ type patient struct {
 
 const patientCols = `id, file_number, subject, names, last_names, sex, to_char(birth_date, 'YYYY-MM-DD'),
 	CASE WHEN birth_date IS NULL THEN NULL ELSE date_part('year', age(birth_date))::int END,
-	curp, phone, email, address, guardian_name, guardian_relation, guardian_phone, guardian_email, profile,
+	curp, phone, email, address, guardian_name, guardian_relation, guardian_phone, guardian_email, owner_id::text, profile,
 	incomplete, privacy_notice_at, privacy_notice_by, last_encounter_at, archived_at, archive_reason, created_at`
 
 func scanPatient(row pgx.Row) (patient, error) {
 	var p patient
 	var raw []byte
 	err := row.Scan(&p.ID, &p.FileNumber, &p.Subject, &p.Names, &p.LastNames, &p.Sex, &p.BirthDate, &p.Age, &p.CURP, &p.Phone, &p.Email, &p.Address,
-		&p.GuardianName, &p.GuardianRelation, &p.GuardianPhone, &p.GuardianEmail, &raw, &p.Incomplete, &p.PrivacyNoticeAt, &p.PrivacyNoticeBy,
+		&p.GuardianName, &p.GuardianRelation, &p.GuardianPhone, &p.GuardianEmail, &p.OwnerID, &raw, &p.Incomplete, &p.PrivacyNoticeAt, &p.PrivacyNoticeBy,
 		&p.LastEncounterAt, &p.ArchivedAt, &p.ArchiveReason, &p.CreatedAt)
 	if err != nil {
 		return p, err
@@ -86,6 +87,7 @@ type patientIn struct {
 	GuardianRelation string         `json:"guardian_relation"`
 	GuardianPhone    string         `json:"guardian_phone"`
 	GuardianEmail    string         `json:"guardian_email"`
+	OwnerID          *string        `json:"owner_id"` // animals: an existing owner of the clinic (otherwise the typed data finds or creates one)
 	Profile          map[string]any `json:"profile"`
 	PrivacyAck       bool           `json:"privacy_ack"` // the patient received and accepted the aviso de privacidad
 }
@@ -146,7 +148,9 @@ func (in *patientIn) validateCore(kinds []string, quick bool) string {
 		if in.CURP != "" {
 			return "Los animales no llevan CURP."
 		}
-		if in.GuardianName == "" || in.GuardianPhone == "" {
+		// An owner picked from the clinic's list brings their own name and phone.
+		pickedOwner := in.OwnerID != nil && strings.TrimSpace(*in.OwnerID) != ""
+		if !pickedOwner && (in.GuardianName == "" || in.GuardianPhone == "") {
 			return "Escribe el nombre y el teléfono del propietario."
 		}
 		return ""
@@ -205,6 +209,8 @@ type patientRow struct {
 	Age             *int       `json:"age"`
 	Phone           string     `json:"phone"`
 	GuardianName    string     `json:"guardian_name"`
+	GuardianPhone   string     `json:"guardian_phone"`
+	OwnerID         *string    `json:"owner_id"`
 	Species         string     `json:"species,omitempty"`
 	Incomplete      bool       `json:"incomplete"`
 	NoPrivacyNotice bool       `json:"no_privacy_notice"`
@@ -216,7 +222,7 @@ func (s *Server) patientQuery(w http.ResponseWriter, r *http.Request, where stri
 	rows, err := s.db.Query(r.Context(), `
 		SELECT id, file_number, subject, names, last_names,
 		       CASE WHEN birth_date IS NULL THEN NULL ELSE date_part('year', age(birth_date))::int END,
-		       phone, guardian_name, coalesce(profile->>'species', ''), incomplete, privacy_notice_at IS NULL, last_encounter_at, archived_at
+		       phone, guardian_name, guardian_phone, owner_id::text, coalesce(profile->>'species', ''), incomplete, privacy_notice_at IS NULL, last_encounter_at, archived_at
 		FROM patients WHERE `+where+` ORDER BY lower(names), lower(last_names) LIMIT `+strconv.Itoa(limit), args...)
 	if err != nil {
 		serverError(w, r, err)
@@ -226,7 +232,7 @@ func (s *Server) patientQuery(w http.ResponseWriter, r *http.Request, where stri
 	out := []patientRow{}
 	for rows.Next() {
 		var x patientRow
-		if err := rows.Scan(&x.ID, &x.FileNumber, &x.Subject, &x.Names, &x.LastNames, &x.Age, &x.Phone, &x.GuardianName, &x.Species, &x.Incomplete, &x.NoPrivacyNotice, &x.LastEncounterAt, &x.ArchivedAt); err != nil {
+		if err := rows.Scan(&x.ID, &x.FileNumber, &x.Subject, &x.Names, &x.LastNames, &x.Age, &x.Phone, &x.GuardianName, &x.GuardianPhone, &x.OwnerID, &x.Species, &x.Incomplete, &x.NoPrivacyNotice, &x.LastEncounterAt, &x.ArchivedAt); err != nil {
 			serverError(w, r, err)
 			return nil
 		}
@@ -239,7 +245,7 @@ func searchWhere(clinicID, q string) (string, []any) {
 	where, args := "clinic_id = $1", []any{clinicID}
 	if q = strings.TrimSpace(q); q != "" {
 		args = append(args, "%"+escapeLike(q)+"%", q)
-		where += " AND (names ILIKE $2 OR last_names ILIKE $2 OR (names || ' ' || last_names) ILIKE $2 OR guardian_name ILIKE $2 OR curp = upper($3) OR phone ILIKE $2 OR file_number::text = $3)"
+		where += " AND (names ILIKE $2 OR last_names ILIKE $2 OR (names || ' ' || last_names) ILIKE $2 OR guardian_name ILIKE $2 OR guardian_phone ILIKE $2 OR curp = upper($3) OR phone ILIKE $2 OR file_number::text = $3)"
 	}
 	return where, args
 }
@@ -349,14 +355,17 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 			if in.PrivacyAck {
 				ack, who = time.Now(), p.actorName()
 			}
+			ownerID, err := resolveOwner(r.Context(), tx, p.ClinicID, &in)
+			if err != nil {
+				return err
+			}
 			row := tx.QueryRow(r.Context(), `
 				INSERT INTO patients (clinic_id, file_number, subject, names, last_names, sex, birth_date, curp, phone, email, address,
-					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by, id)
-				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid)
+					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by, id, owner_id)
+				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid,$22::uuid)
 				RETURNING `+patientCols,
 				p.ClinicID, n, in.Subject, in.Names, in.LastNames, in.Sex, in.BirthDate, in.CURP, in.Phone, in.Email, in.Address,
-				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, quick, ack, who, p.actorName(), patID)
-			var err error
+				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, quick, ack, who, p.actorName(), patID, ownerID)
 			if created, err = scanPatient(row); err != nil {
 				return err
 			}
@@ -422,13 +431,18 @@ func (s *Server) updatePatient(w http.ResponseWriter, r *http.Request) {
 	} else if in.PrivacyAck {
 		ack, who = time.Now(), p.actorName()
 	}
+	ownerID, err := resolveOwner(r.Context(), s.db, p.ClinicID, &in)
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
 	row := s.db.QueryRow(r.Context(), `
 		UPDATE patients SET names=$3, last_names=$4, sex=$5, birth_date=nullif($6,'')::date, curp=$7, phone=$8, email=$9, address=$10,
 			guardian_name=$11, guardian_relation=$12, guardian_phone=$13, guardian_email=$14, profile=$15, incomplete=false,
-			privacy_notice_at=$16, privacy_notice_by=$17, updated_at=now()
+			privacy_notice_at=$16, privacy_notice_by=$17, owner_id=$18::uuid, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+patientCols,
 		p.ClinicID, id, in.Names, in.LastNames, in.Sex, in.BirthDate, in.CURP, in.Phone, in.Email, in.Address,
-		in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, ack, who)
+		in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, ack, who, ownerID)
 	out, err := scanPatient(row)
 	if isUniqueViolation(err) {
 		writeError(w, http.StatusConflict, "Ya existe un paciente con esa CURP.")

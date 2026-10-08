@@ -166,7 +166,7 @@
               <span class="grid h-8 w-8 flex-none place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={16} /></span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-semibold">{fullName(p)} <span class="font-normal text-app-muted">#{p.file_number}</span></span>
-                <span class="block truncate text-xs text-app-muted">{[subtitle(p), p.phone].filter(Boolean).join(' · ') || 'Sin más datos'}</span>
+                <span class="block truncate text-xs text-app-muted">{[subtitle(p), p.phone || p.guardian_phone].filter(Boolean).join(' · ') || 'Sin más datos'}</span>
               </span>
             </li>
           {/each}

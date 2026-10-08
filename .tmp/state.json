@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "caresia_session",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MjY1YjRjNy01ZWRkLTRmMjQtODZmNi0xNWE2OGYyMWI5ZmMiLCJleHAiOjE3OTE1Mzg0ODIsImlhdCI6MTc5MTQ5NTI4MiwidHYiOjB9.4PrPq1t_rVMA_uTBNzpFULRcREEiMZAIkES5gT1u_Z4",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1791538482.18,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

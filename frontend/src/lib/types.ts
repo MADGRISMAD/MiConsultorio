@@ -629,6 +629,8 @@ export interface PatientRow {
   age: number | null;
   phone: string;
   guardian_name: string;
+  guardian_phone?: string;
+  owner_id?: string | null;
   species?: string;
   incomplete: boolean;
   no_privacy_notice: boolean;
@@ -653,6 +655,8 @@ export interface Patient {
   guardian_relation: string;
   guardian_phone: string;
   guardian_email: string;
+  /** animals: the owner record the guardian_* fields copy */
+  owner_id?: string | null;
   profile: FieldValues;
   incomplete: boolean;
   privacy_notice_at: string | null;
@@ -677,11 +681,13 @@ export interface PatientInput {
   guardian_relation: string;
   guardian_phone: string;
   guardian_email: string;
+  /** animals: an owner picked from the clinic's list (otherwise the typed data finds or creates one) */
+  owner_id?: string | null;
   profile: FieldValues;
   privacy_ack: boolean;
 }
 
-export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone'>> & { names: string };
+export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone' | 'owner_id'>> & { names: string };
 
 export type EncounterKind = 'consulta' | 'seguimiento' | 'procedimiento' | 'llamada' | 'nota' | 'adenda';
 

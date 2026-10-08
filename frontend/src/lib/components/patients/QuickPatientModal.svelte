@@ -3,6 +3,8 @@
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { Patient, PatientSchema, Subject } from '$lib/types';
+  import type { OwnerListItem } from '$lib/types/owners';
+  import OwnerPicker from './OwnerPicker.svelte';
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
 
@@ -21,6 +23,7 @@
   let phone = $state('');
   let ownerName = $state('');
   let ownerPhone = $state('');
+  let owner = $state<OwnerListItem | null>(null); // an owner picked from the clinic's list
   let error = $state('');
   const op = new Op();
   const uid = $props.id();
@@ -33,6 +36,7 @@
   $effect(() => {
     if (!open) return;
     names = lastNames = phone = ownerName = ownerPhone = error = '';
+    owner = null;
     op.reset();
     if (schema) return;
     schemaError = '';
@@ -53,13 +57,15 @@
     error = '';
     if (!names.trim()) return (error = animal ? 'Escribe el nombre del animal.' : 'Escribe el nombre del paciente.');
     if (!animal && !lastNames.trim()) return (error = 'Escribe los apellidos del paciente.');
-    if (animal && (!ownerName.trim() || !ownerPhone.trim())) return (error = 'Escribe el nombre y el teléfono del propietario.');
+    if (animal && !owner && (!ownerName.trim() || !ownerPhone.trim())) return (error = 'Escribe el nombre y el teléfono del propietario.');
     if (!animal && !phone.trim()) return (error = 'Escribe un teléfono de contacto.');
     let created: Patient | null = null;
     const ok = await op.run(async () => {
       created = await api.patients.quick(
         animal
-          ? { subject, names: names.trim(), guardian_name: ownerName.trim(), guardian_phone: ownerPhone.trim() }
+          ? owner
+            ? { subject, names: names.trim(), owner_id: owner.id }
+            : { subject, names: names.trim(), guardian_name: ownerName.trim(), guardian_phone: ownerPhone.trim() }
           : { subject, names: names.trim(), last_names: lastNames.trim(), phone: phone.trim() }
       );
     });
@@ -97,14 +103,19 @@
           <span class="label">Nombre del animal *</span>
           <input class="field" bind:value={names} maxlength="120" autocomplete="off" />
         </label>
-        <label class="block">
-          <span class="label">Propietario *</span>
-          <input class="field" bind:value={ownerName} maxlength="160" autocomplete="name" />
-        </label>
-        <label class="block">
-          <span class="label">Teléfono del propietario *</span>
-          <input class="field" type="tel" bind:value={ownerPhone} maxlength="20" autocomplete="tel" />
-        </label>
+        <div class="sm:col-span-2">
+          <OwnerPicker selected={owner} onpick={(o) => (owner = o)} onclear={() => (owner = null)} id="quick-owner-search" />
+        </div>
+        {#if !owner}
+          <label class="block">
+            <span class="label">Propietario *</span>
+            <input class="field" bind:value={ownerName} maxlength="160" autocomplete="name" />
+          </label>
+          <label class="block">
+            <span class="label">Teléfono del propietario *</span>
+            <input class="field" type="tel" bind:value={ownerPhone} maxlength="20" autocomplete="tel" />
+          </label>
+        {/if}
       {:else}
         <label class="block">
           <span class="label">Nombre(s) *</span>
