@@ -167,6 +167,61 @@ func validateBodymap(raw []byte) (string, bool) {
 	return "", true
 }
 
+// ---- nutrition plan ------------------------------------------------------------------------
+
+type nutritionMealIn struct {
+	Name  string `json:"name"`
+	Time  string `json:"time"`
+	Items string `json:"items"`
+	Kcal  int    `json:"kcal"`
+}
+
+type nutritionPlanIn struct {
+	Goal            string            `json:"goal"`
+	Basis           string            `json:"basis"`
+	Kcal            int               `json:"kcal"`
+	ProteinPct      int               `json:"protein_pct"`
+	CarbPct         int               `json:"carb_pct"`
+	FatPct          int               `json:"fat_pct"`
+	WaterLiters     float64           `json:"water_liters"`
+	Meals           []nutritionMealIn `json:"meals"`
+	Recommendations string            `json:"recommendations"`
+	Avoid           string            `json:"avoid"`
+	Supplements     string            `json:"supplements"`
+	FollowUpDays    int               `json:"follow_up_days"`
+}
+
+func validateNutritionPlan(raw []byte) (string, bool) {
+	var in nutritionPlanIn
+	if err := strictUnmarshal(raw, &in); err != nil {
+		return "El plan nutricional no tiene el formato esperado.", false
+	}
+	long := func(v string, max int) bool { return utf8.RuneCountInString(v) > max }
+	switch {
+	case long(in.Goal, 300) || long(in.Basis, 400) || long(in.Recommendations, 3000) || long(in.Avoid, 1500) || long(in.Supplements, 600):
+		return "Algún texto del plan nutricional es demasiado largo.", false
+	case in.Kcal < 0 || in.Kcal > 10000:
+		return "Las calorías deben estar entre 0 y 10 000.", false
+	case in.ProteinPct < 0 || in.CarbPct < 0 || in.FatPct < 0 || in.ProteinPct+in.CarbPct+in.FatPct > 100:
+		return "Los porcentajes de macronutrientes no pueden sumar más de 100 %.", false
+	case in.WaterLiters < 0 || in.WaterLiters > 10:
+		return "El agua al día debe estar entre 0 y 10 litros.", false
+	case in.FollowUpDays < 0 || in.FollowUpDays > 365:
+		return "El seguimiento debe ser en un plazo de 0 a 365 días.", false
+	case len(in.Meals) > 12:
+		return "El plan tiene demasiadas comidas.", false
+	}
+	for _, m := range in.Meals {
+		if strings.TrimSpace(m.Name) == "" || long(m.Name, 60) || long(m.Time, 20) || long(m.Items, 1200) {
+			return "Cada comida necesita un nombre corto y su detalle no puede ser tan largo.", false
+		}
+		if m.Kcal < 0 || m.Kcal > 10000 {
+			return "Las calorías de una comida no son válidas.", false
+		}
+	}
+	return "", true
+}
+
 // ---- handlers ------------------------------------------------------------------------------
 
 func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +230,7 @@ func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.URL.Query().Get("kind")
-	if kind != "" && kind != "odontogram" && kind != "bodymap" {
+	if kind != "" && kind != "odontogram" && kind != "bodymap" && kind != "nutrition_plan" {
 		writeError(w, http.StatusBadRequest, "Tipo de esquema inválido.")
 		return
 	}
@@ -239,6 +294,8 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 		msg, valid = validateOdontogram(in.Data)
 	case "bodymap":
 		msg, valid = validateBodymap(in.Data)
+	case "nutrition_plan":
+		msg, valid = validateNutritionPlan(in.Data)
 	default:
 		msg = "Tipo de esquema inválido."
 	}

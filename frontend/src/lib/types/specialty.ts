@@ -71,7 +71,28 @@ export interface WeightPoint {
 
 // ---- charts ----
 
-export type ChartKind = 'odontogram' | 'bodymap';
+export type ChartKind = 'odontogram' | 'bodymap' | 'nutrition_plan';
+
+export interface NutritionMeal {
+  name: string;
+  time: string;
+  items: string;
+  kcal: number;
+}
+export interface NutritionPlanData {
+  goal: string;
+  basis: string;
+  kcal: number;
+  protein_pct: number;
+  carb_pct: number;
+  fat_pct: number;
+  water_liters: number;
+  meals: NutritionMeal[];
+  recommendations: string;
+  avoid: string;
+  supplements: string;
+  follow_up_days: number;
+}
 
 export type ToothState = 'caries' | 'restauracion' | 'endodoncia' | 'corona' | 'extraccion_indicada' | 'ausente' | 'sellador' | 'implante' | 'fractura' | 'protesis';
 export type Surface = 'V' | 'L' | 'P' | 'M' | 'D' | 'O' | 'I';
@@ -100,7 +121,7 @@ export interface BodymapData {
   zones: BodyFinding[];
 }
 
-export interface PatientChart<T = OdontogramData | BodymapData> {
+export interface PatientChart<T = OdontogramData | BodymapData | NutritionPlanData> {
   id: string;
   patient_id: string;
   kind: ChartKind;

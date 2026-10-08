@@ -15,6 +15,7 @@
   import GrowthTab from '$lib/components/patients/detail/GrowthTab.svelte';
   import VaccinesTab from '$lib/components/patients/detail/VaccinesTab.svelte';
   import OdontogramTab from '$lib/components/patients/detail/OdontogramTab.svelte';
+  import NutritionPlanTab from '$lib/components/patients/detail/NutritionPlanTab.svelte';
   import BodyMapTab from '$lib/components/patients/detail/BodyMapTab.svelte';
   import PlansTab from '$lib/components/patients/detail/PlansTab.svelte';
   import SummaryTab from '$lib/components/patients/detail/SummaryTab.svelte';
@@ -30,7 +31,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
 
-  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'planes' | 'accesos';
+  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'nutricion' | 'planes' | 'accesos';
 
   const id = $derived(page.params.id ?? '');
   let patient = $state<Patient | null>(null);
@@ -156,6 +157,7 @@
     { key: 'recetas', label: schema?.rx_mode === 'instructions' ? 'Indicaciones' : 'Recetas', count: prescriptions.length },
     ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación' }] : hasKind('PEDIATRICS') ? [{ key: 'vacunas' as Tab, label: 'Carnet de vacunación' }] : []),
     ...(isPerson && hasKind('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
+    ...(isPerson && hasKind('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
     ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
     ...(hasKind('DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'NUTRITION', 'PSYCHOLOGY', 'VETERINARY') ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : []),
     { key: 'laboratorio', label: 'Laboratorio' },
@@ -274,6 +276,8 @@
         <VaccinesTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'odontograma'}
         <OdontogramTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'nutricion'}
+        <NutritionPlanTab {patient} {canWrite} {encounters} />
       {:else if patient && tab === 'esquema'}
         <BodyMapTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'planes'}

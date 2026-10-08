@@ -1,6 +1,6 @@
 import { api } from '$lib/api';
 import { specialtyApi } from '$lib/api/specialty';
-import type { BodymapData, OdontogramData } from '$lib/types/specialty';
+import type { BodymapData, NutritionPlanData, OdontogramData } from '$lib/types/specialty';
 import { rxApi } from '$lib/api/rx';
 import QRCode from 'qrcode';
 import { printHtml } from '$lib/printer/ticket';
@@ -10,7 +10,7 @@ import { consentHtml, privacyNoticeHtml } from './avisos';
 import { expedienteHtml } from './expediente';
 import { recetaHtml } from './receta';
 import { labReportHtml } from './lab';
-import { carnetHtml, chartHtml, planHtml, signedConsentHtml } from './specialty';
+import { carnetHtml, chartHtml, nutritionPlanHtml, planHtml, signedConsentHtml } from './specialty';
 
 export { escapeHtml } from './base';
 export { consentHtml, expedienteHtml, privacyNoticeHtml, recetaHtml };
@@ -60,6 +60,10 @@ export async function printChart(
   highlight: Set<number> = new Set()
 ): Promise<void> {
   await printHtml(chartHtml(patient, kind, chart, await loadIssuer(), highlight));
+}
+
+export async function printNutritionPlan(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string }): Promise<void> {
+  await printHtml(nutritionPlanHtml(patient, plan, await loadIssuer()));
 }
 
 export async function printPlan(patient: Patient, planId: string): Promise<void> {

@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -354,4 +355,30 @@ func TestPlanCancelAndSaleLink(t *testing.T) {
 	doc.expect(409, "POST", "/api/plans/"+id+"/cancel", map[string]any{"reason": "otra vez"})
 	cash.expect(400, "POST", "/api/plans/"+id+"/link-sale", map[string]any{"sale_id": "7b6e1c70-0000-4000-8000-000000000000", "item_ids": []string{p["items"].([]any)[0].(map[string]any)["id"].(string)}})
 	doc.expect(403, "POST", "/api/plans/"+id+"/link-sale", map[string]any{"sale_id": "x", "item_ids": []string{}})
+}
+
+func TestNutritionPlanChart(t *testing.T) {
+	e := setup(t)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/charts"
+	plan := func(m map[string]any) map[string]any { return map[string]any{"kind": "nutrition_plan", "data": m} }
+	for i, b := range []map[string]any{
+		plan(map[string]any{"kcal": 20000}),
+		plan(map[string]any{"protein_pct": 60, "carb_pct": 40, "fat_pct": 30}),
+		plan(map[string]any{"meals": []any{map[string]any{"name": "", "time": "08:00", "items": "x", "kcal": 100}}}),
+		plan(map[string]any{"surprise": true}),
+	} {
+		if status, _ := doc.do("POST", url, b); status != 400 {
+			t.Errorf("case %d accepted with %d", i, status)
+		}
+	}
+	good := plan(map[string]any{"goal": "Bajar de peso", "kcal": 1800, "protein_pct": 25, "carb_pct": 45, "fat_pct": 30, "water_liters": 2.5,
+		"meals": []any{map[string]any{"name": "Desayuno", "time": "08:00", "items": "Avena con fruta", "kcal": 450}}, "follow_up_days": 30})
+	if status, body := doc.do("POST", url, good); status != 201 {
+		t.Fatalf("good plan: %d %s", status, body)
+	}
+	if status, body := doc.do("GET", url+"?kind=nutrition_plan", nil); status != 200 || !strings.Contains(fmt.Sprint(body), "Bajar de peso") {
+		t.Fatalf("list: %d %s", status, body)
+	}
 }
