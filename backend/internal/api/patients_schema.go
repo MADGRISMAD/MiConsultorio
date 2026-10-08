@@ -187,11 +187,40 @@ func subjectsFor(kinds []string) []string {
 	return []string{"person"}
 }
 
+// Questions of the common history that a giro does not ask about. A question is dropped only when
+// every giro of the clinic skips it, so a clinic with several specialties keeps what any of them needs.
+var skipProfile = map[string][]string{
+	"DENTAL":     {"blood_type", "physical_activity", "hereditary", "hereditary_notes"},
+	"PSYCHOLOGY": {"blood_type", "surgeries"},
+	"NUTRITION":  {"blood_type"},
+}
+
+// Giros for which a drug-allergy answer is not mandatory (the visit is not about the body).
+var allergiesOptional = map[string]bool{"PSYCHOLOGY": true}
+
 func profileFields(subject string, kinds []string) []Field {
 	if subject == "animal" {
 		return slices.Clone(animalBase)
 	}
-	out := slices.Clone(personBase)
+	out := make([]Field, 0, len(personBase))
+	for _, x := range personBase {
+		skipped, optional := len(kinds) > 0, len(kinds) > 0
+		for _, k := range kinds {
+			if !slices.Contains(skipProfile[k], x.Key) {
+				skipped = false
+			}
+			if !allergiesOptional[k] {
+				optional = false
+			}
+		}
+		if skipped {
+			continue
+		}
+		if x.Key == "allergies_text" && optional {
+			x.Required = false
+		}
+		out = append(out, x)
+	}
 	seen := map[string]bool{}
 	for _, k := range kinds {
 		for _, x := range personByKind[k] {
@@ -248,11 +277,49 @@ var animalMeasures = []Field{
 	f("body_condition", "Condición corporal (1 a 9)", "number", gVit),
 }
 
+// Which vital signs each giro takes. A kind not listed here takes all of them.
+var vitalsByKind = map[string][]string{
+	"PEDIATRICS":    {"weight_kg", "height_cm", "temp_c", "heart_rate", "resp_rate", "spo2"},
+	"GYNECOLOGY":    {"weight_kg", "height_cm", "bp_sys", "bp_dia", "heart_rate", "temp_c"},
+	"DENTAL":        {"bp_sys", "bp_dia", "heart_rate"},
+	"NUTRITION":     {"weight_kg", "height_cm", "bp_sys", "bp_dia", "glucose"},
+	"PHYSIOTHERAPY": {"bp_sys", "bp_dia", "heart_rate"},
+	"CHIROPRACTIC":  {"bp_sys", "bp_dia", "heart_rate"},
+	"ORTHOPEDICS":   {"weight_kg", "height_cm", "bp_sys", "bp_dia", "heart_rate"},
+	"DERMATOLOGY":   {},
+	"PSYCHOLOGY":    {},
+}
+
+// allMeasureFields is every measure a note may carry, used to show notes already saved.
+func allMeasureFields(subject string, kinds []string) []Field {
+	return measureSet(subject, kinds, func(string) bool { return true })
+}
+
 func measureFields(subject string, kinds []string) []Field {
+	keep := map[string]bool{}
+	all := false
+	for _, k := range kinds {
+		list, ok := vitalsByKind[k]
+		if !ok {
+			all = true
+		}
+		for _, key := range list {
+			keep[key] = true
+		}
+	}
+	return measureSet(subject, kinds, func(key string) bool { return all || keep[key] })
+}
+
+func measureSet(subject string, kinds []string, vital func(key string) bool) []Field {
 	if subject == "animal" {
 		return slices.Clone(animalMeasures)
 	}
-	out := slices.Clone(personMeasures)
+	out := []Field{}
+	for _, x := range personMeasures {
+		if vital(x.Key) {
+			out = append(out, x)
+		}
+	}
 	seen := map[string]bool{}
 	for _, k := range kinds {
 		for _, x := range measuresByKind[k] {

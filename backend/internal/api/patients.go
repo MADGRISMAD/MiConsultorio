@@ -185,12 +185,12 @@ func (s *Server) patientSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subjects := subjectsFor(kinds)
-	prof, meas := map[string][]Field{}, map[string][]Field{}
+	prof, meas, measAll := map[string][]Field{}, map[string][]Field{}, map[string][]Field{}
 	for _, sub := range subjects {
-		prof[sub], meas[sub] = profileFields(sub, kinds), measureFields(sub, kinds)
+		prof[sub], meas[sub], measAll[sub] = profileFields(sub, kinds), measureFields(sub, kinds), allMeasureFields(sub, kinds)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"subjects": subjects, "profile": prof, "measures": meas, "rx_mode": rxModeFor(kinds), "kinds": kinds,
+		"subjects": subjects, "profile": prof, "measures": meas, "measures_all": measAll, "rx_mode": rxModeFor(kinds), "kinds": kinds,
 		"encounter_kinds": []string{"consulta", "seguimiento", "procedimiento", "llamada", "nota"},
 		"routes":          rxRoutes,
 	})

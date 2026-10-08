@@ -26,6 +26,15 @@
   const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const CIE = /^[A-TV-Z]\d{2}(\.[0-9A-Z]{1,4})?$/;
 
+  /** wording of the exam box for clinics that work with a single giro */
+  const examLabel = $derived.by(() => {
+    const k = schema.kinds ?? [];
+    if (k.length && k.every((x) => x === 'DENTAL')) return 'Exploración clínica (dientes, encía, tejidos blandos)';
+    if (k.length && k.every((x) => x === 'PSYCHOLOGY')) return 'Observación clínica (apariencia, ánimo, discurso)';
+    if (k.length && k.every((x) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(x))) return 'Exploración física (movilidad, fuerza, dolor)';
+    if (k.length && k.every((x) => x === 'NUTRITION')) return 'Evaluación (dieta, antropometría)';
+    return 'Exploración';
+  });
   const measureDefs = $derived(schema.measures[patient.subject] ?? []);
   const kinds = $derived((schema.encounter_kinds?.length ? schema.encounter_kinds : (Object.keys(ENCOUNTER_KINDS) as EncounterKind[])).filter((k) => k !== 'adenda'));
 
@@ -184,7 +193,7 @@
     {/if}
 
     <div>
-      <label class="label" for="enc-exam">Exploración</label>
+      <label class="label" for="enc-exam">{examLabel}</label>
       <textarea id="enc-exam" class="field min-h-24" rows="3" bind:value={exam}></textarea>
     </div>
     <div>

@@ -38,7 +38,7 @@
     void loadCharges();
   });
 
-  const defs = $derived<FieldDef[]>(schema.measures[patient.subject] ?? []);
+  const defs = $derived<FieldDef[]>((schema.measures_all ?? schema.measures)[patient.subject] ?? []);
   const byId = $derived(new Map(encounters.map((e) => [e.id, e])));
   const roots = $derived(
     [...encounters].filter((e) => !e.addendum_of || !byId.has(e.addendum_of)).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))

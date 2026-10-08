@@ -610,7 +610,10 @@ export interface FieldDef {
 export interface PatientSchema {
   subjects: Subject[];
   profile: Partial<Record<Subject, FieldDef[]>>;
+  /** what the note form asks for */
   measures: Partial<Record<Subject, FieldDef[]>>;
+  /** every measure, to show notes saved with other fields */
+  measures_all?: Partial<Record<Subject, FieldDef[]>>;
   /** medication: the giro prescribes medicines; instructions: it gives indications only */
   rx_mode: 'medication' | 'instructions';
   kinds: ClinicKind[];

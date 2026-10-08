@@ -49,7 +49,7 @@
   const last = $derived(
     [...encounters].filter((e) => !e.hidden && Object.keys(e.measures ?? {}).length).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0]
   );
-  const signs = $derived(last ? measureRows(schema.measures[p.subject] ?? [], last.measures) : []);
+  const signs = $derived(last ? measureRows((schema.measures_all ?? schema.measures)[p.subject] ?? [], last.measures) : []);
 </script>
 
 {#snippet list(rows: string[][])}

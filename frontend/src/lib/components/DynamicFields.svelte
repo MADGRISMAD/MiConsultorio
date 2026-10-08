@@ -37,7 +37,7 @@
 </script>
 
 {#each groups as g (g.name)}
-  <fieldset class="min-w-0 border-0 p-0">
+  <fieldset class="min-w-0 border-0 p-0 {headings ? '' : '[&:not(:last-child)]:mb-4'}">
     {#if headings}<legend class="section-title mb-3">{g.name}</legend>{/if}
     <div class="grid gap-4 sm:grid-cols-2">
       {#each g.items as f (f.key)}

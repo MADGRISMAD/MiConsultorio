@@ -34,7 +34,7 @@ export function expedienteHtml(rec: PatientRecord, schema: PatientSchema): strin
   const { patient: p, clinic } = rec;
   const subj = p.subject;
   const profile = schema.profile[subj] ?? [];
-  const measureDefs = schema.measures[subj] ?? [];
+  const measureDefs = (schema.measures_all ?? schema.measures)[subj] ?? [];
 
   const groups: { name: string; rows: { label: string; v: string }[] }[] = [];
   for (const f of profile) {
