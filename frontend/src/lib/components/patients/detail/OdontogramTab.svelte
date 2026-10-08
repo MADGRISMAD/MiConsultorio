@@ -8,6 +8,7 @@
   import type { Dentition, OdontogramData, PatientChart, Surface, ToothState } from '$lib/types/specialty';
   import OdontogramChart from '../../specialty/OdontogramChart.svelte';
   import {
+    autoDentition,
     cleanTeeth,
     diffOdontograms,
     emptyOdontogram,
@@ -44,6 +45,7 @@
       const r = await specialtyApi.charts(patient.id, 'odontogram');
       history = r.charts;
       const d = r.latest ? copy(asData(r.latest)) : defaultFor(patient);
+      if (r.latest && patient.age != null) d.dentition = autoDentition(patient.age, d);
       work = copy(d);
       base = copy(d);
       error = '';
@@ -55,8 +57,7 @@
   }
   /** children start on the deciduous chart, teenagers on the mixed one */
   function defaultFor(p: Patient): OdontogramData {
-    const age = p.age ?? 30;
-    return emptyOdontogram(age < 6 ? 'child' : age < 13 ? 'mixed' : 'adult');
+    return emptyOdontogram(autoDentition(p.age, emptyOdontogram()));
   }
   onMount(load);
 
@@ -150,7 +151,7 @@
   const dentitions: { v: Dentition; label: string }[] = [
     { v: 'adult', label: 'Adulto (32)' },
     { v: 'child', label: 'Niño (20)' },
-    { v: 'mixed', label: 'Mixta' }
+    { v: 'mixed', label: 'Mixta (niño + adulto)' }
   ];
 </script>
 
@@ -177,6 +178,10 @@
       <button type="button" class="btn-secondary" onclick={print}><Icon name="receipt" size={18} />Imprimir</button>
     </div>
   </div>
+
+  {#if !viewed && patient.age != null}
+    <p class="hint mb-3">Según su edad ({patient.age} años) se muestra la dentición {dentitions.find((d) => d.v === work.dentition)?.label.replace(/ \(.*\)/, '').toLowerCase()}. Puedes cambiarla si hace falta (por ejemplo, dientes de leche que aún no se caen).</p>
+  {/if}
 
   {#if viewed}
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-app-warning/12 px-4 py-3 text-sm" role="status">

@@ -126,6 +126,24 @@ export function emptyOdontogram(dentition: Dentition = 'adult'): OdontogramData 
   return { dentition, teeth: {} };
 }
 
+/** Dentition that fits an age: baby teeth until ~6, both sets while they are replaced (~6-12), permanent after. */
+export function dentitionForAge(age: number | null | undefined): Dentition {
+  if (age == null) return 'adult';
+  return age < 6 ? 'child' : age < 13 ? 'mixed' : 'adult';
+}
+
+/** The age-based dentition, widened to "mixed" when recorded teeth would otherwise be hidden. */
+export function autoDentition(age: number | null | undefined, data: OdontogramData): Dentition {
+  const want = dentitionForAge(age);
+  if (want === 'mixed') return want;
+  const keys = Object.keys(data.teeth).map(Number);
+  const hasBaby = keys.some((n) => n >= 51);
+  const hasPerm = keys.some((n) => n < 51);
+  if (want === 'adult' && hasBaby) return 'mixed';
+  if (want === 'child' && hasPerm) return 'mixed';
+  return want;
+}
+
 /** Removes empty teeth so the stored snapshot only holds findings. */
 export function cleanTeeth(data: OdontogramData): OdontogramData {
   const teeth: Record<string, ToothData> = {};
