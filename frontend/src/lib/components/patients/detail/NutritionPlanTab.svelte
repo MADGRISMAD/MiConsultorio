@@ -32,6 +32,7 @@
     return e ? String(e.measures[key]) : '';
   };
   const GOALS = ['Bajar de peso', 'Mantener', 'Subir de peso', 'Ganar masa muscular', 'Control de enfermedad', 'Alimentación saludable'];
+  const GOAL_CHOICES = [...GOALS, 'Otro (escribir)'];
   const ACTIVITY: { v: number; label: string }[] = [
     { v: 1.2, label: 'Sedentario (casi no se mueve)' },
     { v: 1.375, label: 'Ligera (1 a 3 días a la semana)' },
@@ -61,6 +62,12 @@
   let gActivity = $state(1.375);
   let gOpen = $state(false);
   let gError = $state('');
+  let gCustom = $state('');
+  let gPrefs = $state('');
+  let gMeals = $state(5);
+  const OTHER = 'Otro (escribir)';
+  const aiOp = new Op();
+  const goalText = $derived(gGoal === OTHER ? gCustom.trim() : gGoal);
 
   const bmi = $derived.by(() => {
     const w = Number(gWeight.replace(',', '.'));
@@ -79,6 +86,7 @@
     const pg = String(patient.profile?.nutrition_goal ?? '');
     gGoal = GOALS.includes(pg) ? pg : GOALS.includes(gGoal) ? gGoal : 'Alimentación saludable';
     gError = '';
+    aiOp.reset();
     gOpen = true;
   }
 
@@ -100,7 +108,7 @@
     const meals: NutritionMeal[] = MEALS.map(([name, time, pct]) => ({ name, time, items: '', kcal: Math.round((kcal * pct) / 100 / 10) * 10 }));
     work = {
       ...work,
-      goal: gGoal,
+      goal: goalText || gGoal,
       kcal,
       carb_pct: carb,
       protein_pct: prot,
@@ -112,6 +120,27 @@
     };
     editing = true;
     gOpen = false;
+  }
+
+  /** The AI drafts the whole plan from the goal, the patient's history and the nutritionist's notes. */
+  async function generateAI() {
+    if (!goalText) {
+      gError = 'Escribe el objetivo del plan.';
+      return;
+    }
+    gError = '';
+    const w = Number(gWeight.replace(',', '.')) || 0;
+    const h = Number(gHeight.replace(',', '.')) || 0;
+    const act = ACTIVITY.find((a) => a.v === gActivity)?.label ?? '';
+    let drafted: NutritionPlanData | undefined;
+    const ok = await aiOp.run(async () => {
+      drafted = await specialtyApi.nutritionAI(patient.id, { goal: goalText, weight_kg: w, height_cm: h, activity: act, kcal: 0, meals: gMeals, preferences: gPrefs.trim() });
+    });
+    if (!ok || !drafted) return;
+    work = drafted;
+    editing = true;
+    gOpen = false;
+    toast.show('Borrador listo: revísalo y ajústalo antes de guardar');
   }
 
   async function load() {
@@ -226,20 +255,28 @@
     {#if gOpen}
       <section class="card mb-4 p-4 sm:p-5" aria-labelledby="gen-h">
         <h3 id="gen-h" class="display text-xl">Calcular necesidades</h3>
-        <p class="mt-1 text-sm text-app-muted">Estimación con la fórmula de Mifflin-St Jeor. Revisa y ajusta el resultado con tu criterio.</p>
+        <p class="mt-1 text-sm text-app-muted">Genera un borrador con IA para cualquier objetivo, o calcula las calorías con la fórmula de Mifflin-St Jeor y arma las comidas tú.</p>
         <div class="mt-3 grid gap-3 sm:grid-cols-2">
           <div><label class="label" for="g-goal">Objetivo</label>
-            <select id="g-goal" class="field" bind:value={gGoal}>{#each GOALS as g}<option>{g}</option>{/each}</select></div>
+            <select id="g-goal" class="field" bind:value={gGoal}>{#each GOAL_CHOICES as g}<option>{g}</option>{/each}</select>
+            {#if gGoal === OTHER}<input class="field mt-2" maxlength="200" bind:value={gCustom} placeholder="Ej. Control de colesterol, embarazo, deportista de resistencia" aria-label="Objetivo del plan" />{/if}</div>
           <div><label class="label" for="g-act">Actividad física</label>
             <select id="g-act" class="field" bind:value={gActivity}>{#each ACTIVITY as a}<option value={a.v}>{a.label}</option>{/each}</select></div>
           <div><label class="label" for="g-w">Peso (kg)</label><input id="g-w" class="field" inputmode="decimal" bind:value={gWeight} /></div>
           <div><label class="label" for="g-h">Talla (cm)</label><input id="g-h" class="field" inputmode="decimal" bind:value={gHeight} /></div>
         </div>
+        <div class="mt-3"><label class="label" for="g-prefs">Preferencias, restricciones o indicaciones para la IA <span class="font-normal text-app-muted">(opcional)</span></label>
+          <textarea id="g-prefs" class="field min-h-20" rows="2" maxlength="1500" bind:value={gPrefs} placeholder="Ej. Vegetariano, no le gusta el pescado, presupuesto bajo, come fuera de casa al mediodía"></textarea></div>
+        <div class="mt-3"><label class="label" for="g-meals">Comidas al día</label>
+          <select id="g-meals" class="field !w-auto" bind:value={gMeals}>{#each [3, 4, 5, 6] as n}<option value={n}>{n}</option>{/each}</select></div>
         {#if bmi}<p class="hint">Índice de masa corporal: <strong>{bmi.value}</strong> ({bmi.label}).</p>{/if}
         <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}. El peso y la talla se toman de la última nota que los tenga.</p>
         {#if gError}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{gError}</p>{/if}
+        {#if aiOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{aiOp.message}</p>{/if}
+        <p class="hint">La IA arma un borrador completo (calorías, macronutrientes, comidas e indicaciones) con la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Siempre revísalo antes de guardarlo. Usa uno de los usos de IA de tu plan.</p>
         <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="btn-primary" onclick={generate}><Icon name="sparkles" size={18} />Calcular y armar plan</button>
+          <button type="button" class="btn-primary" disabled={aiOp.phase === 'loading'} onclick={generateAI}>{#if aiOp.phase === 'loading'}<span class="spin"></span>{:else}<Icon name="sparkles" size={18} />{/if}Generar con IA</button>
+          <button type="button" class="btn-secondary" disabled={aiOp.phase === 'loading'} onclick={generate}>Calcular y armar plan</button>
           <button type="button" class="btn-ghost" onclick={() => (gOpen = false)}>Llenar a mano</button>
         </div>
       </section>

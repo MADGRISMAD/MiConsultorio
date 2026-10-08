@@ -3,13 +3,18 @@ package api_test
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/madgrismad/miconsultorio/backend/internal/config"
 )
 
 func signaturePNG(t *testing.T, w, h int) string {
@@ -380,5 +385,51 @@ func TestNutritionPlanChart(t *testing.T) {
 	}
 	if status, body := doc.do("GET", url+"?kind=nutrition_plan", nil); status != 200 || !strings.Contains(fmt.Sprint(body), "Bajar de peso") {
 		t.Fatalf("list: %d %s", status, body)
+	}
+}
+
+func TestNutritionPlanAI(t *testing.T) {
+	var prompt string
+	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Contents []struct {
+				Parts []map[string]any `json:"parts"`
+			} `json:"contents"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompt = body.Contents[0].Parts[0]["text"].(string)
+		text := `{"goal":"Bajar de peso","kcal":1800.4,"protein_pct":30,"carb_pct":50,"fat_pct":40,"water_liters":2.5,
+			"meals":[{"name":"Desayuno","time":"08:00","items":"Avena con fruta","kcal":450.6},{"name":"","items":"x","kcal":1}],
+			"recommendations":"Come despacio","avoid":"Refrescos","supplements":"","follow_up_days":30}`
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": text}}}}}})
+	}))
+	defer gem.Close()
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
+	})
+	doc, recep := e.login("doc_a"), e.login("recep_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/nutrition-plan/ai"
+
+	recep.expect(403, "POST", url, map[string]any{"goal": "Bajar de peso"})
+	doc.expect(400, "POST", url, map[string]any{})
+	out := doc.expect(200, "POST", url, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity": "Ligera", "preferences": "No le gusta el pescado"})
+	plan := out["plan"].(map[string]any)
+	if num(plan, "kcal") != 1800 || len(plan["meals"].([]any)) != 1 {
+		t.Fatalf("plan: %v", plan)
+	}
+	// 30+50+40 is more than 100: scaled down so the plan is storable
+	if num(plan, "protein_pct")+num(plan, "carb_pct")+num(plan, "fat_pct") > 100 {
+		t.Fatalf("macros: %v", plan)
+	}
+	if !strings.Contains(prompt, "82.0 kg") || !strings.Contains(prompt, "No le gusta el pescado") {
+		t.Fatalf("prompt lacks the data: %s", prompt)
+	}
+	if strings.Contains(prompt, "Prueba") || strings.Contains(prompt, "mejj7003") {
+		t.Fatalf("the prompt must not carry identifying data: %s", prompt)
+	}
+	// the draft is not saved by itself
+	if got := doc.expect(200, "GET", "/api/patients/"+pid+"/charts?kind=nutrition_plan", nil); len(got["charts"].([]any)) != 0 {
+		t.Fatal("the AI draft must not be saved")
 	}
 }
