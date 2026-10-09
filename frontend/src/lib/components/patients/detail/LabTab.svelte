@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -25,8 +26,7 @@
   let orders = $state<LabOrder[]>([]);
   let catalog = $state<LabCatalog | null>(null);
   let files = $state<Attachment[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el laboratorio.');
   let view = $state<'ordenes' | 'tendencias'>('ordenes');
   let showHistory = $state(false);
 
@@ -38,14 +38,9 @@
   };
 
   async function load() {
-    try {
-      orders = await labApi.orders(patient.id);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el laboratorio.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        orders = await labApi.orders(patient.id);
+    });
   }
   onMount(() => {
     load();
@@ -162,10 +157,10 @@
   }
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-48 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <div role="group" aria-label="Vista de laboratorio" class="inline-flex rounded-full bg-app-ink/6 p-1">

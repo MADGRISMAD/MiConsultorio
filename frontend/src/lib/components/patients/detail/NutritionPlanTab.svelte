@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -33,8 +34,7 @@
   const asData = (c: PatientChart) => normalize(c.data as NutritionPlanData);
 
   let history = $state<PatientChart[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el plan nutricional.');
   let work = $state<NutritionPlanData>(empty());
   let base = $state('');
   let editing = $state(false);
@@ -205,17 +205,12 @@
   }
 
   async function load() {
-    try {
-      const r = await specialtyApi.charts(patient.id, 'nutrition_plan');
-      history = r.charts;
-      work = r.latest ? asData(r.latest) : empty();
-      base = JSON.stringify(work);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el plan nutricional.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await specialtyApi.charts(patient.id, 'nutrition_plan');
+        history = r.charts;
+        work = r.latest ? asData(r.latest) : empty();
+        base = JSON.stringify(work);
+    });
   }
   onMount(load);
 
@@ -398,10 +393,10 @@
   }
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-64 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <NutritionProgress {patient} {canWrite} {encounters} onsaved={async () => { await onchange?.(); }} />
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">

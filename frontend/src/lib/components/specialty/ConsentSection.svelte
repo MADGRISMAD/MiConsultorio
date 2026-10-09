@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as dt } from '$lib/format';
@@ -23,18 +24,12 @@
   const animal = $derived(patient.subject === 'animal');
   const patientName = $derived(`${patient.names} ${patient.last_names}`.trim());
   let consents = $state<Consent[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar los consentimientos.');
 
   async function load() {
-    try {
-      consents = await specialtyApi.consents(patient.id);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar los consentimientos.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        consents = await specialtyApi.consents(patient.id);
+    });
   }
   $effect(() => {
     void version;
@@ -86,10 +81,10 @@
     <h3 id="consents-h" class="display text-xl">Consentimientos firmados</h3>
     {#if canWrite}<button type="button" class="btn-secondary" onclick={start}><Icon name="edit" size={18} />Firmar consentimiento</button>{/if}
   </div>
-  {#if loading}
+  {#if ld.loading}
     <div class="card h-20 animate-pulse"></div>
-  {:else if error}
-    <Alert>{error}</Alert>
+  {:else if ld.error}
+    <Alert>{ld.error}</Alert>
   {:else if consents.length === 0}
     <div class="card"><EmptyState icon="shield" title="Sin consentimientos" text="Los consentimientos firmados en pantalla se conservan con el texto exacto y la firma." /></div>
   {:else}

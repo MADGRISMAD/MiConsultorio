@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
@@ -22,8 +23,7 @@
   let usage = $state<FilesUsage | null>(null);
   let maxBytes = $state(15 << 20);
   let encounters = $state<Encounter[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar los archivos.');
   let showArchived = $state(false);
   let filter = $state<'all' | FileKind>('all');
   let dragging = $state(false);
@@ -36,17 +36,12 @@
   let camera = $state<HTMLInputElement>();
 
   async function load() {
-    try {
-      const r = await filesApi.list(patient.id, showArchived);
-      files = r.files;
-      usage = r.usage;
-      maxBytes = r.max_upload_bytes;
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar los archivos.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await filesApi.list(patient.id, showArchived);
+        files = r.files;
+        usage = r.usage;
+        maxBytes = r.max_upload_bytes;
+    });
   }
   onMount(() => {
     load();
@@ -55,7 +50,7 @@
 
   function toggleArchived() {
     showArchived = !showArchived;
-    loading = true;
+    ld.loading = true;
     load();
   }
 
@@ -140,10 +135,10 @@
     </div>
   {/if}
 
-  {#if loading}
+  {#if ld.loading}
     <div class="card p-6 text-sm text-app-muted" role="status"><span class="spin"></span> Cargando…</div>
-  {:else if error}
-    <Alert>{error}</Alert>
+  {:else if ld.error}
+    <Alert>{ld.error}</Alert>
   {:else if visible.length === 0}
     <div class="card"><EmptyState icon="folder" title={showArchived ? 'Sin archivos archivados' : 'Sin archivos'} text={showArchived ? '' : canWrite ? 'Arrastra aquí un archivo o usa «Subir archivo».' : 'Aún no hay archivos en este expediente.'} /></div>
   {:else}

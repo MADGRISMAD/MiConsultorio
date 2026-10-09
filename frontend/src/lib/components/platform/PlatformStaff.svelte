@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -18,18 +19,12 @@
   import RolePill from '../ui/RolePill.svelte';
 
   let people = $state<Person[]>([]);
-  let loading = $state(true);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo leer el equipo.');
 
   async function load() {
-    try {
-      people = (await api.platform.staff()).people;
-      loadError = '';
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo leer el equipo.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        people = (await api.platform.staff()).people;
+    });
   }
   onMount(load);
 
@@ -100,10 +95,10 @@
 </PageHeader>
 
 <section class="card overflow-hidden">
-  {#if loading}
+  {#if ld.loading}
     <LoadingRows />
-  {:else if loadError}
-    <Alert class="m-5">{loadError}</Alert>
+  {:else if ld.error}
+    <Alert class="m-5">{ld.error}</Alert>
   {:else}
     <ul class="divide-y divide-app-ink/8">
       {#each active as p (p.id)}

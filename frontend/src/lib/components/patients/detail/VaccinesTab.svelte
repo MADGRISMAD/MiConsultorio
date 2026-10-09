@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -21,8 +22,7 @@
   let list = $state<Vaccination[]>([]);
   let suggestions = $state<VaccineSuggestion[]>([]);
   let weights = $state<WeightPoint[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el carnet.');
   let showVoided = $state(false);
 
   const KINDS: { v: VaccinationKind; label: string }[] = [
@@ -42,17 +42,12 @@
   };
 
   async function load() {
-    try {
-      const [v, w] = await Promise.all([specialtyApi.vaccinations(patient.id), specialtyApi.weights(patient.id)]);
-      list = v.vaccinations;
-      suggestions = v.suggestions;
-      weights = w;
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el carnet.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const [v, w] = await Promise.all([specialtyApi.vaccinations(patient.id), specialtyApi.weights(patient.id)]);
+        list = v.vaccinations;
+        suggestions = v.suggestions;
+        weights = w;
+    });
   }
   onMount(load);
 
@@ -139,10 +134,10 @@
   }
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-48 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <p class="max-w-xl text-sm text-app-muted">

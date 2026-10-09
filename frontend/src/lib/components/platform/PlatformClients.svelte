@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -30,23 +31,17 @@
   let clinics = $state<ClinicRow[]>([]);
   let counts = $state<Record<string, number>>({});
   let plans = $state<Plan[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar los negocios.');
   let query = $state('');
   let filter = $state(page.url.searchParams.get('state') ?? 'all');
 
   let timer: ReturnType<typeof setTimeout>;
   async function load() {
-    try {
-      const r = await api.platform.clinics(query, filter === 'all' ? '' : filter);
-      clinics = r.clinics;
-      counts = r.counts;
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar los negocios.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await api.platform.clinics(query, filter === 'all' ? '' : filter);
+        clinics = r.clinics;
+        counts = r.counts;
+    });
   }
   onMount(() => {
     void load();
@@ -83,10 +78,10 @@
       </div>
     </div>
 
-    {#if loading}
+    {#if ld.loading}
       <LoadingRows />
-    {:else if error}
-      <Alert class="m-4">{error}</Alert>
+    {:else if ld.error}
+      <Alert class="m-4">{ld.error}</Alert>
     {:else if clinics.length === 0}
       <EmptyState icon="building" title={counts.all ? 'Ningún negocio coincide' : 'Aún no hay negocios'} text={counts.all ? 'Cambia el filtro o la búsqueda.' : 'Cuando alguien cree su consultorio aparecerá aquí.'} />
     {:else}

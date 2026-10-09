@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -20,22 +21,16 @@
   let pros = $state<PosProfessional[]>([]);
   let items = $state<CatalogItem[]>([]);
   let categories = $state<string[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar las reglas.');
 
   async function load() {
-    try {
-      const [r, p, i] = await Promise.all([pos2.rules(), pos2.professionals(), api.pos.items({ active: true })]);
-      rules = r;
-      pros = p;
-      items = i.items;
-      categories = i.categories;
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar las reglas.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const [r, p, i] = await Promise.all([pos2.rules(), pos2.professionals(), api.pos.items({ active: true })]);
+        rules = r;
+        pros = p;
+        items = i.items;
+        categories = i.categories;
+    });
   }
   onMount(load);
 
@@ -126,10 +121,10 @@
   </div>
 
   <div class="mt-5">
-    {#if loading}
+    {#if ld.loading}
       <LoadingRows />
-    {:else if error}
-      <Alert>{error}</Alert>
+    {:else if ld.error}
+      <Alert>{ld.error}</Alert>
     {:else if !rules.length}
       <EmptyState icon="tag" title="Sin reglas de comisión" text="Crea una regla general (por ejemplo 30 % para todos) y afínala por profesional, categoría o artículo.">
         <button type="button" class="btn-primary" onclick={() => openForm(null)}>Nueva regla</button>

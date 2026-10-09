@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -18,8 +19,7 @@
   let { patient, canWrite }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean } = $props();
 
   let history = $state<PatientChart[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el esquema corporal.');
   let work = $state<BodymapData>({ zones: [] });
   let base = $state('[]');
   let view = $state<BodyView>('front');
@@ -37,17 +37,12 @@
   const asData = (c: PatientChart) => c.data as BodymapData;
 
   async function load() {
-    try {
-      const r = await specialtyApi.charts(patient.id, 'bodymap');
-      history = r.charts;
-      work = r.latest ? JSON.parse(JSON.stringify(asData(r.latest))) : { zones: [] };
-      base = JSON.stringify(work.zones);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el esquema corporal.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await specialtyApi.charts(patient.id, 'bodymap');
+        history = r.charts;
+        work = r.latest ? JSON.parse(JSON.stringify(asData(r.latest))) : { zones: [] };
+        base = JSON.stringify(work.zones);
+    });
   }
   onMount(load);
 
@@ -107,10 +102,10 @@
   const sortedFindings = $derived([...shown.zones].sort((a, b) => b.intensity - a.intensity));
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-64 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <p class="max-w-xl text-sm text-app-muted">Toca una zona del cuerpo para registrar dolor, contractura, subluxación o parestesia con su intensidad. Izquierdo y derecho son los del paciente.</p>

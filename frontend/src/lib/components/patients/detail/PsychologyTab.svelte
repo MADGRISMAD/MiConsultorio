@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { dateShort as dt } from '$lib/format';
@@ -35,8 +36,7 @@
     notes: string;
   }
 
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar.');
   let results = $state<PatientChart[]>([]);
   let planHistory = $state<PatientChart[]>([]);
 
@@ -75,21 +75,16 @@
   const dirty = $derived(JSON.stringify(plan) !== planBase);
 
   async function load() {
-    try {
-      const [s, p] = await Promise.all([specialtyApi.charts(patient.id, 'scale'), specialtyApi.charts(patient.id, 'therapy_plan')]);
-      results = s.charts;
-      planHistory = p.charts;
-      if (!dirty) {
-        const d = (p.latest?.data ?? {}) as Partial<TherapyPlan>;
-        plan = { goals: d.goals ?? [], tasks: d.tasks ?? [], notes: d.notes ?? '' };
-        planBase = JSON.stringify(plan);
-      }
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const [s, p] = await Promise.all([specialtyApi.charts(patient.id, 'scale'), specialtyApi.charts(patient.id, 'therapy_plan')]);
+        results = s.charts;
+        planHistory = p.charts;
+        if (!dirty) {
+          const d = (p.latest?.data ?? {}) as Partial<TherapyPlan>;
+          plan = { goals: d.goals ?? [], tasks: d.tasks ?? [], notes: d.notes ?? '' };
+          planBase = JSON.stringify(plan);
+        }
+    });
   }
   onMount(load);
 
@@ -109,10 +104,10 @@
   const STATUS: Record<Goal['status'], string> = { active: 'En curso', done: 'Logrado', paused: 'En pausa' };
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-48 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <section class="card p-5 sm:p-6" aria-labelledby="ps-scales">
     <h2 id="ps-scales" class="display text-2xl">Escalas de evaluación</h2>

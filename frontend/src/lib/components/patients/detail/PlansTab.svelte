@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
@@ -30,8 +31,7 @@
   const canCharge = $derived(session.cobros && session.has('pos'));
 
   let plans = $state<TreatmentPlan[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar los planes.');
   let openId = $state<string | null>(null);
   let encounters = $state<Encounter[]>([]);
   let consentVersion = $state(0);
@@ -47,14 +47,9 @@
   const d = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
   async function load() {
-    try {
-      plans = await specialtyApi.plans(patient.id);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar los planes.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        plans = await specialtyApi.plans(patient.id);
+    });
   }
   onMount(() => {
     load();
@@ -160,10 +155,10 @@
   {#if canWrite}<button type="button" class="btn-primary" onclick={() => (editor = { mode: 'create', plan: null })}><Icon name="plus" size={18} />Nuevo plan</button>{/if}
 </div>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-32 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else if plans.length === 0}
   <div class="card"><EmptyState icon="clock-plus" title="Sin planes de tratamiento" text="Arma un plan por fases para {patient.names}, preséntalo y regístralo con firma.">
     {#if canWrite}<button type="button" class="btn-primary" onclick={() => (editor = { mode: 'create', plan: null })}><Icon name="plus" size={18} />Nuevo plan</button>{/if}

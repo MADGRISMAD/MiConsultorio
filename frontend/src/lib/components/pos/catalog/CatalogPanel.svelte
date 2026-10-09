@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
@@ -22,20 +23,14 @@
 
   let items = $state<CatalogItem[]>([]);
   let categories = $state<string[]>([]);
-  let loading = $state(true);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo cargar el catálogo.');
 
   async function load() {
-    try {
-      const r = await api.pos.items();
-      items = r.items;
-      categories = r.categories ?? [];
-      loadError = '';
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo cargar el catálogo.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await api.pos.items();
+        items = r.items;
+        categories = r.categories ?? [];
+    });
   }
   onMount(load);
 
@@ -255,10 +250,10 @@
     </div>
   </div>
 
-  {#if loading}
+  {#if ld.loading}
     <LoadingRows />
-  {:else if loadError}
-    <Alert class="m-5">{loadError}</Alert>
+  {:else if ld.error}
+    <Alert class="m-5">{ld.error}</Alert>
   {:else if !items.length}
     <EmptyState icon="tag" title="Tu catálogo está vacío" text={canManage ? 'Agrega tus servicios y productos para poder cobrarlos. Puedes capturarlos uno por uno, importarlos de una hoja de cálculo o dejar que la magia los arme por ti.' : 'Todavía no hay servicios ni productos. Pide a un administrador que los agregue.'}>
       {#if canManage}

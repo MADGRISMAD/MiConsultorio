@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api, ApiError } from '$lib/api';
@@ -16,8 +17,7 @@
 
   let data = $state<Receivables | null>(null);
   let settings = $state<PosSettings | null>(null);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar las cuentas por cobrar.');
   let open = $state<Record<string, boolean>>({});
 
   let target = $state<{ customer: string; sale: ReceivableSale } | null>(null);
@@ -26,16 +26,11 @@
   let payError = $state('');
 
   async function load() {
-    try {
-      const [r, s] = await Promise.all([pos2.receivables(), settings ? Promise.resolve({ settings }) : api.pos.settings()]);
-      data = r;
-      settings = s.settings;
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar las cuentas por cobrar.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const [r, s] = await Promise.all([pos2.receivables(), settings ? Promise.resolve({ settings }) : api.pos.settings()]);
+        data = r;
+        settings = s.settings;
+    });
   }
   onMount(load);
 
@@ -85,10 +80,10 @@
   {/snippet}
 </PageHeader>
 
-{#if loading}
+{#if ld.loading}
   <div class="card overflow-hidden"><LoadingRows /></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else if data}
   {#if !data.customers.length}
     <div class="card">

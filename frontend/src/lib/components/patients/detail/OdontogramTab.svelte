@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -29,8 +30,7 @@
   let { patient, canWrite }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean } = $props();
 
   let history = $state<PatientChart[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el odontograma.');
   let work = $state<OdontogramData>(emptyOdontogram());
   let base = $state<OdontogramData>(emptyOdontogram()); // what is stored (to detect unsaved changes)
   let tool = $state<ToothState>('caries');
@@ -44,19 +44,14 @@
   const copy = (d: OdontogramData): OdontogramData => JSON.parse(JSON.stringify(d));
 
   async function load() {
-    try {
-      const r = await specialtyApi.charts(patient.id, 'odontogram');
-      history = r.charts;
-      const d = r.latest ? copy(asData(r.latest)) : defaultFor(patient);
-      if (r.latest && patient.age != null) d.dentition = autoDentition(patient.age, d);
-      work = copy(d);
-      base = copy(d);
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el odontograma.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+        const r = await specialtyApi.charts(patient.id, 'odontogram');
+        history = r.charts;
+        const d = r.latest ? copy(asData(r.latest)) : defaultFor(patient);
+        if (r.latest && patient.age != null) d.dentition = autoDentition(patient.age, d);
+        work = copy(d);
+        base = copy(d);
+    });
   }
   /** children start on the deciduous chart, teenagers on the mixed one */
   function defaultFor(p: Patient): OdontogramData {
@@ -169,10 +164,10 @@
   ];
 </script>
 
-{#if loading}
+{#if ld.loading}
   <div class="card h-64 animate-pulse"></div>
-{:else if error}
-  <Alert>{error}</Alert>
+{:else if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else}
   <div class="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
     <p class="min-w-0 max-w-xl flex-1 basis-64 text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
