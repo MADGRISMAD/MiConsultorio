@@ -460,7 +460,8 @@
         <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}.</p>
         {#if gError}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{gError}</p>{/if}
         {#if aiOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{aiOp.message}</p>{/if}
-        <p class="hint">La IA usa la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Tarda unos segundos y usa uno de los usos de IA de tu plan. Siempre revísalo antes de guardarlo.</p>
+        <p class="hint">La IA usa la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Tarda unos segundos. Siempre revísalo antes de guardarlo.</p>
+        <p class="mt-2 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><strong>Generar la semana completa usa 1 uso de magia</strong> de tu plan. Cada cambio de una comida, snack o día con IA, después, usa <strong>1 uso más</strong>.</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-primary" disabled={aiOp.phase === 'loading'} onclick={generateAI}>{#if aiOp.phase === 'loading'}<span class="spin"></span>Armando la semana…{:else}<Icon name="sparkles" size={18} />Generar semana con IA{/if}</button>
           <button type="button" class="btn-secondary" disabled={aiOp.phase === 'loading'} onclick={generate}>Calcular y armar a mano</button>
@@ -509,6 +510,9 @@
         <h3 class="display text-xl">{shown.days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h3>
         {#if shown.kcal}<p class="text-sm text-app-muted">Meta: {shown.kcal} kcal al día</p>{/if}
       </div>
+      {#if !readonly && shown.days.length > 0}
+        <p class="mt-2 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa. Si falla, el uso se devuelve.</p>
+      {/if}
       {#if shown.days.length === 0 || cols.length === 0}
         <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : 'Usa «Generar semana con IA» o «Calcular y armar a mano».'}</p>
       {/if}
@@ -520,7 +524,7 @@
           <label class="mt-1 flex items-center gap-1 text-[11px] text-app-muted"><input class="w-14 rounded-md border border-app-ink/15 bg-app-panel px-1.5 py-0.5 text-right text-[11px] text-app-ink" inputmode="numeric" readonly={readonly} value={m.kcal || ''} aria-label="Calorías de {shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { kcal: Math.round(num(e.currentTarget.value)) })} />kcal</label>
           {#if !readonly}
             <div class="mt-1 flex items-center gap-2">
-              <button type="button" class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-app-primary hover:bg-app-primary/10 disabled:opacity-60" disabled={fragBusy !== ''} title="Cambiar esta comida por otra distinta" onclick={() => swapFrag(di, mi)}>
+              <button type="button" class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-app-primary hover:bg-app-primary/10 disabled:opacity-60" disabled={fragBusy !== ''} title="Cambiar esta comida por otra distinta (usa 1 uso de magia)" onclick={() => swapFrag(di, mi)}>
                 {#if fragBusy === `${di}-${mi}`}<span class="spin"></span>{:else}<Icon name="refresh" size={13} />{/if}Cambiar
               </button>
               <button type="button" class="text-[11px] text-app-muted hover:text-app-ink hover:underline disabled:opacity-60" disabled={fragBusy !== ''} onclick={() => openFrag(di, mi)}>Indicar qué cambiar…</button>
@@ -640,7 +644,8 @@
   <input id="frag-dislike" class="field" maxlength="300" bind:value={fragDislike} placeholder="Ej. pescado, brócoli" />
   <label class="label mt-3" for="frag-req">Indicación <span class="font-normal text-app-muted">(opcional)</span></label>
   <input id="frag-req" class="field" maxlength="300" bind:value={fragRequest} placeholder="Ej. algo más ligero, con avena" />
-  <p class="hint">Usa 1 uso de magia del plan. Se agrega a «Alimentos que no le gustan» y no se guarda nada hasta que presiones «Guardar plan».</p>
+  <p class="mt-3 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><strong>Este cambio usa 1 uso de magia</strong> del plan (igual que generar la semana completa). Si falla, se devuelve.</p>
+  <p class="hint">Se agrega a «Alimentos que no le gustan» y no se guarda nada hasta que presiones «Guardar plan».</p>
   {#if fragOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{fragOp.message}</p>{/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => { frag = null; fragModal = false; }}>Cancelar</button>
