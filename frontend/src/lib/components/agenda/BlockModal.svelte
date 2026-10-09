@@ -13,6 +13,8 @@
     pros: Professional[];
     /** a specialist without agenda-admin rights: the only professional they may block (themselves) */
     ownOnly?: string | null;
+    /** an administrator who also consults: the one-click busy buttons apply to them */
+    selfId?: string | null;
     /** a time picked on the calendar: the form opens on it */
     preset?: { date: string; start: string } | null;
     /** date to prefill */
@@ -20,7 +22,7 @@
     onclose: () => void;
     onchanged: () => void;
   }
-  let { open, blocks: allBlocks, pros, ownOnly = null, preset = null, date, onclose, onchanged }: Props = $props();
+  let { open, blocks: allBlocks, pros, ownOnly = null, selfId = null, preset = null, date, onclose, onchanged }: Props = $props();
   const blocks = $derived(ownOnly ? allBlocks.filter((b) => b.professional_id === ownOnly) : allBlocks);
 
   let professional = $state('');
@@ -74,7 +76,7 @@
     const until = minutes === 'day' ? 24 * 60 - 1 : Math.min(now.getHours() * 60 + now.getMinutes() + minutes, 24 * 60 - 1);
     const ok = await op.run(async () => {
       const r = await agendaApi.createBlock({
-        professional_id: ownOnly ?? (professional || null), date_from: day, date_to: day,
+        professional_id: ownOnly ?? selfId ?? (professional || null), date_from: day, date_to: day,
         startHour: from, endHour: `${pad(Math.floor(until / 60))}:${pad(until % 60)}`, reason: 'Ocupado'
       });
       affected = r.affected;
@@ -92,7 +94,7 @@
 
 <Modal {open} title={ownOnly ? "Marcar no disponible" : "Bloquear horarios"} wide {onclose}>
   <form id="block-form" class="grid gap-3 text-left sm:grid-cols-2" onsubmit={create}>
-    {#if ownOnly}
+    {#if ownOnly || selfId}
       <div class="sm:col-span-2">
         <p class="label">¿Se te presentó algo ahora?</p>
         <div class="flex flex-wrap gap-2">
@@ -102,6 +104,8 @@
         </div>
         <p class="hint">Quedas ocupado desde este momento: nadie podrá agendarte en ese lapso, sin pedir permiso. Lo quitas abajo cuando regreses.</p>
       </div>
+    {/if}
+    {#if ownOnly}
       <p class="rounded-xl bg-app-primary/8 px-3.5 py-2.5 text-sm sm:col-span-2">Los pacientes no podrán agendar contigo en las fechas y horas que marques (por ejemplo, vacaciones). Las citas que ya tengas no se cancelan.</p>
     {:else}
     <label class="block sm:col-span-2">

@@ -59,7 +59,7 @@
   async function savePro(p: Professional) {
     savingPro = p.id;
     if (await proOp.run(async () => {
-      const r = await agendaApi.saveProfessional(p.id, { bookable: p.bookable, slot_minutes: p.slot_minutes, hours: $state.snapshot(p.hours) as HoursMap, color: p.color });
+      const r = await agendaApi.saveProfessional(p.id, { bookable: p.bookable, consults: p.consults, slot_minutes: p.slot_minutes, hours: $state.snapshot(p.hours) as HoursMap, color: p.color });
       Object.assign(p, r);
     })) toast.show(`Agenda de ${p.name} guardada`);
     savingPro = '';
@@ -190,8 +190,14 @@
             {#if p.bookable}<span class="badge">En línea</span>{/if}
           </summary>
           <div class="mt-4 grid gap-4">
-            <label class="flex cursor-pointer items-center gap-3 text-sm font-medium">
-              <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.bookable} />Aparece en la reserva en línea
+            <div>
+              <label class="flex cursor-pointer items-center gap-3 text-sm font-medium">
+                <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.consults} onchange={() => { if (!p.consults) p.bookable = false; }} />Atiendo consultas
+              </label>
+              <p class="hint !mt-1">Desmárcalo si eres solo el dueño o administrador y no atiendes pacientes: así no te agendan citas ni apareces en la agenda.</p>
+            </div>
+            <label class="flex items-center gap-3 text-sm font-medium {p.consults ? 'cursor-pointer' : 'opacity-50'}">
+              <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.bookable} disabled={!p.consults} />Aparece en la reserva en línea
             </label>
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">

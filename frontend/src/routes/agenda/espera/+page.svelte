@@ -40,7 +40,7 @@
     await load.run(async () => {
       const [e, p, s] = await Promise.all([waitlistApi.list(), agendaApi.professionals(), agendaLoadApi.services()]);
       entries = e;
-      pros = p;
+      pros = p.filter((x) => x.consults);
       services = s;
     });
   }

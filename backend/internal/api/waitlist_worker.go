@@ -160,7 +160,7 @@ func (s *Server) wlProfessionals(ctx context.Context, clinicID string) (all []bo
 	rows, err := s.db.Query(ctx, `
 		SELECT u.id::text, u.name, coalesce(ps.slot_minutes, 0), coalesce(ps.hours, '{}'::jsonb), coalesce(ps.bookable, false)
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
-		WHERE u.clinic_id = $1 AND NOT u.disabled AND u.role IN ('admin', 'doctor') ORDER BY u.name, u.id`, clinicID)
+		WHERE u.clinic_id = $1 AND NOT u.disabled AND u.role IN ('admin', 'doctor') AND coalesce(ps.consults, true) ORDER BY u.name, u.id`, clinicID)
 	if err != nil {
 		return nil, nil, err
 	}

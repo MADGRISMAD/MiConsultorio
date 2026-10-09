@@ -59,6 +59,8 @@
   let appts = $state<Appt[]>([]);
   let blocks = $state<TimeBlock[]>([]);
   let pros = $state<Professional[]>([]);
+  /** whoever consults can mark themselves busy with one click, administrators included */
+  const myProId = $derived(pros.find((p) => p.id === session.user?.userId)?.id ?? null);
   /** a specialist without agenda-admin rights can still mark their own time as unavailable */
   const ownProId = $derived(!session.has(PERMISSIONS.adminAppointments) ? (pros.find((p) => p.id === session.user?.userId)?.id ?? null) : null);
   let services = $state<ServiceOption[]>([]);
@@ -75,7 +77,7 @@
     mq.addEventListener('change', on);
     Promise.all([agendaApi.professionals(), agendaApi.settings(), agendaApi.services().catch(() => [] as ServiceOption[])])
       .then(([p, s, sv]) => {
-        pros = p;
+        pros = p.filter((x) => x.consults);
         cfg = s;
         services = sv;
       })
@@ -398,4 +400,4 @@
   <p>Se eliminará la cita de <strong class="text-app-ink">{deleting ? fullName(deleting) : ''}</strong> del {deleting ? fmtShort(deleting.date) : ''}. Si solo no vendrá, mejor cancélala para conservar el historial.</p>
 </ConfirmModal>
 
-<BlockModal open={blockOpen} {blocks} {pros} ownOnly={ownProId} preset={busyPreset} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />
+<BlockModal open={blockOpen} {blocks} {pros} ownOnly={ownProId} selfId={myProId} preset={busyPreset} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />

@@ -31,6 +31,7 @@ type professional struct {
 	Role        string                 `json:"role"`
 	Specialty   string                 `json:"specialty"`
 	Bookable    bool                   `json:"bookable"`
+	Consults    bool                   `json:"consults"` // sees patients: false for an owner who only runs the clinic
 	SlotMinutes int                    `json:"slot_minutes"`
 	Hours       map[string][][2]string `json:"hours"`
 	Color       string                 `json:"color"`
@@ -48,7 +49,7 @@ func (s *Server) listProfessionals(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]professional, error) {
 	rows, err := s.db.Query(r.Context(), `
-		SELECT u.id::text, u.name, u.role, u.specialty_title, coalesce(ps.bookable, false),
+		SELECT u.id::text, u.name, u.role, u.specialty_title, coalesce(ps.bookable, false), coalesce(ps.consults, true),
 		       coalesce(ps.slot_minutes, ags.slot_minutes, 30), coalesce(ps.hours, '{}'::jsonb), coalesce(ps.color, '')
 		FROM users u
 		LEFT JOIN professional_settings ps ON ps.user_id = u.id
@@ -63,7 +64,7 @@ func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]
 	for rows.Next() {
 		var pr professional
 		var raw []byte
-		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.SlotMinutes, &raw, &pr.Color); err != nil {
+		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.Consults, &pr.SlotMinutes, &raw, &pr.Color); err != nil {
 			return nil, err
 		}
 		pr.Hours = map[string][][2]string{}
@@ -75,6 +76,7 @@ func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]
 
 type professionalIn struct {
 	Bookable    bool                   `json:"bookable"`
+	Consults    *bool                  `json:"consults"` // omitted: unchanged
 	SlotMinutes int                    `json:"slot_minutes"`
 	Hours       map[string][][2]string `json:"hours"`
 	Color       string                 `json:"color"`
@@ -135,10 +137,11 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 	}
 	raw, _ := json.Marshal(in.Hours)
 	if _, err := s.db.Exec(r.Context(), `
-		INSERT INTO professional_settings (user_id, clinic_id, bookable, slot_minutes, hours, color)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (user_id) DO UPDATE SET bookable = $3, slot_minutes = $4, hours = $5, color = $6, updated_at = now()`,
-		id, p.ClinicID, in.Bookable, in.SlotMinutes, raw, in.Color); err != nil {
+		INSERT INTO professional_settings (user_id, clinic_id, bookable, consults, slot_minutes, hours, color)
+		VALUES ($1, $2, $3 AND coalesce($7, true), coalesce($7, true), $4, $5, $6)
+		ON CONFLICT (user_id) DO UPDATE SET consults = coalesce($7, professional_settings.consults),
+			bookable = $3 AND coalesce($7, professional_settings.consults), slot_minutes = $4, hours = $5, color = $6, updated_at = now()`,
+		id, p.ClinicID, in.Bookable, in.SlotMinutes, raw, in.Color, in.Consults); err != nil {
 		serverError(w, r, err)
 		return
 	}
@@ -302,7 +305,7 @@ func (s *Server) createBlock(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if in.ProfessionalID != nil && (!validUUID(*in.ProfessionalID) || !s.isProfessional(r.Context(), s.db, p.ClinicID, *in.ProfessionalID)) {
+	if in.ProfessionalID != nil && (!validUUID(*in.ProfessionalID) || !s.isConsulting(r.Context(), s.db, p.ClinicID, *in.ProfessionalID)) {
 		writeError(w, http.StatusBadRequest, "El profesional no existe o no está activo en este consultorio.")
 		return
 	}

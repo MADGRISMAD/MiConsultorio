@@ -166,7 +166,7 @@ func (a *appointmentIn) validate() string {
 
 // checkRefs verifies the professional and the service belong to the clinic.
 func (s *Server) checkRefs(ctx context.Context, q queryRower, clinicID string, a *appointmentIn) string {
-	if a.ProfessionalID != nil && !s.isProfessional(ctx, q, clinicID, *a.ProfessionalID) {
+	if a.ProfessionalID != nil && !s.isConsulting(ctx, q, clinicID, *a.ProfessionalID) {
 		return "El profesional no existe o no está activo en este consultorio."
 	}
 	if a.ServiceID != nil {
@@ -182,6 +182,14 @@ func (s *Server) checkRefs(ctx context.Context, q queryRower, clinicID string, a
 func (s *Server) isProfessional(ctx context.Context, q queryRower, clinicID, userID string) bool {
 	var ok bool
 	return q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE clinic_id = $1 AND id = $2 AND NOT disabled AND role IN ('admin', 'doctor'))`, clinicID, userID).Scan(&ok) == nil && ok
+}
+
+// isConsulting is isProfessional for whoever appointments may be given to: an owner who marked
+// "no atiendo consultas" keeps the role but is not offered in the agenda.
+func (s *Server) isConsulting(ctx context.Context, q queryRower, clinicID, userID string) bool {
+	var ok bool
+	return q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users u WHERE u.clinic_id = $1 AND u.id = $2 AND NOT u.disabled AND u.role IN ('admin', 'doctor')
+		AND coalesce((SELECT ps.consults FROM professional_settings ps WHERE ps.user_id = u.id), true))`, clinicID, userID).Scan(&ok) == nil && ok
 }
 
 func newConfirmToken() string {

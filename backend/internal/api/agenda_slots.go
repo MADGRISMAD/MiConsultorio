@@ -358,7 +358,7 @@ func (s *Server) agendaMonthLoad(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query(ctx, `
 		SELECT u.id::text, coalesce(ps.hours, '{}'::jsonb), ps.user_id IS NOT NULL
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
-		WHERE u.clinic_id = $1 AND NOT u.disabled AND u.role IN ('admin', 'doctor') AND ($2 = '' OR u.id::text = $2)`, p.ClinicID, onlyPro)
+		WHERE u.clinic_id = $1 AND NOT u.disabled AND u.role IN ('admin', 'doctor') AND coalesce(ps.consults, true) AND ($2 = '' OR u.id::text = $2)`, p.ClinicID, onlyPro)
 	if err != nil {
 		serverError(w, r, err)
 		return

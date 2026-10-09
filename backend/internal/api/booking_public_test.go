@@ -195,3 +195,51 @@ func TestProfessionalHoursFallBackPerDay(t *testing.T) {
 		t.Fatalf("Tuesday falls back to the clinic's hours, it must not be closed: %d", n)
 	}
 }
+
+func TestOwnerWhoDoesNotConsultIsNotOffered(t *testing.T) {
+	b := newBookingEnv(t, false)
+	admin := b.login("admin_a")
+	owner := b.userID("admin_a")
+	body := func(consults any) map[string]any {
+		m := map[string]any{"bookable": true, "slot_minutes": 30, "hours": map[string]any{}, "color": ""}
+		if consults != nil {
+			m["consults"] = consults
+		}
+		return m
+	}
+	hour := 12
+	appt := func(want int) {
+		t.Helper()
+		hour++
+		admin.expect(want, "POST", "/api/appointments", map[string]any{"names": "Ana", "last_names": "López", "date": b.date,
+			"startHour": fmt.Sprintf("%02d:00", hour), "endHour": fmt.Sprintf("%02d:30", hour), "professional_id": owner})
+	}
+	// the owner also consults: offered online and in the agenda
+	admin.expect(200, "PUT", "/api/agenda/professionals/"+owner, body(true))
+	if n := len(sub(b.anon().expect(200, "GET", "/api/public/booking/"+b.slugA, nil), "booking")["professionals"].([]any)); n != 2 {
+		t.Fatalf("both consult: %d", n)
+	}
+	appt(201)
+	// "solo soy el dueño": not offered online, no appointments can be given to them, but the settings still list them
+	out := sub(admin.expect(200, "PUT", "/api/agenda/professionals/"+owner, body(false)), "professional")
+	if out["consults"] != false || out["bookable"] != false {
+		t.Fatalf("not consulting also leaves the online booking: %v", out)
+	}
+	if n := len(sub(b.anon().expect(200, "GET", "/api/public/booking/"+b.slugA, nil), "booking")["professionals"].([]any)); n != 1 {
+		t.Fatalf("only the other specialist: %d", n)
+	}
+	appt(400)
+	admin.expect(400, "POST", "/api/agenda/blocks", map[string]any{"professional_id": owner, "date_from": b.date, "date_to": b.date})
+	found := false
+	for _, p := range admin.expect(200, "GET", "/api/agenda/professionals", nil)["professionals"].([]any) {
+		found = found || (p.(map[string]any)["id"] == owner && p.(map[string]any)["consults"] == false)
+	}
+	if !found {
+		t.Fatal("the settings list keeps them so they can switch back")
+	}
+	// omitting the flag leaves it as it was
+	admin.expect(200, "PUT", "/api/agenda/professionals/"+owner, body(nil))
+	appt(400)
+	admin.expect(200, "PUT", "/api/agenda/professionals/"+owner, body(true))
+	appt(201)
+}

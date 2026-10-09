@@ -83,7 +83,7 @@ func (s *Server) listBookable(ctx context.Context, c *bookingClinic, onlyID stri
 	rows, err := s.db.Query(ctx, `
 		SELECT u.id, u.name, ps.slot_minutes, ps.hours
 		FROM professional_settings ps JOIN users u ON u.id = ps.user_id
-		WHERE ps.clinic_id = $1 AND u.clinic_id = $1 AND ps.bookable AND NOT u.disabled
+		WHERE ps.clinic_id = $1 AND u.clinic_id = $1 AND ps.bookable AND ps.consults AND NOT u.disabled
 		  AND ($2 = '' OR u.id = NULLIF($2, '')::uuid)
 		ORDER BY u.name`, c.ID, onlyID)
 	if err != nil {

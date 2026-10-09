@@ -285,7 +285,7 @@ func TestPortalCancelMargin(t *testing.T) {
 	appt := func(start time.Time, status string) string {
 		var id string
 		if err := p.pool.QueryRow(ctx(), `INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, patient_id, status)
-			VALUES ($1,'','Firulais','X',$2::date,$3::time,$3::time + interval '20 minutes',$4,$5) RETURNING id::text`,
+			VALUES ($1,'','Firulais','X',$2::date,$3::time,(CASE WHEN $3::time > '23:39' THEN '23:59:59'::time ELSE $3::time + interval '20 minutes' END),$4,$5) RETURNING id::text`,
 			p.clinicA, start.In(loc).Format("2006-01-02"), start.In(loc).Format("15:04"), p.patA, status).Scan(&id); err != nil {
 			t.Fatal(err)
 		}

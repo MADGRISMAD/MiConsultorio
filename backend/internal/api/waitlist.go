@@ -211,7 +211,7 @@ func (s *Server) wlCheckRefs(ctx context.Context, q queryRower, clinicID string,
 			return "El paciente no existe en este consultorio."
 		}
 	}
-	if in.ProfessionalID != nil && !s.isProfessional(ctx, q, clinicID, *in.ProfessionalID) {
+	if in.ProfessionalID != nil && !s.isConsulting(ctx, q, clinicID, *in.ProfessionalID) {
 		return "El profesional no existe o no está activo en este consultorio."
 	}
 	if in.ServiceID != nil {
