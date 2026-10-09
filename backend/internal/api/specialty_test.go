@@ -447,7 +447,7 @@ func TestNutritionPlanAI(t *testing.T) {
 			t.Fatalf("each day closes the target exactly: %v vs %v (%d meals)", sum, kcal, len(meals))
 		}
 	}
-	if num(plan, "carb_pct")+num(plan, "protein_pct")+num(plan, "fat_pct") != 100 || num(plan, "carb_pct") != 45 {
+	if num(plan, "carb_pct")+num(plan, "protein_pct")+num(plan, "fat_pct") != 100 || num(plan, "protein_pct") < 15 || num(plan, "protein_pct") > 35 {
 		t.Fatalf("macros: %v", plan)
 	}
 	if plan["dislikes"] != "pescado, hígado" {
@@ -470,6 +470,22 @@ func TestNutritionPlanAI(t *testing.T) {
 	}
 	if withSnacks := doc.expect(200, "POST", url, map[string]any{"goal": "Mantener", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "snacks": true})["plan"].(map[string]any); len(withSnacks["days"].([]any)[0].(map[string]any)["meals"].([]any)) != 5 {
 		t.Fatal("with snacks: 5 meals a day")
+	}
+	// the free calculator: with body fat it uses Katch-McArdle (lean mass), without it Mifflin-St Jeor
+	calc := "/api/patients/" + pid + "/nutrition-plan/calc"
+	recep.expect(403, "POST", calc, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170})
+	doc.expect(400, "POST", calc, map[string]any{"goal": "Bajar de peso"})
+	base := doc.expect(200, "POST", calc, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375})
+	fat := doc.expect(200, "POST", calc, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "body_fat_pct": 35})
+	if base["method"] != "Mifflin-St Jeor" || fat["method"] != "Katch-McArdle" {
+		t.Fatalf("methods: %v %v", base["method"], fat["method"])
+	}
+	// 370 + 21.6 * (82 * 0.65) = 1521
+	if num(fat, "bmr") != 1521 || num(base, "bmi") != 28.4 {
+		t.Fatalf("bmr %v bmi %v", fat["bmr"], base["bmi"])
+	}
+	if num(fat, "carb_pct")+num(fat, "protein_pct")+num(fat, "fat_pct") != 100 || num(fat, "adjust") >= 0 {
+		t.Fatalf("fat based targets: %v", fat)
 	}
 	// the draft is not saved by itself
 	if got := doc.expect(200, "GET", "/api/patients/"+pid+"/charts?kind=nutrition_plan", nil); len(got["charts"].([]any)) != 0 {

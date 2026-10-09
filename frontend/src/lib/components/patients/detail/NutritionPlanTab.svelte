@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { api } from '$lib/api';
   import { specialtyApi } from '$lib/api/specialty';
+  import { BODY_MEASURES, bmiLabel, bmiOf, latestMeasures, numOf } from '$lib/nutritionMeasures';
   import { Op } from '$lib/op.svelte';
   import { printNutritionPlan } from '$lib/print';
   import { toast } from '$lib/toast.svelte';
@@ -8,8 +10,9 @@
   import type { NutritionDay, NutritionMeal, NutritionPlanData, PatientChart } from '$lib/types/specialty';
   import EmptyState from '../../ui/EmptyState.svelte';
   import Icon from '../../ui/Icon.svelte';
+  import NutritionProgress from './NutritionProgress.svelte';
 
-  let { patient, canWrite, encounters = [] }: { patient: Patient; canWrite: boolean; encounters?: Encounter[] } = $props();
+  let { patient, canWrite, encounters = [], onchange }: { patient: Patient; canWrite: boolean; encounters?: Encounter[]; onchange?: () => void | Promise<void> } = $props();
 
   const WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const empty = (): NutritionPlanData => ({ goal: '', basis: '', kcal: 0, protein_pct: 0, carb_pct: 0, fat_pct: 0, water_liters: 0, meals: [], days: [], dislikes: '', recommendations: '', avoid: '', supplements: '', follow_up_days: 0 });
@@ -36,10 +39,6 @@
   let scheduleFollow = $state(true);
 
   // ---- generator: energy needs from the patient's own data ----
-  const lastMeasure = (key: string) => {
-    const e = [...encounters].filter((x) => !x.hidden && Number(x.measures?.[key]) > 0).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0];
-    return e ? String(e.measures[key]) : '';
-  };
   const GOALS = ['Bajar de peso', 'Mantener', 'Subir de peso', 'Ganar masa muscular', 'Control de enfermedad', 'Alimentación saludable'];
   const GOAL_CHOICES = [...GOALS, 'Otro (escribir)'];
   const ACTIVITY: { v: number; label: string }[] = [
@@ -48,13 +47,6 @@
     { v: 1.55, label: 'Moderada (3 a 5 días)' },
     { v: 1.725, label: 'Intensa (6 a 7 días)' }
   ];
-  // carbohydrates, proteins, fats
-  const MACROS: Record<string, [number, number, number]> = {
-    'Bajar de peso': [45, 25, 30],
-    'Ganar masa muscular': [45, 30, 25],
-    'Control de enfermedad': [45, 20, 35]
-  };
-  const ADJUST: Record<string, number> = { 'Bajar de peso': -500, 'Subir de peso': 400, 'Ganar masa muscular': 300 };
   /** the day's structure by number of meals (the server uses the same one) */
   const SLOTS: Record<number, [string, string, number][]> = {
     3: [['Desayuno', '08:00', 30], ['Comida', '14:30', 40], ['Cena', '20:30', 30]],
@@ -64,8 +56,8 @@
 
   let gGoal = $state('Alimentación saludable');
   let gCustom = $state('');
-  let gWeight = $state('');
-  let gHeight = $state('');
+  // body measures typed in the generator (saved as a follow-up measurement)
+  let gm = $state<Record<string, string>>({});
   let gActivity = $state(1.375);
   let gSnacks = $state(true);
   let gPrefs = $state('');
@@ -76,40 +68,56 @@
   const goalText = $derived(gGoal === OTHER ? gCustom.trim() : gGoal);
 
   const bmi = $derived.by(() => {
-    const w = Number(gWeight.replace(',', '.'));
-    const h = Number(gHeight.replace(',', '.')) / 100;
-    if (!(w > 0) || !(h > 0.3)) return null;
-    const v = w / (h * h);
-    const label = v < 18.5 ? 'bajo peso' : v < 25 ? 'peso normal' : v < 30 ? 'sobrepeso' : 'obesidad';
-    return { value: v.toFixed(1), label };
+    const v = bmiOf(numOf(gm.weight_kg), numOf(gm.height_cm));
+    return v ? { value: v.toFixed(1), label: bmiLabel(v) } : null;
   });
+  /** the first plan starts from what is already recorded; the next ones ask for fresh measures to follow the progress */
+  const followUpPlan = $derived(history.length > 0);
 
   function openGenerator() {
-    gWeight = lastMeasure('weight_kg');
-    gHeight = lastMeasure('height_cm');
+    const known = latestMeasures(encounters);
+    gm = history.length ? { height_cm: known.height_cm ?? '' } : { ...known };
     const pa = String(patient.profile?.physical_activity ?? '');
     gActivity = pa === 'Ninguna' ? 1.2 : pa === 'Moderada' ? 1.55 : pa === 'Intensa' ? 1.725 : 1.375;
     const pg = String(patient.profile?.nutrition_goal ?? '');
     gGoal = GOALS.includes(pg) ? pg : GOALS.includes(gGoal) ? gGoal : 'Alimentación saludable';
-    gDislikes = work.dislikes || gDislikes;
+    gDislikes = work.dislikes || String(patient.profile?.food_dislikes ?? '') || gDislikes;
     gError = '';
     aiOp.reset();
     gOpen = true;
   }
 
-  /** Mifflin-St Jeor resting energy, times activity, adjusted for the goal (the server does the same for the AI). */
-  function target(): { kcal: number; bmr: number; w: number; h: number } | null {
-    const w = Number(gWeight.replace(',', '.'));
-    const h = Number(gHeight.replace(',', '.'));
-    const age = patient.age;
-    if (!(w > 0) || !(h > 0) || age == null) {
+  /** validates the measures and, when they are new, records them in the progress table */
+  async function recordMeasures(): Promise<boolean> {
+    const w = numOf(gm.weight_kg);
+    const h = numOf(gm.height_cm);
+    if (!w || !h || patient.age == null) {
       gError = 'Escribe el peso y la talla (y registra la fecha de nacimiento del paciente) para calcular.';
-      return null;
+      return false;
     }
-    const sexTerm = patient.sex === 'Hombre' ? 5 : patient.sex === 'Mujer' ? -161 : -78;
-    const bmr = 10 * w + 6.25 * h - 5 * age + sexTerm;
-    const floor = patient.sex === 'Hombre' ? 1500 : 1200;
-    return { kcal: Math.max(floor, Math.round((bmr * gActivity + (ADJUST[goalText] ?? 0)) / 10) * 10), bmr: Math.round(bmr), w, h };
+    if (w > 400 || h > 260) {
+      gError = 'Revisa el peso y la talla.';
+      return false;
+    }
+    const known = latestMeasures(encounters);
+    const measures: Record<string, number> = {};
+    let changed = followUpPlan; // a new plan always records the visit's measures
+    for (const m of BODY_MEASURES) {
+      const v = numOf(gm[m.key]);
+      if (!v) continue;
+      measures[m.key] = v;
+      if (numOf(known[m.key]) !== v) changed = true;
+    }
+    if (changed && canWrite) {
+      try {
+        await api.patients.createEncounter(patient.id, { kind: 'seguimiento', reason: 'Medición de seguimiento', subjective: '', measures, exam: '', assessment: '', diagnosis_codes: [], plan: '', notes: 'Registrada al generar el plan nutricional', private: false });
+        await onchange?.();
+      } catch (e) {
+        gError = e instanceof Error ? e.message : 'No se pudieron guardar las mediciones.';
+        return false;
+      }
+    }
+    return true;
   }
 
   /** the 7 days with the day's structure and the calories of each meal; the foods are written by the nutritionist */
@@ -126,26 +134,34 @@
     });
   }
 
-  function generate() {
-    const t = target();
-    if (!t) return;
-    const [carb, prot, fat] = MACROS[goalText] ?? [50, 20, 30];
-    work = {
-      ...work,
-      goal: goalText || gGoal,
-      kcal: t.kcal,
-      carb_pct: carb,
-      protein_pct: prot,
-      fat_pct: fat,
-      water_liters: Math.min(4, Math.max(1.5, Math.round(t.w * 0.035 * 10) / 10)),
-      days: work.days.length === 7 ? work.days : skeleton(t.kcal),
-      dislikes: gDislikes.trim(),
-      follow_up_days: work.follow_up_days || 30,
-      basis: `Calculado con la fórmula de Mifflin-St Jeor: metabolismo basal ${t.bmr} kcal × actividad ${gActivity}, ajustado al objetivo (${ADJUST[goalText] ?? 0} kcal). Es una estimación: ajústala con tu criterio clínico.`
-    };
-    
-    editing = true;
-    gOpen = false;
+  /** the calories and macros come from the server (Katch-McArdle with the body fat, Mifflin-St Jeor without it) */
+  async function generate() {
+    gError = '';
+    if (!goalText) {
+      gError = 'Escribe el objetivo del plan.';
+      return;
+    }
+    if (!(await recordMeasures())) return;
+    try {
+      const t = await specialtyApi.nutritionCalc(patient.id, { goal: goalText, weight_kg: numOf(gm.weight_kg), height_cm: numOf(gm.height_cm), activity_factor: gActivity, body_fat_pct: numOf(gm.body_fat) || undefined });
+      work = {
+        ...work,
+        goal: goalText,
+        kcal: t.kcal,
+        carb_pct: t.carb_pct,
+        protein_pct: t.protein_pct,
+        fat_pct: t.fat_pct,
+        water_liters: t.water_liters,
+        days: work.days.length === 7 ? work.days : skeleton(t.kcal),
+        dislikes: gDislikes.trim(),
+        follow_up_days: work.follow_up_days || 30,
+        basis: `${t.basis} Es una estimación: ajústala con tu criterio clínico.`
+      };
+      editing = true;
+      gOpen = false;
+    } catch (e) {
+      gError = e instanceof Error ? e.message : 'No se pudo calcular.';
+    }
   }
 
   /** The server computes the calories and drafts the 7 days with the AI, avoiding the foods the patient dislikes. */
@@ -155,17 +171,15 @@
       return;
     }
     gError = '';
-    if (!((Number(gWeight.replace(',', '.')) > 0) && (Number(gHeight.replace(',', '.')) > 0) && patient.age != null)) {
-      gError = 'Escribe el peso y la talla (y registra la fecha de nacimiento del paciente): con ellos se calculan las calorías.';
-      return;
-    }
+    if (!(await recordMeasures())) return;
     let drafted: NutritionPlanData | undefined;
     let warn: string[] = [];
     const ok = await aiOp.run(async () => {
       const r = await specialtyApi.nutritionAI(patient.id, {
         goal: goalText,
-        weight_kg: Number(gWeight.replace(',', '.')) || 0,
-        height_cm: Number(gHeight.replace(',', '.')) || 0,
+        weight_kg: numOf(gm.weight_kg),
+        height_cm: numOf(gm.height_cm),
+        body_fat_pct: numOf(gm.body_fat) || undefined,
         activity_factor: gActivity,
         activity: ACTIVITY.find((a) => a.v === gActivity)?.label ?? '',
         kcal: 0,
@@ -312,6 +326,7 @@
 {:else if error}
   <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
 {:else}
+  <NutritionProgress {patient} {canWrite} {encounters} onsaved={async () => { await onchange?.(); }} />
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <p class="min-w-0 max-w-xl flex-1 basis-64 text-sm text-app-muted">Plan de 7 días: calcula las calorías con los datos del paciente, arma el menú de la semana (a mano o con IA) y entrégaselo impreso. Cada versión guardada se conserva en el historial.</p>
     <div class="flex flex-wrap gap-2">
@@ -342,15 +357,21 @@
     {#if gOpen}
       <section class="card mb-4 p-4 sm:p-5" aria-labelledby="gen-h">
         <h3 id="gen-h" class="display text-xl">Calcular necesidades</h3>
-        <p class="mt-1 text-sm text-app-muted">Las calorías se calculan con la fórmula de Mifflin-St Jeor. Con IA se arma además el menú de los 7 días, sin los alimentos que no le gustan al paciente.</p>
+        <p class="mt-1 text-sm text-app-muted">Las calorías se calculan con la masa magra (Katch-McArdle) cuando capturas el % de grasa, y con Mifflin-St Jeor si no. Con IA se arma además el menú de los 7 días, sin los alimentos que no le gustan al paciente.</p>
         <div class="mt-3 grid gap-3 sm:grid-cols-2">
           <div><label class="label" for="g-goal">Objetivo</label>
             <select id="g-goal" class="field" bind:value={gGoal}>{#each GOAL_CHOICES as g}<option>{g}</option>{/each}</select>
             {#if gGoal === OTHER}<input class="field mt-2" maxlength="200" bind:value={gCustom} placeholder="Ej. Control de colesterol, embarazo, deportista de resistencia" aria-label="Objetivo del plan" />{/if}</div>
           <div><label class="label" for="g-act">Actividad física</label>
             <select id="g-act" class="field" bind:value={gActivity}>{#each ACTIVITY as a}<option value={a.v}>{a.label}</option>{/each}</select></div>
-          <div><label class="label" for="g-w">Peso (kg)</label><input id="g-w" class="field" inputmode="decimal" bind:value={gWeight} /></div>
-          <div><label class="label" for="g-h">Talla (cm)</label><input id="g-h" class="field" inputmode="decimal" bind:value={gHeight} /></div>
+        </div>
+        <h4 class="mt-4 text-sm font-semibold">Mediciones de hoy</h4>
+        <p class="hint">{followUpPlan ? 'Este es un plan de seguimiento: captura las mediciones de esta consulta para registrar el avance (el peso es obligatorio).' : 'Se llenan con lo último registrado del paciente; corrígelas o complétalas.'} Con el % de grasa el cálculo usa la masa magra y es más preciso.</p>
+        <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {#each BODY_MEASURES as m}
+            <div><label class="label" for="g-{m.key}">{m.label}{m.unit ? ` (${m.unit})` : ''}{#if m.key === 'weight_kg' || m.key === 'height_cm'} *{/if}</label>
+              <input id="g-{m.key}" class="field" inputmode="decimal" bind:value={gm[m.key]} /></div>
+          {/each}
         </div>
         <div class="mt-3"><label class="label" for="g-dislikes">Alimentos que no le gustan</label>
           <textarea id="g-dislikes" class="field min-h-20" rows="2" maxlength="1000" bind:value={gDislikes} placeholder="Ej. pescado, hígado, brócoli, leche (separados por comas)"></textarea>
@@ -362,7 +383,7 @@
           <span class="text-sm leading-snug"><strong class="font-semibold">Incluir snacks</strong> entre comidas <span class="text-app-muted">(con snacks: desayuno, snack, comida, snack y cena; sin ellos: desayuno, comida y cena)</span></span>
         </label>
         {#if bmi}<p class="hint">Índice de masa corporal: <strong>{bmi.value}</strong> ({bmi.label}).</p>{/if}
-        <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}. El peso y la talla se toman de la última nota que los tenga.</p>
+        <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}.</p>
         {#if gError}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{gError}</p>{/if}
         {#if aiOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{aiOp.message}</p>{/if}
         <p class="hint">La IA usa la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Tarda unos segundos y usa uno de los usos de IA de tu plan. Siempre revísalo antes de guardarlo.</p>

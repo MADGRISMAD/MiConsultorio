@@ -6,6 +6,7 @@ import type {
   ConsentInput,
   DueVaccination,
   NutritionPlanData,
+  NutritionTargets,
   PatientChart,
   PlanInput,
   PlanItemInput,
@@ -34,8 +35,11 @@ export const specialtyApi = {
   /** a recommended next visit: lands in the agenda pending confirmation */
   followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string }) =>
     request<{ appointment: { id: string; date: string; startHour: string } }>('POST', `${p(patientId)}/follow-up`, body).then((r) => r.appointment),
-  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string }) =>
+  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string; body_fat_pct?: number }) =>
     request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
+
+  nutritionCalc: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; body_fat_pct?: number }) =>
+    request<NutritionTargets>('POST', `${p(patientId)}/nutrition-plan/calc`, body),
 
   plans: (patientId: string) => request<{ plans: TreatmentPlan[] }>('GET', `${p(patientId)}/plans`).then((r) => r.plans),
   plan: (id: string) => request<{ plan: TreatmentPlan }>('GET', `/plans/${seg(id)}`).then((r) => r.plan),

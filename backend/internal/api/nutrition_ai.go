@@ -50,6 +50,7 @@ type nutritionAIReq struct {
 	Snacks         *bool   `json:"snacks"` // true: breakfast, lunch, dinner and two snacks; false: only the three meals
 	Preferences    string  `json:"preferences"`
 	Dislikes       string  `json:"dislikes"` // foods the patient does not like
+	BodyFatPct     float64 `json:"body_fat_pct"`
 }
 
 var nutritionWeek = []string{"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"}
@@ -67,31 +68,90 @@ var nutritionSlots = map[int][]mealSlot{
 	6: {{"Desayuno", "08:00", 20}, {"Snack", "10:30", 10}, {"Comida", "14:00", 30}, {"Snack", "17:00", 10}, {"Cena", "20:00", 20}, {"Snack", "22:00", 10}},
 }
 
-// carb, protein, fat shares by goal (the goals offered in the form; anything else is maintenance)
-var nutritionMacros = map[string][3]int{
-	"Bajar de peso": {45, 25, 30}, "Ganar masa muscular": {45, 30, 25}, "Control de enfermedad": {45, 20, 35},
-}
 var nutritionAdjust = map[string]int{"Bajar de peso": -500, "Subir de peso": 400, "Ganar masa muscular": 300}
 
-// energyTarget is Mifflin-St Jeor times the activity factor, adjusted for the goal and never below a safe floor.
-func energyTarget(sex string, age int, weightKg, heightCm, activity float64, goal string) (bmr, target int) {
-	sexTerm := -78.0 // another / unspecified: halfway between the two
-	switch sex {
-	case "Hombre":
-		sexTerm = 5
-	case "Mujer":
-		sexTerm = -161
+// protein in g per kg of body weight and fat share of the calories, by goal (anything else is maintenance)
+var nutritionProtein = map[string]float64{"Bajar de peso": 1.8, "Ganar masa muscular": 2.0, "Subir de peso": 1.6, "Control de enfermedad": 1.2, "Alimentación saludable": 1.2}
+var nutritionFat = map[string]int{"Bajar de peso": 30, "Ganar masa muscular": 25, "Subir de peso": 30, "Control de enfermedad": 30}
+
+type nutritionTargets struct {
+	BMR        int     `json:"bmr"`
+	TDEE       int     `json:"tdee"`
+	Adjust     int     `json:"adjust"`
+	Kcal       int     `json:"kcal"`
+	ProteinPct int     `json:"protein_pct"`
+	CarbPct    int     `json:"carb_pct"`
+	FatPct     int     `json:"fat_pct"`
+	ProteinG   int     `json:"protein_g"`
+	CarbG      int     `json:"carb_g"`
+	FatG       int     `json:"fat_g"`
+	WaterL     float64 `json:"water_liters"`
+	BMI        float64 `json:"bmi,omitempty"`
+	Method     string  `json:"method"`
+	Basis      string  `json:"basis"`
+}
+
+// computeTargets is Katch-McArdle (from the lean mass) when the body fat is known and Mifflin-St Jeor otherwise, times
+// the activity factor, adjusted to the goal (never more than 20 % under or 15 % over, never below a safe floor).
+// Protein is set per kg of body weight, fat by goal, and carbohydrates are the rest.
+func computeTargets(sex string, age int, weightKg, heightCm, activity, bodyFatPct float64, goal string) nutritionTargets {
+	var t nutritionTargets
+	var b float64
+	if bodyFatPct >= 3 && bodyFatPct <= 60 {
+		lean := weightKg * (1 - bodyFatPct/100)
+		b = 370 + 21.6*lean
+		t.Method = "Katch-McArdle"
+	} else {
+		sexTerm := -78.0 // another / unspecified: halfway between the two
+		switch sex {
+		case "Hombre":
+			sexTerm = 5
+		case "Mujer":
+			sexTerm = -161
+		}
+		b = 10*weightKg + 6.25*heightCm - 5*float64(age) + sexTerm
+		t.Method = "Mifflin-St Jeor"
 	}
-	b := 10*weightKg + 6.25*heightCm - 5*float64(age) + sexTerm
 	if activity < 1.2 || activity > 2.0 {
 		activity = 1.375
+	}
+	tdee := b * activity
+	adj := float64(nutritionAdjust[goal])
+	if adj < 0 {
+		adj = math.Max(adj, -0.2*tdee)
+	} else {
+		adj = math.Min(adj, 0.15*tdee)
 	}
 	floor := 1200
 	if sex == "Hombre" {
 		floor = 1500
 	}
-	t := int(math.Round((b*activity+float64(nutritionAdjust[goal]))/10)) * 10
-	return int(math.Round(b)), max(floor, t)
+	t.BMR, t.TDEE = int(math.Round(b)), int(math.Round(tdee))
+	t.Kcal = max(floor, int(math.Round((tdee+adj)/10))*10)
+	t.Adjust = t.Kcal - t.TDEE
+
+	gkg, ok := nutritionProtein[goal]
+	if !ok {
+		gkg = 1.4
+	}
+	fat, ok := nutritionFat[goal]
+	if !ok {
+		fat = 30
+	}
+	t.ProteinPct = min(35, max(15, int(math.Round(gkg*weightKg*4/float64(t.Kcal)*100))))
+	t.FatPct = fat
+	t.CarbPct = 100 - t.ProteinPct - t.FatPct
+	t.ProteinG = int(math.Round(float64(t.Kcal*t.ProteinPct) / 400))
+	t.CarbG = int(math.Round(float64(t.Kcal*t.CarbPct) / 400))
+	t.FatG = int(math.Round(float64(t.Kcal*t.FatPct) / 900))
+	t.WaterL = math.Min(4, math.Max(1.5, math.Round(weightKg*0.035*10)/10))
+	if heightCm > 0 {
+		m := heightCm / 100
+		t.BMI = math.Round(weightKg/(m*m)*10) / 10
+	}
+	t.Basis = fmt.Sprintf("Calorías calculadas con %s: metabolismo basal %d kcal × actividad %.3g, ajustado al objetivo (%+d kcal). Proteína %d g (%.1f g/kg), carbohidratos %d g, grasas %d g.",
+		t.Method, t.BMR, activity, t.Adjust, t.ProteinG, float64(t.ProteinG)/weightKg, t.CarbG, t.FatG)
+	return t
 }
 
 func profileText(prof map[string]any, key string) string {
@@ -225,23 +285,28 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 
 	// the numbers are computed here, not by the model
 	target, basis := in.Kcal, "Calorías indicadas por el nutriólogo."
+	var tg nutritionTargets
+	if in.WeightKg > 0 && in.HeightCm > 0 && age != nil {
+		tg = computeTargets(sex, *age, in.WeightKg, in.HeightCm, in.ActivityFactor, in.BodyFatPct, in.Goal)
+	}
 	if target == 0 {
-		if in.WeightKg <= 0 || in.HeightCm <= 0 || age == nil {
+		if tg.Kcal == 0 {
 			writeError(w, http.StatusBadRequest, "Para calcular las calorías escribe el peso y la talla (y registra la fecha de nacimiento del paciente), o indica las calorías tú.")
 			return
 		}
-		var bmr int
-		bmr, target = energyTarget(sex, *age, in.WeightKg, in.HeightCm, in.ActivityFactor, in.Goal)
-		basis = fmt.Sprintf("Calorías calculadas con la fórmula de Mifflin-St Jeor: metabolismo basal %d kcal × actividad %.3g, ajustado al objetivo (%+d kcal).", bmr, math.Max(in.ActivityFactor, 1.2), nutritionAdjust[in.Goal])
+		target, basis = tg.Kcal, tg.Basis
 	}
-	macros, okMacros := nutritionMacros[in.Goal]
-	if !okMacros {
-		macros = [3]int{50, 20, 30}
+	macros := [3]int{50, 20, 30} // carb, protein, fat
+	if tg.Kcal > 0 {
+		macros = [3]int{tg.CarbPct, tg.ProteinPct, tg.FatPct}
 	}
 	slots := nutritionSlots[in.Meals]
 	water := 2.0
 	if in.WeightKg > 0 {
-		water = math.Min(4, math.Max(1.5, math.Round(in.WeightKg*0.035*10)/10))
+		water = tg.WaterL
+		if water == 0 {
+			water = math.Min(4, math.Max(1.5, math.Round(in.WeightKg*0.035*10)/10))
+		}
 	}
 
 	if err := s.spendMagic(r.Context(), p); err != nil {
@@ -264,6 +329,12 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.HeightCm > 0 {
 		add("Talla", fmt.Sprintf("%.0f cm", in.HeightCm))
+	}
+	if tg.BMI > 0 {
+		add("IMC", fmt.Sprintf("%.1f", tg.BMI))
+	}
+	if in.BodyFatPct > 0 {
+		add("Grasa corporal", fmt.Sprintf("%.1f %%", in.BodyFatPct))
 	}
 	add("Actividad física", in.Activity)
 	foodAllergies := profileText(prof, "food_allergies")
@@ -387,4 +458,36 @@ func cleanNutritionPlan(p *nutritionPlanIn) {
 func validateNutritionPlanStruct(p nutritionPlanIn) (string, bool) {
 	raw, _ := json.Marshal(p)
 	return validateNutritionPlan(raw)
+}
+
+// nutritionCalc gives the energy and macronutrient targets for the measures typed in the form. It is free (no AI).
+func (s *Server) nutritionCalc(w http.ResponseWriter, r *http.Request) {
+	id, subject, _, ok := s.patientForSpecialty(w, r)
+	if !ok {
+		return
+	}
+	var in nutritionAIReq
+	if !decode(w, r, &in) {
+		return
+	}
+	if subject != "person" {
+		writeError(w, http.StatusBadRequest, "El plan nutricional es para personas.")
+		return
+	}
+	if in.WeightKg <= 0 || in.WeightKg > 400 || in.HeightCm <= 0 || in.HeightCm > 260 || in.BodyFatPct < 0 || in.BodyFatPct > 80 {
+		writeError(w, http.StatusBadRequest, "Escribe un peso y una talla válidos.")
+		return
+	}
+	var sex string
+	var age *int
+	if err := s.db.QueryRow(r.Context(), `SELECT sex, CASE WHEN birth_date IS NULL THEN NULL ELSE date_part('year', age(birth_date))::int END
+		FROM patients WHERE clinic_id=$1 AND id=$2`, principalFrom(r.Context()).ClinicID, id).Scan(&sex, &age); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if age == nil {
+		writeError(w, http.StatusBadRequest, "Registra la fecha de nacimiento del paciente para calcular.")
+		return
+	}
+	writeJSON(w, http.StatusOK, computeTargets(sex, *age, in.WeightKg, in.HeightCm, in.ActivityFactor, in.BodyFatPct, in.Goal))
 }

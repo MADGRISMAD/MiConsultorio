@@ -83,6 +83,23 @@ export interface NutritionDay {
   name: string;
   meals: NutritionMeal[];
 }
+export interface NutritionTargets {
+  bmr: number;
+  tdee: number;
+  adjust: number;
+  kcal: number;
+  protein_pct: number;
+  carb_pct: number;
+  fat_pct: number;
+  protein_g: number;
+  carb_g: number;
+  fat_g: number;
+  water_liters: number;
+  bmi?: number;
+  method: string;
+  basis: string;
+}
+
 export interface NutritionPlanData {
   goal: string;
   basis: string;

@@ -290,7 +290,7 @@
       {:else if patient && tab === 'odontograma'}
         <OdontogramTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'nutricion'}
-        <NutritionPlanTab {patient} {canWrite} {encounters} />
+        <NutritionPlanTab {patient} {canWrite} {encounters} onchange={async () => { await refreshEncounters(); }} />
       {:else if patient && tab === 'esquema'}
         <BodyMapTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'planes'}
