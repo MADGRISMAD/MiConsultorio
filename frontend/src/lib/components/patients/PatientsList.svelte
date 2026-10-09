@@ -102,6 +102,12 @@
   const petHref = (id: string) => `/pacientes/${encodeURIComponent(id)}`;
 
   const href = (p: PatientRow) => `/pacientes/${encodeURIComponent(p.id)}`;
+  /** a click anywhere on the row (age, phone, last visit...) opens the record; the links inside keep their own behavior */
+  function openRow(e: MouseEvent, p: PatientRow) {
+    if ((e.target as HTMLElement).closest('a, button')) return;
+    if (e.metaKey || e.ctrlKey) window.open(href(p), '_blank');
+    else void goto(href(p));
+  }
   const lastVisit = (p: PatientRow) => (p.last_encounter_at ? ago(p.last_encounter_at) : 'Sin consultas');
   const emptyText = $derived(
     search.trim()
@@ -221,7 +227,8 @@
         </thead>
         <tbody class="divide-y divide-app-ink/8">
           {#each rows as p (p.id)}
-            <tr class="transition hover:bg-app-ink/[0.03]">
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+            <tr class="cursor-pointer transition hover:bg-app-ink/[0.03]" onclick={(e) => openRow(e, p)}>
               <td class="td font-mono text-xs text-app-muted">{p.file_number}</td>
               <td class="td">
                 <a href={href(p)} class="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20">

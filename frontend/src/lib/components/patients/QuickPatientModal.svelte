@@ -5,6 +5,7 @@
   import type { Patient, PatientSchema, Subject } from '$lib/types';
   import type { OwnerListItem } from '$lib/types/owners';
   import OwnerPicker from './OwnerPicker.svelte';
+  import PrivacyNoticeModal from './PrivacyNoticeModal.svelte';
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
 
@@ -24,6 +25,7 @@
   let ownerName = $state('');
   let ownerSurnames = $state('');
   let privacyAck = $state(false);
+  let noticeOpen = $state(false);
   /** surnames of a full name: the last two words, or the last one of a two-word name */
   const surnamesOf = (full: string) => {
     const w = full.trim().split(/\s+/).filter(Boolean);
@@ -144,7 +146,7 @@
       {/if}
       <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-app-ink/15 p-3.5 sm:col-span-2">
         <input id="{uid}-ack" type="checkbox" class="mt-1 h-5 w-5 flex-none accent-app-primary" bind:checked={privacyAck} />
-        <span class="text-sm">{animal ? 'El propietario' : 'El paciente'} recibió el <strong class="font-semibold">aviso de privacidad</strong> y otorga su consentimiento para el tratamiento de sus datos personales y de salud. <span class="text-app-muted">(Si aún no, queda pendiente en el expediente.)</span></span>
+        <span class="text-sm">{animal ? 'El propietario' : 'El paciente'} recibió el <button type="button" class="font-semibold text-app-primary underline underline-offset-2" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); noticeOpen = true; }}>aviso de privacidad</button> y otorga su consentimiento para el tratamiento de sus datos personales y de salud. <span class="text-app-muted">(Si aún no, queda pendiente en el expediente.)</span></span>
       </label>
     </form>
     <div aria-live="polite">
@@ -158,3 +160,5 @@
     </button>
   {/snippet}
 </Modal>
+
+<PrivacyNoticeModal open={noticeOpen} {animal} onclose={() => (noticeOpen = false)} />
