@@ -3,10 +3,11 @@
   import { ApiError } from '$lib/api';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
-  import type { PortalMe, PortalNutritionPlan, PortalVaccination } from '$lib/types/portal';
+  import type { PortalHistoryItem, PortalMe, PortalNutritionPlan, PortalVaccination } from '$lib/types/portal';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import AppointmentsPane from './AppointmentsPane.svelte';
+  import HistoryPane from './HistoryPane.svelte';
   import NutritionPane from './NutritionPane.svelte';
   import RxPane from './RxPane.svelte';
   import VaccinesPane from './VaccinesPane.svelte';
@@ -15,7 +16,11 @@
 
   let me = $state<PortalMe | null>(null);
   let patientId = $state('');
-  let tab = $state<'citas' | 'recetas' | 'vacunas' | 'nutricion'>('citas');
+  let tab = $state<'citas' | 'recetas' | 'vacunas' | 'nutricion' | 'historial'>('citas');
+  let history = $state<PortalHistoryItem[]>([]);
+  let historyAreas = $state<{ id: string; label: string }[]>([]);
+  let historyLoaded = $state(false);
+  let historyError = $state('');
   let plans = $state<PortalNutritionPlan[]>([]);
   let plansLoaded = $state(false);
   let plansError = $state('');
@@ -44,6 +49,14 @@
       plansError = e instanceof Error ? e.message : '';
     }
     plansLoaded = true;
+    try {
+      const h = await portalApi.history();
+      history = h.items;
+      historyAreas = h.areas;
+    } catch (e) {
+      historyError = e instanceof Error ? e.message : '';
+    }
+    historyLoaded = true;
   });
 
   const hasVaccines = $derived(vaccines.length > 0);
@@ -51,6 +64,7 @@
   const tabs = $derived([
     { id: 'citas' as const, label: 'portal.app.tabAppointments', icon: 'calendar' as const },
     { id: 'recetas' as const, label: 'portal.app.tabRx', icon: 'receipt' as const },
+    ...(history.length > 0 ? [{ id: 'historial' as const, label: 'portal.app.tabHistory', icon: 'clock' as const }] : []),
     ...(plans.length > 0 ? [{ id: 'nutricion' as const, label: 'portal.app.tabNutrition', icon: 'leaf' as const }] : []),
     ...(hasVaccines ? [{ id: 'vacunas' as const, label: 'portal.app.tabVaccines', icon: 'shield' as const }] : [])
   ]);
@@ -127,6 +141,8 @@
         <AppointmentsPane {slug} {patientId} {multi} />
       {:else if tab === 'recetas'}
         <RxPane patients={me.patients} {patientId} {multi} />
+      {:else if tab === 'historial'}
+        <HistoryPane items={history} areas={historyAreas} {patientId} {multi} loaded={historyLoaded} error={historyError} />
       {:else if tab === 'nutricion'}
         <NutritionPane {plans} {patientId} {multi} clinic={me.clinic} loaded={plansLoaded} error={plansError} />
       {:else}

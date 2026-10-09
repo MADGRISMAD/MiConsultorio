@@ -4,6 +4,7 @@ import type {
   PortalInfo,
   PortalMe,
   PortalPrescription,
+  PortalHistoryItem,
   PortalNutritionPlan,
   PortalSettings,
   PortalVaccination
@@ -20,6 +21,7 @@ export const portalApi = {
     request<{ upcoming: PortalAppointment[]; history: PortalAppointment[]; cancel_min_hours: number }>('GET', '/portal/appointments'),
   cancel: (id: string, reason: string) => request<{ ok: boolean }>('POST', `/portal/appointments/${seg(id)}/cancel`, { reason }),
   nutritionPlans: () => request<{ plans: PortalNutritionPlan[] }>('GET', '/portal/nutrition-plans').then((r) => r.plans),
+  history: () => request<{ items: PortalHistoryItem[]; areas: { id: string; label: string }[] }>('GET', '/portal/history'),
   prescriptions: () =>
     request<{ prescriptions: PortalPrescription[]; by_area?: boolean; clinic: { name: string; address: string; phone: string } }>('GET', '/portal/prescriptions'),
   vaccinations: () => request<{ vaccinations: PortalVaccination[] }>('GET', '/portal/vaccinations'),

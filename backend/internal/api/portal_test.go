@@ -422,3 +422,25 @@ func TestPortalNutritionPlans(t *testing.T) {
 		t.Fatal("plans of a dropped giro must not show")
 	}
 }
+
+func TestPortalHistoryByArea(t *testing.T) {
+	p := newPortalEnv(t)
+	p.exec(`UPDATE clinics SET kind = 'GENERAL_MEDICAL', specialties = '{NUTRITION}' WHERE id = $1`, p.clinicA)
+	p.exec(`INSERT INTO encounters (clinic_id, patient_id, kind, reason, notes, author_name) VALUES ($1,$2,'consulta','MOTIVOSECRETO','NOTASECRETA','Dr. Uno')`, p.clinicA, p.patA)
+	p.exec(`INSERT INTO encounters (clinic_id, patient_id, kind, notes, private, author_name) VALUES ($1,$2,'consulta','PRIVADASECRETA',true,'Dr. Uno')`, p.clinicA, p.patA)
+	p.exec(`INSERT INTO patient_charts (clinic_id, patient_id, kind, data, created_by_name) VALUES ($1,$2,'nutrition_plan','{"goal":"x"}','Nutri')`, p.clinicA, p.patA)
+	c := p.signIn("clinica-a", "dueno@mail.mx")
+	out := c.expect(200, "GET", "/api/portal/history", nil)
+	items := out["items"].([]any)
+	got := map[string]string{}
+	for _, it := range items {
+		m := it.(map[string]any)
+		got[m["type"].(string)] = m["area"].(string)
+	}
+	if len(items) != 2 || got["consulta"] != "GENERAL_MEDICAL" || got["plan"] != "NUTRITION" || len(out["areas"].([]any)) != 2 {
+		t.Fatalf("history: %v", out)
+	}
+	if strings.Contains(raw(out), "SECRETA") || strings.Contains(raw(out), "SECRETO") {
+		t.Fatalf("leak: %s", raw(out))
+	}
+}

@@ -18,6 +18,7 @@ func (s *Server) mountPortalPublic(r chi.Router) {
 		r.Get("/portal/prescriptions", s.portalPrescriptions)
 		r.Get("/portal/vaccinations", s.portalVaccinations)
 		r.Get("/portal/nutrition-plans", s.portalNutritionPlans)
+		r.Get("/portal/history", s.portalHistory)
 	})
 }
 

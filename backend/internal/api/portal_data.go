@@ -465,3 +465,89 @@ func (s *Server) portalNutritionPlans(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"plans": list})
 }
+
+type portalHistoryItem struct {
+	ID          string    `json:"id"`
+	PatientID   string    `json:"patient_id"`
+	PatientName string    `json:"patient_name"`
+	At          time.Time `json:"at"`
+	Type        string    `json:"type"` // consulta, receta, plan, vacuna, cita
+	Title       string    `json:"title"`
+	By          string    `json:"by"`
+	Area        string    `json:"area"`
+	AreaLabel   string    `json:"area_label"`
+}
+
+var portalEncounterLabels = map[string]string{"consulta": "Consulta", "seguimiento": "Consulta de seguimiento", "procedimiento": "Procedimiento", "sesion": "Sesión"}
+
+// portalHistory is what has been done for the patient, branch by branch: who attended and when, with no clinical content
+// (no reasons, notes or diagnoses). Private notes never show; areas the clinic no longer works in stay out.
+func (s *Server) portalHistory(w http.ResponseWriter, r *http.Request) {
+	sess, _, pts, ok := s.portalContext(w, r)
+	if !ok {
+		return
+	}
+	kinds, err := s.clinicKindsFor(r.Context(), sess.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	names := patientNames(pts)
+	rows, err := s.db.Query(r.Context(), `
+		SELECT * FROM (
+			SELECT e.id::text, e.patient_id::text, e.occurred_at AS at, 'consulta' AS type, e.kind AS title, e.author_name AS by,
+			       CASE WHEN cardinality(u.areas) = 1 THEN u.areas[1] ELSE '' END AS area
+			FROM encounters e LEFT JOIN users u ON u.id = e.author_id
+			WHERE e.clinic_id = $1 AND e.patient_id = ANY($2::uuid[]) AND NOT e.private AND e.addendum_of IS NULL AND e.kind IN ('consulta', 'seguimiento', 'procedimiento', 'sesion')
+			UNION ALL
+			SELECT id::text, patient_id::text, issued_at, 'receta',
+			       CASE WHEN mode = 'instructions' THEN 'Hoja de indicaciones' ELSE 'Receta' END || ' n.º ' || lpad(folio::text, 6, '0')
+			       || CASE WHEN voided_at IS NOT NULL THEN ' (cancelada)' WHEN complementary THEN ' (complementaria)' ELSE '' END, author_name, area
+			FROM prescriptions WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[])
+			UNION ALL
+			SELECT id::text, patient_id::text, created_at, 'plan', 'Plan nutricional', created_by_name, 'NUTRITION'
+			FROM patient_charts WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND kind = 'nutrition_plan'
+			UNION ALL
+			SELECT id::text, patient_id::text, applied_on::timestamptz, 'vacuna', name, administered_by_name, ''
+			FROM vaccinations WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND voided_at IS NULL
+			UNION ALL
+			SELECT a.id::text, a.patient_id::text, (a.date + a.start_hour)::timestamp AT TIME ZONE 'UTC', 'cita', coalesce(nullif(ci.name, ''), 'Cita atendida'), coalesce(pr.name, ''),
+			       CASE WHEN cardinality(pr.areas) = 1 THEN pr.areas[1] ELSE '' END
+			FROM appointments a LEFT JOIN catalog_items ci ON ci.id = a.service_id LEFT JOIN users pr ON pr.id = a.professional_id
+			WHERE a.clinic_id = $1 AND a.patient_id = ANY($2::uuid[]) AND a.status = 'completed'
+		) x ORDER BY at DESC LIMIT 600`, sess.ClinicID, patientIDs(pts))
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer rows.Close()
+	items := []portalHistoryItem{}
+	for rows.Next() {
+		var x portalHistoryItem
+		if err := rows.Scan(&x.ID, &x.PatientID, &x.At, &x.Type, &x.Title, &x.By, &x.Area); err != nil {
+			serverError(w, r, err)
+			return
+		}
+		if x.Area == "" && len(kinds) > 0 {
+			x.Area = kinds[0]
+		}
+		if !slices.Contains(kinds, x.Area) {
+			continue
+		}
+		if l, ok := portalEncounterLabels[x.Title]; ok && x.Type == "consulta" {
+			x.Title = l
+		}
+		x.AreaLabel, x.PatientName = areaLabels[x.Area], names[x.PatientID]
+		items = append(items, x)
+	}
+	if err := rows.Err(); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	areas := []map[string]string{}
+	for _, k := range kinds {
+		areas = append(areas, map[string]string{"id": k, "label": areaLabels[k]})
+	}
+	s.portalLogAccess(r.Context(), sess, patientIDs(pts))
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "areas": areas})
+}

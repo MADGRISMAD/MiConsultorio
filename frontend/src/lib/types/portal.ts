@@ -95,3 +95,15 @@ export interface PortalNutritionPlan {
   by: string;
   data: import('./specialty').NutritionPlanData;
 }
+
+export interface PortalHistoryItem {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  at: string;
+  type: 'consulta' | 'receta' | 'plan' | 'vacuna' | 'cita';
+  title: string;
+  by: string;
+  area: string;
+  area_label: string;
+}
