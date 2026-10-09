@@ -402,3 +402,23 @@ func TestPortalSettings(t *testing.T) {
 	admin.expect(200, "PUT", "/api/clinic/portal", map[string]any{"enabled": false, "welcome": ""})
 	e.anon().expect(404, "GET", "/api/portal/clinica-a/info", nil)
 }
+
+func TestPortalNutritionPlans(t *testing.T) {
+	p := newPortalEnv(t)
+	p.exec(`UPDATE clinics SET specialties = '{NUTRITION}' WHERE id = $1`, p.clinicA)
+	p.exec(`INSERT INTO patient_charts (clinic_id, patient_id, kind, data, note, created_by_name) VALUES ($1,$2,'nutrition_plan','{"goal":"Bajar de peso","kcal":1800}','NOTAINTERNASECRETA','Nutri')`, p.clinicA, p.patA)
+	p.exec(`INSERT INTO patient_charts (clinic_id, patient_id, kind, data, created_by_name) VALUES ($1,$2,'nutrition_plan','{"goal":"Ajena"}','Nutri')`, p.clinicB, p.patB)
+	c := p.signIn("clinica-a", "dueno@mail.mx")
+	out := c.expect(200, "GET", "/api/portal/nutrition-plans", nil)
+	plans := out["plans"].([]any)
+	if len(plans) != 1 || plans[0].(map[string]any)["data"].(map[string]any)["goal"] != "Bajar de peso" {
+		t.Fatalf("plans: %v", plans)
+	}
+	if strings.Contains(raw(out), "SECRETA") || strings.Contains(raw(out), "Ajena") {
+		t.Fatalf("leak: %s", raw(out))
+	}
+	p.exec(`UPDATE clinics SET specialties = '{}' WHERE id = $1`, p.clinicA) // the giro is gone: hidden, not deleted
+	if len(c.expect(200, "GET", "/api/portal/nutrition-plans", nil)["plans"].([]any)) != 0 {
+		t.Fatal("plans of a dropped giro must not show")
+	}
+}

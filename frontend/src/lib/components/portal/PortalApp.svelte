@@ -3,10 +3,11 @@
   import { ApiError } from '$lib/api';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
-  import type { PortalMe, PortalVaccination } from '$lib/types/portal';
+  import type { PortalMe, PortalNutritionPlan, PortalVaccination } from '$lib/types/portal';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { t } from '$lib/i18n/index.svelte';
   import AppointmentsPane from './AppointmentsPane.svelte';
+  import NutritionPane from './NutritionPane.svelte';
   import RxPane from './RxPane.svelte';
   import VaccinesPane from './VaccinesPane.svelte';
 
@@ -14,7 +15,10 @@
 
   let me = $state<PortalMe | null>(null);
   let patientId = $state('');
-  let tab = $state<'citas' | 'recetas' | 'vacunas'>('citas');
+  let tab = $state<'citas' | 'recetas' | 'vacunas' | 'nutricion'>('citas');
+  let plans = $state<PortalNutritionPlan[]>([]);
+  let plansLoaded = $state(false);
+  let plansError = $state('');
   let vaccines = $state<PortalVaccination[]>([]);
   let vaccinesLoaded = $state(false);
   let vaccinesError = $state('');
@@ -34,6 +38,12 @@
       vaccinesError = e instanceof Error ? e.message : t('portal.app.vaccinesError');
     }
     vaccinesLoaded = true;
+    try {
+      plans = await portalApi.nutritionPlans();
+    } catch (e) {
+      plansError = e instanceof Error ? e.message : '';
+    }
+    plansLoaded = true;
   });
 
   const hasVaccines = $derived(vaccines.length > 0);
@@ -41,6 +51,7 @@
   const tabs = $derived([
     { id: 'citas' as const, label: 'portal.app.tabAppointments', icon: 'calendar' as const },
     { id: 'recetas' as const, label: 'portal.app.tabRx', icon: 'receipt' as const },
+    ...(plans.length > 0 ? [{ id: 'nutricion' as const, label: 'portal.app.tabNutrition', icon: 'leaf' as const }] : []),
     ...(hasVaccines ? [{ id: 'vacunas' as const, label: 'portal.app.tabVaccines', icon: 'shield' as const }] : [])
   ]);
 
@@ -116,6 +127,8 @@
         <AppointmentsPane {slug} {patientId} {multi} />
       {:else if tab === 'recetas'}
         <RxPane patients={me.patients} {patientId} {multi} />
+      {:else if tab === 'nutricion'}
+        <NutritionPane {plans} {patientId} {multi} clinic={me.clinic} loaded={plansLoaded} error={plansError} />
       {:else}
         <VaccinesPane patients={me.patients} {patientId} clinicName={me.clinic.name} list={vaccines} loaded={vaccinesLoaded} error={vaccinesError} />
       {/if}

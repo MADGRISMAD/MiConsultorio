@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -411,4 +412,56 @@ func (s *Server) updatePortalSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"portal": map[string]any{"enabled": req.Enabled, "welcome": req.Welcome, "slug": slug}})
+}
+
+type portalPlan struct {
+	ID          string          `json:"id"`
+	PatientID   string          `json:"patient_id"`
+	PatientName string          `json:"patient_name"`
+	CreatedAt   time.Time       `json:"created_at"`
+	By          string          `json:"by"`
+	Data        json.RawMessage `json:"data"`
+}
+
+// portalNutritionPlans are the patient's own nutrition plans (newest first, a few versions each) for consulting them
+// at home. The professional's note on the chart is internal and does not travel. Only while the clinic works in nutrition.
+func (s *Server) portalNutritionPlans(w http.ResponseWriter, r *http.Request) {
+	sess, _, pts, ok := s.portalContext(w, r)
+	if !ok {
+		return
+	}
+	kinds, err := s.clinicKindsFor(r.Context(), sess.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	list := []portalPlan{}
+	if slices.Contains(kinds, "NUTRITION") {
+		names := patientNames(pts)
+		rows, err := s.db.Query(r.Context(), `
+			SELECT id::text, patient_id::text, created_at, created_by_name, data FROM (
+				SELECT *, row_number() OVER (PARTITION BY patient_id ORDER BY created_at DESC) AS n
+				FROM patient_charts WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND kind = 'nutrition_plan') x
+			WHERE n <= 5 ORDER BY created_at DESC`, sess.ClinicID, patientIDs(pts))
+		if err != nil {
+			serverError(w, r, err)
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var x portalPlan
+			if err := rows.Scan(&x.ID, &x.PatientID, &x.CreatedAt, &x.By, &x.Data); err != nil {
+				serverError(w, r, err)
+				return
+			}
+			x.PatientName = names[x.PatientID]
+			list = append(list, x)
+		}
+		if err := rows.Err(); err != nil {
+			serverError(w, r, err)
+			return
+		}
+		s.portalLogAccess(r.Context(), sess, patientIDs(pts))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"plans": list})
 }

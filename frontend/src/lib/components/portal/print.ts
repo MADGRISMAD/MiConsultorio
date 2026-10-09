@@ -1,6 +1,8 @@
 import { printHtml } from '$lib/printer/ticket';
 import { doc, e, fmtDate, fmtDateTime, multiline } from '$lib/print/base';
-import type { PortalPrescription } from '$lib/types/portal';
+import type { PortalNutritionPlan, PortalPrescription } from '$lib/types/portal';
+import { nutritionPlanHtml } from '$lib/print/specialty';
+import type { Issuer, Patient } from '$lib/types';
 
 type ClinicBlock = { name: string; address: string; phone: string };
 
@@ -50,4 +52,11 @@ export function portalCarnetHtml(patientName: string, clinicName: string, rows: 
 
 export async function printPortalCarnet(patientName: string, clinicName: string, rows: CarnetRow[]): Promise<void> {
   await printHtml(portalCarnetHtml(patientName, clinicName, rows));
+}
+
+/** The patient's own copy of a nutrition plan, with the same design as the clinic's. */
+export async function printPortalPlan(plan: PortalNutritionPlan, clinic: ClinicBlock): Promise<void> {
+  const patient = { names: plan.patient_name, last_names: '', subject: 'person', sex: '', curp: '', phone: '', guardian_name: '', guardian_relation: '', profile: {}, age: null } as unknown as Patient;
+  const issuer = { name: clinic.name, address: clinic.address, phone: clinic.phone, kind: 'NUTRITION', legal: {} } as unknown as Issuer;
+  await printHtml(nutritionPlanHtml(patient, { data: plan.data, note: '', at: plan.created_at, by: plan.by }, issuer));
 }

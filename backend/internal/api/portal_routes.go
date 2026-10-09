@@ -17,6 +17,7 @@ func (s *Server) mountPortalPublic(r chi.Router) {
 		r.Post("/portal/appointments/{id}/cancel", s.portalCancelAppointment)
 		r.Get("/portal/prescriptions", s.portalPrescriptions)
 		r.Get("/portal/vaccinations", s.portalVaccinations)
+		r.Get("/portal/nutrition-plans", s.portalNutritionPlans)
 	})
 }
 

@@ -86,3 +86,12 @@ export interface PortalSettings {
   welcome: string;
   slug: string;
 }
+
+export interface PortalNutritionPlan {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  created_at: string;
+  by: string;
+  data: import('./specialty').NutritionPlanData;
+}
