@@ -106,26 +106,33 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
         .join('')}</tbody></table>`
     : '';
   const block = (title: string, text: string) => (text.trim() ? `<h2>${e(title)}</h2><p>${multiline(text)}</p>` : '');
-  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
+  // Page 1 is the menu alone, filling the sheet and signed right under it (the patient often keeps only that sheet).
+  // Everything else (advice, foods to avoid, supplements, next visit) goes on page 2.
+  const extras = [block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? ''), block('Recomendaciones', d.recommendations), block('Alimentos o hábitos a evitar', d.avoid), block('Suplementos', d.supplements)].join('');
+  const hasPage2 = !!(extras || d.follow_up_days || plan.note);
+  const body = `<section class="menu"><div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
 <div class="box nobreak">${patientBlock(patient)}</div>
 ${d.goal ? `<p><span class="k">Objetivo</span><strong>${e(d.goal)}</strong></p>` : ''}
-${plan.note ? `<p><span class="k">Nota</span>${multiline(plan.note)}</p>` : ''}
 ${d.kcal ? `<table class="grid-t nobreak"><tbody><tr><td><strong>Energía</strong><br>${d.kcal} kcal al día</td>${macro('Proteínas', d.protein_pct, 4)}${macro('Carbohidratos', d.carb_pct, 4)}${macro('Grasas', d.fat_pct, 9)}${d.water_liters ? `<td><strong>Agua</strong><br>${d.water_liters} L al día</td>` : ''}</tr></tbody></table>` : ''}
-${meals ? `<h2 style="margin-top:14px">${days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h2>${meals}` : ''}
-${block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? '')}
-${block('Recomendaciones', d.recommendations)}${block('Alimentos o hábitos a evitar', d.avoid)}${block('Suplementos', d.supplements)}
+${meals ? `<h2 style="margin-top:12px">${days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h2>${meals}` : ''}
+<div class="sig nobreak">Firma del nutriólogo${plan.by ? ` · ${e(plan.by)}` : ''}</div></section>
+${
+    hasPage2
+      ? `<section class="more"><div class="head"><div><strong>${e(patient.names)} ${e(patient.last_names ?? '')}</strong><div class="small">Plan nutricional · ${e(fmtDate(plan.at))}</div></div><div class="doc small">${e(clinic.name ?? '')}</div></div>
+${plan.note ? `<p><span class="k">Nota</span>${multiline(plan.note)}</p>` : ''}${extras}
 ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_days} días aproximadamente.</p>` : ''}
-${d.basis ? `<p class="small">${e(d.basis)}</p>` : ''}
-<div class="sig nobreak">Firma del nutriólogo</div>
-<div class="small" style="margin-top:12px;text-align:center;color:#333">${e(FOOTER_CONF)}</div>`;
+<div class="small" style="margin-top:14px;text-align:center;color:#333">${e(FOOTER_CONF)}</div></section>`
+      : `<div class="small" style="margin-top:8px;text-align:center;color:#333">${e(FOOTER_CONF)}</div>`
+  }`;
   return doc(
     'Plan nutricional',
     body,
     '@page{size:letter portrait;margin:10mm 10mm 12mm}h2{margin:10px 0 4px;break-after:avoid;page-break-after:avoid}p{orphans:2;widows:2}' +
-      '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 4px;font-size:8.4px;line-height:1.22;vertical-align:top}.grid-t th{background:#eee}' +
-      '.week{table-layout:fixed}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
-      '.week th.day{width:9%;text-align:left;font-size:9px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
-      '.week .k{color:#444;font-size:7.6px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}'
+      '.menu{break-after:page;page-break-after:always}.more{padding-top:2mm}.more p{font-size:12.5px;line-height:1.5}.more h2{font-size:14px}' +
+      '.grid-t th,.grid-t td{border:1px solid #000;padding:5px 6px;font-size:10px;line-height:1.3;vertical-align:top}.grid-t th{background:#eee}' +
+      '.week{table-layout:fixed;height:150mm}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
+      '.week thead{height:8mm}.week th.day{width:10%;text-align:left;font-size:10.5px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
+      '.week .k{color:#444;font-size:8.4px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}.menu .sig{margin-top:12mm}'
   );
 }
 
