@@ -37,28 +37,14 @@
           <span class="text-app-muted transition {isClosed ? '' : 'rotate-180'}"><Icon name="chevron-down" size={18} /></span>
         </button>
         {#if !isClosed}
-          <div class="overflow-x-auto border-t border-app-ink/10">
-            <table class="w-full min-w-[34rem] text-sm">
-              <thead>
-                <tr class="text-left text-xs uppercase tracking-wide text-app-muted">
-                  <th class="px-4 py-2 font-medium sm:px-5">Fecha</th>
-                  <th class="px-3 py-2 font-medium">Qué se hizo</th>
-                  <th class="px-3 py-2 font-medium">Atendió</th>
-                  {#if multi}<th class="px-3 py-2 font-medium">Paciente</th>{/if}
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-app-ink/8">
-                {#each g.rows as r (r.type + r.id)}
-                  <tr>
-                    <td class="whitespace-nowrap px-4 py-2 sm:px-5">{fmt(r.at)}</td>
-                    <td class="px-3 py-2"><span class="mr-1.5 rounded-full bg-app-ink/6 px-2 py-0.5 text-[11px] text-app-muted">{TYPES[r.type] ?? r.type}</span>{r.title}</td>
-                    <td class="px-3 py-2 text-app-muted">{r.by || '—'}</td>
-                    {#if multi}<td class="px-3 py-2">{r.patient_name}</td>{/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+          <ul class="divide-y divide-app-ink/8 border-t border-app-ink/10">
+            {#each g.rows as r (r.type + r.id)}
+              <li class="px-4 py-2.5 text-sm sm:px-5">
+                <p><span class="mr-1.5 rounded-full bg-app-ink/6 px-2 py-0.5 text-[11px] text-app-muted">{TYPES[r.type] ?? r.type}</span><strong class="font-medium">{r.title}</strong></p>
+                <p class="mt-0.5 text-app-muted">{fmt(r.at)}{r.by ? ` · ${r.by}` : ''}{multi ? ` · ${r.patient_name}` : ''}</p>
+              </li>
+            {/each}
+          </ul>
         {/if}
       </section>
     {/each}

@@ -5,7 +5,7 @@
   import Brand from '$lib/components/ui/Brand.svelte';
   import LanguageSwitch from '$lib/components/ui/LanguageSwitch.svelte';
 
-  let { children, wide = false }: { children: Snippet; wide?: boolean } = $props();
+  let { children, wide = false }: { children: Snippet; wide?: boolean | 'xl' } = $props();
 
   $effect(() => theme.init());
   // Public pages follow the visitor's language; leaving them puts the Spanish app default back on <html lang>.
@@ -22,7 +22,7 @@
   data-theme={theme.mode}
   style="background-image: radial-gradient(ellipse 60% 420px at 50% 0%, rgb(var(--app-primary) / 0.1), transparent 75%); background-repeat: no-repeat"
 >
-  <div class="mx-auto w-full {wide ? 'max-w-2xl' : 'max-w-lg'}">
+  <div class="mx-auto w-full {wide === 'xl' ? 'max-w-5xl' : wide ? 'max-w-2xl' : 'max-w-lg'}">
     <div class="mb-2 flex justify-end"><LanguageSwitch /></div>
     {@render children()}
     <p class="mt-6 flex items-center justify-center gap-2 text-xs text-app-muted">

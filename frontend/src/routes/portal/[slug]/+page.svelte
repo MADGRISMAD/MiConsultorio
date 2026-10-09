@@ -40,7 +40,7 @@
   <meta name="robots" content="noindex" />
 </svelte:head>
 
-<PublicShell wide>
+<PublicShell wide="xl">
   {#if view === 'loading'}
     <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
   {:else if view === 'login' && info}
