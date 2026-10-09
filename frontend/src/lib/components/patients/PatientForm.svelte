@@ -62,6 +62,8 @@
   /* svelte-ignore state_referenced_locally */
   let profile = $state<FieldValues>({ ...(patient?.profile ?? {}) });
   let ack = $state(false);
+  /* svelte-ignore state_referenced_locally */
+  let mailOk = $state(patient?.reminders_ok ?? false);
   let noticeOpen = $state(false);
   // animals: the owner picked from the clinic's list (their fields are read-only while one is picked)
   let owner = $state<OwnerListItem | null>(null);
@@ -193,7 +195,8 @@
       guardian_email: f.guardian_email.trim(),
       owner_id: animal ? (owner?.id ?? null) : null,
       profile,
-      privacy_ack: true
+      privacy_ack: true,
+      reminders_ok: mailOk
     };
     let saved: Patient | null = null;
     const ok = await op.run(async () => {
@@ -402,6 +405,10 @@
         {@render err('ack')}
         <p class="hint">Conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).</p>
       {/if}
+      <label class="check-row mt-3">
+        <input id="pf-mail" type="checkbox" class="check" bind:checked={mailOk} />
+        <span class="text-sm leading-snug">{animal ? 'El propietario acepta' : 'El paciente acepta'} recibir correos del consultorio: felicitación de cumpleaños{animal ? ' (suyo y de su mascota)' : ''} y recordatorios de citas. Puede darse de baja en cualquier momento desde el mismo correo.</span>
+      </label>
     </section>
   </form>
 

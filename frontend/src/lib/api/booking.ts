@@ -18,5 +18,8 @@ export const bookingApi = {
   cancel: (token: string, reason: string) =>
     request<{ appointment: PublicAppointment }>('POST', `/public/appointments/${seg(token)}/cancel`, { reason }).then((r) => r.appointment),
   optout: (token: string) =>
-    request<{ appointment: PublicAppointment }>('POST', `/public/appointments/${seg(token)}/optout`).then((r) => r.appointment)
+    request<{ appointment: PublicAppointment }>('POST', `/public/appointments/${seg(token)}/optout`).then((r) => r.appointment),
+  /** the unsubscribe link of the birthday greetings */
+  unsubscribeInfo: (token: string) => request<{ clinic: string; subscribed: boolean }>('GET', `/public/unsubscribe/${seg(token)}`),
+  unsubscribe: (token: string) => request<{ ok: boolean }>('POST', `/public/unsubscribe/${seg(token)}`)
 };

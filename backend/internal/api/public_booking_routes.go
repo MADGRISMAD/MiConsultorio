@@ -37,6 +37,7 @@ func (s *Server) mountPublicBooking(r chi.Router) {
 	r.Post("/public/appointments/{token}/confirm", b.confirmByToken)
 	r.Post("/public/appointments/{token}/cancel", b.cancelByToken)
 	r.Post("/public/appointments/{token}/optout", b.optoutByToken)
+	s.mountUnsubscribe(r)
 
 	r.Get("/public/booking/{slug}", b.bookingInfo)
 	r.Get("/public/booking/{slug}/availability", b.bookingAvailability)

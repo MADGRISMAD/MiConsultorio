@@ -673,6 +673,8 @@ export interface Patient {
   archived_at: string | null;
   archive_reason: string;
   created_at: string;
+  /** agreed to e-mails: birthday greetings and appointment reminders */
+  reminders_ok?: boolean;
 }
 
 export interface PatientInput {
@@ -695,6 +697,7 @@ export interface PatientInput {
   owner_id?: string | null;
   profile: FieldValues;
   privacy_ack: boolean;
+  reminders_ok?: boolean;
 }
 
 export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone' | 'owner_id' | 'privacy_ack'>> & { names: string };

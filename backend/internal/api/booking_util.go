@@ -22,7 +22,8 @@ const defaultTimeZone = "America/Mexico_City"
 type apptInfo struct {
 	ClinicName, ClinicAddress, ClinicPhone string
 	Professional, Service                  string
-	PatientName                            string // first name only
+	PatientName                            string // first name only; for a pet, the owner's
+	PetName                                string // the pet's name when the patient is an animal
 	Start                                  time.Time
 	Token                                  string
 	Slug                                   string // booking slug when online booking is enabled
@@ -141,6 +142,7 @@ func (a apptInfo) details() string {
 		}
 		b.WriteString(`<tr><td style="padding:3px 12px 3px 0;font-size:13px;color:#7a8b9b;white-space:nowrap;vertical-align:top">` + esc(label) + `</td><td style="padding:3px 0;font-size:15px;color:#0b2540;font-weight:600">` + esc(value) + `</td></tr>`)
 	}
+	row("Mascota", a.PetName)
 	row("Fecha", longDateES(a.Start))
 	row("Hora", clockES(a.Start))
 	row("Consultorio", a.ClinicName)
@@ -154,6 +156,9 @@ func (a apptInfo) details() string {
 
 func (a apptInfo) detailsText() string {
 	var b strings.Builder
+	if a.PetName != "" {
+		b.WriteString("Mascota: " + a.PetName + "\n")
+	}
 	fmt.Fprintf(&b, "Fecha: %s\nHora: %s\nConsultorio: %s\n", longDateES(a.Start), clockES(a.Start), a.ClinicName)
 	if a.Professional != "" {
 		b.WriteString("Atiende: " + a.Professional + "\n")
@@ -169,6 +174,18 @@ func (a apptInfo) detailsText() string {
 	}
 	return b.String()
 }
+
+// citaDe is "tu cita", or "la cita de Firulais" when the visit is for a pet.
+func (a apptInfo) citaDe() string {
+	if a.PetName != "" {
+		return "la cita de " + a.PetName
+	}
+	return "tu cita"
+}
+
+// patientGreeting fills the owner's first name and the pet's name for animals; for people it keeps the patient's own name.
+const patientGreetingSQL = `CASE WHEN p.subject = 'animal' THEN coalesce(nullif(o.name, ''), nullif(p.guardian_name, ''), ap.names) ELSE ap.names END,
+		       CASE WHEN p.subject = 'animal' THEN ap.names ELSE '' END`
 
 func smallLink(href, label string) string {
 	return `<a href="` + esc(href) + `" style="color:#1673d1;text-decoration:underline">` + esc(label) + `</a>`
@@ -203,14 +220,14 @@ func (s *Server) reminderMail(a apptInfo, note string) (subject, text, html stri
 		hello = "Hola " + a.PatientName
 	}
 	when := fmt.Sprintf("el %s a las %s", longDateES(a.Start), clockES(a.Start))
-	subject = "Recordatorio de tu cita en " + a.ClinicName + " · " + a.Start.Format("02/01") + " " + clockES(a.Start)
+	subject = "Recordatorio de " + a.citaDe() + " en " + a.ClinicName + " · " + a.Start.Format("02/01") + " " + clockES(a.Start)
 	confirm, optout := s.manageLink(a.Token, "accion=confirmar"), s.manageLink(a.Token, "baja=1")
-	text = hello + ",\n\nTe recordamos tu cita en " + a.ClinicName + " " + when + ".\n\n" + a.detailsText()
+	text = hello + ",\n\nTe recordamos " + a.citaDe() + " en " + a.ClinicName + " " + when + ".\n\n" + a.detailsText()
 	if note != "" {
 		text += "\n" + note + "\n"
 	}
 	text += "\n¿Asistirás a tu cita?\nSí, asistiré: " + confirm + "\nNo podré asistir: " + s.manageLink(a.Token, "accion=cancelar") + "\n\nSi no respondes, tu cita sigue agendada. ¿Prefieres otro día? Reagendar: " + s.manageLink(a.Token, "accion=reagendar") + "\n\nSi ya no quieres recibir recordatorios:\n" + optout + "\n"
-	body := `<p style="margin:0 0 8px">` + esc(hello) + `, te recordamos tu cita en <strong>` + esc(a.ClinicName) + `</strong> ` + esc(when) + `.</p>` + a.details()
+	body := `<p style="margin:0 0 8px">` + esc(hello) + `, te recordamos ` + esc(a.citaDe()) + ` en <strong>` + esc(a.ClinicName) + `</strong> ` + esc(when) + `.</p>` + a.details()
 	if note != "" {
 		body += `<p style="margin:12px 0">` + esc(note) + `</p>`
 	}
@@ -225,7 +242,10 @@ func (s *Server) bookingMail(a apptInfo, pendingClinic bool) (subject, text, htm
 	if a.PatientName != "" {
 		hello = "Hola " + a.PatientName
 	}
-	title, lead := "Tu cita quedó agendada", "tu cita quedó agendada."
+	title, lead := "Tu cita quedó agendada", a.citaDe()+" quedó agendada."
+	if a.PetName != "" {
+		title = "La cita de " + a.PetName + " quedó agendada"
+	}
 	if pendingClinic {
 		title, lead = "Recibimos tu solicitud de cita", "recibimos tu solicitud. El consultorio la revisará y te avisará si hay algún cambio."
 	}
@@ -242,16 +262,18 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 	var enabled bool
 	var slug *string
 	err = q.QueryRow(ctx, `
-		SELECT c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), ap.names,
+		SELECT c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), `+patientGreetingSQL+`,
 		       to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), coalesce(ap.confirm_token, ''),
 		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug
 		FROM appointments ap
 		JOIN clinics c ON c.id = ap.clinic_id
+		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
+		LEFT JOIN owners o ON o.id = p.owner_id
 		LEFT JOIN users u ON u.id = ap.professional_id
 		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
 		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
 		WHERE ap.clinic_id = $1 AND ap.id = $2`, clinicID, appointmentID).
-		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &date, &start, &a.Token, &tz, &enabled, &slug)
+		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, false, nil
 	}

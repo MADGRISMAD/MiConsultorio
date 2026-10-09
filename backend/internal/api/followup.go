@@ -158,18 +158,14 @@ func (s *Server) firstFreeSlot(ctx context.Context, q queryRower, clinicID strin
 // recommended by a professional), when it has an e-mail and the patient receives reminders. The mail carries the
 // links to confirm, reschedule or cancel. A failure never affects the booking.
 func (s *Server) mailBooked(ctx context.Context, clinicID, appointmentID string) {
-	var to string
-	var consent bool
-	if err := s.db.QueryRow(ctx, `SELECT email, reminders_consent FROM appointments WHERE clinic_id = $1 AND id = $2 AND status = 'scheduled'`, clinicID, appointmentID).Scan(&to, &consent); err != nil || to == "" || !consent {
-		return
-	}
 	if !s.mailEnabled() {
 		return
 	}
-	info, ok, err := s.loadApptInfo(ctx, s.db, clinicID, appointmentID)
-	if err != nil || !ok || info.Token == "" || !info.Start.After(time.Now()) {
+	// same contact rules as the reminders: the visit's own e-mail, else the patient's, else the owner's (pets)
+	t, ok, err := s.loadReminderTarget(ctx, s.db, clinicID, appointmentID)
+	if err != nil || !ok || t.Status != "scheduled" || !t.Consent || t.Email == "" || t.Info.Token == "" || !t.Start.After(time.Now()) {
 		return
 	}
-	subject, text, html := s.bookingMail(info, false)
-	s.sendMail(mail.Message{To: []string{to}, Subject: subject, Text: text, HTML: html})
+	subject, text, html := s.bookingMail(t.Info, false)
+	s.sendMail(mail.Message{To: []string{t.Email}, Subject: subject, Text: text, HTML: html})
 }
