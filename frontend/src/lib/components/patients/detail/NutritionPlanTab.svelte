@@ -379,8 +379,11 @@
     <section class="card p-4 sm:p-5">
       <h3 class="display text-xl">Objetivo y energía</h3>
       <div class="mt-3 grid gap-3 sm:grid-cols-2">
-        <div class="sm:col-span-2"><label class="label" for="np-goal">Objetivo del plan</label>
-          <input id="np-goal" class="field" maxlength="300" readonly={readonly} value={shown.goal} oninput={(e) => (work.goal = e.currentTarget.value)} placeholder="Ej. Bajar 6 kg en 3 meses" /></div>
+        <!-- while the calculator is open it already asks for the goal and the disliked foods -->
+        {#if !gOpen}
+          <div class="sm:col-span-2"><label class="label" for="np-goal">Objetivo del plan</label>
+            <input id="np-goal" class="field" maxlength="300" readonly={readonly} value={shown.goal} oninput={(e) => (work.goal = e.currentTarget.value)} placeholder="Ej. Bajar 6 kg en 3 meses" /></div>
+        {/if}
         <div><label class="label" for="np-kcal">Calorías al día</label>
           <input id="np-kcal" class="field" inputmode="numeric" readonly={readonly} value={shown.kcal || ''} oninput={(e) => (work.kcal = Math.round(num(e.currentTarget.value)))} /></div>
         <div><label class="label" for="np-water">Agua al día (litros)</label>
@@ -396,8 +399,10 @@
           {#if shown.kcal && shown.fat_pct}<p class="hint">{grams(shown.fat_pct, 9)} g al día</p>{/if}</div>
         <div><label class="label" for="np-fu">Siguiente cita (en días)</label>
           <input id="np-fu" class="field" inputmode="numeric" readonly={readonly} value={shown.follow_up_days || ''} oninput={(e) => (work.follow_up_days = Math.round(num(e.currentTarget.value)))} /></div>
-        <div class="sm:col-span-2"><label class="label" for="np-dislikes">Alimentos que no le gustan</label>
-          <input id="np-dislikes" class="field" maxlength="1000" readonly={readonly} value={shown.dislikes} oninput={(e) => (work.dislikes = e.currentTarget.value)} placeholder="Ej. pescado, hígado, brócoli" /></div>
+        {#if !gOpen}
+          <div class="sm:col-span-2"><label class="label" for="np-dislikes">Alimentos que no le gustan</label>
+            <input id="np-dislikes" class="field" maxlength="1000" readonly={readonly} value={shown.dislikes} oninput={(e) => (work.dislikes = e.currentTarget.value)} placeholder="Ej. pescado, hígado, brócoli" /></div>
+        {/if}
       </div>
       {#if macroSum > 100}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />Los porcentajes suman {macroSum} %: no pueden pasar de 100 %.</p>
       {:else if macroSum > 0 && macroSum < 100}<p class="hint">Los macronutrientes suman {macroSum} %.</p>{/if}
