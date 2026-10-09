@@ -5,7 +5,7 @@
   import type { PortalNutritionPlan } from '$lib/types/portal';
   import Icon from '$lib/components/ui/Icon.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
-  import { fmtDate } from '$lib/i18n/index.svelte';
+  import { fmtDate, t } from '$lib/i18n/index.svelte';
   import { printPortalPlan } from './print';
 
   let { plans, patientId, multi, clinic, loaded, error }: { plans: PortalNutritionPlan[]; patientId: string; multi: boolean; clinic: { name: string; address: string; phone: string }; loaded: boolean; error: string } = $props();
@@ -44,12 +44,6 @@
             <p class="mt-0.5 text-sm text-app-muted">{p.data.kcal ? `${p.data.kcal} kcal al día` : ''}{p.data.kcal && p.by ? ' · ' : ''}{p.by ? `Elaboró ${p.by}` : ''}</p>
             {#if multi}<p class="mt-0.5 text-sm">Paciente: <strong>{p.patient_name}</strong></p>{/if}
           </div>
-          <div class="flex flex-wrap gap-2">
-            <button class="btn-secondary !min-h-9" aria-expanded={isOpen} onclick={() => (open[p.id] = !isOpen)}>
-              <span class="transition {isOpen ? 'rotate-180' : ''}"><Icon name="chevron-down" size={16} /></span>{isOpen ? 'Contraer' : 'Expandir'}
-            </button>
-            <button class="btn-secondary !min-h-9" disabled={printOp.phase === 'loading'} onclick={() => printOp.run(() => printPortalPlan(p, clinic))}><Icon name="receipt" size={16} />PDF</button>
-          </div>
         </div>
         {#if isOpen}
           <div class="mt-4 border-t border-app-ink/10 pt-4">
@@ -80,6 +74,12 @@
             </div>
           </div>
         {/if}
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button class="btn-secondary !min-h-9" aria-expanded={isOpen} onclick={() => (open[p.id] = !isOpen)}>
+            <Icon name="eye" size={16} />{isOpen ? t('portal.rx.hide') : t('portal.rx.detail')}
+          </button>
+          <button class="btn-secondary !min-h-9" disabled={printOp.phase === 'loading'} onclick={() => printOp.run(() => printPortalPlan(p, clinic))}><Icon name="receipt" size={16} />{t('portal.rx.print')}</button>
+        </div>
       </li>
     {/each}
   </ul>
