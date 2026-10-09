@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Encounter, Patient, PatientSchema } from '$lib/types';
   import Icon from '../../ui/Icon.svelte';
+  import Evolution from './Evolution.svelte';
   import OwnerCard from './OwnerCard.svelte';
   import { measureRows, show } from './util';
 
@@ -68,6 +69,8 @@
       </dl>
     </section>
   {/if}
+
+  <Evolution patient={p} {encounters} />
 
   <div class="grid gap-4 lg:grid-cols-2">
     <section class="card p-5 sm:p-6">

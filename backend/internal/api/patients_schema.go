@@ -257,6 +257,13 @@ var personMeasures = []Field{
 	f("glucose", "Glucosa", "number", gVit, unit("mg/dL")),
 }
 
+// Pain and range of motion of every session, charted in the patient's Evolución.
+var rehabMeasures = []Field{
+	f("pain_eva", "Dolor (escala EVA 0 a 10)", "number", "Sesión", hint("0 = sin dolor, 10 = el peor dolor imaginable.")),
+	f("rom_deg", "Rango de movimiento", "number", "Sesión", unit("°")),
+	f("rom_note", "Articulación o movimiento medido", "text", "Sesión", ph("Ej. flexión de rodilla derecha")),
+}
+
 var measuresByKind = map[string][]Field{
 	"PEDIATRICS": {f("head_circumference", "Perímetro cefálico", "number", "Pediatría", unit("cm"))},
 	"NUTRITION": {
@@ -268,8 +275,11 @@ var measuresByKind = map[string][]Field{
 		f("visceral_fat", "Grasa visceral", "number", "Antropometría", hint("Nivel que marca la báscula de bioimpedancia.")),
 		f("body_water", "Agua corporal", "number", "Antropometría", unit("%")),
 	},
-	"GYNECOLOGY": {f("fundal_height", "Altura del fondo uterino", "number", "Ginecología", unit("cm"))},
-	"DENTAL":     {f("teeth", "Piezas dentales tratadas", "text", "Odontología", ph("Ej. 16, 26"))},
+	"PHYSIOTHERAPY": rehabMeasures,
+	"CHIROPRACTIC":  rehabMeasures,
+	"ORTHOPEDICS":   rehabMeasures,
+	"GYNECOLOGY":    {f("fundal_height", "Altura del fondo uterino", "number", "Ginecología", unit("cm"))},
+	"DENTAL":        {f("teeth", "Piezas dentales tratadas", "text", "Odontología", ph("Ej. 16, 26"))},
 	"PSYCHOLOGY": {
 		f("session_number", "Número de sesión", "number", "Sesión"),
 		f("mood", "Estado de ánimo", "select", "Sesión", options("Muy bajo", "Bajo", "Estable", "Alto", "Elevado")),

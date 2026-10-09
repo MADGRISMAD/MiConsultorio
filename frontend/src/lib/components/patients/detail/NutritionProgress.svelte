@@ -5,6 +5,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { Encounter, Patient } from '$lib/types';
   import Icon from '../../ui/Icon.svelte';
+  import Evolution from './Evolution.svelte';
 
   let { patient, canWrite, encounters, onsaved }: { patient: Patient; canWrite: boolean; encounters: Encounter[]; onsaved: () => void | Promise<void> } = $props();
 
@@ -126,3 +127,5 @@
     </div>
   {/if}
 </section>
+
+<div class="mb-4"><Evolution {patient} {encounters} only={['weight', 'bmi', 'waist', 'fat', 'muscle']} /></div>
