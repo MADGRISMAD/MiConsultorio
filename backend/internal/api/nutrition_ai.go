@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -363,10 +365,18 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 	}
 	banned := foodTerms(in.Dislikes, foodAllergies)
 
+	// the patient's earlier plans: this week must look different, so the model is told what was served before
+	history := s.previousMenus(r.Context(), p.ClinicID, id, 3)
+	attempts := 2
+	if len(history) > 0 {
+		basePrompt += "\n\n" + menuHistoryPrompt(history)
+		attempts = 3 // one more try when the first draft still copies the previous menu
+	}
+
 	var plan nutritionPlanIn
 	var warnings []string
 	prompt := basePrompt
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		rawPlan, err := s.gemini(r.Context(), prompt, nil, "", nutritionDaySchema)
 		if err != nil {
 			s.refundMagic(r.Context(), p)
@@ -376,7 +386,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 		}
 		var out nutritionAIOut
 		if json.Unmarshal(rawPlan, &out) != nil || len(out.Days) != 7 {
-			if attempt == 1 {
+			if attempt == attempts-1 {
 				s.refundMagic(r.Context(), p)
 				writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: "La IA devolvió un plan incompleto. Intenta de nuevo."})
 				return
@@ -405,7 +415,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 			plan.Days = append(plan.Days, day)
 		}
 		if !complete {
-			if attempt == 1 {
+			if attempt == attempts-1 {
 				s.refundMagic(r.Context(), p)
 				writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: "La IA devolvió comidas incompletas. Intenta de nuevo."})
 				return
@@ -414,12 +424,19 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		hits := forbiddenIn(plan.Days, banned)
-		if len(hits) == 0 {
-			warnings = nil
-			break
+		if len(hits) > 0 {
+			warnings = hits
+			prompt = basePrompt + "\n\nIMPORTANTE: en el intento anterior aparecieron alimentos prohibidos (" + strings.Join(hits[:min(len(hits), 6)], "; ") + "). Reemplázalos por otros y no los uses en ninguna comida."
+			continue
 		}
-		warnings = hits
-		prompt = basePrompt + "\n\nIMPORTANTE: en el intento anterior aparecieron alimentos prohibidos (" + strings.Join(hits[:min(len(hits), 6)], "; ") + "). Reemplázalos por otros y no los uses en ninguna comida."
+		warnings = nil
+		if len(history) > 0 {
+			if share := repeatedShare(plan.Days, history); share > repeatShareMax && attempt < attempts-1 {
+				prompt = basePrompt + fmt.Sprintf("\n\nIMPORTANTE: el borrador anterior repetía el %d %% de las comidas de los planes previos. Cámbialo: otros platillos principales, otros desayunos y otras colaciones, sin repetir los de los planes anteriores.", int(share*100))
+				continue
+			}
+		}
+		break
 	}
 	cleanNutritionPlan(&plan)
 	plan.Basis = basis + " El menú es un borrador generado con IA: revísalo y ajústalo con tu criterio clínico."
@@ -490,4 +507,131 @@ func (s *Server) nutritionCalc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, computeTargets(sex, *age, in.WeightKg, in.HeightCm, in.ActivityFactor, in.BodyFatPct, in.Goal))
+}
+
+// ---- variety against the patient's earlier plans ----
+
+// repeatShareMax is how much of the new week may resemble earlier plans before the model is asked again.
+const repeatShareMax = 0.25
+
+// previousMenus are the weekly menus of the patient's last saved plans, newest first.
+func (s *Server) previousMenus(ctx context.Context, clinicID, patientID string, n int) [][]nutritionDayIn {
+	rows, err := s.db.Query(ctx, `SELECT data FROM patient_charts WHERE clinic_id = $1 AND patient_id = $2 AND kind = 'nutrition_plan' ORDER BY created_at DESC LIMIT $3`, clinicID, patientID, n)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out [][]nutritionDayIn
+	for rows.Next() {
+		var raw []byte
+		var pl nutritionPlanIn
+		if rows.Scan(&raw) != nil || json.Unmarshal(raw, &pl) != nil {
+			continue
+		}
+		days := pl.Days
+		if len(days) == 0 && len(pl.Meals) > 0 {
+			days = []nutritionDayIn{{Name: "Día tipo", Meals: pl.Meals}}
+		}
+		if len(days) > 0 {
+			out = append(out, days)
+		}
+	}
+	return out
+}
+
+// menuHistoryPrompt lists what each earlier plan served, by meal, so the model can avoid it.
+func menuHistoryPrompt(history [][]nutritionDayIn) string {
+	var b strings.Builder
+	b.WriteString("PLANES ANTERIORES DE ESTE PACIENTE (ya los comió; la dieta debe CAMBIAR para que no coma lo mismo semana tras semana). " +
+		"Propón platillos principales, desayunos y colaciones DISTINTOS a los de abajo: no los copies ni los reacomodes. Puedes conservar como máximo uno o dos favoritos si son muy adecuados. " +
+		"Mantén las porciones y el aporte calórico indicados; cambia los alimentos, no la meta.\n")
+	for i, plan := range history {
+		seen := map[string]map[string]bool{}
+		var order []string
+		for _, d := range plan {
+			for _, m := range d.Meals {
+				if seen[m.Name] == nil {
+					seen[m.Name] = map[string]bool{}
+					order = append(order, m.Name)
+				}
+				if t := strings.TrimSpace(m.Items); t != "" && len(seen[m.Name]) < 10 {
+					seen[m.Name][truncateRunes(t, 90)] = true
+				}
+			}
+		}
+		fmt.Fprintf(&b, "Plan anterior %d:\n", i+1)
+		for _, name := range order {
+			var items []string
+			for it := range seen[name] {
+				items = append(items, it)
+			}
+			sort.Strings(items)
+			fmt.Fprintf(&b, "- %s: %s\n", name, strings.Join(items, " | "))
+		}
+	}
+	return b.String()
+}
+
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "…"
+}
+
+var mealStop = map[string]bool{"taza": true, "tazas": true, "pieza": true, "piezas": true, "cucharada": true, "cucharadas": true, "cucharadita": true, "cucharaditas": true,
+	"rebanada": true, "rebanadas": true, "porcion": true, "porciones": true, "gramos": true, "con": true, "para": true, "sin": true, "una": true, "unas": true, "unos": true, "del": true, "las": true, "los": true, "mediana": true, "mediano": true, "picada": true, "picado": true, "cocida": true, "cocido": true, "natural": true, "pequena": true, "grande": true}
+
+// mealWords is the bag of food words of a meal, without amounts, so "2 tazas de avena" and "1 taza de avena" match.
+func mealWords(items string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range regexp.MustCompile(`[a-zñ]+`).FindAllString(foldText(items), -1) {
+		if len(w) > 3 && !mealStop[w] {
+			out[w] = true
+		}
+	}
+	return out
+}
+
+func jaccard(a, b map[string]bool) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	inter := 0
+	for w := range a {
+		if b[w] {
+			inter++
+		}
+	}
+	return float64(inter) / float64(len(a)+len(b)-inter)
+}
+
+// repeatedShare is the fraction of the new week's meals that closely copy a meal of the same slot in an earlier plan.
+func repeatedShare(days []nutritionDayIn, history [][]nutritionDayIn) float64 {
+	prev := map[string][]map[string]bool{}
+	for _, plan := range history {
+		for _, d := range plan {
+			for _, m := range d.Meals {
+				prev[m.Name] = append(prev[m.Name], mealWords(m.Items))
+			}
+		}
+	}
+	total, same := 0, 0
+	for _, d := range days {
+		for _, m := range d.Meals {
+			words := mealWords(m.Items)
+			total++
+			for _, o := range prev[m.Name] {
+				if jaccard(words, o) >= 0.6 {
+					same++
+					break
+				}
+			}
+		}
+	}
+	if total == 0 {
+		return 0
+	}
+	return float64(same) / float64(total)
 }

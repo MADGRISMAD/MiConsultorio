@@ -496,3 +496,58 @@ func TestNutritionPlanAI(t *testing.T) {
 		t.Fatalf("saving the weekly plan: %d %v", status, body)
 	}
 }
+
+// A new plan must not copy the previous one: the model is told what was served and asked again when it repeats.
+func TestNutritionPlanAIVariesFromPreviousPlans(t *testing.T) {
+	var prompts []string
+	variant := 0 // 0 = always the same menu; once it is > 0 the menu changes
+	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Contents []struct {
+				Parts []map[string]any `json:"parts"`
+			} `json:"contents"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompts = append(prompts, body.Contents[0].Parts[0]["text"].(string))
+		meal := func(n, items string) map[string]any { return map[string]any{"name": n, "items": items} }
+		same := variant == 0 || len(prompts) < variant
+		days := []any{}
+		for i := 0; i < 7; i++ {
+			b, c, d := "Avena con plátano y nueces", "Pollo con arroz y ensalada verde", "Quesadilla de queso panela con nopales"
+			if !same {
+				b, c, d = fmt.Sprintf("Chilaquiles verdes con huevo %d", i), fmt.Sprintf("Salmón al horno con quinoa y brócoli %d", i), fmt.Sprintf("Sopa de verduras con tostadas %d", i)
+			}
+			days = append(days, map[string]any{"name": "x", "meals": []any{meal("Desayuno", b), meal("Comida", c), meal("Cena", d)}})
+		}
+		out, _ := json.Marshal(map[string]any{"goal": "Mantener", "days": days, "recommendations": "Come despacio", "avoid": "", "supplements": "", "follow_up_days": 30})
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
+	}))
+	defer gem.Close()
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
+	})
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/nutrition-plan/ai"
+	req := map[string]any{"goal": "Mantener", "weight_kg": 70, "height_cm": 170, "activity_factor": 1.375, "snacks": false}
+
+	// first plan: nothing earlier to vary from
+	first := doc.expect(200, "POST", url, req)["plan"]
+	if len(prompts) != 1 || strings.Contains(prompts[0], "PLANES ANTERIORES") {
+		t.Fatalf("no history: one call and no history in the prompt: %d", len(prompts))
+	}
+	doc.expect(201, "POST", "/api/patients/"+pid+"/charts", map[string]any{"kind": "nutrition_plan", "data": first})
+
+	// second plan: the history is in the prompt, and a copy of it is asked again until it changes
+	prompts, variant = nil, 3 // calls 1 and 2 repeat the menu, the 3rd one changes it
+	doc.expect(200, "POST", url, req)
+	if len(prompts) != 3 {
+		t.Fatalf("the repeated menu is retried: %d calls", len(prompts))
+	}
+	if !strings.Contains(prompts[0], "PLANES ANTERIORES") || !strings.Contains(prompts[0], "Avena con plátano") {
+		t.Fatalf("the prompt lists what was served before: %s", prompts[0])
+	}
+	if !strings.Contains(prompts[1], "repetía") {
+		t.Fatalf("the retry says it repeated: %s", prompts[1])
+	}
+}
