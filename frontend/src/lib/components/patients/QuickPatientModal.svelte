@@ -22,6 +22,12 @@
   let lastNames = $state('');
   let phone = $state('');
   let ownerName = $state('');
+  let ownerSurnames = $state('');
+  /** surnames of a full name: the last two words, or the last one of a two-word name */
+  const surnamesOf = (full: string) => {
+    const w = full.trim().split(/\s+/).filter(Boolean);
+    return w.length < 2 ? '' : w.slice(w.length >= 3 ? -2 : -1).join(' ');
+  };
   let ownerPhone = $state('');
   let owner = $state<OwnerListItem | null>(null); // an owner picked from the clinic's list
   let error = $state('');
@@ -35,7 +41,7 @@
   // (re)start each time it opens
   $effect(() => {
     if (!open) return;
-    names = lastNames = phone = ownerName = ownerPhone = error = '';
+    names = lastNames = phone = ownerName = ownerSurnames = ownerPhone = error = '';
     owner = null;
     op.reset();
     if (schema) return;
@@ -57,15 +63,15 @@
     error = '';
     if (!names.trim()) return (error = animal ? 'Escribe el nombre del animal.' : 'Escribe el nombre del paciente.');
     if (!animal && !lastNames.trim()) return (error = 'Escribe los apellidos del paciente.');
-    if (animal && !owner && (!ownerName.trim() || !ownerPhone.trim())) return (error = 'Escribe el nombre y el teléfono del propietario.');
+    if (animal && !owner && (!ownerName.trim() || !ownerSurnames.trim() || !ownerPhone.trim())) return (error = 'Escribe el nombre, los apellidos y el teléfono del propietario.');
     if (!animal && !phone.trim()) return (error = 'Escribe un teléfono de contacto.');
     let created: Patient | null = null;
     const ok = await op.run(async () => {
       created = await api.patients.quick(
         animal
           ? owner
-            ? { subject, names: names.trim(), owner_id: owner.id }
-            : { subject, names: names.trim(), guardian_name: ownerName.trim(), guardian_phone: ownerPhone.trim() }
+            ? { subject, names: names.trim(), last_names: surnamesOf(owner.name), owner_id: owner.id }
+            : { subject, names: names.trim(), last_names: ownerSurnames.trim(), guardian_name: `${ownerName.trim()} ${ownerSurnames.trim()}`, guardian_phone: ownerPhone.trim() }
           : { subject, names: names.trim(), last_names: lastNames.trim(), phone: phone.trim() }
       );
     });
@@ -104,8 +110,12 @@
         </div>
         {#if !owner}
           <label class="block">
-            <span class="label">Nombre del propietario *</span>
-            <input class="field" bind:value={ownerName} maxlength="160" autocomplete="name" />
+            <span class="label">Nombre(s) del propietario *</span>
+            <input class="field" bind:value={ownerName} maxlength="100" autocomplete="given-name" />
+          </label>
+          <label class="block">
+            <span class="label">Apellido(s) del propietario *</span>
+            <input class="field" bind:value={ownerSurnames} maxlength="100" autocomplete="family-name" />
           </label>
           <label class="block">
             <span class="label">Teléfono del propietario *</span>

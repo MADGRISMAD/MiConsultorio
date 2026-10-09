@@ -47,6 +47,17 @@
   // animals carry the owner's surnames unless someone writes others
   /* svelte-ignore state_referenced_locally */
   let lastTouched = $state(!!patient?.last_names);
+  // animals: the owner's name is typed as given names + surnames (stored together as guardian_name)
+  let ownerNames = $state('');
+  let ownerSurnames = $state('');
+  function splitName(full: string): [string, string] {
+    const w = full.trim().split(/\s+/).filter(Boolean);
+    if (w.length < 2) return [w.join(' '), ''];
+    const k = w.length >= 3 ? 2 : 1;
+    return [w.slice(0, -k).join(' '), w.slice(-k).join(' ')];
+  }
+  /* svelte-ignore state_referenced_locally */
+  if (patient?.subject === 'animal') [ownerNames, ownerSurnames] = splitName(patient.guardian_name ?? '');
   /* svelte-ignore state_referenced_locally */
   let profile = $state<FieldValues>({ ...(patient?.profile ?? {}) });
   let ack = $state(false);
@@ -55,6 +66,7 @@
   function pickOwner(o: OwnerListItem) {
     owner = o;
     f.guardian_name = o.name;
+    [ownerNames, ownerSurnames] = splitName(o.name);
     f.guardian_phone = o.phone;
     f.guardian_email = o.email;
     if (o.address) f.address = o.address;
@@ -63,19 +75,19 @@
   function clearOwner() {
     owner = null;
     f.guardian_name = '';
+    ownerNames = '';
+    ownerSurnames = '';
     f.guardian_phone = '';
     f.guardian_email = '';
     f.owner_birth_date = '';
   }
 
-  /** "Luis Enrique Pantoja Parra" → "Pantoja Parra"; two words → the second */
-  function surnamesOf(full: string): string {
-    const w = full.trim().split(/\s+/).filter(Boolean);
-    if (w.length < 2) return '';
-    return w.slice(w.length >= 3 ? -2 : -1).join(' ');
-  }
+  // the owner's full name follows the two fields; the pet takes the owner's surnames until someone writes others
   $effect(() => {
-    if (animal && !lastTouched) f.last_names = surnamesOf(f.guardian_name);
+    if (animal && !owner) f.guardian_name = [ownerNames.trim(), ownerSurnames.trim()].filter(Boolean).join(' ');
+  });
+  $effect(() => {
+    if (animal && !lastTouched) f.last_names = ownerSurnames.trim();
   });
 
   let errors = $state<Record<string, string>>({});
@@ -132,7 +144,9 @@
     if (f.guardian_email.trim() && !/^\S+@\S+\.\S+$/.test(f.guardian_email.trim())) e.guardian_email = 'Revisa el correo electrónico.';
     if (guardianRequired) {
       const who = animal ? 'del propietario' : 'del tutor';
-      if (!f.guardian_name.trim()) e.guardian_name = `Escribe el nombre ${who}.`;
+      if (animal && !owner) {
+        if (!ownerNames.trim() || !ownerSurnames.trim()) e.guardian_name = 'Escribe el nombre y los apellidos del propietario.';
+      } else if (!f.guardian_name.trim()) e.guardian_name = `Escribe el nombre ${who}.`;
       if (!f.guardian_phone.trim()) e.guardian_phone = `Escribe el teléfono ${who}.`;
     }
     for (const fd of fields) {
@@ -148,7 +162,7 @@
     await tick();
     const order = ['names', 'last_names', 'sex', 'birth_date', 'curp', 'email', 'guardian_name', 'guardian_phone', 'guardian_email', 'ack'];
     const key = order.find((k) => errors[k]);
-    const id = key ? `pf-${key}` : `pf-p-${Object.keys(profileErrors)[0]}`;
+    const id = key === 'guardian_name' && animal ? 'pf-owner_names' : key ? `pf-${key}` : `pf-p-${Object.keys(profileErrors)[0]}`;
     const el = document.getElementById(id) ?? document.getElementById(`${id}-l`);
     el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     (el as HTMLElement | null)?.focus?.({ preventScroll: true });
@@ -234,8 +248,8 @@
             {@render err('names')}
           </div>
           <div class="sm:col-span-2">
-            <label class="label" for="pf-last_names">Apellidos <span class="font-normal text-app-muted">(se toman del propietario; puedes cambiarlos)</span></label>
-            <input id="pf-last_names" class="field" bind:value={f.last_names} oninput={() => (lastTouched = true)} maxlength="120" autocomplete="off" placeholder="Se llenan al escribir el nombre del propietario" />
+            <label class="label" for="pf-last_names">Apellidos de la mascota <span class="font-normal text-app-muted">(se toman del propietario; puedes cambiarlos)</span></label>
+            <input id="pf-last_names" class="field" bind:value={f.last_names} oninput={() => (lastTouched = true)} maxlength="120" autocomplete="off" placeholder="Se llenan con los apellidos del propietario" />
           </div>
         {:else}
           <div>
@@ -313,11 +327,23 @@
         <div class="mb-4"><OwnerPicker selected={owner} onpick={pickOwner} onclear={clearOwner} id="pf-owner-search" /></div>
       {/if}
       <div class="grid gap-4 sm:grid-cols-2">
+        {#if animal}
+          <div>
+            <label class="label" for="pf-owner_names">Nombre(s) del propietario <span class="text-app-danger" aria-hidden="true">*</span></label>
+            <input id="pf-owner_names" class="field" bind:value={ownerNames} readonly={!!owner} maxlength="100" autocomplete="off" aria-invalid={!!errors.guardian_name} aria-describedby={errors.guardian_name ? 'pf-guardian_name-h' : undefined} />
+          </div>
+          <div>
+            <label class="label" for="pf-owner_surnames">Apellido(s) del propietario <span class="text-app-danger" aria-hidden="true">*</span></label>
+            <input id="pf-owner_surnames" class="field" bind:value={ownerSurnames} readonly={!!owner} maxlength="100" autocomplete="off" aria-invalid={!!errors.guardian_name} />
+          </div>
+          <div class="sm:col-span-2">{@render err('guardian_name')}</div>
+        {:else}
         <div>
-          <label class="label" for="pf-guardian_name">{animal ? 'Nombre del propietario' : 'Nombre completo'}{#if guardianRequired} <span class="text-app-danger" aria-hidden="true">*</span>{/if}</label>
-          <input id="pf-guardian_name" class="field" bind:value={f.guardian_name} readonly={!!owner} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_name} aria-describedby={errors.guardian_name ? 'pf-guardian_name-h' : undefined} />
+          <label class="label" for="pf-guardian_name">Nombre completo{#if guardianRequired} <span class="text-app-danger" aria-hidden="true">*</span>{/if}</label>
+          <input id="pf-guardian_name" class="field" bind:value={f.guardian_name} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_name} aria-describedby={errors.guardian_name ? 'pf-guardian_name-h' : undefined} />
           {@render err('guardian_name')}
         </div>
+        {/if}
         <div>
           <label class="label" for="pf-guardian_phone">Teléfono{#if guardianRequired} <span class="text-app-danger" aria-hidden="true">*</span>{/if}</label>
           <input id="pf-guardian_phone" class="field" type="tel" bind:value={f.guardian_phone} readonly={!!owner} maxlength="20" autocomplete="off" aria-invalid={!!errors.guardian_phone} aria-describedby={errors.guardian_phone ? 'pf-guardian_phone-h' : undefined} />

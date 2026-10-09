@@ -25,7 +25,8 @@ test('registra una persona y un animal', async ({ page }) => {
   await page.fill(ui.patient.names, `Firulais${id}`);
   await page.getByRole('radio', { name: 'Macho' }).click();
   await page.locator('#pf-p-species').selectOption('Perro');
-  await page.locator(ui.patient.guardianName).fill('Ana Propietaria');
+  await page.locator(ui.patient.ownerNames).fill('Ana');
+  await page.locator(ui.patient.ownerSurnames).fill('Propietaria');
   await page.locator(ui.patient.guardianPhone).fill('5598765432');
   await page.fill(ui.patient.allergies, 'Ninguna conocida');
   await page.check(ui.patient.ack);

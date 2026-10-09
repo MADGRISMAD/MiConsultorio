@@ -15,7 +15,7 @@ export const ui = {
   register: { clinic: '#r-name', phone: '#r-phone', person: '#r-person', email: '#r-email', user: '#r-user', pass: '#r-pass', confirm: '#r-confirm' },
   dialog: 'div[role=dialog]',
   // patients
-  patient: { names: '#pf-names', lastNames: '#pf-last_names', birth: '#pf-birth_date', phone: '#pf-phone', allergies: '#pf-p-allergies_text', guardianName: '#pf-guardian_name', guardianPhone: '#pf-guardian_phone', ack: '#pf-ack' },
+  patient: { names: '#pf-names', lastNames: '#pf-last_names', birth: '#pf-birth_date', phone: '#pf-phone', allergies: '#pf-p-allergies_text', guardianName: '#pf-guardian_name', ownerNames: '#pf-owner_names', ownerSurnames: '#pf-owner_surnames', guardianPhone: '#pf-guardian_phone', ack: '#pf-ack' },
   // encounter and addendum
   enc: { reason: '#enc-reason', subjective: '#enc-subj', assessment: '#enc-ass', plan: '#enc-plan' },
   addendum: { reason: '#add-reason', text: '#add-text' },
