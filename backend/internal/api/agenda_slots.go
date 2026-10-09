@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"sort"
 	"time"
 
@@ -284,6 +285,9 @@ func (b *bookingAPI) bookingMonth(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		serverError(w, r, err)
 		return
+	}
+	if area := qs.Get("area"); area != "" { // only the professionals of the area the patient chose
+		pros = slices.DeleteFunc(pros, func(p bookable) bool { return len(p.Areas) > 0 && !slices.Contains(p.Areas, area) })
 	}
 	days := []monthDay{}
 	if len(pros) > 0 {

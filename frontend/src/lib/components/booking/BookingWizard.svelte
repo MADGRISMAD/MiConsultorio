@@ -20,6 +20,8 @@
   let forPet = $state(!!info.animals && !info.people);
   let serviceId = $state('');
   let professionalId = $state('');
+  /** the area the patient chose (only asked when the clinic has several) */
+  let area = $state('');
   let date = $state('');
   /** the free times of each specialist on the picked date (null while loading) */
   let day = $state<{ id: string; name: string; slots: BookingSlot[] }[] | null>(null);
@@ -55,6 +57,9 @@
   const op = new Op();
   let seq = 0;
 
+  const areas = $derived(info.areas ?? []);
+  /** the professionals of the chosen area (those without areas attend in all) */
+  const pros = $derived(info.professionals.filter((p) => !area || !p.areas?.length || p.areas.includes(area)));
   const professional = $derived(info.professionals.find((p) => p.id === professionalId));
   /** a patient already in treatment sees only the agenda of the professional who has been attending them */
   const lockedPro = $derived(registered ? (forPet ? (pets?.find((x) => x.id === petId)?.professional_id ?? '') : personPro) : '');
@@ -103,7 +108,7 @@
     held = false;
     await dayOp.run(async () => {
       const r = await Promise.all(
-        info.professionals.filter((p) => !lockedPro || p.id === lockedPro).map(async (p) => ({ id: p.id, name: p.name, slots: await bookingApi.slots(slug, p.id, date, serviceId, holder).catch(() => [] as BookingSlot[]) }))
+        pros.filter((p) => !lockedPro || p.id === lockedPro).map(async (p) => ({ id: p.id, name: p.name, slots: await bookingApi.slots(slug, p.id, date, serviceId, holder).catch(() => [] as BookingSlot[]) }))
       );
       if (mine === seq) day = r;
     });
@@ -114,6 +119,7 @@
     const ym = monthKey;
     const svc = serviceId;
     const only = lockedPro;
+    const ar = area;
     if (!ym) {
       available = null;
       return;
@@ -121,7 +127,7 @@
     const mine = ++monthSeq;
     available = null;
     bookingMonthApi
-      .month(slug, ym, only, svc)
+      .month(slug, ym, only, svc, ar)
       .then((days) => {
         if (mine === monthSeq) available = days;
       })
@@ -341,6 +347,22 @@
       {#if !dataReady}
         <p class="mt-3 text-sm text-app-muted">{t('booking.fillFirst')}</p>
       {:else}
+        {#if areas.length > 0}
+          <fieldset class="mt-4">
+            <legend class="label">{t('booking.area')}</legend>
+            <div class="grid gap-2 sm:grid-cols-2">
+              {#each areas as a (a.id)}
+                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
+                  <input type="radio" class="sr-only" name="area" value={a.id} bind:group={area} onchange={loadDay} />
+                  <span>{a.label}</span>
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+        {#if areas.length > 0 && !area}
+          <p class="mt-4 text-sm text-app-muted">{t('booking.pickArea')}</p>
+        {:else}
         {#if info.services.length > 0}
           <fieldset class="mt-4">
             <legend class="label">{t('booking.service')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></legend>
@@ -397,8 +419,9 @@
             {/if}
           </div>
         {/if}
-        {#if info.professionals.length === 1 && ((available && available.length === 0) || (day && !anySlot))}
-          <WaitlistJoin {slug} clinicName={info.clinic.name} professionalId={info.professionals[0].id} {serviceId} />
+        {#if pros.length === 1 && ((available && available.length === 0) || (day && !anySlot))}
+          <WaitlistJoin {slug} clinicName={info.clinic.name} professionalId={pros[0].id} {serviceId} />
+        {/if}
         {/if}
       {/if}
     </section>

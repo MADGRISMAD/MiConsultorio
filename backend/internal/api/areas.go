@@ -1,0 +1,73 @@
+package api
+
+import (
+	"context"
+	"slices"
+	"strings"
+)
+
+// Areas. A professional can be tied to some of the clinic's giros (nutrition, psychology...). Without areas they
+// work in all of them, as every account did before. Areas decide whose agenda a patient may pick on the public page
+// and which specialty records someone works with.
+
+// areaLabels are the names of the people of each giro (what the clinic's team and the public page show).
+var areaLabels = map[string]string{
+	"GENERAL_MEDICAL": "Medicina general", "DENTAL": "Odontología", "PEDIATRICS": "Pediatría", "INTERNAL_MEDICINE": "Medicina interna",
+	"PHYSIOTHERAPY": "Fisioterapia", "NUTRITION": "Nutrición", "PSYCHOLOGY": "Psicología", "DERMATOLOGY": "Dermatología",
+	"GYNECOLOGY": "Ginecología", "ORTHOPEDICS": "Ortopedia", "VETERINARY": "Veterinaria", "CHIROPRACTIC": "Quiropráctica",
+}
+
+// cleanAreas keeps only the giros the clinic works with, without repeats. A message means the list is not valid.
+func (s *Server) cleanAreas(ctx context.Context, clinicID string, in []string) ([]string, string) {
+	out := []string{}
+	if len(in) == 0 {
+		return out, ""
+	}
+	kinds, err := s.clinicKindsFor(ctx, clinicID)
+	if err != nil {
+		return nil, "No se pudo validar las áreas."
+	}
+	for _, a := range in {
+		if !slices.Contains(kinds, a) {
+			return nil, "Una de las áreas no es de este consultorio."
+		}
+		if !slices.Contains(out, a) {
+			out = append(out, a)
+		}
+	}
+	return out, ""
+}
+
+// worksIn is true for an administrator, for someone without areas, and for someone who has one of the giros.
+func (p *Principal) worksIn(giros ...string) bool {
+	if p.Role == RoleAdmin || len(p.Areas) == 0 || len(giros) == 0 {
+		return true
+	}
+	for _, g := range giros {
+		if slices.Contains(p.Areas, g) {
+			return true
+		}
+	}
+	return false
+}
+
+// chartGiros are the giros a kind of specialty record belongs to. A kind not listed is common to everyone.
+var chartGiros = map[string][]string{
+	"odontogram": {"DENTAL"}, "periodontogram": {"DENTAL"}, "ortho_visit": {"DENTAL"},
+	"nutrition_plan": {"NUTRITION"}, "food_recall": {"NUTRITION"},
+	"scale": {"PSYCHOLOGY"}, "therapy_plan": {"PSYCHOLOGY"},
+	"prenatal":   {"GYNECOLOGY"},
+	"milestones": {"PEDIATRICS"},
+	"exercises":  {"PHYSIOTHERAPY", "CHIROPRACTIC", "ORTHOPEDICS"},
+}
+
+// confidentialCharts are only for the professionals of the giro (psychotherapy notes are not shared with the rest of the team).
+var confidentialCharts = []string{"scale", "therapy_plan"}
+
+func areaNames(areas []string) string {
+	names := make([]string, 0, len(areas))
+	for _, a := range areas {
+		names = append(names, areaLabels[a])
+	}
+	return strings.ToLower(strings.Join(names, ", "))
+}

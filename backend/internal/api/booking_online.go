@@ -77,11 +77,12 @@ type bookable struct {
 	ID, Name string
 	Slot     int
 	Hours    map[string][][]string
+	Areas    []string // empty: every area of the clinic
 }
 
 func (s *Server) listBookable(ctx context.Context, c *bookingClinic, onlyID string) ([]bookable, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT u.id, u.name, ps.slot_minutes, ps.hours
+		SELECT u.id, u.name, ps.slot_minutes, ps.hours, u.areas
 		FROM professional_settings ps JOIN users u ON u.id = ps.user_id
 		WHERE ps.clinic_id = $1 AND u.clinic_id = $1 AND ps.bookable AND ps.consults AND NOT u.disabled
 		  AND ($2 = '' OR u.id = NULLIF($2, '')::uuid)
@@ -94,7 +95,7 @@ func (s *Server) listBookable(ctx context.Context, c *bookingClinic, onlyID stri
 	for rows.Next() {
 		var p bookable
 		var raw []byte
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slot, &raw); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Slot, &raw, &p.Areas); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal(raw, &p.Hours)
@@ -123,9 +124,31 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	kinds, err := b.clinicKindsFor(ctx, c.ID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	// The areas the patient chooses from: those of the clinic with someone to attend them. Only asked when there are several.
 	profs := make([]map[string]any, 0, len(pros))
+	offered := map[string]bool{}
 	for _, p := range pros {
-		profs = append(profs, map[string]any{"id": p.ID, "name": p.Name})
+		areas := p.Areas
+		if len(areas) == 0 {
+			areas = kinds
+		}
+		for _, a := range areas {
+			offered[a] = true
+		}
+		profs = append(profs, map[string]any{"id": p.ID, "name": p.Name, "areas": areas})
+	}
+	areaList := []map[string]string{}
+	if len(kinds) > 1 {
+		for _, k := range kinds {
+			if offered[k] {
+				areaList = append(areaList, map[string]string{"id": k, "label": areaLabels[k]})
+			}
+		}
 	}
 	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents, duration_minutes FROM catalog_items
 		WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY category, name LIMIT 200`, c.ID)
@@ -163,6 +186,7 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 		"requires_confirmation": c.RequiresConfirmation,
 		"services":              services,
 		"professionals":         profs,
+		"areas":                 areaList,
 		"animals":               c.Animals,
 		"people":                c.People,
 		"species":               bookingSpecies,

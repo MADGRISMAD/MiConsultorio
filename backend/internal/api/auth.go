@@ -89,6 +89,7 @@ type sessionInfo struct {
 	Role        string       `json:"role"`
 	RoleLabel   string       `json:"roleLabel"`
 	Permissions []string     `json:"permissions"`
+	Areas       []string     `json:"areas"`   // giros of this person; empty = all
 	Billing     *billingInfo `json:"billing"` // nil for platform staff
 	// SetupPending is true for a clinic administrator who still has to finish the setup wizard.
 	SetupPending bool `json:"setupPending"`
@@ -109,7 +110,7 @@ type professionalInfo struct {
 func sessionOf(p *Principal) sessionInfo {
 	info := sessionInfo{
 		UserID: p.UserID, ClinicID: p.ClinicID, Username: p.Username, Name: p.Name, Email: p.Email,
-		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions, SetupPending: p.SetupPending,
+		Role: p.Role, RoleLabel: roleLabels[p.Role], Permissions: p.Permissions, Areas: append([]string{}, p.Areas...), SetupPending: p.SetupPending,
 		TwoFactorEnabled: p.TwoFactorEnabled, MustSetup2fa: p.MustSetup2FA,
 		Professional: professionalInfo{Cedula: p.Cedula, Institution: p.CedulaInstitution, SpecialtyLicense: p.CedulaSpecialty, Title: p.SpecialtyTitle},
 	}

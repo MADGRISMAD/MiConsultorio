@@ -19,6 +19,8 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   await page.getByLabel('Nombre completo').fill(`Visitante${id} Enlace`);
   await page.getByLabel(/Teléfono/).fill('5512345678');
   await page.getByLabel('Correo').fill(`v${id}@correo.mx`);
+  // a clinic with several areas asks which one the visit is for
+  await page.getByRole('radio', { name: 'Medicina general' }).check({ force: true });
   const day = page.locator('[role=grid] button:not([disabled])').first();
   await expect(day).toBeVisible();
   await day.click();

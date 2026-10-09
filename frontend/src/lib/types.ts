@@ -68,6 +68,8 @@ export interface SessionInfo {
   role: Role;
   roleLabel: string;
   permissions: string[];
+  /** giros the person works in (empty: all those of the clinic) */
+  areas?: string[];
   /** null for platform staff */
   billing: Billing | null;
   /** a clinic administrator who still has to finish the setup wizard */
@@ -96,6 +98,8 @@ export interface Person {
   permissions_extra?: string[];
   permissions_denied?: string[];
   permissions?: string[];
+  /** giros the person works in (empty: all those of the clinic) */
+  areas?: string[];
 }
 
 export interface Seats {

@@ -269,8 +269,16 @@ func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	rows, err := s.db.Query(r.Context(), `SELECT `+chartCols+` FROM patient_charts WHERE clinic_id=$1 AND patient_id=$2 AND ($3 = '' OR kind=$3)
-		ORDER BY created_at DESC LIMIT 100`, p.ClinicID, id, kind)
+	hidden := []string{} // psychotherapy records are for the professionals of that area
+	if !p.worksIn("PSYCHOLOGY") {
+		hidden = confidentialCharts
+	}
+	if slices.Contains(hidden, kind) {
+		writeError(w, http.StatusForbidden, "Estos registros son solo del área de psicología.")
+		return
+	}
+	rows, err := s.db.Query(r.Context(), `SELECT `+chartCols+` FROM patient_charts WHERE clinic_id=$1 AND patient_id=$2 AND ($3 = '' OR kind=$3) AND NOT (kind = ANY($4::text[]))
+		ORDER BY created_at DESC LIMIT 100`, p.ClinicID, id, kind, hidden)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -312,6 +320,10 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if !p.worksIn(chartGiros[in.Kind]...) {
+		writeError(w, http.StatusForbidden, "Este registro es de otra área; tu cuenta trabaja en "+areaNames(p.Areas)+".")
+		return
+	}
 	in.Note = strings.TrimSpace(in.Note)
 	if len(in.Data) == 0 || len(in.Data) > maxChartBytes {
 		writeError(w, http.StatusBadRequest, "El esquema está vacío o es demasiado grande.")

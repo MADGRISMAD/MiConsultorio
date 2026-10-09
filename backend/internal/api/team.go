@@ -33,11 +33,13 @@ type person struct {
 	// capabilities added to / taken from this person on top of the role
 	Extra  []string `json:"permissions_extra" db:"permissions_extra"`
 	Denied []string `json:"permissions_denied" db:"permissions_denied"`
+	// giros the person works in (empty: all those of the clinic)
+	Areas []string `json:"areas" db:"areas"`
 	// what the person can do in the end
 	Effective []string `json:"permissions" db:"-"`
 }
 
-const personCols = `id, name, coalesce(email, '') AS email, username, phone, role, disabled, last_login_at, created_at, permissions_extra, permissions_denied`
+const personCols = `id, name, coalesce(email, '') AS email, username, phone, role, disabled, last_login_at, created_at, permissions_extra, permissions_denied, areas`
 
 func withLabels(list []person) []person {
 	for i := range list {
@@ -166,12 +168,13 @@ func (s *Server) listTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 type memberRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Phone    string `json:"phone"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	Name     string   `json:"name"`
+	Email    string   `json:"email"`
+	Username string   `json:"username"`
+	Phone    string   `json:"phone"`
+	Password string   `json:"password"`
+	Role     string   `json:"role"`
+	Areas    []string `json:"areas"`
 }
 
 func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
@@ -191,6 +194,11 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	areas, msg := s.cleanAreas(r.Context(), p.ClinicID, req.Areas)
+	if msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
 	var created person
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		if err := lockClinic(r.Context(), tx, p.ClinicID); err != nil {
@@ -215,6 +223,11 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 				return fail(http.StatusConflict, msg)
 			}
 			return err
+		}
+		if len(areas) > 0 {
+			if _, err := tx.Exec(r.Context(), `UPDATE users SET areas = $2 WHERE id = $1`, id, areas); err != nil {
+				return err
+			}
 		}
 		rows, err := tx.Query(r.Context(), `SELECT `+personCols+` FROM users WHERE id = $1`, id)
 		if err != nil {
@@ -242,6 +255,7 @@ type memberPatch struct {
 	// capabilities for this person only (null leaves them as they are)
 	PermissionsExtra  *[]string `json:"permissions_extra"`
 	PermissionsDenied *[]string `json:"permissions_denied"`
+	Areas             *[]string `json:"areas"`
 }
 
 func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
@@ -249,7 +263,7 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	if req.Name == nil && req.Email == nil && req.Phone == nil && req.Role == nil && req.PermissionsExtra == nil && req.PermissionsDenied == nil {
+	if req.Name == nil && req.Email == nil && req.Phone == nil && req.Role == nil && req.PermissionsExtra == nil && req.PermissionsDenied == nil && req.Areas == nil {
 		writeError(w, http.StatusBadRequest, "No hay nada que actualizar.")
 		return
 	}
@@ -330,6 +344,16 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			audit(r.Context(), tx, p.ClinicID, p, "user_permissions_changed", "Cambió los permisos de "+m.Name, map[string]any{"userId": m.ID, "extra": extra, "denied": denied})
+		}
+		if req.Areas != nil {
+			areas, msg := s.cleanAreas(r.Context(), p.ClinicID, *req.Areas)
+			if msg != "" {
+				return fail(http.StatusBadRequest, msg)
+			}
+			if _, err := tx.Exec(r.Context(), `UPDATE users SET areas = $2 WHERE id = $1`, m.ID, areas); err != nil {
+				return err
+			}
+			audit(r.Context(), tx, p.ClinicID, p, "user_areas_changed", "Cambió las áreas de "+m.Name, map[string]any{"userId": m.ID, "areas": areas})
 		}
 		if req.Name != nil {
 			if msg := db.ValidateName(*req.Name); msg != "" {

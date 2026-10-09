@@ -161,6 +161,9 @@
 
   const isPerson = $derived(patient?.subject === 'person');
   const hasKind = (...k: string[]) => (schema?.kinds ?? []).some((x) => k.includes(x));
+  // the specialty records of an area are for the people of that area (everyone else keeps the common record)
+  const myAreas = $derived(session.user?.areas ?? []);
+  const inMyAreas = (...k: string[]) => isAdmin || myAreas.length === 0 || k.some((x) => myAreas.includes(x));
   const labGiro = $derived(hasKind(...LAB_KINDS));
   const planGiro = $derived(hasKind(...PLAN_KINDS) || hasPlanData);
   const hasMeasures = $derived(encounters.some((e) => ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')));
@@ -170,10 +173,10 @@
     { key: 'bitacora', label: 'Bitácora', count: encounters.filter((e) => !e.addendum_of).length },
     { key: 'recetas', label: schema?.rx_mode === 'instructions' ? 'Indicaciones' : 'Recetas', count: prescriptions.length },
     ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación' }] : hasKind('PEDIATRICS') ? [{ key: 'vacunas' as Tab, label: 'Carnet de vacunación' }] : []),
-    ...(isPerson && hasKind('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
-    ...(isPerson && hasKind('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
-    ...(isPerson && hasKind('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos' }] : []),
-    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
+    ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
+    ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
+    ...(isPerson && hasKind('PSYCHOLOGY') && inMyAreas('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos' }] : []),
+    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
     ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
     ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio' }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento' }] : []),

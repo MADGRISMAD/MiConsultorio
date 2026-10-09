@@ -36,6 +36,8 @@ type Principal struct {
 	Billing      *Billing // nil for platform staff
 	// Professional data printed on recetas and notes.
 	Cedula, CedulaInstitution, CedulaSpecialty, SpecialtyTitle string
+	// Areas are the giros this person works in (empty: all the clinic's).
+	Areas []string
 	// SetupPending: a clinic administrator whose clinic has not finished the setup wizard.
 	SetupPending bool
 	// TwoFactorEnabled: the person confirmed an authenticator app. MustSetup2FA: the clinic's policy
@@ -82,12 +84,12 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
 		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none'),
 		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled OR o.role <> 'admin', false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false),
-		       u.permissions_extra, u.permissions_denied
+		       u.permissions_extra, u.permissions_denied, u.areas
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id LEFT JOIN users o ON o.id = u.linked_owner_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
 			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen, &p.TwoFactorEnabled, &policy,
-			&p.LinkedOwnerID, &p.OwnerTV, &p.OwnerDisabled, &ownerTOTP, &branchOff, &extra, &denied)
+			&p.LinkedOwnerID, &p.OwnerTV, &p.OwnerDisabled, &ownerTOTP, &branchOff, &extra, &denied, &p.Areas)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser
 	}

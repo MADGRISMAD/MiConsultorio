@@ -27,10 +27,10 @@ export const waitlistApi = {
 
 export const bookingMonthApi = {
   /** Days of a month (YYYY-MM) with at least one free slot. Leave `professional` empty for any. */
-  month: (slug: string, month: string, professional = '', service = '') =>
+  month: (slug: string, month: string, professional = '', service = '', area = '') =>
     request<MonthSlots>(
       'GET',
-      `/public/booking/${seg(slug)}/month?month=${seg(month)}${professional ? `&professional=${seg(professional)}` : ''}${service ? `&service=${seg(service)}` : ''}`
+      `/public/booking/${seg(slug)}/month?month=${seg(month)}${professional ? `&professional=${seg(professional)}` : ''}${service ? `&service=${seg(service)}` : ''}${area ? `&area=${seg(area)}` : ''}`
     ).then((r) => r.days.map((d) => d.date))
 };
 

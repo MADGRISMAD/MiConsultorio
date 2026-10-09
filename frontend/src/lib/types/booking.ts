@@ -9,6 +9,8 @@ export interface BookingService {
 export interface BookingProfessional {
   id: string;
   name: string;
+  /** areas (giros) the professional attends */
+  areas?: string[];
 }
 
 export interface BookingInfo {
@@ -17,6 +19,8 @@ export interface BookingInfo {
   requires_confirmation: boolean;
   services: BookingService[];
   professionals: BookingProfessional[];
+  /** the areas to choose from; empty when the clinic has a single one */
+  areas?: { id: string; label: string }[];
   /** the clinic sees pets / people */
   animals?: boolean;
   people?: boolean;

@@ -8,7 +8,9 @@
   import { CAPABILITY_ROWS, CLINIC_ROLES, ROLE_PERMISSIONS, ROLES, type ClinicRole, type Person, type Seats } from '$lib/types';
   import ConfirmModal from './ConfirmModal.svelte';
   import Modal from './Modal.svelte';
+  import AreaPicker from './team/AreaPicker.svelte';
   import PermissionsModal from './team/PermissionsModal.svelte';
+  import { CLINIC_KINDS } from '$lib/types';
   import Avatar from './ui/Avatar.svelte';
   import Icon from './ui/Icon.svelte';
   import LoadingRows from './ui/LoadingRows.svelte';
@@ -42,20 +44,40 @@
 
   // ----- add a person -----
   let addOpen = $state(false);
-  let form = $state({ name: '', email: '', username: '', phone: '', password: '', role: 'reception' as ClinicRole });
+  let form = $state({ name: '', email: '', username: '', phone: '', password: '', role: 'reception' as ClinicRole, areas: [] as string[] });
   const addOp = new Op();
   function openAdd() {
-    form = { name: '', email: '', username: '', phone: '', password: '', role: 'reception' };
+    form = { name: '', email: '', username: '', phone: '', password: '', role: 'reception', areas: [] };
     addOp.reset();
     addOpen = true;
   }
   async function submitAdd(e: SubmitEvent) {
     e.preventDefault();
-    if (!(await addOp.run(() => api.addMember(form)))) return;
+    if (!(await addOp.run(() => api.addMember({ ...form, areas: form.role === 'doctor' ? form.areas : [] })))) return;
     addOpen = false;
     toast.show(`${form.name} ya puede entrar`);
     await load();
   }
+
+  // ----- areas of a professional -----
+  let areasFor = $state<Person | null>(null);
+  let areasValue = $state<string[]>([]);
+  const areasOp = new Op();
+  function openAreas(p: Person) {
+    areasValue = [...(p.areas ?? [])];
+    areasOp.reset();
+    areasFor = p;
+  }
+  async function saveAreas() {
+    const p = areasFor;
+    if (!p) return;
+    if (await areasOp.run(() => api.updateMember(p.id, { areas: areasValue }))) {
+      areasFor = null;
+      toast.show('Áreas actualizadas');
+      await load();
+    }
+  }
+  const areaText = (p: Person) => (p.areas ?? []).map((a) => CLINIC_KINDS[a as keyof typeof CLINIC_KINDS]?.label ?? a).join(', ');
 
   // ----- change role -----
   let permsFor = $state<Person | null>(null);
@@ -144,6 +166,7 @@
               <span class="truncate">{p.name}</span>
               {#if self}<Pill tone="info">Tú</Pill>{/if}
               {#if (p.permissions_extra?.length ?? 0) + (p.permissions_denied?.length ?? 0) > 0}<Pill tone="info">Permisos personalizados</Pill>{/if}
+              {#if p.role === 'doctor' && (p.areas?.length ?? 0) > 0}<Pill tone="info">{areaText(p)}</Pill>{/if}
             </p>
             <p class="truncate text-sm text-app-muted">{p.email || `@${p.username}`} · {p.last_login_at ? `entró ${ago(p.last_login_at)}` : 'aún no ha entrado'}</p>
           </div>
@@ -165,6 +188,7 @@
               {#each CLINIC_ROLES as r}<option value={r}>{ROLES[r].label}</option>{/each}
             </select>
             <div class="flex gap-1">
+              {#if p.role === 'doctor' && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Áreas de atención" aria-label="Áreas de {p.name}" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
               {#if p.role !== 'admin'}<button type="button" class="icon-btn" title="Permisos" aria-label="Permisos de {p.name}" onclick={() => (permsFor = p)}><Icon name="shield" size={18} /></button>{/if}
               <button type="button" class="icon-btn" title="Restablecer contraseña" aria-label="Restablecer la contraseña de {p.name}" onclick={() => { newPassword = ''; pwOp.reset(); pwFor = p; }}><Icon name="key" size={18} /></button>
               <button type="button" class="icon-btn danger" title="Desactivar" aria-label="Desactivar a {p.name}" onclick={() => { toggleOp.reset(); toggle = { person: p, disable: true }; }}><Icon name="ban" size={18} /></button>
@@ -259,6 +283,7 @@
         {/each}
       </div>
     </fieldset>
+    {#if form.role === 'doctor'}<div class="sm:col-span-2"><AreaPicker bind:value={form.areas} /></div>{/if}
   </form>
   {#if addOp.phase === 'error'}
     <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{addOp.message}</p>
@@ -268,6 +293,15 @@
     <button type="submit" form="add-member" class="btn-primary" disabled={addOp.phase === 'loading'}>
       {#if addOp.phase === 'loading'}<span class="spin"></span>{/if}Agregar
     </button>
+  {/snippet}
+</Modal>
+
+<Modal open={areasFor !== null} title="Áreas de {areasFor?.name ?? ''}" onclose={() => (areasFor = null)}>
+  <AreaPicker bind:value={areasValue} />
+  {#if areasOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{areasOp.message}</p>{/if}
+  {#snippet footer()}
+    <button type="button" class="btn-secondary" onclick={() => (areasFor = null)}>Cancelar</button>
+    <button type="button" class="btn-primary" disabled={areasOp.phase === 'loading'} onclick={saveAreas}>Guardar</button>
   {/snippet}
 </Modal>
 
