@@ -253,3 +253,64 @@ func TestRxCatalogs(t *testing.T) {
 		t.Fatalf("deleted medicine still found: %d", n)
 	}
 }
+
+// A new receta replaces the earlier ones of the same area; a complement and another area's recetas are untouched.
+func TestRxReplacesPreviousOfSameArea(t *testing.T) {
+	e := setup(t)
+	e.exec(`UPDATE clinics SET kind = 'GENERAL_MEDICAL', specialties = '{NUTRITION}' WHERE id = $1`, e.clinicA)
+	doc := rxDoctor(t, e, "doc_a")
+	admin := e.login("admin_a")
+	pid := sub(doc.expect(201, "POST", "/api/patients/", person(map[string]any{"profile": map[string]any{"allergies_text": "Ninguna conocida"}})), "patient")["id"].(string)
+	url := "/api/patients/" + pid + "/prescriptions"
+	voided := func() int {
+		n := 0
+		for _, x := range doc.expect(200, "GET", url, nil)["prescriptions"].([]any) {
+			if x.(map[string]any)["voided_at"] != nil {
+				n++
+			}
+		}
+		return n
+	}
+	body := func(extra map[string]any) map[string]any {
+		b := rxBody(rxItem("Paracetamol", nil))
+		for k, v := range extra {
+			b[k] = v
+		}
+		return b
+	}
+	first := sub(doc.expect(201, "POST", url, body(nil)), "prescription")
+	if first["area"] != "GENERAL_MEDICAL" {
+		t.Fatalf("area: %v", first["area"])
+	}
+	// complementary: the first stays valid
+	doc.expect(201, "POST", url, body(map[string]any{"complementary": true}))
+	if voided() != 0 {
+		t.Fatal("a complement must not replace the earlier receta")
+	}
+	// another area does not affect them either
+	doc.expect(400, "POST", url, body(map[string]any{"area": "VETERINARY"})) // not a giro of the clinic
+	doc.expect(201, "POST", url, body(map[string]any{"area": "NUTRITION"}))
+	if voided() != 0 {
+		t.Fatal("a receta of another area must not replace these")
+	}
+	// a plain new one replaces the earlier ones of its area (the general ones), not the nutrition one
+	out := doc.expect(201, "POST", url, body(nil))
+	if out["replaced"].(float64) != 2 || voided() != 2 {
+		t.Fatalf("replaced: %v voided: %d", out["replaced"], voided())
+	}
+	// dropping a giro hides its recetas without deleting them
+	before := len(doc.expect(200, "GET", url, nil)["prescriptions"].([]any))
+	e.exec(`UPDATE clinics SET specialties = '{}' WHERE id = $1`, e.clinicA)
+	if got := len(doc.expect(200, "GET", url, nil)["prescriptions"].([]any)); got != before-1 {
+		t.Fatalf("the nutrition receta must be hidden: %d of %d", got, before)
+	}
+	var stored int
+	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM prescriptions WHERE patient_id = $1`, pid).Scan(&stored); err != nil || stored != before {
+		t.Fatalf("recetas must stay stored: %d %v", stored, err)
+	}
+	e.exec(`UPDATE clinics SET specialties = '{NUTRITION}' WHERE id = $1`, e.clinicA)
+	if got := len(doc.expect(200, "GET", url, nil)["prescriptions"].([]any)); got != before {
+		t.Fatalf("it must come back with the giro: %d", got)
+	}
+	_ = admin
+}

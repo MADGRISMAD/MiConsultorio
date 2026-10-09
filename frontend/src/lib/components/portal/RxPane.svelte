@@ -12,6 +12,7 @@
 
   let list = $state<PortalPrescription[]>([]);
   let clinic = $state({ name: '', address: '', phone: '' });
+  let byArea = $state(false);
   let loaded = $state(false);
   let openId = $state('');
   const loadOp = new Op();
@@ -22,11 +23,23 @@
       const r = await portalApi.prescriptions();
       list = r.prescriptions;
       clinic = r.clinic;
+      byArea = !!r.by_area;
       loaded = true;
     })
   );
 
   const shown = $derived(list.filter((r) => !patientId || r.patient_id === patientId));
+  /** a clinic with several giros: the recetas are listed apart by area (the clinic's own order of first appearance) */
+  const groups = $derived.by(() => {
+    if (!byArea) return [{ key: '', label: '', items: shown }];
+    const map = new Map<string, { key: string; label: string; items: PortalPrescription[] }>();
+    for (const r of shown) {
+      const key = r.area || '';
+      if (!map.has(key)) map.set(key, { key, label: r.area_label || 'General', items: [] });
+      map.get(key)!.items.push(r);
+    }
+    return [...map.values()];
+  });
   const fmt = (iso: string) => fmtDate(iso.length === 10 ? `${iso}T12:00:00` : iso, { day: 'numeric', month: 'long', year: 'numeric' });
   const expired = (r: PortalPrescription) => !!r.valid_until && r.valid_until < new Date().toISOString().slice(0, 10);
 
@@ -44,8 +57,10 @@
   <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.rx.none')}</div>
 {:else}
   {#if printOp.phase === 'error'}<p class="alert mb-3" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+  {#each groups as g (g.key)}
+  {#if g.label}<h3 class="section-title mb-2 mt-5 first:mt-0">{g.label}</h3>{/if}
   <ul class="grid gap-3">
-    {#each shown as r (r.id)}
+    {#each g.items as r (r.id)}
       {@const isOpen = openId === r.id}
       <li class="card px-4 py-4 sm:px-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -55,6 +70,7 @@
             {#if multi}<p class="mt-0.5 text-sm">Paciente: <strong>{r.patient_name}</strong></p>{/if}
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            {#if r.complementary}<span class="pill">Complementaria</span>{/if}
             {#if r.voided}<span class="pill pill-bad">{t('portal.rx.voided')}</span>
             {:else if expired(r)}<span class="pill pill-warn">{t('portal.rx.expired')}</span>
             {:else}<span class="pill pill-ok">{r.valid_until ? t('portal.rx.validUntil', { date: fmt(r.valid_until) }) : t('portal.rx.valid')}</span>{/if}
@@ -91,4 +107,5 @@
       </li>
     {/each}
   </ul>
+  {/each}
 {/if}

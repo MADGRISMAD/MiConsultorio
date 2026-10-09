@@ -2,7 +2,9 @@
   import { api, ApiError } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { printReceta } from '$lib/print';
+  import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
+  import { CLINIC_KINDS } from '$lib/types';
   import { rxApi } from '$lib/api/rx';
   import type { Patient, PatientSchema, Prescription, RxControl } from '$lib/types';
   import type { CatalogMed, DoseResult, Icd10, RxItemInput } from '$lib/types/rx';
@@ -51,6 +53,23 @@
   let instructions = $state('');
   let nextVisit = $state('');
   let validDays = $state(30);
+  // the patient's valid recetas: a new one replaces those of the same area unless it is a complement
+  let earlier = $state<Prescription[]>([]);
+  let complementary = $state(false);
+  let area = $state('');
+  const clinicKinds = $derived(schema.kinds ?? []);
+  const myAreas = $derived(session.user?.role === 'admin' ? [] : (session.user?.areas ?? []));
+  const areaPool = $derived(myAreas.length ? clinicKinds.filter((k) => myAreas.includes(k)) : clinicKinds);
+  const effectiveArea = $derived(area || areaPool[0] || '');
+  const sameArea = $derived(earlier.filter((r) => !r.voided_at && (r.area ?? '') === effectiveArea));
+  const kindLabel = (k: string) => CLINIC_KINDS[k as keyof typeof CLINIC_KINDS]?.label ?? k;
+  async function loadEarlier() {
+    try {
+      earlier = await api.patients.prescriptions(patient.id);
+    } catch {
+      earlier = [];
+    }
+  }
   let error = $state('');
   let needCedula = $state(false);
   let created = $state<Prescription | null>(null);
@@ -68,6 +87,10 @@
       confirmed = {};
       reasonText = weight = weightNote = '';
       loadWeight();
+      complementary = false;
+      area = '';
+      earlier = [];
+      loadEarlier();
       instructions = nextVisit = error = '';
       if (nextVisitSeed >= today) nextVisit = nextVisitSeed;
       validDays = 30;
@@ -169,6 +192,8 @@
           instructions: instructions.trim(),
           ...(nextVisit ? { next_visit: nextVisit } : {}),
           valid_days: validDays,
+          ...(areaPool.length > 1 ? { area: effectiveArea } : {}),
+          ...(complementary && sameArea.length ? { complementary: true } : {}),
           ...(!instr && w > 0 ? { weight_kg: w } : {}),
           ...(confirmed.allergy ? { allergy_override_reason: confirmed.allergy } : {}),
           ...(confirmed.dose ? { dose_override_reason: confirmed.dose } : {})
@@ -329,6 +354,31 @@
         <div>
           <label class="label" for="rx-ins">Indicaciones generales</label>
           <textarea id="rx-ins" class="field min-h-24" rows="3" bind:value={instructions} placeholder="Reposo, hidratación, datos de alarma…"></textarea>
+        </div>
+      {/if}
+
+      {#if areaPool.length > 1}
+        <div>
+          <label class="label" for="rx-area">Área que emite {instr ? 'la hoja' : 'la receta'}</label>
+          <select id="rx-area" class="field" bind:value={area}>
+            {#each areaPool as k (k)}<option value={k}>{kindLabel(k)}</option>{/each}
+          </select>
+          <p class="hint">Las recetas de otra área no se ven afectadas.</p>
+        </div>
+      {/if}
+      {#if sameArea.length}
+        <div class="rounded-xl border border-app-ink/12 bg-app-elevated px-4 py-3 text-sm">
+          <label class="flex cursor-pointer items-start gap-3">
+            <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={complementary} />
+            <span><strong>Es complementaria</strong> a la vigente</span>
+          </label>
+          <p class="mt-1.5 text-app-muted">
+            {#if complementary}
+              La{sameArea.length > 1 ? 's' : ''} {sameArea.length > 1 ? 'recetas' : 'receta'} {sameArea.map((r) => '#' + String(r.folio).padStart(6, '0')).join(', ')} seguirá{sameArea.length > 1 ? 'n' : ''} vigente{sameArea.length > 1 ? 's' : ''}.
+            {:else}
+              Al crear esta, {sameArea.length > 1 ? 'las recetas' : 'la receta'} {sameArea.map((r) => '#' + String(r.folio).padStart(6, '0')).join(', ')} de esta área {sameArea.length > 1 ? 'dejarán' : 'dejará'} de ser válida{sameArea.length > 1 ? 's' : ''}. Márcala como complementaria si solo añade a la anterior.
+            {/if}
+          </p>
         </div>
       {/if}
 

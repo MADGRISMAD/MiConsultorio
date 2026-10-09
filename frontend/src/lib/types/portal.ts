@@ -62,6 +62,10 @@ export interface PortalPrescription {
   author_institution: string;
   voided: boolean;
   voided_at: string | null;
+  /** giro that issued it, and its name */
+  area?: string;
+  area_label?: string;
+  complementary?: boolean;
 }
 
 export interface PortalVaccination {

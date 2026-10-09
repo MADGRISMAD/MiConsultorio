@@ -337,6 +337,7 @@ func TestPrescriptions(t *testing.T) {
 	}
 	withReason := rx(item, abx)
 	withReason["allergy_override_reason"] = "Tolera amoxicilina, documentado por alergología"
+	withReason["complementary"] = true // otherwise it would replace the first one
 	r2 := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/prescriptions", withReason), "prescription")
 	if r1["folio"].(float64) != 1 || r2["folio"].(float64) != 2 || r1["author_license"] != "12345678" || r1["author_title"] != "Médico Cirujano" || r1["valid_until"] == nil || len(r2["items"].([]any)) != 2 {
 		t.Fatalf("prescriptions: %v %v", r1, r2)

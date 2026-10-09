@@ -63,20 +63,22 @@ type prescription struct {
 	VoidedBy               string     `json:"voided_by"`
 	VoidReason             string     `json:"void_reason"`
 	WeightKg               *float64   `json:"weight_kg"`
+	Area                   string     `json:"area"`
+	Complementary          bool       `json:"complementary"`
 	AllergyOverrideReason  string     `json:"allergy_override_reason,omitempty"`
 	DoseOverrideReason     string     `json:"dose_override_reason,omitempty"`
 }
 
 const rxCols = `id, patient_id::text, encounter_id::text, folio, mode, issued_at, to_char(valid_until,'YYYY-MM-DD'), diagnosis, items, instructions,
 	to_char(next_visit,'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, author_specialty_license, voided_at, voided_by, void_reason,
-	weight_kg::float8, allergy_override_reason, dose_override_reason`
+	weight_kg::float8, allergy_override_reason, dose_override_reason, area, complementary`
 
 func scanRx(row pgx.Row) (prescription, error) {
 	var x prescription
 	var raw []byte
 	err := row.Scan(&x.ID, &x.PatientID, &x.EncounterID, &x.Folio, &x.Mode, &x.IssuedAt, &x.ValidUntil, &x.Diagnosis, &raw, &x.Instructions,
 		&x.NextVisit, &x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.AuthorSpecialtyLicense, &x.VoidedAt, &x.VoidedBy, &x.VoidReason,
-		&x.WeightKg, &x.AllergyOverrideReason, &x.DoseOverrideReason)
+		&x.WeightKg, &x.AllergyOverrideReason, &x.DoseOverrideReason, &x.Area, &x.Complementary)
 	if err != nil {
 		return x, err
 	}
@@ -114,8 +116,21 @@ func (s *Server) listPrescriptions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"prescriptions": list})
 }
 
+// prescriptionsOf lists a patient's recetas, leaving out (not deleting) those of an area the clinic no longer works in.
 func (s *Server) prescriptionsOf(ctx context.Context, clinicID, patientID string) ([]prescription, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+rxCols+` FROM prescriptions WHERE clinic_id=$1 AND patient_id=$2 ORDER BY issued_at DESC LIMIT 500`, clinicID, patientID)
+	return s.prescriptionsFor(ctx, clinicID, patientID, false)
+}
+
+// prescriptionsFor with everything=true includes those of areas no longer active (the patient's own copy of the record).
+func (s *Server) prescriptionsFor(ctx context.Context, clinicID, patientID string, everything bool) ([]prescription, error) {
+	kinds, err := s.clinicKindsFor(ctx, clinicID)
+	if err != nil {
+		return nil, err
+	}
+	if everything {
+		kinds = slices.Clone(areaKeys)
+	}
+	rows, err := s.db.Query(ctx, `SELECT `+rxCols+` FROM prescriptions WHERE clinic_id=$1 AND patient_id=$2 AND (area = '' OR area = ANY($3::text[])) ORDER BY issued_at DESC LIMIT 500`, clinicID, patientID, kinds)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +157,10 @@ type rxIn struct {
 	WeightKg              float64 `json:"weight_kg"`
 	AllergyOverrideReason string  `json:"allergy_override_reason"`
 	DoseOverrideReason    string  `json:"dose_override_reason"`
+	// Area is the giro issuing it (only asked of someone who works in several or in all of them); Complementary keeps
+	// the patient's earlier receta of that area valid instead of replacing it.
+	Area          string `json:"area"`
+	Complementary bool   `json:"complementary"`
 }
 
 func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
@@ -301,6 +320,11 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		}
 		enc = in.EncounterID
 	}
+	area, msg := rxArea(p, kinds, in.Area)
+	if msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
 	raw, _ := json.Marshal(items)
 	rxID, sealedDx, sealedIns := newRowID(), in.Diagnosis, in.Instructions
 	if err := encFields("prescriptions", rxID, rxSealed, &sealedDx, &sealedIns); err != nil {
@@ -308,6 +332,7 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var out prescription
+	replaced := 0
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		var folio int
 		if err := tx.QueryRow(r.Context(), `UPDATE clinics SET rx_seq = rx_seq + 1 WHERE id = $1 RETURNING rx_seq`, p.ClinicID).Scan(&folio); err != nil {
@@ -316,15 +341,27 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		row := tx.QueryRow(r.Context(), `
 			INSERT INTO prescriptions (clinic_id, patient_id, encounter_id, folio, mode, valid_until, diagnosis, items, instructions, next_visit,
 				author_id, author_name, author_title, author_license, author_institution, author_specialty_license,
-				verify_token, weight_kg, allergy_override_reason, dose_override_reason, id)
-			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid) RETURNING `+rxCols,
+				verify_token, weight_kg, allergy_override_reason, dose_override_reason, id, area, complementary)
+			VALUES ($1,$2,$3,$4,$5,$6::date,$7,$8,$9,$10::date,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid,$22,$23) RETURNING `+rxCols,
 			p.ClinicID, id, enc, folio, mode, valid, sealedDx, raw, sealedIns, next, p.UserID, p.actorName(), title, license, institution, specLicense,
-			newVerifyToken(), weight, in.AllergyOverrideReason, in.DoseOverrideReason, rxID)
+			newVerifyToken(), weight, in.AllergyOverrideReason, in.DoseOverrideReason, rxID, area, in.Complementary)
 		var err error
 		if out, err = scanRx(row); err != nil {
 			return err
 		}
-		meta := map[string]any{"patient": id}
+		// The new receta replaces the patient's earlier ones of the same area; a complement keeps them, and
+		// another area's recetas are not affected. The records stay, marked as replaced.
+		if !in.Complementary {
+			tag, err := tx.Exec(r.Context(), `
+				UPDATE prescriptions SET voided_at = now(), voided_by = 'Sistema', void_reason = $4
+				WHERE clinic_id = $1 AND patient_id = $2 AND area = $3 AND voided_at IS NULL AND id <> $5::uuid`,
+				p.ClinicID, id, area, "Reemplazada por la receta #"+itoa(folio), rxID)
+			if err != nil {
+				return err
+			}
+			replaced = int(tag.RowsAffected())
+		}
+		meta := map[string]any{"patient": id, "area": area, "replaced": replaced, "complementary": in.Complementary}
 		if in.AllergyOverrideReason != "" {
 			meta["allergy_override_reason"] = in.AllergyOverrideReason
 		}
@@ -338,7 +375,7 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"prescription": out})
+	writeJSON(w, http.StatusCreated, map[string]any{"prescription": out, "replaced": replaced})
 }
 
 func (s *Server) voidPrescription(w http.ResponseWriter, r *http.Request) {

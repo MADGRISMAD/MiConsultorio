@@ -71,3 +71,42 @@ func areaNames(areas []string) string {
 	}
 	return strings.ToLower(strings.Join(names, ", "))
 }
+
+// rxArea is the giro a receta belongs to: the author's only area; otherwise the one they choose among theirs (or the
+// clinic's, if they work in all); by default the clinic's main giro.
+func rxArea(p *Principal, kinds []string, chosen string) (string, string) {
+	pool := kinds
+	if len(p.Areas) > 0 && p.Role != RoleAdmin {
+		pool = slices.DeleteFunc(slices.Clone(p.Areas), func(a string) bool { return !slices.Contains(kinds, a) })
+	}
+	if chosen != "" {
+		if !slices.Contains(pool, chosen) {
+			return "", "Esa área no es una de las tuyas."
+		}
+		return chosen, ""
+	}
+	if len(pool) > 0 {
+		return pool[0], ""
+	}
+	return "", ""
+}
+
+// chartsOfDroppedGiros are the kinds of record that belong only to giros the clinic no longer works in: they stay stored but are not shown.
+func chartsOfDroppedGiros(active []string) []string {
+	out := []string{}
+	for kind, giros := range chartGiros {
+		if !slices.ContainsFunc(giros, func(g string) bool { return slices.Contains(active, g) }) {
+			out = append(out, kind)
+		}
+	}
+	return out
+}
+
+// areaKeys are all the giros there are.
+var areaKeys = func() []string {
+	out := make([]string, 0, len(areaLabels))
+	for k := range areaLabels {
+		out = append(out, k)
+	}
+	return out
+}()

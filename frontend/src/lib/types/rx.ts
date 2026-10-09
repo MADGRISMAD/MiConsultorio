@@ -63,6 +63,10 @@ export interface RxInput {
   weight_kg?: number;
   allergy_override_reason?: string;
   dose_override_reason?: string;
+  /** giro issuing it (when the person works in several) */
+  area?: string;
+  /** complements an earlier receta instead of replacing it */
+  complementary?: boolean;
 }
 
 export interface AllergyConflict {

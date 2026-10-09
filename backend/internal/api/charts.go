@@ -269,7 +269,13 @@ func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	hidden := []string{} // psychotherapy records are for the professionals of that area
+	activeKinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	droppedCharts := chartsOfDroppedGiros(activeKinds) // kept in the database, not shown
+	hidden := []string{}                               // psychotherapy records are for the professionals of that area
 	if !p.worksIn("PSYCHOLOGY") {
 		hidden = confidentialCharts
 	}
@@ -277,8 +283,8 @@ func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "Estos registros son solo del área de psicología.")
 		return
 	}
-	rows, err := s.db.Query(r.Context(), `SELECT `+chartCols+` FROM patient_charts WHERE clinic_id=$1 AND patient_id=$2 AND ($3 = '' OR kind=$3) AND NOT (kind = ANY($4::text[]))
-		ORDER BY created_at DESC LIMIT 100`, p.ClinicID, id, kind, hidden)
+	rows, err := s.db.Query(r.Context(), `SELECT `+chartCols+` FROM patient_charts WHERE clinic_id=$1 AND patient_id=$2 AND ($3 = '' OR kind=$3) AND NOT (kind = ANY($4::text[])) AND NOT (kind = ANY($5::text[]))
+		ORDER BY created_at DESC LIMIT 100`, p.ClinicID, id, kind, hidden, droppedCharts)
 	if err != nil {
 		serverError(w, r, err)
 		return

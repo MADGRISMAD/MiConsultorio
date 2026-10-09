@@ -42,7 +42,7 @@ func (s *Server) exportPatient(w http.ResponseWriter, r *http.Request) {
 			withheld++
 		}
 	}
-	rxs, err := s.prescriptionsOf(r.Context(), p.ClinicID, id)
+	rxs, err := s.prescriptionsFor(r.Context(), p.ClinicID, id, true)
 	if err != nil {
 		serverError(w, r, err)
 		return

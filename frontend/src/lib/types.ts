@@ -799,6 +799,8 @@ export interface Prescription {
   voided_at: string | null;
   voided_by: string;
   void_reason: string;
+  area?: string;
+  complementary?: boolean;
 }
 
 export interface PrescriptionInput {

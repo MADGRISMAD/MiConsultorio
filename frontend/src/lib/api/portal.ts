@@ -19,7 +19,7 @@ export const portalApi = {
     request<{ upcoming: PortalAppointment[]; history: PortalAppointment[]; cancel_min_hours: number }>('GET', '/portal/appointments'),
   cancel: (id: string, reason: string) => request<{ ok: boolean }>('POST', `/portal/appointments/${seg(id)}/cancel`, { reason }),
   prescriptions: () =>
-    request<{ prescriptions: PortalPrescription[]; clinic: { name: string; address: string; phone: string } }>('GET', '/portal/prescriptions'),
+    request<{ prescriptions: PortalPrescription[]; by_area?: boolean; clinic: { name: string; address: string; phone: string } }>('GET', '/portal/prescriptions'),
   vaccinations: () => request<{ vaccinations: PortalVaccination[] }>('GET', '/portal/vaccinations'),
 
   // clinic side (staff session)
