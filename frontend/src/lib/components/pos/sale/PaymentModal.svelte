@@ -45,7 +45,9 @@
 
   let seq = 0;
   let payments = $state<PayLine[]>([]);
-  let method = $state<PayMethod>('cash');
+  // 'mixed' is not a payment method of its own: it adds a card payment (own terminal) and a cash payment in one step
+  let method = $state<PayMethod | 'mixed'>('cash');
+  let cardPart = $state<number | null>(null);
   let amount = $state<number | null>(null);
   let received = $state<number | null>(null);
   let reference = $state('');
@@ -64,6 +66,10 @@
   const remaining = $derived(total - paid);
   const waiting = $derived(charge?.status === 'open');
   const methods = $derived(settings.methods.length ? settings.methods : (['cash'] as PayMethod[]));
+  /** mixed payment needs cash and the clinic's own card terminal */
+  const canMix = $derived(methods.includes('cash') && methods.includes('card'));
+  const cashPart = $derived(cardPart != null && cardPart > 0 && cardPart < remaining ? remaining - cardPart : null);
+  const mixedChange = $derived(cashPart != null && received != null ? Math.max(0, received - cashPart) : 0);
   const change = $derived(method === 'cash' && received != null && amount != null ? Math.max(0, received - amount) : 0);
   const totalChange = $derived(payments.reduce((a, p) => a + Math.max(0, (p.received_cents ?? p.amount_cents) - p.amount_cents), 0));
 
@@ -81,6 +87,7 @@
 
   function resetForm() {
     amount = remaining > 0 ? remaining : null;
+    cardPart = null;
     received = null;
     reference = '';
     formError = '';
@@ -96,7 +103,8 @@
     untrack(resetForm);
   });
   $effect(() => {
-    if (!methods.includes(method)) method = methods[0];
+    if (method !== 'mixed' && !methods.includes(method)) method = methods[0];
+    if (method === 'mixed' && !canMix) method = methods[0];
   });
   $effect(() => {
     if (open && method === 'mp_point' && !pointLoaded) untrack(loadPoint);
@@ -128,6 +136,7 @@
 
   function addManual() {
     formError = '';
+    if (method === 'mixed') return;
     if (!amount || amount <= 0) return void (formError = 'Escribe el monto del pago.');
     if (amount > remaining) return void (formError = `El monto supera lo que falta (${moneyCents(remaining)}).`);
     if (method === 'cash') {
@@ -137,6 +146,18 @@
       addLine({ method, amount_cents: amount, reference: reference.trim() || undefined });
     }
     // A single payment that covers the whole account closes the sale right away: one tap instead of two.
+    if (remaining === 0 && !busy) onconfirm(payments.map(({ id: _id, ...p }) => p), onAccount);
+  }
+
+  /** Mixed payment: part on the own card terminal (with the voucher reference), the rest in cash with change. */
+  function addMixed() {
+    formError = '';
+    if (cardPart == null || cardPart <= 0) return void (formError = 'Escribe cuánto se paga con tarjeta.');
+    if (cardPart >= remaining) return void (formError = `La parte con tarjeta debe ser menor a lo que falta (${moneyCents(remaining)}); si todo es con tarjeta, usa Tarjeta.`);
+    const cash = remaining - cardPart;
+    if (received != null && received < cash) return void (formError = 'El efectivo recibido es menor a lo que falta en efectivo.');
+    addLine({ method: 'card', amount_cents: cardPart, reference: reference.trim() || undefined });
+    addLine({ method: 'cash', amount_cents: cash, received_cents: received ?? cash });
     if (remaining === 0 && !busy) onconfirm(payments.map(({ id: _id, ...p }) => p), onAccount);
   }
 
@@ -299,6 +320,19 @@
               <span class="block text-xs text-app-muted">{PAY_METHODS[m]?.hint}</span>
             </button>
           {/each}
+          {#if canMix}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={method === 'mixed'}
+              disabled={waiting}
+              class="min-h-14 rounded-xl px-3 py-2 text-left text-sm transition disabled:opacity-50 {method === 'mixed' ? 'bg-app-primary/10 ring-2 ring-app-primary' : 'ring-1 ring-inset ring-app-ink/15 hover:bg-app-elevated'}"
+              onclick={() => (method = 'mixed')}
+            >
+              <span class="block font-medium leading-tight">Mixto</span>
+              <span class="block text-xs text-app-muted">Parte con tarjeta y el resto en efectivo</span>
+            </button>
+          {/if}
         </div>
 
         {#if mpMissing}
@@ -347,6 +381,43 @@
             </button>
           {/if}
           {#if mpError}<p class="alert" role="alert"><Icon name="alert" size={18} />{mpError}</p>{/if}
+        {:else if method === 'mixed'}
+          <form
+            class="space-y-4"
+            onsubmit={(e) => {
+              e.preventDefault();
+              addMixed();
+            }}
+          >
+            <MoneyInput id="{uid}-card" label="Parte con tarjeta (terminal propia)" bind:cents={cardPart} />
+            <div>
+              <label class="label" for="{uid}-mref">Referencia del voucher (opcional)</label>
+              <input id="{uid}-mref" class="field" bind:value={reference} maxlength="80" autocomplete="off" placeholder="Últimos 4 dígitos o folio del voucher" />
+            </div>
+            <div class="flex items-baseline justify-between rounded-xl bg-app-elevated px-4 py-3" aria-live="polite">
+              <span class="text-sm text-app-muted">Resto en efectivo</span>
+              <span class="display text-3xl tabular-nums">{cashPart != null ? moneyCents(cashPart) : '—'}</span>
+            </div>
+            {#if cashPart != null}
+              <div>
+                <MoneyInput id="{uid}-mrec" label="Efectivo recibido" bind:cents={received} placeholder={String(cashPart / 100)} />
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <button type="button" class="btn-secondary min-h-11" onclick={() => (received = cashPart)}>Exacto</button>
+                  {#each [5000, 10000, 20000, 50000, 100000].map((d) => Math.ceil(cashPart / d) * d).filter((v, i, a) => v > cashPart && a.indexOf(v) === i).slice(0, 3) as v (v)}
+                    <button type="button" class="btn-secondary min-h-11" onclick={() => (received = v)}>{moneyCents(v).replace(/\.00$/, '')}</button>
+                  {/each}
+                </div>
+              </div>
+              <div class="flex items-baseline justify-between rounded-xl bg-app-elevated px-4 py-3" aria-live="polite">
+                <span class="text-sm text-app-muted">Cambio</span>
+                <span class="display text-3xl tabular-nums {received != null && received < cashPart ? 'text-app-danger' : ''}">
+                  {received != null && received < cashPart ? 'Falta ' + moneyCents(cashPart - received) : moneyCents(mixedChange)}
+                </span>
+              </div>
+            {/if}
+            <p class="hint">Cobra {cardPart ? moneyCents(cardPart) : 'la parte de tarjeta'} en tu terminal y confirma aquí cuando salga aprobado.</p>
+            <button type="submit" class="btn-primary btn-lg min-h-12">Cobrar {moneyCents(remaining)} (mixto)</button>
+          </form>
         {:else}
           <form
             class="space-y-4"

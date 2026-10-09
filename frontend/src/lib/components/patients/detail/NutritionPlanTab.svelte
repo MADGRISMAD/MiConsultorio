@@ -5,6 +5,7 @@
   import { BODY_MEASURES, bmiLabel, bmiOf, latestMeasures, numOf } from '$lib/nutritionMeasures';
   import { Op } from '$lib/op.svelte';
   import { printNutritionPlan } from '$lib/print';
+  import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { Encounter, Patient } from '$lib/types';
   import type { NutritionDay, NutritionMeal, NutritionPlanData, PatientChart } from '$lib/types/specialty';
@@ -313,8 +314,18 @@
   }
   async function print() {
     const v = viewed;
+    // whoever signed the saved version; for a draft, the person printing it
+    const saved = v ?? (dirty || editing ? undefined : history[0]);
+    const me = session.user;
+    const mine = !saved || saved.created_by_name === me?.name;
+    const author = {
+      title: saved?.author_title || (mine ? (me?.professional?.title ?? '') : ''),
+      cedula: saved?.author_cedula || (mine ? (me?.professional?.cedula ?? '') : ''),
+      phone: saved?.author_phone ?? '',
+      email: saved?.author_email || (mine ? (me?.email ?? '') : '')
+    };
     try {
-      await printNutritionPlan(patient, { data: shown, note: v?.note ?? note, at: v?.created_at ?? new Date().toISOString(), by: v?.created_by_name ?? '' });
+      await printNutritionPlan(patient, { data: shown, note: v?.note ?? note, at: saved?.created_at ?? new Date().toISOString(), by: saved?.created_by_name ?? me?.name ?? '', author });
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'No se pudo imprimir.', 'error');
     }

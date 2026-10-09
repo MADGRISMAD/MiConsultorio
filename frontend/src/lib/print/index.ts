@@ -62,7 +62,7 @@ export async function printChart(
   await printHtml(chartHtml(patient, kind, chart, await loadIssuer(), highlight));
 }
 
-export async function printNutritionPlan(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string }): Promise<void> {
+export async function printNutritionPlan(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string; author?: { title: string; cedula: string; phone: string; email: string } }): Promise<void> {
   await printHtml(nutritionPlanHtml(patient, plan, await loadIssuer()));
 }
 

@@ -156,6 +156,11 @@ export interface PatientChart<T = OdontogramData | BodymapData | NutritionPlanDa
   encounter_id: string | null;
   created_by_name: string;
   created_at: string;
+  /** the author's professional data (empty for charts saved before it was recorded) */
+  author_title?: string;
+  author_cedula?: string;
+  author_phone?: string;
+  author_email?: string;
 }
 
 export interface ChartList {

@@ -83,7 +83,10 @@ ${content}
   return doc(title, body, '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 6px;font-size:11px}.grid-t th{background:#eee}');
 }
 
-export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string }, clinic: Issuer): string {
+/** Shrinks the menu's text until page 1 holds it all, then stretches the table to fill what is left of the sheet. */
+const FIT_MENU_SCRIPT = `<script>(function(){var m=document.querySelector('.menu');if(!m)return;var max=246/25.4*96,fs=10;m.style.width='195mm';m.style.setProperty('--fs',fs+'px');while(m.offsetHeight>max&&fs>5.5){fs-=0.25;m.style.setProperty('--fs',fs+'px');}var t=m.querySelector('.week');if(t&&m.offsetHeight<max){t.style.height=(t.offsetHeight+max-m.offsetHeight-6)+'px';}})();</script>`;
+
+export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string; author?: { title: string; cedula: string; phone: string; email: string } }, clinic: Issuer): string {
   const d = plan.data;
   const grams = (pct: number, per: number) => (d.kcal && pct ? Math.round((d.kcal * pct) / 100 / per) : 0);
   const macro = (label: string, pct: number, per: number) => (pct ? `<td><strong>${e(label)}</strong><br>${pct} % · ${grams(pct, per)} g</td>` : '');
@@ -109,9 +112,15 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
   // Page 1 is the menu alone, filling the sheet and signed right under it (the patient often keeps only that sheet).
   // Everything else (advice, foods to avoid, supplements, next visit) goes on page 2.
   const extras = [block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? ''), block('Recomendaciones', d.recommendations), block('Alimentos o hábitos a evitar', d.avoid), block('Suplementos', d.supplements)].join('');
+  // who attended: name, profession, cédula and contact, in the same data box as the patient
+  const au = plan.author;
+  const proRow = (k: string, v: string) => (v ? `<div><span class="k">${e(k)}</span>${e(v)}</div>` : '');
+  const proBlock = plan.by || au
+    ? `<div class="grid pro">${proRow('Atendió', plan.by)}${proRow('Profesión', au?.title ?? '')}${proRow('Cédula profesional', au?.cedula ?? '')}${proRow('Contacto', [au?.phone, au?.email].filter(Boolean).join(' · '))}</div>`
+    : '';
   const hasPage2 = !!(extras || d.follow_up_days || plan.note);
   const body = `<section class="menu"><div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
-<div class="box nobreak">${patientBlock(patient)}</div>
+<div class="box nobreak">${patientBlock(patient)}${proBlock}</div>
 ${d.goal ? `<p><span class="k">Objetivo</span><strong>${e(d.goal)}</strong></p>` : ''}
 ${d.kcal ? `<table class="grid-t nobreak"><tbody><tr><td><strong>Energía</strong><br>${d.kcal} kcal al día</td>${macro('Proteínas', d.protein_pct, 4)}${macro('Carbohidratos', d.carb_pct, 4)}${macro('Grasas', d.fat_pct, 9)}${d.water_liters ? `<td><strong>Agua</strong><br>${d.water_liters} L al día</td>` : ''}</tr></tbody></table>` : ''}
 ${meals ? `<h2 style="margin-top:12px">${days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h2>${meals}` : ''}
@@ -123,16 +132,16 @@ ${plan.note ? `<p><span class="k">Nota</span>${multiline(plan.note)}</p>` : ''}$
 ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_days} días aproximadamente.</p>` : ''}
 <div class="small" style="margin-top:14px;text-align:center;color:#333">${e(FOOTER_CONF)}</div></section>`
       : `<div class="small" style="margin-top:8px;text-align:center;color:#333">${e(FOOTER_CONF)}</div>`
-  }`;
+  }${FIT_MENU_SCRIPT}`;
   return doc(
     'Plan nutricional',
     body,
     '@page{size:letter portrait;margin:10mm 10mm 12mm}h2{margin:10px 0 4px;break-after:avoid;page-break-after:avoid}p{orphans:2;widows:2}' +
       '.menu{break-after:page;page-break-after:always}.more{padding-top:2mm}.more p{font-size:12.5px;line-height:1.5}.more h2{font-size:14px}' +
-      '.grid-t th,.grid-t td{border:1px solid #000;padding:5px 6px;font-size:10px;line-height:1.3;vertical-align:top}.grid-t th{background:#eee}' +
-      '.week{table-layout:fixed;height:150mm}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
+      '.menu .head{padding-bottom:4px;margin-bottom:4px}.menu h1{font-size:16px}.menu .box{padding:4px 8px;margin:4px 0}.menu .grid{grid-template-columns:repeat(4,1fr);gap:1px 12px;font-size:10px}.menu .grid .k{font-size:7.5px}.menu p{margin:0 0 3px}.menu h2{margin:6px 0 3px;font-size:12px}.menu .sig{margin-top:8mm}.menu{--fs:10px}.grid-t th,.grid-t td{border:1px solid #000;padding:4px 5px;font-size:var(--fs);line-height:1.25;vertical-align:top}.grid-t th{background:#eee}.pro{border-top:1px solid #999;margin-top:5px;padding-top:5px}' +
+      '.week{table-layout:fixed}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
       '.week thead{height:8mm}.week th.day{width:10%;text-align:left;font-size:10.5px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
-      '.week .k{color:#444;font-size:8.4px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}.menu .sig{margin-top:12mm}'
+      '.week .k{color:#444;font-size:8.4px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}'
   );
 }
 

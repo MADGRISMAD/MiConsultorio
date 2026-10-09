@@ -26,13 +26,20 @@ type patientChart struct {
 	EncounterID   *string         `json:"encounter_id"`
 	CreatedByName string          `json:"created_by_name"`
 	CreatedAt     time.Time       `json:"created_at"`
+	// the author's professional data as it is today (empty for charts saved before the author was recorded)
+	AuthorTitle  string `json:"author_title"`
+	AuthorCedula string `json:"author_cedula"`
+	AuthorPhone  string `json:"author_phone"`
+	AuthorEmail  string `json:"author_email"`
 }
 
-const chartCols = `id, patient_id::text, kind, data, note, encounter_id::text, created_by_name, created_at`
+const chartCols = `id, patient_id::text, kind, data, note, encounter_id::text, created_by_name, created_at,
+	coalesce((SELECT u.specialty_title FROM users u WHERE u.id = patient_charts.created_by), ''), coalesce((SELECT u.cedula FROM users u WHERE u.id = patient_charts.created_by), ''),
+	coalesce((SELECT u.phone FROM users u WHERE u.id = patient_charts.created_by), ''), coalesce((SELECT u.email FROM users u WHERE u.id = patient_charts.created_by), '')`
 
 func scanChart(row pgx.Row) (patientChart, error) {
 	var c patientChart
-	err := row.Scan(&c.ID, &c.PatientID, &c.Kind, &c.Data, &c.Note, &c.EncounterID, &c.CreatedByName, &c.CreatedAt)
+	err := row.Scan(&c.ID, &c.PatientID, &c.Kind, &c.Data, &c.Note, &c.EncounterID, &c.CreatedByName, &c.CreatedAt, &c.AuthorTitle, &c.AuthorCedula, &c.AuthorPhone, &c.AuthorEmail)
 	return c, err
 }
 
@@ -338,8 +345,8 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 		}
 		enc = in.EncounterID
 	}
-	row := s.db.QueryRow(r.Context(), `INSERT INTO patient_charts (clinic_id, patient_id, kind, data, note, encounter_id, created_by_name)
-		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING `+chartCols, p.ClinicID, id, in.Kind, []byte(in.Data), in.Note, enc, p.actorName())
+	row := s.db.QueryRow(r.Context(), `INSERT INTO patient_charts (clinic_id, patient_id, kind, data, note, encounter_id, created_by_name, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8::uuid) RETURNING `+chartCols, p.ClinicID, id, in.Kind, []byte(in.Data), in.Note, enc, p.actorName(), p.UserID)
 	c, err := scanChart(row)
 	if err != nil {
 		serverError(w, r, err)
