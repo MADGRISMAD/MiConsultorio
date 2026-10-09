@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { loadIssuer, printPrivacyNotice, privacyNoticeHtml } from '$lib/print';
-  import { Op } from '$lib/op.svelte';
+  import { loadIssuer, privacyNoticeHtml } from '$lib/print';
   import type { Issuer, Patient } from '$lib/types';
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
 
   interface Props {
     open: boolean;
-    /** the patient the notice is about (omit it for a new registration: the name is left blank) */
+    /** the patient the notice is about (omit it for a new registration) */
     patient?: Patient | null;
     /** animals get the owner's wording */
     animal?: boolean;
@@ -17,7 +16,6 @@
 
   let issuer = $state<Issuer | null>(null);
   let error = $state('');
-  const printOp = new Op();
 
   $effect(() => {
     if (!open || issuer) return;
@@ -28,11 +26,8 @@
     );
   });
 
-  const html = $derived.by(() => {
-    if (!issuer) return '';
-    // a new registration has no patient yet: the wording follows the kind of patient being registered
-    return privacyNoticeHtml(patient, animal && !patient ? { ...issuer, kind: 'VETERINARY' } : issuer);
-  });
+  // plain readable text: no consent box, no signature, nothing to print
+  const html = $derived(issuer ? privacyNoticeHtml(patient, animal && !patient ? { ...issuer, kind: 'VETERINARY' } : issuer, { reading: true }) : '');
 </script>
 
 <Modal {open} title="Aviso de privacidad" {onclose} wide>
@@ -41,14 +36,9 @@
   {:else if !issuer}
     <div class="h-64 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
   {:else}
-    <p class="mb-3 text-sm text-app-muted">Es el aviso de tu consultorio, con tus datos de contacto y de ARCO. Léeselo o entrégaselo al {animal ? 'propietario' : 'paciente'} antes de registrar su consentimiento.</p>
-    <iframe title="Aviso de privacidad" srcdoc={html} class="h-[60vh] w-full rounded-xl border border-app-ink/15 bg-white"></iframe>
-    {#if printOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+    <iframe title="Aviso de privacidad" srcdoc={html} class="h-[65vh] w-full rounded-xl border border-app-ink/15 bg-white"></iframe>
   {/if}
   {#snippet footer()}
-    <button type="button" class="btn-secondary" onclick={onclose}>Cerrar</button>
-    <button type="button" class="btn-primary" disabled={!issuer || printOp.phase === 'loading'} onclick={() => printOp.run(() => printPrivacyNotice(patient, animal && !patient && issuer ? { ...issuer, kind: 'VETERINARY' } : (issuer ?? undefined)))}>
-      <Icon name="receipt" size={18} />Imprimir
-    </button>
+    <button type="button" class="btn-primary" onclick={onclose}>Cerrar</button>
   {/snippet}
 </Modal>

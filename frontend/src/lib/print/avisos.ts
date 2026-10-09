@@ -14,10 +14,18 @@ function responsable(c: Issuer) {
 const subjectName = (p: Patient | null, animal: boolean) =>
   p ? (animal ? `${fullName(p)} (propietario: ${p.guardian_name || '________________'})` : fullName(p)) : '';
 
-export function privacyNoticeHtml(patient: Patient | null, c: Issuer): string {
+/** reading: the notice as plain text to read on screen, without the consent box and the signature block. */
+export function privacyNoticeHtml(patient: Patient | null, c: Issuer, opts: { reading?: boolean } = {}): string {
+  const reading = !!opts.reading;
   const animal = patient?.subject === 'animal' || (!patient && c.kind === 'VETERINARY');
   const r = responsable(c);
   const who = animal ? 'el propietario o responsable del animal' : 'el paciente (o su representante legal)';
+  // the consent and the signature are for the printed copy; on screen the notice is just read
+  const consent = `<h2>7. Consentimiento</h2>
+<p class="nobreak"><span class="cb"></span><strong>Otorgo mi consentimiento expreso para el tratamiento de mis datos personales y de salud para las finalidades descritas.</strong></p>
+<div class="nobreak" style="margin-top:14px">${patient ? `<p>${animal ? 'Propietario' : 'Paciente'}: <strong>${e(animal ? patient.guardian_name || '' : fullName(patient))}</strong>${animal ? `<br>Animal: ${e(subjectName(patient, false))}` : ''}</p>` : `<p>Nombre: ______________________________________________</p>`}
+<p class="small">Firmado por ${who}.</p>
+<div class="sigs"><div class="sig">Nombre y firma</div><div class="sig">Fecha: ____ / ____ / ________</div></div></div>`;
   const body = `
 <div class="head">${issuerBlock(c)}<div class="doc"><h1>Aviso de privacidad integral</h1><div class="small">Pacientes y ${animal ? 'propietarios' : 'usuarios de servicios de salud'}</div></div></div>
 <h2>1. Responsable del tratamiento</h2>
@@ -27,19 +35,15 @@ export function privacyNoticeHtml(patient: Patient | null, c: Issuer): string {
 <h2>3. Finalidades</h2>
 <p><strong>Finalidades primarias (necesarias):</strong> prestar atención ${animal ? 'veterinaria' : 'médica'}; integrar, conservar y resguardar el expediente clínico conforme a la NOM-004-SSA3-2012; agendar y dar seguimiento a citas; expedir recetas e indicaciones; y realizar cobro y facturación de los servicios.</p>
 <p><strong>Finalidades secundarias (opcionales):</strong> envío de recordatorios de citas, seguimiento y comunicación sobre su atención y servicios del establecimiento.</p>
-<p><span class="cb"></span>No deseo que mis datos se usen para las finalidades secundarias. <span class="small">(Su negativa no afecta la atención que recibe.)</span></p>
+${reading ? '<p class="small">Si no desea que sus datos se usen para las finalidades secundarias, puede indicarlo en cualquier momento; su negativa no afecta la atención que recibe.</p>' : '<p><span class="cb"></span>No deseo que mis datos se usen para las finalidades secundarias. <span class="small">(Su negativa no afecta la atención que recibe.)</span></p>'}
 <h2>4. Transferencias</h2>
 <p>Sus datos no se venden ni se usan con fines de mercadotecnia por terceros. Solo podrán comunicarse a autoridades sanitarias o judiciales cuando la ley lo exija, y a otros prestadores de servicios de salud ${animal ? 'veterinarios ' : ''}cuando usted lo autorice para su atención. Estas transferencias que la ley permite o exige no requieren su consentimiento adicional.</p>
 <h2>5. Derechos ARCO, revocación y limitación</h2>
 <p>Usted puede ejercer sus derechos de <strong>Acceso, Rectificación, Cancelación y Oposición (ARCO)</strong>, revocar su consentimiento o limitar el uso o divulgación de sus datos, mediante solicitud por escrito dirigida a ${e(r.name)}${r.address ? `, en ${e(r.address)}` : ''}${r.contact ? ` o por ${e(r.contact)}` : ''}${r.arcoUrl ? `, o bien en línea en el formulario ${e(r.arcoUrl)}` : ''}. Indique su nombre, un medio para responderle, una descripción clara de lo que solicita y copia de una identificación. Responderemos en un plazo máximo de 20 días hábiles. La cancelación estará sujeta a los plazos de conservación obligatoria del expediente clínico (mínimo 5 años desde el último acto médico), durante los cuales los datos se bloquean.</p>
 <h2>6. Cambios al aviso</h2>
 <p>Cualquier modificación a este aviso se pondrá a su disposición en el establecimiento o por los medios de contacto que nos haya proporcionado.</p>
-<h2>7. Consentimiento</h2>
-<p class="nobreak"><span class="cb"></span><strong>Otorgo mi consentimiento expreso para el tratamiento de mis datos personales y de salud para las finalidades descritas.</strong></p>
-<div class="nobreak" style="margin-top:14px">${patient ? `<p>${animal ? 'Propietario' : 'Paciente'}: <strong>${e(animal ? patient.guardian_name || '' : fullName(patient))}</strong>${animal ? `<br>Animal: ${e(subjectName(patient, false))}` : ''}</p>` : `<p>Nombre: ______________________________________________</p>`}
-<p class="small">Firmado por ${who}.</p>
-<div class="sigs"><div class="sig">Nombre y firma</div><div class="sig">Fecha: ____ / ____ / ________</div></div></div>`;
-  return doc('Aviso de privacidad', body);
+${reading ? '' : consent}`;
+  return doc('Aviso de privacidad', body, reading ? 'body{font:15px/1.55 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;max-width:none;padding:6px 10px}h1,h2{font-family:inherit}h2{font-size:15px;margin-top:16px}' : '');
 }
 
 export function consentHtml(patient: Patient | null, c: Issuer, professional?: { name: string; cedula: string }): string {
