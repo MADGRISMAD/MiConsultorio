@@ -9,6 +9,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { Encounter, Patient } from '$lib/types';
   import type { NutritionDay, NutritionMeal, NutritionPlanData, PatientChart } from '$lib/types/specialty';
+  import Modal from '../../Modal.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';
   import Icon from '../../ui/Icon.svelte';
   import NutritionProgress from './NutritionProgress.svelte';
@@ -241,6 +242,68 @@
   function setMeal(di: number, mi: number, patch: Partial<NutritionMeal>) {
     work = { ...work, days: work.days.map((d, j) => (j === di ? { ...d, meals: d.meals.map((m, k) => (k === mi ? { ...m, ...patch } : m)) } : d)) };
   }
+  // ----- change one piece of the menu with the AI -----
+  let frag = $state<{ di: number; mi: number | null } | null>(null);
+  let fragModal = $state(false); // the form is open (otherwise it was a one-click swap)
+  let fragBusy = $state(''); // the piece being swapped, to show it working
+  let fragDislike = $state('');
+  let fragRequest = $state('');
+  const fragOp = new Op();
+  function openFrag(di: number, mi: number | null) {
+    frag = { di, mi };
+    fragDislike = '';
+    fragRequest = '';
+    fragOp.reset();
+    fragModal = true;
+  }
+  /** one click: swap that meal for another, like the refresh button of a meal planner */
+  async function swapFrag(di: number, mi: number | null) {
+    frag = { di, mi };
+    fragDislike = '';
+    fragRequest = '';
+    fragOp.reset();
+    fragModal = false;
+    await regenerateFrag();
+  }
+  /** The AI sees the whole week, so the new piece neither repeats another one nor brings back what the patient dislikes. */
+  async function regenerateFrag() {
+    const f = frag;
+    if (!f) return;
+    let meals: NutritionMeal[] = [];
+    let warn: string[] = [];
+    fragBusy = `${f.di}-${f.mi ?? 'day'}`;
+    const ok = await fragOp.run(async () => {
+      const r = await specialtyApi.nutritionFragment(patient.id, {
+        days: work.days,
+        day: f.di,
+        ...(f.mi !== null ? { meal: f.mi } : {}),
+        dislike: fragDislike.trim(),
+        request: fragRequest.trim(),
+        dislikes: work.dislikes
+      });
+      meals = r.meals;
+      warn = r.warnings ?? [];
+    });
+    fragBusy = '';
+    if (!ok) {
+      if (!fragModal) {
+        toast.show(fragOp.message, 'error');
+        frag = null;
+      }
+      return;
+    }
+    work = {
+      ...work,
+      // a dislike remembered during the review stays in the plan, so the next draft keeps it out too
+      dislikes: fragDislike.trim() && !work.dislikes.toLowerCase().includes(fragDislike.trim().toLowerCase()) ? [work.dislikes, fragDislike.trim()].filter(Boolean).join(', ') : work.dislikes,
+      days: work.days.map((d, j) =>
+        j !== f.di ? d : { ...d, meals: d.meals.map((m, k) => (f.mi === null ? meals[k] ?? m : k === f.mi ? meals[0] ?? m : m)) }
+      )
+    };
+    frag = null;
+    fragModal = false;
+    toast.show(warn.length ? `Listo, pero revisa: ${warn.join('; ')}` : 'Cambiado: revisa el menú y guarda el plan', warn.length ? 'error' : undefined);
+  }
   /** renames a column in every day */
   function renameColumn(mi: number, name: string) {
     work = { ...work, days: work.days.map((d) => ({ ...d, meals: d.meals.map((m, k) => (k === mi ? { ...m, name } : m)) })) };
@@ -455,6 +518,14 @@
         {#if m}
           <textarea class="field min-h-[5.5rem] !px-2.5 !py-2 text-[13px] leading-snug [field-sizing:content]" rows="4" maxlength="1200" readonly={readonly} value={m.items} aria-label="{shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { items: e.currentTarget.value })} placeholder={readonly ? '' : 'Alimentos y porciones'}></textarea>
           <label class="mt-1 flex items-center gap-1 text-[11px] text-app-muted"><input class="w-14 rounded-md border border-app-ink/15 bg-app-panel px-1.5 py-0.5 text-right text-[11px] text-app-ink" inputmode="numeric" readonly={readonly} value={m.kcal || ''} aria-label="Calorías de {shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { kcal: Math.round(num(e.currentTarget.value)) })} />kcal</label>
+          {#if !readonly}
+            <div class="mt-1 flex items-center gap-2">
+              <button type="button" class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-app-primary hover:bg-app-primary/10 disabled:opacity-60" disabled={fragBusy !== ''} title="Cambiar esta comida por otra distinta" onclick={() => swapFrag(di, mi)}>
+                {#if fragBusy === `${di}-${mi}`}<span class="spin"></span>{:else}<Icon name="refresh" size={13} />{/if}Cambiar
+              </button>
+              <button type="button" class="text-[11px] text-app-muted hover:text-app-ink hover:underline disabled:opacity-60" disabled={fragBusy !== ''} onclick={() => openFrag(di, mi)}>Indicar qué cambiar…</button>
+            </div>
+          {/if}
         {/if}
       {/snippet}
 
@@ -482,7 +553,7 @@
             <tbody>
               {#each shown.days as d, di}
                 <tr class="border-t border-app-ink/10">
-                  <th scope="row" class="px-2 py-2 text-left align-top text-sm font-semibold">{d.name}</th>
+                  <th scope="row" class="px-2 py-2 text-left align-top text-sm font-semibold">{d.name}{#if !readonly}<button type="button" class="mt-1 flex items-center gap-1 text-[11px] font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>{#if fragBusy === `${di}-day`}<span class="spin"></span>{:else}<Icon name="refresh" size={12} />{/if}Cambiar día</button>{/if}</th>
                   {#each cols as _, ci}<td class="border-l border-app-ink/10 p-1.5 align-top">{@render cell(di, ci)}</td>{/each}
                   <td class="border-l border-app-ink/10 px-1.5 py-2 text-center align-top text-xs {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'font-semibold text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</td>
                 </tr>
@@ -494,7 +565,7 @@
         <ul class="mt-3 grid gap-3">
           {#each shown.days as d, di}
             <li class="rounded-xl border border-app-ink/10 p-3">
-              <p class="flex items-baseline justify-between font-semibold">{d.name}<span class="text-xs font-normal {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</span></p>
+              <p class="flex items-baseline justify-between gap-2 font-semibold">{d.name}{#if !readonly}<button type="button" class="text-xs font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>Cambiar día</button>{/if}<span class="text-xs font-normal {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</span></p>
               <div class="mt-2 grid gap-2.5">
                 {#each cols as c, ci}
                   <div><p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-app-muted">{c}</p>{@render cell(di, ci)}</div>
@@ -562,3 +633,19 @@
     </section>
   {/if}
 {/if}
+
+<Modal open={fragModal && frag !== null} title={frag ? (frag.mi === null ? `Cambiar el ${work.days[frag.di]?.name ?? 'día'} con IA` : `Cambiar ${work.days[frag.di]?.meals[frag.mi]?.name ?? 'la comida'} del ${work.days[frag.di]?.name ?? ''} con IA`) : ''} onclose={() => { frag = null; fragModal = false; }}>
+  <p class="text-sm text-app-muted">Solo se cambia esta parte. La IA revisa el menú completo para no repetir platillos de otras comidas y para dejar fuera lo que el paciente no quiere.</p>
+  <label class="label mt-4" for="frag-dislike">¿Qué no le gusta? <span class="font-normal text-app-muted">(opcional)</span></label>
+  <input id="frag-dislike" class="field" maxlength="300" bind:value={fragDislike} placeholder="Ej. pescado, brócoli" />
+  <label class="label mt-3" for="frag-req">Indicación <span class="font-normal text-app-muted">(opcional)</span></label>
+  <input id="frag-req" class="field" maxlength="300" bind:value={fragRequest} placeholder="Ej. algo más ligero, con avena" />
+  <p class="hint">Usa 1 uso de magia del plan. Se agrega a «Alimentos que no le gustan» y no se guarda nada hasta que presiones «Guardar plan».</p>
+  {#if fragOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{fragOp.message}</p>{/if}
+  {#snippet footer()}
+    <button type="button" class="btn-secondary" onclick={() => { frag = null; fragModal = false; }}>Cancelar</button>
+    <button type="button" class="btn-primary" disabled={fragOp.phase === 'loading'} onclick={regenerateFrag}>
+      {#if fragOp.phase === 'loading'}<span class="spin"></span>Cambiando…{:else}<Icon name="sparkles" size={18} />Cambiar con IA{/if}
+    </button>
+  {/snippet}
+</Modal>

@@ -626,3 +626,47 @@ func TestClinicLogo(t *testing.T) {
 		t.Fatalf("reset: %v", got)
 	}
 }
+
+// Changing one meal with the AI keeps the rest of the menu, avoids what the patient just said they dislike and does not copy another meal.
+func TestNutritionFragmentAI(t *testing.T) {
+	var prompts []string
+	answers := []string{"Filete de pescado a la plancha con arroz", "Avena con plátano y nueces", "Tacos de pollo con nopales y frijoles"} // forbidden, copy of another meal, good
+	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Contents []struct {
+				Parts []map[string]any `json:"parts"`
+			} `json:"contents"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompts = append(prompts, body.Contents[0].Parts[0]["text"].(string))
+		items := answers[min(len(prompts)-1, len(answers)-1)]
+		out, _ := json.Marshal(map[string]any{"meals": []any{map[string]any{"name": "Comida", "items": items}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
+	}))
+	defer gem.Close()
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
+	})
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/nutrition-plan/ai/fragment"
+	meal := func(n, items string) map[string]any { return map[string]any{"name": n, "items": items, "kcal": 500} }
+	days := []any{
+		map[string]any{"name": "Lunes", "meals": []any{meal("Desayuno", "Avena con plátano y nueces"), meal("Comida", "Pescado empanizado con ensalada")}},
+		map[string]any{"name": "Martes", "meals": []any{meal("Desayuno", "Huevo con espinacas"), meal("Comida", "Sopa de lentejas con tortilla")}},
+	}
+	req := map[string]any{"days": days, "day": 0, "meal": 1, "dislike": "pescado"}
+	out := doc.expect(200, "POST", url, req)
+	meals := out["meals"].([]any)
+	if len(prompts) != 3 || len(meals) != 1 || meals[0].(map[string]any)["items"] != "Tacos de pollo con nopales y frijoles" || meals[0].(map[string]any)["kcal"] != float64(500) {
+		t.Fatalf("regenerated meal: %d calls, %v", len(prompts), out)
+	}
+	if !strings.Contains(prompts[0], "NO LE GUSTA AL PACIENTE") || !strings.Contains(prompts[0], "Sopa de lentejas") || strings.Contains(prompts[0], "Actual: Avena") {
+		t.Fatalf("the model sees the rest of the week and the dislike: %s", prompts[0])
+	}
+	if !strings.Contains(prompts[1], "prohibidos") || !strings.Contains(prompts[2], "se parece demasiado") {
+		t.Fatalf("the retries say what failed: %q / %q", prompts[1], prompts[2])
+	}
+	doc.expect(400, "POST", url, map[string]any{"days": days, "day": 5, "meal": 0})
+	doc.expect(400, "POST", url, map[string]any{"days": days, "day": 0, "meal": 9})
+}
