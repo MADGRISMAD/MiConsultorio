@@ -47,7 +47,7 @@ SHORT="${SHA:0:7}"
 MSG_HTML="$(printf '%s' "${COMMIT_MSG:-}" | html_escape | sed ':a;N;$!ba;s/\n/<br>/g')"
 row() { printf '<tr><td style="padding:11px 0;border-bottom:1px solid #dfe8ef;font:600 10px/1.2 Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:#6b7f90;width:34%%">%s</td><td style="padding:11px 0;border-bottom:1px solid #dfe8ef;font:600 15px/1.35 Segoe UI,Helvetica,Arial,sans-serif;color:#0B2540">%s</td></tr>' "$1" "$2"; }
 ROWS="$(row Servicio Caresia)$(row Repositorio "$(printf '%s' "${REPO:-}" | html_escape)")$(row Rama "$(printf '%s' "${BRANCH:-main}" | html_escape)")$(row SHA "$SHORT")$(row Autor "$(printf '%s' "${AUTHOR:-$ACTOR}" | html_escape)")$(row Publicó "$(printf '%s' "${ACTOR:-}" | html_escape)")$(row Fecha "$WHEN")"
-APP_URL="${APP_URL:-https://miconsultorio.15-235-62-27.sslip.io}"
+APP_URL="${APP_URL:-https://caresia.mx}"
 APP="$(printf '%s' "${APP_URL:-}" | html_escape)"
 RUN="$(printf '%s' "${RUN_URL:-}" | html_escape)"
 
