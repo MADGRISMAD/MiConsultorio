@@ -12,7 +12,7 @@ const when = (iso: string) =>
   new Date(iso).toLocaleString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
 /** Cash drawer pulses only when something was paid in cash. */
-const paidCash = (sale: Sale) => (sale.payments ?? []).some((p) => p.method === 'cash');
+export const paidCash = (sale: Sale) => (sale.payments ?? []).some((p) => p.method === 'cash');
 
 /** The ticket as ESC/POS bytes for a thermal printer. */
 export function ticketBytes(sale: Sale, s: PosSettings, opts: { test?: boolean; reprint?: boolean } = {}): Uint8Array {

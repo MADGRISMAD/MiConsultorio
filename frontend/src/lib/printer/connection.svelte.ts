@@ -4,7 +4,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { PosSettings, Sale } from '$lib/types';
-import { cartaHtml, ticketBytes, ticketHtml, printHtml } from './ticket';
+import { cartaHtml, ticketBytes, ticketHtml, printHtml, paidCash } from './ticket';
+import { htmlToRasterBytes } from './raster';
 import { EscPos } from './escpos';
 
 export type Transport = 'serial' | 'usb' | 'bluetooth';
@@ -250,7 +251,20 @@ const PLACEHOLDER: Sale = {
 export async function printSale(sale: Sale, s: PosSettings, opts: { reprint?: boolean } = {}): Promise<void> {
   for (let i = 0; i < Math.max(1, s.printer.copies); i++) {
     if (s.printer.kind === 'browser' || !printer.transport) await printHtml(ticketHtml(sale, s, opts));
-    else await printer.write(ticketBytes(sale, s, opts));
+    else await printer.write(await ticketPayload(sale, s, opts));
+  }
+}
+
+/** The designed ticket as an image; if it cannot be drawn, the plain-text version still prints. */
+async function ticketPayload(sale: Sale, s: PosSettings, opts: { test?: boolean; reprint?: boolean }): Promise<Uint8Array> {
+  try {
+    return await htmlToRasterBytes(ticketHtml(sale, s, opts), s.printer.width, {
+      openDrawer: !opts.test && s.printer.open_drawer && paidCash(sale) && !opts.reprint,
+      cut: s.printer.cut
+    });
+  } catch (e) {
+    console.warn('Ticket como imagen no disponible, se imprime como texto:', e);
+    return ticketBytes(sale, s, opts);
   }
 }
 
@@ -261,7 +275,7 @@ export async function printLetter(sale: Sale, s: PosSettings): Promise<void> {
 export async function printTest(s: PosSettings): Promise<void> {
   const sale = { ...PLACEHOLDER, created_at: new Date().toISOString() };
   if (s.printer.kind === 'browser' || !printer.transport) await printHtml(ticketHtml(sale, s, { test: true }));
-  else await printer.write(ticketBytes(sale, s, { test: true }));
+  else await printer.write(await ticketPayload(sale, s, { test: true }));
 }
 
 /** Opens the cash drawer through the printer (needs a connected thermal printer). */

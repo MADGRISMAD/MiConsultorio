@@ -120,7 +120,7 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
     : '';
   const hasPage2 = !!(extras || d.follow_up_days || plan.note);
   const body = `<section class="menu"><div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
-<div class="box nobreak">${patientBlock(patient)}${proBlock}</div>
+<div class="box nobreak pair">${patientBlock(patient)}${proBlock}</div>
 ${d.goal ? `<p><span class="k">Objetivo</span><strong>${e(d.goal)}</strong></p>` : ''}
 ${d.kcal ? `<table class="grid-t nobreak"><tbody><tr><td><strong>Energía</strong><br>${d.kcal} kcal al día</td>${macro('Proteínas', d.protein_pct, 4)}${macro('Carbohidratos', d.carb_pct, 4)}${macro('Grasas', d.fat_pct, 9)}${d.water_liters ? `<td><strong>Agua</strong><br>${d.water_liters} L al día</td>` : ''}</tr></tbody></table>` : ''}
 ${meals ? `<h2 style="margin-top:12px">${days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h2>${meals}` : ''}
@@ -138,7 +138,7 @@ ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_d
     body,
     '@page{size:letter portrait;margin:10mm 10mm 12mm}h2{margin:10px 0 4px;break-after:avoid;page-break-after:avoid}p{orphans:2;widows:2}' +
       '.menu{break-after:page;page-break-after:always}.more{padding-top:2mm}.more p{font-size:12.5px;line-height:1.5}.more h2{font-size:14px}' +
-      '.menu .head{padding-bottom:4px;margin-bottom:4px}.menu h1{font-size:16px}.menu .box{padding:4px 8px;margin:4px 0}.menu .grid{grid-template-columns:repeat(4,1fr);gap:1px 12px;font-size:10px}.menu .grid .k{font-size:7.5px}.menu p{margin:0 0 3px}.menu h2{margin:6px 0 3px;font-size:12px}.menu .sig{margin-top:8mm}.menu{--fs:10px}.grid-t th,.grid-t td{border:1px solid #000;padding:4px 5px;font-size:var(--fs);line-height:1.25;vertical-align:top}.grid-t th{background:#eee}.pro{border-top:1px solid #999;margin-top:5px;padding-top:5px}' +
+      '.menu .head{padding-bottom:4px;margin-bottom:4px}.menu h1{font-size:16px}.menu .box{padding:4px 8px;margin:4px 0}.menu .grid{grid-template-columns:1fr 1fr;gap:2px 10px;font-size:10px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.pair .pro{border-top:0;border-left:1px solid #999;margin:0;padding:0 0 0 12px}.menu .grid .k{font-size:7.5px}.menu p{margin:0 0 3px}.menu h2{margin:6px 0 3px;font-size:12px}.menu .sig{margin-top:8mm}.menu{--fs:10px}.grid-t th,.grid-t td{border:1px solid #000;padding:4px 5px;font-size:var(--fs);line-height:1.25;vertical-align:top}.grid-t th{background:#eee}' +
       '.week{table-layout:fixed}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
       '.week thead{height:8mm}.week th.day{width:10%;text-align:left;font-size:10.5px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
       '.week .k{color:#444;font-size:8.4px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}'
