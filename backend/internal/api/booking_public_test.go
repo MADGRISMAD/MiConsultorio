@@ -81,8 +81,8 @@ func TestBookingRegisteredByPhoneAndPets(t *testing.T) {
 		t.Fatalf("lookup: %v", look)
 	}
 	for _, p := range pets {
-		if len(p.(map[string]any)) != 2 {
-			t.Fatalf("only id and name: %v", p)
+		if len(p.(map[string]any)) != 3 { // id, name and who has been attending the pet (empty without history)
+			t.Fatalf("only id, name and professional: %v", p)
 		}
 	}
 	if none := a.expect(200, "POST", "/api/public/booking/"+b.slugA+"/lookup", map[string]any{"phone": "5500000000"}); len(none["pets"].([]any)) != 0 {
@@ -137,5 +137,35 @@ func TestBookingMailsTheSpecialist(t *testing.T) {
 	m := b.mail.wait(t, 1)
 	if m.To[0] != "doc@clinica.mx" || !strings.Contains(m.Text, "Ana López") || !strings.Contains(m.Text, "10:30") || strings.Contains(m.Text+m.HTML, "Dolor privado") {
 		t.Fatalf("specialist mail (the reason must not travel by e-mail): %+v", m)
+	}
+}
+
+func TestRegisteredPatientBooksWithTheirProfessional(t *testing.T) {
+	b := newBookingEnv(t, false)
+	ctx := context.Background()
+	other := b.userID("admin_a")
+	b.exec(`INSERT INTO professional_settings (user_id, clinic_id, bookable, slot_minutes) VALUES ($1, $2, true, 30)`, other, b.clinicA)
+	var pid string
+	if err := b.pool.QueryRow(ctx, `INSERT INTO patients (clinic_id, file_number, names, last_names, phone) VALUES ($1, 1, 'Luis', 'Pérez', '55 1234 5678') RETURNING id`, b.clinicA).Scan(&pid); err != nil {
+		t.Fatal(err)
+	}
+	book := func(pro string, start string) (int, map[string]any) {
+		return b.anon().do("POST", "/api/public/booking/"+b.slugA+"/appointments", map[string]any{"professional_id": pro, "date": b.date, "start": start,
+			"registered": true, "phone": "5512345678", "accept_privacy": true})
+	}
+	// no history yet: any specialist
+	if st, body := book(other, "10:00"); st != 201 {
+		t.Fatalf("a patient with no history may pick anyone: %d %v", st, body)
+	}
+	b.exec(`INSERT INTO encounters (clinic_id, patient_id, author_id, author_name) VALUES ($1, $2, $3, 'Doc')`, b.clinicA, pid, b.pro)
+	look := b.anon().expect(200, "POST", "/api/public/booking/"+b.slugA+"/lookup", map[string]any{"phone": "5512345678"})
+	if look["professional_id"] != b.pro || look["person"] != true {
+		t.Fatalf("the lookup names who has been attending them: %v", look)
+	}
+	if st, _ := book(other, "10:30"); st != 409 {
+		t.Fatalf("a patient in treatment books only with their professional: %d", st)
+	}
+	if st, body := book(b.pro, "11:00"); st != 201 {
+		t.Fatalf("their own professional: %d %v", st, body)
 	}
 }

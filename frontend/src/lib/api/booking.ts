@@ -14,7 +14,7 @@ export const bookingApi = {
     request<{ expires_at: string }>('POST', `/public/booking/${seg(slug)}/hold`, body),
   /** is this phone a registered patient? Returns only the names of the pets registered under it. */
   lookup: (slug: string, phone: string) =>
-    request<{ person: boolean; pets: { id: string; name: string }[] }>('POST', `/public/booking/${seg(slug)}/lookup`, { phone }),
+    request<{ person: boolean; several: boolean; professional_id: string; pets: { id: string; name: string; professional_id: string }[] }>('POST', `/public/booking/${seg(slug)}/lookup`, { phone }),
   book: (slug: string, body: BookingRequest) =>
     request<{ appointment: BookingResult }>('POST', `/public/booking/${seg(slug)}/appointments`, body).then((r) => r.appointment),
 

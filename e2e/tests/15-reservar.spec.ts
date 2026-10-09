@@ -13,6 +13,12 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await page.goto(`/reservar/${slug}`);
+  // the details come first: the calendar stays closed until they are filled in
+  await expect(page.getByText('Completa tus datos para elegir la fecha.')).toBeVisible();
+  const id = uid();
+  await page.getByLabel('Nombre completo').fill(`Visitante${id} Enlace`);
+  await page.getByLabel(/Teléfono/).fill('5512345678');
+  await page.getByLabel('Correo').fill(`v${id}@correo.mx`);
   const day = page.locator('[role=grid] button:not([disabled])').first();
   await expect(day).toBeVisible();
   await day.click();
@@ -20,10 +26,6 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   await page.locator('input[name=slot]').first().check({ force: true });
   await expect(page.getByText(/Te guardamos este horario/)).toBeVisible();
 
-  const id = uid();
-  await page.getByLabel('Nombre(s)').fill(`Visitante${id}`);
-  await page.getByLabel('Apellidos').fill('Enlace');
-  await page.getByLabel(/Teléfono/).fill('5512345678');
   await page.getByLabel(/Motivo de la cita/).fill('Revisión');
   await page.getByRole('checkbox').first().check();
   await page.getByRole('button', { name: /Agendar cita|Solicitar cita/ }).click();

@@ -49,7 +49,12 @@ export const es = {
   'booking.loadError': 'No se pudo cargar la página. Inténtalo de nuevo.',
 
   'booking.errChoose': 'Elige profesional, fecha y horario.',
-  'booking.errName': 'Escribe tu nombre y apellidos.',
+  'booking.errName': 'Escribe tu nombre.',
+  'booking.errEmail': 'Escribe un correo válido.',
+  'booking.fullName': 'Nombre completo',
+  'booking.followUp': 'Por seguimiento, solo puedes agendar con quien te ha atendido: {name}.',
+  'booking.noRecord': 'No encontramos un expediente con ese teléfono. Agenda como paciente nuevo.',
+  'booking.fillFirst': 'Completa tus datos para elegir la fecha.',
   'booking.errContact': 'Escribe un teléfono o un correo para poder contactarte.',
   'booking.errPrivacy': 'Debes aceptar el aviso de privacidad para agendar.',
 
@@ -64,7 +69,7 @@ export const es = {
   'booking.noSlots': 'Por ahora no hay horarios disponibles para agendar en línea.',
   'booking.callUs': 'Llama al',
 
-  'booking.step1': '¿Qué necesitas?',
+  'booking.step1': 'Tus datos',
   'booking.service': 'Servicio',
   'booking.optional': '(opcional)',
   'booking.firstTime': 'Primera vez / no estoy seguro',
@@ -76,7 +81,7 @@ export const es = {
   'booking.searching': 'Buscando horarios…',
   'booking.noDay': 'No hay horarios libres ese día. Prueba con otra fecha.',
   'booking.slotsLabel': 'Horarios disponibles',
-  'booking.step3': 'Tus datos',
+  'booking.step3': 'Confirma tu cita',
   'booking.dataHint': 'Solo pedimos lo necesario para agendar; no escribas información médica detallada.',
   'booking.phone': 'Teléfono celular',
   'booking.email': 'Correo',
@@ -241,7 +246,12 @@ export const en: Record<keyof typeof es, string> = {
   'booking.loadError': 'The page could not be loaded. Please try again.',
 
   'booking.errChoose': 'Choose a professional, a date and a time.',
-  'booking.errName': 'Enter your first and last name.',
+  'booking.errName': 'Enter your name.',
+  'booking.errEmail': 'Enter a valid e-mail.',
+  'booking.fullName': 'Full name',
+  'booking.followUp': 'For follow-up care you can only book with the professional who has been seeing you: {name}.',
+  'booking.noRecord': 'We found no record with that phone. Book as a new patient.',
+  'booking.fillFirst': 'Fill in your details to pick a date.',
   'booking.errContact': 'Enter a phone number or an email so we can reach you.',
   'booking.errPrivacy': 'You must accept the privacy notice to book.',
 
@@ -256,7 +266,7 @@ export const en: Record<keyof typeof es, string> = {
   'booking.noSlots': 'There are no times available to book online right now.',
   'booking.callUs': 'Call',
 
-  'booking.step1': 'What do you need?',
+  'booking.step1': 'Your details',
   'booking.service': 'Service',
   'booking.optional': '(optional)',
   'booking.firstTime': 'First visit / not sure',
@@ -268,7 +278,7 @@ export const en: Record<keyof typeof es, string> = {
   'booking.searching': 'Looking for times…',
   'booking.noDay': 'There are no free times that day. Try another date.',
   'booking.slotsLabel': 'Available times',
-  'booking.step3': 'Your details',
+  'booking.step3': 'Confirm your appointment',
   'booking.dataHint': 'We only ask for what is needed to book; please do not write detailed medical information.',
   'booking.phone': 'Mobile phone',
   'booking.email': 'Email',

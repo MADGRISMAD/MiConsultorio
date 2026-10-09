@@ -6,6 +6,8 @@
   import { CLINIC_KINDS } from '$lib/types';
   import type { BookingInfo, BookingResult, BookingSlot } from '$lib/types/booking';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import PrivacyModal from './PrivacyModal.svelte';
+  let privacyOpen = $state(false);
   import DatePicker from './DatePicker.svelte';
   import WaitlistJoin from './WaitlistJoin.svelte';
 
@@ -24,13 +26,15 @@
   let start = $state('');
   let registered = $state(false);
   let names = $state('');
-  let lastNames = $state('');
   let phone = $state('');
   let email = $state('');
   let reason = $state('');
   let species = $state('');
   let petName = $state('');
-  let pets = $state<{ id: string; name: string }[] | null>(null);
+  let pets = $state<{ id: string; name: string; professional_id: string }[] | null>(null);
+  // a registered person: did the phone match a record, are there several, and who has been attending them
+  let personFound = $state<boolean | null>(null);
+  let personPro = $state('');
   let petId = $state('');
   let needName = $state(false);
   let acceptPrivacy = $state(false);
@@ -52,8 +56,41 @@
   let seq = 0;
 
   const professional = $derived(info.professionals.find((p) => p.id === professionalId));
+  /** a patient already in treatment sees only the agenda of the professional who has been attending them */
+  const lockedPro = $derived(registered ? (forPet ? (pets?.find((x) => x.id === petId)?.professional_id ?? '') : personPro) : '');
+  const lockedName = $derived(info.professionals.find((p) => p.id === lockedPro)?.name ?? '');
+  const phoneDigits = $derived(phone.replace(/\D/g, ''));
+  let lookedPhone = '';
+  $effect(() => {
+    // registered people: look the phone up once it is complete (pets use the button)
+    if (!registered || forPet || phoneDigits.length < 10 || phoneDigits === lookedPhone) return;
+    lookedPhone = phoneDigits;
+    personFound = null;
+    bookingApi
+      .lookup(slug, phone.trim())
+      .then((r) => {
+        if (lookedPhone !== phoneDigits) return;
+        personFound = r.person;
+        personPro = r.professional_id;
+        if (r.several) needName = true;
+      })
+      .catch(() => (personFound = null));
+  });
   const dateLong = (d: string) => fmtDay(d);
   const kindLabel = (k: string) => (k in CLINIC_KINDS ? t(`kind.${k}`) : t('kind.fallback'));
+  const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
+  /** the visitor's details come first: the calendar opens once they are complete */
+  const dataReady = $derived.by(() => {
+    if (registered) return forPet ? !!petId : personFound === true && (!needName || !!names.trim());
+    return !!names.trim() && !!phone.trim() && emailOk(email) && (!forPet || !!species);
+  });
+  function dataError(): string {
+    if (!phone.trim()) return t('booking.errPhone');
+    if (registered) return forPet && !petId ? t('booking.errPickPet') : personFound === false ? t('booking.noRecord') : t('booking.nameToo');
+    if (!names.trim()) return t('booking.errName');
+    if (!emailOk(email)) return t('booking.errEmail');
+    return t('booking.errPet');
+  }
   const anySlot = $derived(!!day && day.some((p) => p.slots.length > 0));
 
   /** every specialist's times for the date, in parallel: the ones with none show as not available */
@@ -66,7 +103,7 @@
     held = false;
     await dayOp.run(async () => {
       const r = await Promise.all(
-        info.professionals.map(async (p) => ({ id: p.id, name: p.name, slots: await bookingApi.slots(slug, p.id, date, serviceId, holder).catch(() => [] as BookingSlot[]) }))
+        info.professionals.filter((p) => !lockedPro || p.id === lockedPro).map(async (p) => ({ id: p.id, name: p.name, slots: await bookingApi.slots(slug, p.id, date, serviceId, holder).catch(() => [] as BookingSlot[]) }))
       );
       if (mine === seq) day = r;
     });
@@ -76,6 +113,7 @@
   $effect(() => {
     const ym = monthKey;
     const svc = serviceId;
+    const only = lockedPro;
     if (!ym) {
       available = null;
       return;
@@ -83,7 +121,7 @@
     const mine = ++monthSeq;
     available = null;
     bookingMonthApi
-      .month(slug, ym, '', svc)
+      .month(slug, ym, only, svc)
       .then((days) => {
         if (mine === monthSeq) available = days;
       })
@@ -116,6 +154,12 @@
     }
   }
 
+  function clearPick() {
+    start = '';
+    professionalId = '';
+    held = false;
+  }
+
   async function findPets() {
     pets = null;
     petId = '';
@@ -132,16 +176,8 @@
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
+    if (!dataReady) return op.fail(dataError());
     if (!professionalId || !date || !start) return op.fail(t('booking.errChoose'));
-    if (registered) {
-      if (!phone.trim()) return op.fail(t('booking.errPhone'));
-      if (forPet && !petId) return op.fail(t('booking.errPickPet'));
-      if (needName && (!names.trim() || !lastNames.trim())) return op.fail(t('booking.nameToo'));
-    } else {
-      if (!names.trim() || !lastNames.trim()) return op.fail(t('booking.errName'));
-      if (!phone.trim() && !email.trim()) return op.fail(t('booking.errContact'));
-      if (forPet && !species) return op.fail(t('booking.errPet'));
-    }
     if (!acceptPrivacy) return op.fail(t('booking.errPrivacy'));
     try {
       await op.run(async () => {
@@ -151,7 +187,7 @@
           date,
           start,
           names: names.trim(),
-          last_names: lastNames.trim(),
+          last_names: '',
           phone: phone.trim(),
           email: email.trim(),
           reason: reason.trim(),
@@ -210,22 +246,101 @@
   </section>
 {:else}
   <form class="grid gap-5" novalidate onsubmit={submit}>
-    {#if info.services.length > 0 || bothKinds}
-      <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s1">
-        <h2 id="bk-s1" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(1)}>1</span>{t('booking.step1')}</h2>
-        {#if bothKinds}
-          <fieldset class="mt-4">
-            <legend class="label">{t('booking.whoFor')}</legend>
-            <div class="grid gap-2 sm:grid-cols-2">
-              {#each [[false, t('booking.forMe')], [true, t('booking.forPet')]] as [v, label]}
-                <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
-                  <input type="radio" class="sr-only" name="who" checked={forPet === v} onchange={() => { forPet = v as boolean; registered = false; pets = null; petId = ''; }} />
-                  <span>{label}</span>
-                </label>
-              {/each}
+    <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s1">
+      <h2 id="bk-s1" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(1)}>1</span>{t('booking.step1')}</h2>
+      {#if bothKinds}
+        <fieldset class="mt-4">
+          <legend class="label">{t('booking.whoFor')}</legend>
+          <div class="grid gap-2 sm:grid-cols-2">
+            {#each [[false, t('booking.forMe')], [true, t('booking.forPet')]] as [v, label]}
+              <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
+                <input type="radio" class="sr-only" name="who" checked={forPet === v} onchange={() => { forPet = v as boolean; registered = false; pets = null; petId = ''; clearPick(); }} />
+                <span>{label}</span>
+              </label>
+            {/each}
+          </div>
+        </fieldset>
+      {/if}
+
+      <div class="mt-4 grid grid-cols-2 gap-2">
+        {#each [[false, forPet ? t('booking.newClient') : t('booking.newPatient')], [true, forPet ? t('booking.registeredClient') : t('booking.registered')]] as [v, label]}
+          <label class="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-app-ink/12 px-3 py-2 text-center text-sm font-medium has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
+            <input type="radio" class="sr-only" name="reg" checked={registered === v} onchange={() => { registered = v as boolean; pets = null; petId = ''; needName = false; personFound = null; personPro = ''; lookedPhone = ''; clearPick(); day = null; op.reset(); }} />{label}
+          </label>
+        {/each}
+      </div>
+
+      {#if registered}
+        <p class="hint mt-3">{forPet ? t('booking.registeredPetHint') : t('booking.registeredHint')}</p>
+        <div class="mt-3 grid gap-4 sm:grid-cols-2">
+          <div class={forPet ? '' : 'sm:col-span-2'}>
+            <label class="label" for="bk-phone">{t('booking.phone')}</label>
+            <input id="bk-phone" class="field" type="tel" inputmode="tel" bind:value={phone} autocomplete="tel" placeholder="55 1234 5678" oninput={() => { pets = null; petId = ''; personFound = null; personPro = ''; }} />
+          </div>
+          {#if forPet}
+            <div class="flex items-end"><button type="button" class="btn-secondary w-full" disabled={lookupOp.phase === 'loading'} onclick={findPets}>{#if lookupOp.phase === 'loading'}<span class="spin"></span>{/if}{t('booking.findPets')}</button></div>
+            {#if lookupOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{lookupOp.message}</p>{/if}
+            {#if pets && pets.length === 0}<p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted sm:col-span-2">{t('booking.noPets')}</p>{/if}
+            {#if pets && pets.length > 0}
+              <fieldset class="sm:col-span-2">
+                <legend class="label">{t('booking.pickPet')}</legend>
+                <div class="grid gap-2 sm:grid-cols-2">
+                  {#each pets as pet (pet.id)}
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
+                      <input type="radio" class="sr-only" name="pet" value={pet.id} bind:group={petId} onchange={() => { clearPick(); if (date) loadDay(); }} /><Icon name="paw" size={16} class="flex-none text-app-muted" /><span>{pet.name}</span>
+                    </label>
+                  {/each}
+                </div>
+              </fieldset>
+            {/if}
+          {/if}
+          {#if !forPet && personFound === false}<p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted sm:col-span-2">{t('booking.noRecord')}</p>{/if}
+          {#if needName}
+            <p class="hint !mt-0 sm:col-span-2">{t('booking.nameToo')}</p>
+            <div class="sm:col-span-2"><label class="label" for="bk-names">{t('booking.fullName')}</label><input id="bk-names" class="field" bind:value={names} autocomplete="name" maxlength="100" /></div>
+          {/if}
+        </div>
+      {:else}
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2">
+            <label class="label" for="bk-names">{forPet ? t('booking.ownerNames') : t('booking.fullName')}</label>
+            <input id="bk-names" class="field" bind:value={names} autocomplete="name" required maxlength="100" />
+          </div>
+          <div>
+            <label class="label" for="bk-phone">{t('booking.phone')}</label>
+            <input id="bk-phone" class="field" type="tel" inputmode="tel" bind:value={phone} autocomplete="tel" placeholder="55 1234 5678" required />
+          </div>
+          <div>
+            <label class="label" for="bk-email">{t('booking.email')}</label>
+            <input id="bk-email" class="field" type="email" bind:value={email} autocomplete="email" autocapitalize="none" placeholder="tu@correo.com" required />
+          </div>
+          {#if forPet}
+            <div>
+              <label class="label" for="bk-species">{t('booking.petKind')}</label>
+              <select id="bk-species" class="field" bind:value={species}>
+                <option value="">{t('booking.petKindPick')}</option>
+                {#each info.species ?? [] as sp}<option>{sp}</option>{/each}
+              </select>
             </div>
-          </fieldset>
-        {/if}
+            <div>
+              <label class="label" for="bk-pet">{t('booking.petName')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></label>
+              <input id="bk-pet" class="field" bind:value={petName} maxlength="80" />
+            </div>
+          {/if}
+        </div>
+      {/if}
+      <!-- honeypot: invisible to people -->
+      <div class="absolute -left-[9999px]" aria-hidden="true">
+        <label for="bk-web">{t('common.website')}</label>
+        <input id="bk-web" tabindex="-1" autocomplete="off" bind:value={website} />
+      </div>
+    </section>
+
+    <section class="card px-5 py-5 sm:px-6 {dataReady ? '' : 'opacity-60'}" aria-labelledby="bk-s2">
+      <h2 id="bk-s2" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(2)}>2</span>{t('booking.step2')}</h2>
+      {#if !dataReady}
+        <p class="mt-3 text-sm text-app-muted">{t('booking.fillFirst')}</p>
+      {:else}
         {#if info.services.length > 0}
           <fieldset class="mt-4">
             <legend class="label">{t('booking.service')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></legend>
@@ -244,54 +359,51 @@
             </div>
           </fieldset>
         {/if}
-      </section>
-    {/if}
-
-    <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s2">
-      <h2 id="bk-s2" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(2)}>2</span>{t('booking.step2')}</h2>
-      <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} {available} onmonth={(m) => (monthKey = m)} /></div>
-      {#if available && available.length === 0 && !date}
-        <p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noMonth')}</p>
-      {:else if !date}
-        <p class="mt-3 text-sm text-app-muted">{t('booking.pickDate')}</p>
-      {/if}
-      {#if date}
-        <div class="mt-4" aria-live="polite">
-          <p class="label first-letter:uppercase">{dateLong(date)}</p>
-          {#if dayOp.phase === 'loading' || (!day && dayOp.phase !== 'error')}
-            <p class="text-sm text-app-muted">{t('booking.searching')}</p>
-          {:else if dayOp.phase === 'error'}
-            <p class="alert" role="alert"><Icon name="alert" size={18} />{dayOp.message}</p>
-          {:else if day}
-            {#if !anySlot}<p class="mb-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noneThatDay')}</p>{/if}
-            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-app-muted">{t('booking.specialists')}</p>
-            <ul class="grid gap-3">
-              {#each day as p (p.id)}
-                <li class="rounded-xl border border-app-ink/10 p-3 {p.slots.length === 0 ? 'opacity-60' : ''}">
-                  <p class="flex items-center gap-2 text-sm font-semibold"><Icon name="user" size={16} class="flex-none text-app-muted" />{p.name}
-                    {#if p.slots.length === 0}<span class="ml-auto text-xs font-normal text-app-muted">{t('booking.unavailable')}</span>{/if}</p>
-                  {#if p.slots.length > 0}
-                    <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="{t('booking.slotsLabel')} · {p.name}">
-                      {#each p.slots as s (s.start)}
-                        <label class="grid min-h-11 cursor-pointer place-items-center rounded-xl border border-app-ink/12 text-sm font-medium has-[:checked]:border-app-ink has-[:checked]:bg-app-ink has-[:checked]:text-app-surface has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/60">
-                          <input type="radio" class="sr-only" name="slot" checked={professionalId === p.id && start === s.start} onchange={() => pickSlot(p.id, s.start)} />{s.start}
-                        </label>
-                      {/each}
-                    </div>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-            {#if holdOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{holdOp.message}</p>{/if}
-          {/if}
-        </div>
-      {/if}
-      {#if info.professionals.length === 1 && ((available && available.length === 0) || (day && !anySlot))}
-        <WaitlistJoin {slug} clinicName={info.clinic.name} professionalId={info.professionals[0].id} {serviceId} />
+        {#if lockedPro && lockedName}<p class="mt-4 rounded-xl bg-app-primary/8 px-4 py-3 text-sm">{t('booking.followUp', { name: lockedName })}</p>{/if}
+        <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} {available} onmonth={(m) => (monthKey = m)} /></div>
+        {#if available && available.length === 0 && !date}
+          <p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noMonth')}</p>
+        {:else if !date}
+          <p class="mt-3 text-sm text-app-muted">{t('booking.pickDate')}</p>
+        {/if}
+        {#if date}
+          <div class="mt-4" aria-live="polite">
+            <p class="label first-letter:uppercase">{dateLong(date)}</p>
+            {#if dayOp.phase === 'loading' || (!day && dayOp.phase !== 'error')}
+              <p class="text-sm text-app-muted">{t('booking.searching')}</p>
+            {:else if dayOp.phase === 'error'}
+              <p class="alert" role="alert"><Icon name="alert" size={18} />{dayOp.message}</p>
+            {:else if day}
+              {#if !anySlot}<p class="mb-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noneThatDay')}</p>{/if}
+              <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-app-muted">{t('booking.specialists')}</p>
+              <ul class="grid gap-3">
+                {#each day as p (p.id)}
+                  <li class="rounded-xl border border-app-ink/10 p-3 {p.slots.length === 0 ? 'opacity-60' : ''}">
+                    <p class="flex items-center gap-2 text-sm font-semibold"><Icon name="user" size={16} class="flex-none text-app-muted" />{p.name}
+                      {#if p.slots.length === 0}<span class="ml-auto text-xs font-normal text-app-muted">{t('booking.unavailable')}</span>{/if}</p>
+                    {#if p.slots.length > 0}
+                      <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="{t('booking.slotsLabel')} · {p.name}">
+                        {#each p.slots as s (s.start)}
+                          <label class="grid min-h-11 cursor-pointer place-items-center rounded-xl border border-app-ink/12 text-sm font-medium has-[:checked]:border-app-ink has-[:checked]:bg-app-ink has-[:checked]:text-app-surface has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/60">
+                            <input type="radio" class="sr-only" name="slot" checked={professionalId === p.id && start === s.start} onchange={() => pickSlot(p.id, s.start)} />{s.start}
+                          </label>
+                        {/each}
+                      </div>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              {#if holdOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{holdOp.message}</p>{/if}
+            {/if}
+          </div>
+        {/if}
+        {#if info.professionals.length === 1 && ((available && available.length === 0) || (day && !anySlot))}
+          <WaitlistJoin {slug} clinicName={info.clinic.name} professionalId={info.professionals[0].id} {serviceId} />
+        {/if}
       {/if}
     </section>
 
-    {#if start}
+    {#if start && dataReady}
       <section class="card page-in px-5 py-5 sm:px-6" aria-labelledby="bk-s3">
         <h2 id="bk-s3" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(3)}>3</span>{t('booking.step3')}</h2>
         <p class="mt-2 text-sm text-app-muted">
@@ -299,97 +411,15 @@
         </p>
         {#if held}<p class="hint mt-1">{t('booking.held')}</p>{/if}
         {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
-
-        <div class="mt-4 grid grid-cols-2 gap-2">
-          {#each [[false, forPet ? t('booking.newClient') : t('booking.newPatient')], [true, forPet ? t('booking.registeredClient') : t('booking.registered')]] as [v, label]}
-            <label class="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-app-ink/12 px-3 py-2 text-center text-sm font-medium has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
-              <input type="radio" class="sr-only" name="reg" checked={registered === v} onchange={() => { registered = v as boolean; pets = null; petId = ''; needName = false; op.reset(); }} />{label}
-            </label>
-          {/each}
-        </div>
-
-        {#if registered}
-          <p class="hint mt-3">{forPet ? t('booking.registeredPetHint') : t('booking.registeredHint')}</p>
-          <div class="mt-3 grid gap-4 sm:grid-cols-2">
-            <div class={forPet ? '' : 'sm:col-span-2'}>
-              <label class="label" for="bk-phone">{t('booking.phone')}</label>
-              <input id="bk-phone" class="field" type="tel" inputmode="tel" bind:value={phone} autocomplete="tel" placeholder="55 1234 5678" oninput={() => { pets = null; petId = ''; }} />
-            </div>
-            {#if forPet}
-              <div class="flex items-end"><button type="button" class="btn-secondary w-full" disabled={lookupOp.phase === 'loading'} onclick={findPets}>{#if lookupOp.phase === 'loading'}<span class="spin"></span>{/if}{t('booking.findPets')}</button></div>
-              {#if lookupOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{lookupOp.message}</p>{/if}
-              {#if pets && pets.length === 0}<p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted sm:col-span-2">{t('booking.noPets')}</p>{/if}
-              {#if pets && pets.length > 0}
-                <fieldset class="sm:col-span-2">
-                  <legend class="label">{t('booking.pickPet')}</legend>
-                  <div class="grid gap-2 sm:grid-cols-2">
-                    {#each pets as pet (pet.id)}
-                      <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
-                        <input type="radio" class="sr-only" name="pet" value={pet.id} bind:group={petId} /><Icon name="paw" size={16} class="flex-none text-app-muted" /><span>{pet.name}</span>
-                      </label>
-                    {/each}
-                  </div>
-                </fieldset>
-              {/if}
-            {/if}
-            {#if needName}
-              <p class="hint !mt-0 sm:col-span-2">{t('booking.nameToo')}</p>
-              <div><label class="label" for="bk-names">{t('common.firstNames')}</label><input id="bk-names" class="field" bind:value={names} autocomplete="given-name" maxlength="100" /></div>
-              <div><label class="label" for="bk-last">{t('common.lastNames')}</label><input id="bk-last" class="field" bind:value={lastNames} autocomplete="family-name" maxlength="100" /></div>
-            {/if}
-            <div class="sm:col-span-2">
-              <label class="label" for="bk-reason">{t('booking.reason')} <span class="font-normal text-app-muted">{t('booking.reasonHint')}</span></label>
-              <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder={t('booking.reasonPlaceholder')} />
-            </div>
-          </div>
-        {:else}
-          <div class="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label class="label" for="bk-names">{forPet ? t('booking.ownerNames') : t('common.firstNames')}</label>
-              <input id="bk-names" class="field" bind:value={names} autocomplete="given-name" required maxlength="100" />
-            </div>
-            <div>
-              <label class="label" for="bk-last">{forPet ? t('booking.ownerLast') : t('common.lastNames')}</label>
-              <input id="bk-last" class="field" bind:value={lastNames} autocomplete="family-name" required maxlength="100" />
-            </div>
-            <div>
-              <label class="label" for="bk-phone">{t('booking.phone')}</label>
-              <input id="bk-phone" class="field" type="tel" inputmode="tel" bind:value={phone} autocomplete="tel" placeholder="55 1234 5678" />
-            </div>
-            <div>
-              <label class="label" for="bk-email">{t('booking.email')}</label>
-              <input id="bk-email" class="field" type="email" bind:value={email} autocomplete="email" autocapitalize="none" placeholder="tu@correo.com" />
-            </div>
-            <p class="hint !mt-0 sm:col-span-2">{t('booking.contactHint')}</p>
-            {#if forPet}
-              <div>
-                <label class="label" for="bk-species">{t('booking.petKind')}</label>
-                <select id="bk-species" class="field" bind:value={species}>
-                  <option value="">{t('booking.petKindPick')}</option>
-                  {#each info.species ?? [] as sp}<option>{sp}</option>{/each}
-                </select>
-              </div>
-              <div>
-                <label class="label" for="bk-pet">{t('booking.petName')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></label>
-                <input id="bk-pet" class="field" bind:value={petName} maxlength="80" />
-              </div>
-            {/if}
-            <div class="sm:col-span-2">
-              <label class="label" for="bk-reason">{t('booking.reason')} <span class="font-normal text-app-muted">{t('booking.reasonHint')}</span></label>
-              <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder={t('booking.reasonPlaceholder')} />
-            </div>
-          </div>
-        {/if}
-        <!-- honeypot: invisible to people -->
-        <div class="absolute -left-[9999px]" aria-hidden="true">
-          <label for="bk-web">{t('common.website')}</label>
-          <input id="bk-web" tabindex="-1" autocomplete="off" bind:value={website} />
+        <div class="mt-4">
+          <label class="label" for="bk-reason">{t('booking.reason')} <span class="font-normal text-app-muted">{t('booking.reasonHint')}</span></label>
+          <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder={t('booking.reasonPlaceholder')} />
         </div>
 
         <div class="mt-5 grid gap-3 text-sm">
           <label class="flex cursor-pointer items-start gap-3">
             <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptPrivacy} required />
-            <span>{t('booking.privacyBefore')}<a href="/privacidad" target="_blank" rel="noopener" class="text-app-primary underline">{t('common.privacyLink')}</a>{t('booking.privacyAfter', { clinic: info.clinic.name })}</span>
+            <span>{t('booking.privacyBefore')}<button type="button" class="text-app-primary underline" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); privacyOpen = true; }}>{t('common.privacyLink')}</button>{t('booking.privacyAfter', { clinic: info.clinic.name })}</span>
           </label>
           <label class="flex cursor-pointer items-start gap-3">
             <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptReminders} />
@@ -405,3 +435,5 @@
     {/if}
   </form>
 {/if}
+
+<PrivacyModal open={privacyOpen} onclose={() => (privacyOpen = false)} />

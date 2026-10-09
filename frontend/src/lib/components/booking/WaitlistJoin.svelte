@@ -2,6 +2,8 @@
   import { waitlistApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import PrivacyModal from './PrivacyModal.svelte';
+  let privacyOpen = $state(false);
   import { t } from '$lib/i18n/index.svelte';
 
   interface Props {
@@ -87,7 +89,7 @@
       <div class="grid gap-3 text-sm">
         <label class="flex cursor-pointer items-start gap-3">
           <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptPrivacy} required />
-          <span>{t('booking.privacyBefore')}<a href="/privacidad" target="_blank" rel="noopener" class="text-app-primary underline">{t('common.privacyLink')}</a>{t('waitlist.join.privacyAfter')}</span>
+          <span>{t('booking.privacyBefore')}<button type="button" class="text-app-primary underline" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); privacyOpen = true; }}>{t('common.privacyLink')}</button>{t('waitlist.join.privacyAfter')}</span>
         </label>
         <label class="flex cursor-pointer items-start gap-3">
           <input type="checkbox" class="mt-0.5 h-5 w-5 flex-none accent-[rgb(var(--app-primary))]" bind:checked={acceptNotices} required />
@@ -101,3 +103,5 @@
     </form>
   {/if}
 </div>
+
+<PrivacyModal open={privacyOpen} onclose={() => (privacyOpen = false)} />

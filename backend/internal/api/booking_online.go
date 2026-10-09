@@ -372,8 +372,8 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 	case req.Animal && !c.Animals, !req.Animal && !c.People:
 		writeError(w, http.StatusBadRequest, "Este consultorio no atiende esa opción.")
 		return
-	case !req.Registered && (req.Names == "" || req.LastNames == "" || utf8.RuneCountInString(req.Names) > 100 || utf8.RuneCountInString(req.LastNames) > 100):
-		writeError(w, http.StatusBadRequest, "Escribe tu nombre y apellidos.")
+	case !req.Registered && (req.Names == "" || utf8.RuneCountInString(req.Names) > 100 || utf8.RuneCountInString(req.LastNames) > 100):
+		writeError(w, http.StatusBadRequest, "Escribe tu nombre.")
 		return
 	case req.Registered && req.Phone == "":
 		writeError(w, http.StatusBadRequest, "Escribe el teléfono con el que te registraste.")
@@ -428,6 +428,14 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Names, req.LastNames = linked.Names, linked.LastNames
+		if want := b.followUpProfessional(ctx, c, linked.ID); want != "" && want != req.ProfessionalID {
+			name := "quien te ha atendido"
+			if ps, err := b.listBookable(ctx, c, want); err == nil && len(ps) == 1 {
+				name = ps[0].Name
+			}
+			writeError(w, http.StatusConflict, "Para tu seguimiento, agenda con "+name+".")
+			return
+		}
 	}
 	pros, err := b.listBookable(ctx, c, req.ProfessionalID)
 	if err != nil {
@@ -691,17 +699,24 @@ func (b *bookingAPI) bookingLookup(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	person, pets := false, []map[string]string{}
+	people, pets := 0, []map[string]string{}
+	var onlyPerson string
 	for _, x := range all {
 		if x.Subject == "animal" {
 			if c.Animals {
-				pets = append(pets, map[string]string{"id": x.ID, "name": x.Names})
+				pets = append(pets, map[string]string{"id": x.ID, "name": x.Names, "professional_id": b.followUpProfessional(r.Context(), c, x.ID)})
 			}
 		} else if c.People {
-			person = true
+			people++
+			onlyPerson = x.ID
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"person": person, "pets": pets})
+	// a patient already in treatment books with whoever has been seeing them, for continuity
+	pro := ""
+	if people == 1 {
+		pro = b.followUpProfessional(r.Context(), c, onlyPerson)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"person": people > 0, "several": people > 1, "professional_id": pro, "pets": pets})
 }
 
 // bookingHold is POST /public/booking/{slug}/hold: the time a visitor picked is kept for them for a few minutes.
@@ -824,4 +839,25 @@ func (b *bookingAPI) mailSpecialist(ctx context.Context, c *bookingClinic, pro b
 	body := `<p style="margin:0 0 8px">Hola ` + esc(firstName(pro.Name)) + `,</p><p style="margin:0 0 8px">` + esc(lead) + `</p>` +
 		`<p style="margin:0 0 8px"><strong>Cuándo:</strong> ` + esc(when) + `</p>` + button(link, "Ver la agenda")
 	b.sendMail(mail.Message{To: []string{to}, Subject: title + " · " + req.Date + " " + req.Start, Text: text, HTML: layout(title, body)})
+}
+
+// followUpProfessional is the professional who last attended the patient (a note they wrote or a visit they held),
+// as long as they are still bookable; empty when the patient has no history or that person no longer takes bookings.
+func (s *Server) followUpProfessional(ctx context.Context, c *bookingClinic, patientID string) string {
+	var id string
+	err := s.db.QueryRow(ctx, `
+		SELECT pid FROM (
+			SELECT author_id::text AS pid, occurred_at AS at FROM encounters
+			WHERE clinic_id = $1 AND patient_id = $2 AND author_id IS NOT NULL AND addendum_of IS NULL
+			UNION ALL
+			SELECT professional_id::text, date::timestamptz FROM appointments
+			WHERE clinic_id = $1 AND patient_id = $2 AND professional_id IS NOT NULL AND status IN ('completed', 'arrived', 'in_progress')
+		) h ORDER BY at DESC LIMIT 1`, c.ID, patientID).Scan(&id)
+	if err != nil || id == "" {
+		return ""
+	}
+	if ps, err := s.listBookable(ctx, c, id); err != nil || len(ps) != 1 {
+		return ""
+	}
+	return id
 }
