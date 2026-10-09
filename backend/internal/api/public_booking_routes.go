@@ -21,6 +21,8 @@ type bookingAPI struct {
 	writes  *rateLimiter // confirm / cancel / opt-out, per IP
 	bookIP  *rateLimiter // new bookings, per IP
 	bookKey *rateLimiter // new bookings, per contact
+	lookups *rateLimiter // registered-patient lookups
+	holds   *rateLimiter // times held while a form is filled in
 }
 
 // mountPublicBooking: Online booking and appointment confirm/cancel by token.
@@ -32,6 +34,8 @@ func (s *Server) mountPublicBooking(r chi.Router) {
 		writes:  newRateLimiter(30, 10*time.Minute),
 		bookIP:  newRateLimiter(8, time.Hour),
 		bookKey: newRateLimiter(3, time.Hour),
+		lookups: newRateLimiter(12, time.Hour),
+		holds:   newRateLimiter(60, 10*time.Minute),
 	}
 	r.Get("/public/appointments/{token}", b.getByToken)
 	r.Post("/public/appointments/{token}/confirm", b.confirmByToken)
@@ -43,6 +47,8 @@ func (s *Server) mountPublicBooking(r chi.Router) {
 	r.Get("/public/booking/{slug}/availability", b.bookingAvailability)
 	r.Get("/public/booking/{slug}/month", b.bookingMonth)
 	r.Post("/public/booking/{slug}/appointments", b.bookingCreate)
+	r.Post("/public/booking/{slug}/lookup", b.bookingLookup)
+	r.Post("/public/booking/{slug}/hold", b.bookingHold)
 }
 
 func tooMany(w http.ResponseWriter) {

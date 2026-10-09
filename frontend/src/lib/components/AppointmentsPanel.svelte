@@ -59,6 +59,8 @@
   let appts = $state<Appt[]>([]);
   let blocks = $state<TimeBlock[]>([]);
   let pros = $state<Professional[]>([]);
+  /** a specialist without agenda-admin rights can still mark their own time as unavailable */
+  const ownProId = $derived(!session.has(PERMISSIONS.adminAppointments) ? (pros.find((p) => p.id === session.user?.userId)?.id ?? null) : null);
   let services = $state<ServiceOption[]>([]);
   let cfg = $state<AgendaSettings | null>(null);
   let loading = $state(true);
@@ -252,8 +254,10 @@
 
 <PageHeader title={admin ? 'Administrar citas' : 'Citas'} subtitle={admin ? 'Crea, reprograma y cancela citas. Arrastra una cita para moverla.' : 'Consulta la agenda del consultorio.'}>
   {#snippet actions()}
+    {#if canEdit || ownProId}
+      <button type="button" class="btn-secondary" onclick={() => (blockOpen = true)}><Icon name="ban" size={18} />{ownProId ? 'Marcar no disponible' : 'Bloquear horario'}</button>
+    {/if}
     {#if canEdit}
-      <button type="button" class="btn-secondary" onclick={() => (blockOpen = true)}><Icon name="ban" size={18} />Bloquear horario</button>
       <button type="button" class="btn-primary" onclick={() => openCreate()}><Icon name="plus" size={18} stroke={2.2} />Nueva cita</button>
     {/if}
   {/snippet}
@@ -393,4 +397,4 @@
   <p>Se eliminará la cita de <strong class="text-app-ink">{deleting ? fullName(deleting) : ''}</strong> del {deleting ? fmtShort(deleting.date) : ''}. Si solo no vendrá, mejor cancélala para conservar el historial.</p>
 </ConfirmModal>
 
-<BlockModal open={blockOpen} {blocks} {pros} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />
+<BlockModal open={blockOpen} {blocks} {pros} ownOnly={ownProId} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />

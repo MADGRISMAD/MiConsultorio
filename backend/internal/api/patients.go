@@ -91,7 +91,7 @@ type patientIn struct {
 	OwnerBirthDate   string         `json:"owner_birth_date"` // animals: the owner's birth date (informative)
 	OwnerID          *string        `json:"owner_id"`         // animals: an existing owner of the clinic (otherwise the typed data finds or creates one)
 	Profile          map[string]any `json:"profile"`
-	PrivacyAck       bool           `json:"privacy_ack"` // the patient received and accepted the aviso de privacidad
+	PrivacyAck       bool           `json:"privacy_ack"`  // the patient received and accepted the aviso de privacidad
 	RemindersOK      *bool          `json:"reminders_ok"` // agrees to e-mails (greetings, reminders); left as it is when omitted
 }
 

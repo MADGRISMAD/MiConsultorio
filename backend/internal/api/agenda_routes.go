@@ -11,13 +11,13 @@ func (s *Server) mountAgenda(r chi.Router) {
 func (s *Server) mountAgendaRoot(r chi.Router) {
 	r.Route("/agenda", func(r chi.Router) {
 		view := require(PermNavAppointments, PermAdminAppointments)
-		manage := require(PermAdminAppointments)
 		r.With(view).Get("/professionals", s.listProfessionals)
 		r.With(require(PermAdminUsers)).Put("/professionals/{id}", s.updateProfessional)
 		r.With(view).Get("/services", s.listAgendaServices)
 		r.With(view).Get("/blocks", s.listBlocks)
-		r.With(manage).Post("/blocks", s.createBlock)
-		r.With(manage).Delete("/blocks/{id}", s.deleteBlock)
+		// a professional marks their own time off (vacation...); only agenda managers block other people or the whole clinic
+		r.With(view).Post("/blocks", s.createBlock)
+		r.With(view).Delete("/blocks/{id}", s.deleteBlock)
 		r.With(view).Get("/settings", s.getAgendaSettings)
 		r.With(require(PermAdminUsers)).Put("/settings", s.updateAgendaSettings)
 	})

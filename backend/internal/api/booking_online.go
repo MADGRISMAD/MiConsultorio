@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +17,9 @@ import (
 	"github.com/madgrismad/miconsultorio/backend/internal/mail"
 )
 
+// the kinds of pet offered on the public page
+var bookingSpecies = []string{"Perro", "Gato", "Ave", "Conejo", "Roedor", "Reptil", "Otro"}
+
 var slugShape = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 
 // bookingClinic is a clinic with online booking switched on, as the public pages see it.
@@ -23,6 +27,7 @@ type bookingClinic struct {
 	ID, Name, Kind, Address, Phone, Message string
 	RequiresConfirmation, ShowPrices        bool
 	LeadHours, HorizonDays, SlotMinutes     int
+	Animals, People                         bool // the clinic sees pets and/or people
 	Loc                                     *time.Location
 	Hours                                   Settings
 }
@@ -48,6 +53,20 @@ func (s *Server) loadBookingClinic(ctx context.Context, slug string) (*bookingCl
 		return nil, err
 	}
 	c.Loc = locationOrDefault(tz)
+	kinds, err := s.clinicKindsFor(ctx, c.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, k := range kinds {
+		if k == "VETERINARY" {
+			c.Animals = true
+		} else {
+			c.People = true
+		}
+	}
+	if !c.Animals {
+		c.People = true
+	}
 	_ = json.Unmarshal(settings, &c.Hours)
 	c.Hours = c.Hours.normalized()
 	return &c, nil
@@ -144,6 +163,9 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 		"requires_confirmation": c.RequiresConfirmation,
 		"services":              services,
 		"professionals":         profs,
+		"animals":               c.Animals,
+		"people":                c.People,
+		"species":               bookingSpecies,
 		"today":                 now.Format("2006-01-02"),
 		"lead_hours":            c.LeadHours,
 		"horizon_days":          c.HorizonDays,
@@ -259,9 +281,10 @@ func (b *bookingAPI) bookingAvailability(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	slots := []map[string]string{}
+	holder := r.URL.Query().Get("holder")
 	if len(pros) == 1 {
 		pid := pros[0].ID
-		held, err := b.slotHeldSpans(ctx, b.db, c.ID, pid, date)
+		held, err := b.slotHeldSpans(ctx, b.db, c.ID, pid, date, holder)
 		if err != nil {
 			serverError(w, r, err)
 			return
@@ -278,7 +301,8 @@ func (b *bookingAPI) bookingAvailability(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"date": date, "slots": slots})
+	// "unavailable" lets the page grey out a specialist for that day (vacation, full day) without saying why
+	writeJSON(w, http.StatusOK, map[string]any{"date": date, "slots": slots, "unavailable": len(slots) == 0})
 }
 
 func (s *Server) serviceOK(ctx context.Context, clinicID, id string) bool {
@@ -302,7 +326,13 @@ type bookRequest struct {
 	Reason          string `json:"reason"`
 	AcceptPrivacy   bool   `json:"accept_privacy"`
 	AcceptReminders bool   `json:"accept_reminders"`
-	Website         string `json:"website"` // honeypot: real people never fill it
+	Website         string `json:"website"`    // honeypot: real people never fill it
+	Holder          string `json:"holder"`     // the visitor's key for the time held while the form is filled in
+	Registered      bool   `json:"registered"` // already a patient: the record is found by phone
+	PatientID       string `json:"patient_id"` // registered pets: the one chosen from the names the lookup returned
+	Animal          bool   `json:"animal"`     // the visit is for a pet
+	Species         string `json:"species"`
+	PetName         string `json:"pet_name"`
 }
 
 func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
@@ -339,8 +369,20 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 	case !validUUID(req.ProfessionalID):
 		writeError(w, http.StatusBadRequest, "Elige un profesional.")
 		return
-	case req.Names == "" || req.LastNames == "" || utf8.RuneCountInString(req.Names) > 100 || utf8.RuneCountInString(req.LastNames) > 100:
+	case req.Animal && !c.Animals, !req.Animal && !c.People:
+		writeError(w, http.StatusBadRequest, "Este consultorio no atiende esa opción.")
+		return
+	case !req.Registered && (req.Names == "" || req.LastNames == "" || utf8.RuneCountInString(req.Names) > 100 || utf8.RuneCountInString(req.LastNames) > 100):
 		writeError(w, http.StatusBadRequest, "Escribe tu nombre y apellidos.")
+		return
+	case req.Registered && req.Phone == "":
+		writeError(w, http.StatusBadRequest, "Escribe el teléfono con el que te registraste.")
+		return
+	case !req.Registered && req.Animal && !slices.Contains(bookingSpecies, req.Species):
+		writeError(w, http.StatusBadRequest, "Elige qué mascota vas a consultar.")
+		return
+	case utf8.RuneCountInString(req.PetName) > 80:
+		writeError(w, http.StatusBadRequest, "El nombre de la mascota es demasiado largo.")
 		return
 	case req.Phone == "" && req.Email == "":
 		writeError(w, http.StatusBadRequest, "Escribe un teléfono o un correo para poder contactarte.")
@@ -376,6 +418,16 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 	if _, err := time.Parse("2006-01-02", req.Date); err != nil {
 		writeError(w, http.StatusBadRequest, "La fecha no es válida.")
 		return
+	}
+	var linked *regPatient
+	if req.Registered {
+		var status int
+		var msg string
+		if linked, status, msg = b.findRegistered(ctx, c.ID, phone, req); linked == nil {
+			writeError(w, status, msg)
+			return
+		}
+		req.Names, req.LastNames = linked.Names, linked.LastNames
 	}
 	pros, err := b.listBookable(ctx, c, req.ProfessionalID)
 	if err != nil {
@@ -415,7 +467,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if code == SlotFree {
-			held, err := b.slotHeldSpans(ctx, tx, c.ID, pro.ID, req.Date)
+			held, err := b.slotHeldSpans(ctx, tx, c.ID, pro.ID, req.Date, req.Holder)
 			if err != nil {
 				return err
 			}
@@ -443,22 +495,39 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 			svc = req.ServiceID
 		}
 		newID := newRowID()
-		sealedReason, err := encField("appointments", "details", newID, req.Reason)
+		reason := req.Reason
+		if req.Animal && !req.Registered {
+			pet := "Mascota: " + req.Species
+			if req.PetName != "" {
+				pet += " (" + req.PetName + ")"
+			}
+			reason = strings.TrimSpace(pet + ". " + reason)
+		}
+		var patientID any
+		if linked != nil {
+			patientID = linked.ID
+		}
+		sealedReason, err := encField("appointments", "details", newID, reason)
 		if err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, professional_id, status, source,
-			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id)
-			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid)
+			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id, patient_id)
+			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid)
 			RETURNING id`,
-			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID).Scan(&apptID); err != nil {
+			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID).Scan(&apptID); err != nil {
 			return err
+		}
+		if req.Holder != "" { // the time is theirs now
+			if _, err := tx.Exec(ctx, `DELETE FROM booking_holds WHERE clinic_id = $1 AND holder = $2`, c.ID, req.Holder); err != nil {
+				return err
+			}
 		}
 		audit(ctx, tx, c.ID, nil, "appointment_booked_online", "Cita reservada en línea para el "+req.Date+" a las "+req.Start,
 			map[string]any{"appointment_id": apptID, "professional_id": pro.ID, "requires_confirmation": c.RequiresConfirmation})
 		b.ntfAppointment(ctx, tx, c.ID, pro.ID, "booking_new", "Nueva cita por reserva en línea",
-			req.Names+" "+req.LastNames+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/admin/navegar-citas")
+			bookingWho(req)+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/admin/navegar-citas")
 		return b.scheduleReminders(ctx, tx, c.ID, apptID)
 	})
 	switch {
@@ -496,3 +565,234 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		"reminders":            req.AcceptReminders,
 	}})
 }
+
+// bookingWho names the person (and pet) of a booking for the clinic's notification.
+func bookingWho(req bookRequest) string {
+	who := strings.TrimSpace(req.Names + " " + req.LastNames)
+	switch {
+	case req.Registered && req.Animal:
+		return who + " (paciente registrado, mascota)"
+	case req.Registered:
+		return who + " (paciente registrado)"
+	case req.Animal:
+		return who + " (mascota: " + req.Species + ")"
+	}
+	return who
+}
+
+// regPatient is the record a registered patient's booking attaches to. Nothing of it is sent back to the visitor.
+type regPatient struct{ ID, Names, LastNames, Subject string }
+
+// registeredMatches are the active records of a clinic whose own phone, or whose owner's / guardian's phone, is this one.
+func (s *Server) registeredMatches(ctx context.Context, clinicID, phone string) ([]regPatient, error) {
+	digits := phone
+	if len(digits) > 10 {
+		digits = digits[len(digits)-10:]
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT id::text, names, last_names, subject FROM patients
+		WHERE clinic_id = $1 AND archived_at IS NULL
+		  AND (right(regexp_replace(phone, '\D', '', 'g'), 10) = $2 OR right(regexp_replace(guardian_phone, '\D', '', 'g'), 10) = $2)
+		ORDER BY file_number LIMIT 30`, clinicID, digits)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []regPatient
+	for rows.Next() {
+		var x regPatient
+		if err := rows.Scan(&x.ID, &x.Names, &x.LastNames, &x.Subject); err != nil {
+			return nil, err
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
+}
+
+// findRegistered picks the record a registered visitor means from their phone: for a pet the one chosen from the
+// lookup; for a person the only match, or, with several people on one phone, the one whose typed name matches.
+func (b *bookingAPI) findRegistered(ctx context.Context, clinicID, phone string, req bookRequest) (*regPatient, int, string) {
+	all, err := b.registeredMatches(ctx, clinicID, phone)
+	if err != nil {
+		return nil, http.StatusInternalServerError, "No se pudo buscar tu expediente. Intenta de nuevo."
+	}
+	var pick []regPatient
+	for _, x := range all {
+		switch {
+		case req.Animal && x.Subject == "animal" && (req.PatientID == "" || x.ID == req.PatientID):
+			pick = append(pick, x)
+		case !req.Animal && x.Subject == "person":
+			pick = append(pick, x)
+		}
+	}
+	if req.Animal {
+		if len(pick) == 0 {
+			return nil, http.StatusConflict, "No encontramos mascotas registradas con ese teléfono. Agenda como cliente nuevo."
+		}
+		if len(pick) > 1 {
+			return nil, http.StatusBadRequest, "Elige tu mascota."
+		}
+		return &pick[0], 0, ""
+	}
+	if len(pick) > 1 && strings.TrimSpace(req.Names) != "" {
+		want := foldText(strings.TrimSpace(req.Names + " " + req.LastNames))
+		var named []regPatient
+		for _, x := range pick {
+			if strings.HasPrefix(foldText(strings.TrimSpace(x.Names+" "+x.LastNames)), want) {
+				named = append(named, x)
+			}
+		}
+		pick = named
+	}
+	switch len(pick) {
+	case 0:
+		return nil, http.StatusConflict, "No encontramos un expediente con ese teléfono. Agenda como paciente nuevo."
+	case 1:
+		return &pick[0], 0, ""
+	}
+	return nil, http.StatusConflict, "Hay varias personas con ese teléfono: escribe tu nombre completo para identificarte."
+}
+
+// bookingLookup is POST /public/booking/{slug}/lookup: does this phone belong to a registered patient, and which pets
+// (names only) are registered under it. Nothing else of the record is ever returned.
+func (b *bookingAPI) bookingLookup(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if !limit(w, b.lookups, "look|"+ip) {
+		return
+	}
+	var req struct {
+		Phone string `json:"phone"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	c, err := b.loadBookingClinic(r.Context(), chi.URLParam(r, "slug"))
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "Esta página de citas no está disponible.")
+		return
+	}
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	phone := normalizePhoneMX(req.Phone)
+	if phone == "" {
+		writeError(w, http.StatusBadRequest, "El teléfono debe tener 10 dígitos.")
+		return
+	}
+	if !b.lookups.allow("lookp|" + c.ID + "|" + phone) {
+		tooMany(w)
+		return
+	}
+	b.lookups.fail("lookp|" + c.ID + "|" + phone)
+	all, err := b.registeredMatches(r.Context(), c.ID, phone)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	person, pets := false, []map[string]string{}
+	for _, x := range all {
+		if x.Subject == "animal" {
+			if c.Animals {
+				pets = append(pets, map[string]string{"id": x.ID, "name": x.Names})
+			}
+		} else if c.People {
+			person = true
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"person": person, "pets": pets})
+}
+
+// bookingHold is POST /public/booking/{slug}/hold: the time a visitor picked is kept for them for a few minutes.
+func (b *bookingAPI) bookingHold(w http.ResponseWriter, r *http.Request) {
+	if !limit(w, b.holds, "hold|"+clientIP(r)) {
+		return
+	}
+	var req struct {
+		ProfessionalID string `json:"professional_id"`
+		ServiceID      string `json:"service_id"`
+		Date           string `json:"date"`
+		Start          string `json:"start"`
+		Holder         string `json:"holder"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	ctx := r.Context()
+	c, err := b.loadBookingClinic(ctx, chi.URLParam(r, "slug"))
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "Esta página de citas no está disponible.")
+		return
+	}
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if !holderShape.MatchString(req.Holder) || !validUUID(req.ProfessionalID) {
+		writeError(w, http.StatusBadRequest, "Solicitud inválida.")
+		return
+	}
+	if req.ServiceID != "" && !b.serviceOK(ctx, c.ID, req.ServiceID) {
+		writeError(w, http.StatusBadRequest, "El servicio no es válido.")
+		return
+	}
+	pros, err := b.listBookable(ctx, c, req.ProfessionalID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if len(pros) != 1 {
+		writeError(w, http.StatusBadRequest, "Elige un profesional.")
+		return
+	}
+	pro := pros[0]
+	dur := b.slotServiceMinutes(ctx, b.db, c.ID, req.ServiceID)
+	if !slices.Contains(c.candidateSlots(pro, req.Date, time.Now(), dur), req.Start) {
+		writeError(w, http.StatusConflict, "Ese horario ya no está disponible. Elige otro.")
+		return
+	}
+	end := pro.end(c, req.Start, dur)
+	taken := false
+	var expires time.Time
+	err = inTx(ctx, b.db, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+c.ID+"|"+pro.ID+"|"+req.Date); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM booking_holds WHERE expires_at < now() OR (clinic_id = $1 AND holder = $2)`, c.ID, req.Holder); err != nil {
+			return err
+		}
+		code, err := b.slotConflict(ctx, tx, c.ID, &pro.ID, "", req.Date, req.Start, end, "")
+		if err != nil {
+			return err
+		}
+		if code == SlotFree {
+			held, err := b.slotHeldSpans(ctx, tx, c.ID, pro.ID, req.Date, req.Holder)
+			if err != nil {
+				return err
+			}
+			if held.overlaps(req.Start, end) {
+				code = SlotTaken
+			}
+		}
+		if code != SlotFree {
+			taken = true
+			return nil
+		}
+		return tx.QueryRow(ctx, `
+			INSERT INTO booking_holds (clinic_id, professional_id, date, start_hour, end_hour, holder, expires_at)
+			VALUES ($1, $2, $3::date, $4::time, $5::time, $6, now() + $7::float8 * interval '1 second') RETURNING expires_at`,
+			c.ID, pro.ID, req.Date, req.Start, end, req.Holder, bookingHoldTTL.Seconds()).Scan(&expires)
+	})
+	switch {
+	case err != nil:
+		serverError(w, r, err)
+	case taken:
+		writeError(w, http.StatusConflict, "Alguien más acaba de elegir ese horario. Elige otro.")
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{"expires_at": expires})
+	}
+}
+
+const bookingHoldTTL = 10 * time.Minute
+
+var holderShape = regexp.MustCompile(`^[A-Za-z0-9_-]{16,64}$`)

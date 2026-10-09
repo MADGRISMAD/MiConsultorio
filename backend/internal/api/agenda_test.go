@@ -176,7 +176,7 @@ func TestAgendaBlocks(t *testing.T) {
 		c := e.login(u)
 		c.expect(200, "GET", "/api/agenda/blocks", nil)
 		c.expect(403, "POST", "/api/agenda/blocks", map[string]any{"date_from": "2030-07-05", "date_to": "2030-07-05"})
-		c.expect(403, "DELETE", "/api/agenda/blocks/"+blockID, nil)
+		c.expect(404, "DELETE", "/api/agenda/blocks/"+blockID, nil) // not theirs: only the agenda managers remove blocks they did not make
 	}
 	// isolation
 	other := e.login("recep_b")

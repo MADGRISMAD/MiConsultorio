@@ -17,6 +17,10 @@ export interface BookingInfo {
   requires_confirmation: boolean;
   services: BookingService[];
   professionals: BookingProfessional[];
+  /** the clinic sees pets / people */
+  animals?: boolean;
+  people?: boolean;
+  species?: string[];
   today: string;
   lead_hours: number;
   horizon_days: number;
@@ -40,6 +44,12 @@ export interface BookingRequest {
   accept_privacy: boolean;
   accept_reminders: boolean;
   website: string;
+  holder?: string;
+  registered?: boolean;
+  patient_id?: string;
+  animal?: boolean;
+  species?: string;
+  pet_name?: string;
 }
 
 export interface BookingResult {

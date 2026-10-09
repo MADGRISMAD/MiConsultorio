@@ -398,7 +398,7 @@ func (s *Server) wlOffer(ctx context.Context, c *bookingClinic, e wlEntry, pro b
 		if err != nil || code != SlotFree {
 			return err
 		}
-		held, err := s.slotHeldSpans(ctx, tx, c.ID, pro.ID, date)
+		held, err := s.slotHeldSpans(ctx, tx, c.ID, pro.ID, date, "")
 		if err != nil || held.overlaps(start, end) {
 			return err
 		}

@@ -295,6 +295,13 @@ func (s *Server) createBlock(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	p := principalFrom(r.Context())
+	if !hasAnyPermission(p.Permissions, PermAdminAppointments) {
+		own := p.UserID
+		if in.ProfessionalID == nil || *in.ProfessionalID != own {
+			writeError(w, http.StatusForbidden, "Solo puedes bloquear tu propio horario.")
+			return
+		}
+	}
 	if in.ProfessionalID != nil && (!validUUID(*in.ProfessionalID) || !s.isProfessional(r.Context(), s.db, p.ClinicID, *in.ProfessionalID)) {
 		writeError(w, http.StatusBadRequest, "El profesional no existe o no está activo en este consultorio.")
 		return
@@ -346,7 +353,8 @@ func (s *Server) deleteBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	tag, err := s.db.Exec(r.Context(), `DELETE FROM time_blocks WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id)
+	manager := hasAnyPermission(p.Permissions, PermAdminAppointments)
+	tag, err := s.db.Exec(r.Context(), `DELETE FROM time_blocks WHERE clinic_id = $1 AND id = $2 AND ($3 OR (professional_id = $4::uuid AND created_by_name = $5))`, p.ClinicID, id, manager, p.UserID, p.actorName())
 	if err != nil {
 		serverError(w, r, err)
 		return

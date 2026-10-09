@@ -118,11 +118,15 @@ func (l slotSpans) overlaps(start, end string) bool {
 	return l.overlapsMin(slotClock(start), slotClock(end))
 }
 
-// slotHeldSpans are the slots of a professional on a date that are on offer to someone on the waitlist.
-func (s *Server) slotHeldSpans(ctx context.Context, q rowsQuerier, clinicID, professionalID, date string) (slotSpans, error) {
+// slotHeldSpans are the slots of a professional on a date that are on offer to someone on the waitlist or that
+// another visitor of the booking page is filling in (holder is the caller's own key, whose holds do not count).
+func (s *Server) slotHeldSpans(ctx context.Context, q rowsQuerier, clinicID, professionalID, date, holder string) (slotSpans, error) {
 	rows, err := q.Query(ctx, `
 		SELECT to_char(start_hour, 'HH24:MI'), to_char(end_hour, 'HH24:MI') FROM waitlist_offers
-		WHERE clinic_id = $1 AND professional_id = $2 AND date = $3::date AND status = 'offered' AND expires_at > now()`, clinicID, professionalID, date)
+		WHERE clinic_id = $1 AND professional_id = $2 AND date = $3::date AND status = 'offered' AND expires_at > now()
+		UNION ALL
+		SELECT to_char(start_hour, 'HH24:MI'), to_char(end_hour, 'HH24:MI') FROM booking_holds
+		WHERE clinic_id = $1 AND professional_id = $2 AND date = $3::date AND expires_at > now() AND holder <> $4`, clinicID, professionalID, date, holder)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +191,12 @@ func (s *Server) loadSlotBusy(ctx context.Context, clinicID string, pros []strin
 		SELECT professional_id::text, to_char(date, 'YYYY-MM-DD'), to_char(start_hour, 'HH24:MI'), to_char(end_hour, 'HH24:MI')
 		FROM waitlist_offers WHERE clinic_id = $1 AND professional_id = ANY($2::uuid[]) AND date BETWEEN $3::date AND $4::date
 		  AND status = 'offered' AND expires_at > now()`, b.holds); err != nil {
+		return nil, err
+	}
+	if err := scan(`
+		SELECT professional_id::text, to_char(date, 'YYYY-MM-DD'), to_char(start_hour, 'HH24:MI'), to_char(end_hour, 'HH24:MI')
+		FROM booking_holds WHERE clinic_id = $1 AND professional_id = ANY($2::uuid[]) AND date BETWEEN $3::date AND $4::date
+		  AND expires_at > now()`, b.holds); err != nil {
 		return nil, err
 	}
 	rows, err := s.db.Query(ctx, `

@@ -11,12 +11,15 @@
     open: boolean;
     blocks: TimeBlock[];
     pros: Professional[];
+    /** a specialist without agenda-admin rights: the only professional they may block (themselves) */
+    ownOnly?: string | null;
     /** date to prefill */
     date: string;
     onclose: () => void;
     onchanged: () => void;
   }
-  let { open, blocks, pros, date, onclose, onchanged }: Props = $props();
+  let { open, blocks: allBlocks, pros, ownOnly = null, date, onclose, onchanged }: Props = $props();
+  const blocks = $derived(ownOnly ? allBlocks.filter((b) => b.professional_id === ownOnly) : allBlocks);
 
   let professional = $state('');
   let from = $state('');
@@ -32,7 +35,7 @@
   $effect(() => {
     if (open) {
       from = to = date;
-      professional = '';
+      professional = ownOnly ?? '';
       allDay = true;
       reason = '';
       affected = null;
@@ -62,8 +65,11 @@
   }
 </script>
 
-<Modal {open} title="Bloquear horarios" wide {onclose}>
+<Modal {open} title={ownOnly ? "Marcar no disponible" : "Bloquear horarios"} wide {onclose}>
   <form id="block-form" class="grid gap-3 text-left sm:grid-cols-2" onsubmit={create}>
+    {#if ownOnly}
+      <p class="rounded-xl bg-app-primary/8 px-3.5 py-2.5 text-sm sm:col-span-2">Los pacientes no podrán agendar contigo en las fechas y horas que marques (por ejemplo, vacaciones). Las citas que ya tengas no se cancelan.</p>
+    {:else}
     <label class="block sm:col-span-2">
       <span class="label">A quién aplica</span>
       <select class="field" bind:value={professional}>
@@ -71,6 +77,7 @@
         {#each pros as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
       </select>
     </label>
+    {/if}
     <label class="block"><span class="label">Desde *</span><input type="date" class="field" bind:value={from} required /></label>
     <label class="block"><span class="label">Hasta *</span><input type="date" class="field" bind:value={to} min={from} required /></label>
     <label class="flex cursor-pointer items-center gap-2 text-sm sm:col-span-2">
@@ -85,7 +92,7 @@
       <input type="text" class="field" bind:value={reason} maxlength="200" placeholder="Vacaciones, congreso, mantenimiento…" />
     </label>
     <div class="flex justify-end sm:col-span-2">
-      <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}Crear bloqueo</button>
+      <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}{ownOnly ? 'Marcar no disponible' : 'Crear bloqueo'}</button>
     </div>
   </form>
   {#if op.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
