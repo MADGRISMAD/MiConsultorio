@@ -50,42 +50,42 @@
     {
       title: 'Mi consultorio',
       items: [
-        { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, giro, especialidades y horario', icon: 'building', show: admin },
-        { id: 'equipo', to: '/equipo', label: 'Equipo', desc: 'Quién entra, roles y lugares del plan', icon: 'users', show: admin },
-        { id: 'plan', to: '/suscripcion', label: 'Suscripción y plan', desc: 'Tu plan, pagos y facturación de Caresia', icon: 'sparkles', show: () => session.has(PERMISSIONS.adminUsers) }
+        { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, teléfono, dirección, giro, especialidades y horario de atención', icon: 'building', show: admin },
+        { id: 'equipo', to: '/equipo', label: 'Equipo', desc: 'Agregar personal, qué puede ver y hacer cada quien', icon: 'users', show: admin },
+        { id: 'plan', to: '/suscripcion', label: 'Suscripción y plan', desc: 'Tu plan de Caresia, cuánto pagas y tus facturas', icon: 'sparkles', show: () => session.has(PERMISSIONS.adminUsers) }
       ]
     },
     {
       title: 'Citas y pacientes',
       items: [
-        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
-        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean citas, recetas y vacunas', icon: 'user', show: admin },
-        { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
-        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Carga las tablas oficiales de la OMS o el CDC', icon: 'baby', show: admin }
+        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horario de cada profesional, salas, enlace para que agenden en línea y recordatorios por correo', icon: 'calendar', show: admin },
+        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean sus citas, recetas y vacunas desde su celular', icon: 'user', show: admin },
+        { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu lista de medicamentos para hacer recetas más rápido', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
+        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños y mascotas (tablas de la OMS o el CDC)', icon: 'baby', show: admin }
       ]
     },
     {
       title: 'Cobros y facturación',
       items: [
-        { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
-        { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
-        { id: 'terminal', label: 'Mercado Pago y terminal', desc: 'Conecta tu cuenta y tu terminal Point', icon: 'wallet', show: cobros },
-        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Porcentajes por profesional, categoría o servicio', icon: 'users', show: cobros },
-        { id: 'impresora', label: 'Impresora de tickets', desc: 'Térmica USB, Bluetooth o la del navegador', icon: 'receipt', show: cobros }
+        { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y lo que dice tu ticket de venta', icon: 'receipt', show: cobros },
+        { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y formas de pago (efectivo, tarjeta, transferencia)', icon: 'cash', show: cobros },
+        { id: 'terminal', label: 'Cobro con tarjeta (Mercado Pago)', desc: 'Conecta tu cuenta de Mercado Pago y tu terminal Point', icon: 'wallet', show: cobros },
+        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Cuánto gana cada profesional por sus servicios y ventas', icon: 'users', show: cobros },
+        { id: 'impresora', label: 'Impresora de tickets', desc: 'Elegir la impresora: térmica USB, Bluetooth o la de tu computadora', icon: 'receipt', show: cobros }
       ]
     },
     {
       title: 'Seguridad y legal',
       items: [
-        { id: 'seguridad', label: 'Seguridad', desc: 'Verificación en dos pasos del equipo', icon: 'lock', show: admin },
-        { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin }
+        { id: 'seguridad', label: 'Seguridad', desc: 'Código extra al iniciar sesión (verificación en dos pasos) para el equipo', icon: 'lock', show: admin },
+        { id: 'cumplimiento', label: 'Aviso de privacidad y datos legales', desc: 'Responsable sanitario, aviso de privacidad, derechos ARCO y pendientes de cumplimiento', icon: 'shield', show: admin }
       ]
     },
     {
       title: LAST_GROUP,
       items: [
-        { id: 'cuenta', label: 'Mi cuenta', desc: 'Tus datos y tu contraseña', icon: 'user', show: () => true },
-        { id: 'apariencia', label: 'Apariencia', desc: 'Tema claro u oscuro', icon: 'sun', show: () => true }
+        { id: 'cuenta', label: 'Mi cuenta', desc: 'Tu nombre, correo, cédula y cambio de contraseña', icon: 'user', show: () => true },
+        { id: 'apariencia', label: 'Apariencia', desc: 'Tema claro u oscuro e instalar la app en tu dispositivo', icon: 'sun', show: () => true }
       ]
     }
   ];
