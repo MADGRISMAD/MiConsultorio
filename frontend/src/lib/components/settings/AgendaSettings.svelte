@@ -59,7 +59,7 @@
   async function savePro(p: Professional) {
     savingPro = p.id;
     if (await proOp.run(async () => {
-      const r = await agendaApi.saveProfessional(p.id, { bookable: p.bookable, consults: p.consults, slot_minutes: p.slot_minutes, hours: $state.snapshot(p.hours) as HoursMap, color: p.color });
+      const r = await agendaApi.saveProfessional(p.id, { bookable: p.bookable, consults: p.consults, video_url: p.video_url ?? '', slot_minutes: p.slot_minutes, hours: $state.snapshot(p.hours) as HoursMap, color: p.color });
       Object.assign(p, r);
     })) toast.show(`Agenda de ${p.name} guardada`);
     savingPro = '';
@@ -198,6 +198,11 @@
             </div>
             <label class="flex items-center gap-3 text-sm font-medium {p.consults ? 'cursor-pointer' : 'opacity-50'}">
               <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.bookable} disabled={!p.consults} />Aparece en la reserva en línea
+            </label>
+            <label class="block">
+              <span class="label">Enlace de videollamada <span class="font-normal text-app-muted">(opcional)</span></span>
+              <input type="url" class="field" bind:value={p.video_url} maxlength="300" placeholder="https://meet.google.com/..." />
+              <span class="hint">Para consultas en línea: el enlace sale en los correos de la cita del paciente.</span>
             </label>
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="block">

@@ -243,3 +243,40 @@ func TestOwnerWhoDoesNotConsultIsNotOffered(t *testing.T) {
 	admin.expect(200, "PUT", "/api/agenda/professionals/"+owner, body(true))
 	appt(201)
 }
+
+func TestVideoLinkTravelsInTheAppointmentMail(t *testing.T) {
+	b := newBookingEnv(t, false)
+	admin := b.login("admin_a")
+	body := func(url string) map[string]any {
+		return map[string]any{"bookable": true, "slot_minutes": 30, "hours": map[string]any{}, "color": "", "video_url": url}
+	}
+	admin.expect(400, "PUT", "/api/agenda/professionals/"+b.pro, body("http://inseguro.mx/sala"))
+	admin.expect(400, "PUT", "/api/agenda/professionals/"+b.pro, body("javascript:alert(1)"))
+	out := sub(admin.expect(200, "PUT", "/api/agenda/professionals/"+b.pro, body("https://meet.example.com/sala-dra")), "professional")
+	if out["video_url"] != "https://meet.example.com/sala-dra" {
+		t.Fatalf("video_url: %v", out["video_url"])
+	}
+	b.login("recep_a").expect(201, "POST", "/api/appointments", map[string]any{"names": "Ana", "last_names": "López", "date": b.date, "startHour": "10:00", "endHour": "10:30",
+		"professional_id": b.pro, "email": "ana@x.mx", "reminders_consent": true})
+	m := b.mail.wait(t, 1)
+	if !strings.Contains(m.Text, "Videollamada: https://meet.example.com/sala-dra") {
+		t.Fatalf("the booking mail carries the video link: %s", m.Text)
+	}
+	// leaving the field out keeps it; an empty string removes it
+	admin.expect(200, "PUT", "/api/agenda/professionals/"+b.pro, map[string]any{"bookable": true, "slot_minutes": 30, "hours": map[string]any{}, "color": ""})
+	has := func() string {
+		for _, p := range admin.expect(200, "GET", "/api/agenda/professionals", nil)["professionals"].([]any) {
+			if p.(map[string]any)["id"] == b.pro {
+				return p.(map[string]any)["video_url"].(string)
+			}
+		}
+		return "?"
+	}
+	if has() == "" {
+		t.Fatal("omitting the field keeps the link")
+	}
+	admin.expect(200, "PUT", "/api/agenda/professionals/"+b.pro, body(""))
+	if has() != "" {
+		t.Fatal("an empty string removes it")
+	}
+}

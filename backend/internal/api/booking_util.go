@@ -27,6 +27,7 @@ type apptInfo struct {
 	Start                                  time.Time
 	Token                                  string
 	Slug                                   string // booking slug when online booking is enabled
+	VideoURL                               string // the professional's video-call link, when they have one
 }
 
 // clinicLocation returns the clinic's time zone (clinics.settings.timezone) or Mexico City.
@@ -148,6 +149,7 @@ func (a apptInfo) details() string {
 	row("Consultorio", a.ClinicName)
 	row("Atiende", a.Professional)
 	row("Servicio", a.Service)
+	row("Videollamada", a.VideoURL)
 	row("Dirección", a.ClinicAddress)
 	row("Teléfono", a.ClinicPhone)
 	b.WriteString(`</table>`)
@@ -165,6 +167,9 @@ func (a apptInfo) detailsText() string {
 	}
 	if a.Service != "" {
 		b.WriteString("Servicio: " + a.Service + "\n")
+	}
+	if a.VideoURL != "" {
+		b.WriteString("Videollamada: " + a.VideoURL + "\n")
 	}
 	if a.ClinicAddress != "" {
 		b.WriteString("Dirección: " + a.ClinicAddress + "\n")
@@ -264,16 +269,17 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 	err = q.QueryRow(ctx, `
 		SELECT c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), `+patientGreetingSQL+`,
 		       to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), coalesce(ap.confirm_token, ''),
-		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug
+		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, '')
 		FROM appointments ap
 		JOIN clinics c ON c.id = ap.clinic_id
 		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
 		LEFT JOIN owners o ON o.id = p.owner_id
+		LEFT JOIN professional_settings pv ON pv.user_id = ap.professional_id
 		LEFT JOIN users u ON u.id = ap.professional_id
 		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
 		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
 		WHERE ap.clinic_id = $1 AND ap.id = $2`, clinicID, appointmentID).
-		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug)
+		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug, &a.VideoURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, false, nil
 	}

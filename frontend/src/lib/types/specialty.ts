@@ -71,7 +71,23 @@ export interface WeightPoint {
 
 // ---- charts ----
 
-export type ChartKind = 'odontogram' | 'bodymap' | 'nutrition_plan';
+export type ChartKind =
+  | 'odontogram'
+  | 'bodymap'
+  | 'nutrition_plan'
+  | 'scale'
+  | 'therapy_plan'
+  | 'certificate'
+  | 'prenatal'
+  | 'periodontogram'
+  | 'ortho_visit'
+  | 'milestones'
+  | 'food_recall'
+  | 'exercises'
+  | 'problems';
+
+/** Charts without special geometry: the server checks their shape. */
+export type GenericChartData = Record<string, unknown>;
 
 export interface NutritionMeal {
   name: string;
@@ -147,7 +163,7 @@ export interface BodymapData {
   zones: BodyFinding[];
 }
 
-export interface PatientChart<T = OdontogramData | BodymapData | NutritionPlanData> {
+export interface PatientChart<T = OdontogramData | BodymapData | NutritionPlanData | GenericChartData> {
   id: string;
   patient_id: string;
   kind: ChartKind;

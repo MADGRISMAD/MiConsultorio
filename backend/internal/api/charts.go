@@ -264,7 +264,7 @@ func (s *Server) listCharts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.URL.Query().Get("kind")
-	if kind != "" && kind != "odontogram" && kind != "bodymap" && kind != "nutrition_plan" {
+	if kind != "" && kind != "odontogram" && kind != "bodymap" && kind != "nutrition_plan" && !isGenericChartKind(kind) {
 		writeError(w, http.StatusBadRequest, "Tipo de esquema inválido.")
 		return
 	}
@@ -331,7 +331,14 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 	case "nutrition_plan":
 		msg, valid = validateNutritionPlan(in.Data)
 	default:
-		msg = "Tipo de esquema inválido."
+		if isGenericChartKind(in.Kind) {
+			var out json.RawMessage
+			if msg, valid, out = validateGenericChart(in.Kind, in.Data); valid {
+				in.Data = out
+			}
+		} else {
+			msg = "Tipo de esquema inválido."
+		}
 	}
 	if !valid {
 		writeError(w, http.StatusBadRequest, msg)

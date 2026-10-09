@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"sort"
@@ -32,6 +33,7 @@ type professional struct {
 	Specialty   string                 `json:"specialty"`
 	Bookable    bool                   `json:"bookable"`
 	Consults    bool                   `json:"consults"` // sees patients: false for an owner who only runs the clinic
+	VideoURL    string                 `json:"video_url"`
 	SlotMinutes int                    `json:"slot_minutes"`
 	Hours       map[string][][2]string `json:"hours"`
 	Color       string                 `json:"color"`
@@ -49,7 +51,7 @@ func (s *Server) listProfessionals(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]professional, error) {
 	rows, err := s.db.Query(r.Context(), `
-		SELECT u.id::text, u.name, u.role, u.specialty_title, coalesce(ps.bookable, false), coalesce(ps.consults, true),
+		SELECT u.id::text, u.name, u.role, u.specialty_title, coalesce(ps.bookable, false), coalesce(ps.consults, true), coalesce(ps.video_url, ''),
 		       coalesce(ps.slot_minutes, ags.slot_minutes, 30), coalesce(ps.hours, '{}'::jsonb), coalesce(ps.color, '')
 		FROM users u
 		LEFT JOIN professional_settings ps ON ps.user_id = u.id
@@ -64,7 +66,7 @@ func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]
 	for rows.Next() {
 		var pr professional
 		var raw []byte
-		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.Consults, &pr.SlotMinutes, &raw, &pr.Color); err != nil {
+		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.Consults, &pr.VideoURL, &pr.SlotMinutes, &raw, &pr.Color); err != nil {
 			return nil, err
 		}
 		pr.Hours = map[string][][2]string{}
@@ -76,7 +78,8 @@ func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]
 
 type professionalIn struct {
 	Bookable    bool                   `json:"bookable"`
-	Consults    *bool                  `json:"consults"` // omitted: unchanged
+	Consults    *bool                  `json:"consults"`  // omitted: unchanged
+	VideoURL    *string                `json:"video_url"` // omitted: unchanged
 	SlotMinutes int                    `json:"slot_minutes"`
 	Hours       map[string][][2]string `json:"hours"`
 	Color       string                 `json:"color"`
@@ -136,12 +139,23 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	raw, _ := json.Marshal(in.Hours)
+	if in.VideoURL != nil {
+		v := strings.TrimSpace(*in.VideoURL)
+		if v != "" {
+			if u, err := url.Parse(v); err != nil || u.Scheme != "https" || u.Host == "" || len(v) > 300 {
+				writeError(w, http.StatusBadRequest, "El enlace de videollamada debe empezar con https://")
+				return
+			}
+		}
+		in.VideoURL = &v
+	}
 	if _, err := s.db.Exec(r.Context(), `
-		INSERT INTO professional_settings (user_id, clinic_id, bookable, consults, slot_minutes, hours, color)
-		VALUES ($1, $2, $3 AND coalesce($7, true), coalesce($7, true), $4, $5, $6)
+		INSERT INTO professional_settings (user_id, clinic_id, bookable, consults, slot_minutes, hours, color, video_url)
+		VALUES ($1, $2, $3 AND coalesce($7, true), coalesce($7, true), $4, $5, $6, coalesce($8, ''))
 		ON CONFLICT (user_id) DO UPDATE SET consults = coalesce($7, professional_settings.consults),
-			bookable = $3 AND coalesce($7, professional_settings.consults), slot_minutes = $4, hours = $5, color = $6, updated_at = now()`,
-		id, p.ClinicID, in.Bookable, in.SlotMinutes, raw, in.Color, in.Consults); err != nil {
+			bookable = $3 AND coalesce($7, professional_settings.consults), slot_minutes = $4, hours = $5, color = $6,
+			video_url = coalesce($8, professional_settings.video_url), updated_at = now()`,
+		id, p.ClinicID, in.Bookable, in.SlotMinutes, raw, in.Color, in.Consults, in.VideoURL); err != nil {
 		serverError(w, r, err)
 		return
 	}

@@ -105,11 +105,12 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 		       c.name, c.address, c.phone_number, coalesce(c.settings->>'timezone', ''),
 		       coalesce(u.name, ''), coalesce(ci.name, ''),
 		       coalesce(s.remind_email, true), coalesce(s.remind_whatsapp, false), coalesce(s.remind_hours, '{24,2}'), coalesce(s.reminder_template, ''),
-		       coalesce(s.booking_enabled, false), s.booking_slug
+		       coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, '')
 		FROM appointments ap
 		JOIN clinics c ON c.id = ap.clinic_id
 		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
 		LEFT JOIN owners o ON o.id = p.owner_id
+		LEFT JOIN professional_settings pv ON pv.user_id = ap.professional_id
 		LEFT JOIN users u ON u.id = ap.professional_id
 		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
 		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
@@ -120,7 +121,7 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 			&t.Info.ClinicName, &t.Info.ClinicAddress, &t.Info.ClinicPhone, &tz,
 			&t.Info.Professional, &t.Info.Service,
 			&t.RemindEmail, &t.RemindWA, &t.Hours, &t.Note,
-			&enabled, &slug)
+			&enabled, &slug, &t.Info.VideoURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, false, nil
 	}

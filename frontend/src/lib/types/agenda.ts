@@ -76,6 +76,7 @@ export interface Professional {
   bookable: boolean;
   /** sees patients; false for an owner who only runs the clinic */
   consults: boolean;
+  video_url?: string;
   slot_minutes: number;
   hours: HoursMap;
   color: string;
@@ -84,6 +85,7 @@ export interface Professional {
 export interface ProfessionalInput {
   bookable: boolean;
   consults?: boolean;
+  video_url?: string;
   slot_minutes: number;
   hours: HoursMap;
   color: string;

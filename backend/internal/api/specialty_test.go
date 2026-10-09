@@ -567,3 +567,38 @@ func TestEncounterKeepsTheSuggestedNextVisit(t *testing.T) {
 		t.Fatalf("no suggestion: %v", none["next_visit"])
 	}
 }
+
+func TestGenericChartsAndScales(t *testing.T) {
+	e := setup(t)
+	doc, recep := e.login("doc_a"), e.login("recep_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/charts"
+	post := func(want int, kind string, data any) map[string]any {
+		return doc.expect(want, "POST", url, map[string]any{"kind": kind, "data": data})
+	}
+	recep.expect(403, "POST", url, map[string]any{"kind": "scale", "data": map[string]any{"scale": "phq9", "answers": []int{0, 0, 0, 0, 0, 0, 0, 0, 0}}})
+	// PHQ-9 is scored on the server: the client's score is not trusted, and an answer to item 9 raises the flag
+	out := sub(post(201, "scale", map[string]any{"scale": "phq9", "answers": []int{3, 3, 2, 2, 1, 1, 1, 1, 1}, "score": 0}), "chart")["data"].(map[string]any)
+	if out["score"] != float64(15) || out["severity"] != "Moderadamente grave" || out["flag"] != "self_harm" {
+		t.Fatalf("phq9: %v", out)
+	}
+	if g := sub(post(201, "scale", map[string]any{"scale": "gad7", "answers": []int{0, 1, 0, 1, 0, 0, 0}}), "chart")["data"].(map[string]any); g["score"] != float64(2) || g["severity"] != "Mínima" || g["flag"] != nil {
+		t.Fatalf("gad7: %v", g)
+	}
+	// PSS-10 reverses items 4, 5, 7 and 8
+	if s := sub(post(201, "scale", map[string]any{"scale": "pss10", "answers": []int{2, 2, 2, 4, 4, 2, 4, 4, 2, 2}}), "chart")["data"].(map[string]any); s["score"] != float64(12) {
+		t.Fatalf("pss10: %v", s)
+	}
+	post(400, "scale", map[string]any{"scale": "phq9", "answers": []int{0, 0}})
+	post(400, "scale", map[string]any{"scale": "phq9", "answers": []int{4, 0, 0, 0, 0, 0, 0, 0, 0}})
+	post(400, "scale", map[string]any{"scale": "otra", "answers": []int{0}})
+	// the other documents only keep their own fields and bounded text
+	post(201, "therapy_plan", map[string]any{"goals": []any{map[string]any{"text": "Dormir mejor", "status": "active"}}, "tasks": []any{}})
+	post(400, "therapy_plan", map[string]any{"hack": "x"})
+	post(400, "certificate", map[string]any{"text": strings.Repeat("a", 3001)})
+	post(201, "certificate", map[string]any{"type": "incapacidad", "text": "Reposo", "days": 3})
+	post(400, "no_such_kind", map[string]any{})
+	if got := doc.expect(200, "GET", url+"?kind=scale", nil); len(got["charts"].([]any)) != 3 {
+		t.Fatalf("history of scales: %v", got)
+	}
+}
