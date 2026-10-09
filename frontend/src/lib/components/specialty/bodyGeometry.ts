@@ -8,7 +8,6 @@ export const KINDS: { id: FindingKind; label: string; letter: string }[] = [
   { id: 'otro', label: 'Otro', letter: 'O' }
 ];
 export const kindLabel = (k: string) => KINDS.find((x) => x.id === k)?.label ?? k;
-export const kindLetter = (k: string) => KINDS.find((x) => x.id === k)?.letter ?? '?';
 
 export interface Zone {
   id: string;

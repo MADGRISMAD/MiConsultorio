@@ -50,11 +50,6 @@ func labMax(name, unit string, high float64, note string) labAnalyteDef {
 	return labAnalyteDef{Name: name, Unit: unit, Kind: "num", Ref: &labBound{High: lbp(high)}, Note: note}
 }
 
-// labMin has only a lower limit (desirable above).
-func labMin(name, unit string, low float64, note string) labAnalyteDef {
-	return labAnalyteDef{Name: name, Unit: unit, Kind: "num", Ref: &labBound{Low: lbp(low)}, Note: note}
-}
-
 // labSex has different ranges for men and women.
 func labSex(name, unit string, ml, mh, fl, fh float64) labAnalyteDef {
 	return labAnalyteDef{Name: name, Unit: unit, Kind: "num", RefMale: labRng(ml, mh), RefFemale: labRng(fl, fh)}

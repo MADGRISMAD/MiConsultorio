@@ -7,7 +7,7 @@ export function ymd(s: string): Date {
 export const dayLabel = (s: string | null | undefined) =>
   s ? ymd(s).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '') : '—';
 
-export function daysLeft(s: string): number {
+function daysLeft(s: string): number {
   const t = new Date();
   const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
   return Math.round((ymd(s).getTime() - today.getTime()) / 86_400_000);

@@ -37,14 +37,7 @@ type retLine struct {
 }
 
 func (l retLine) remainingQty() float64 { return math.Max(0, l.Qty-l.ReturnedQty) }
-func (l retLine) remainingCents() int   { return maxInt(0, l.EffectiveCents-l.ReturnedCents) }
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
+func (l retLine) remainingCents() int   { return max(0, l.EffectiveCents-l.ReturnedCents) }
 
 type retState struct {
 	SaleID      string
@@ -147,19 +140,12 @@ func loadReturnState(ctx context.Context, tx pgx.Tx, clinicID, saleID string, lo
 // retAmount is the money (and commission) for returning qty of a line; the last unit takes the rounding remainder.
 func retAmount(l retLine, qty float64) (cents, comm, base int) {
 	if qty >= l.remainingQty()-qtyEps {
-		return l.remainingCents(), maxInt(0, l.CommissionCents-l.ReturnedComm), maxInt(0, l.CommissionBase-l.ReturnedBase)
+		return l.remainingCents(), max(0, l.CommissionCents-l.ReturnedComm), max(0, l.CommissionBase-l.ReturnedBase)
 	}
 	f := qty / l.Qty
-	return minInt(l.remainingCents(), int(math.Round(float64(l.EffectiveCents)*f))),
-		minInt(maxInt(0, l.CommissionCents-l.ReturnedComm), int(math.Round(float64(l.CommissionCents)*f))),
-		minInt(maxInt(0, l.CommissionBase-l.ReturnedBase), int(math.Round(float64(l.CommissionBase)*f)))
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	return min(l.remainingCents(), int(math.Round(float64(l.EffectiveCents)*f))),
+		min(max(0, l.CommissionCents-l.ReturnedComm), int(math.Round(float64(l.CommissionCents)*f))),
+		min(max(0, l.CommissionBase-l.ReturnedBase), int(math.Round(float64(l.CommissionBase)*f)))
 }
 
 // suggestRefunds spreads total over the payment methods, the most recent payment first.
@@ -170,7 +156,7 @@ func suggestRefunds(st *retState, total int) []methodTotal {
 		if left <= 0 {
 			break
 		}
-		take := minInt(left, maxInt(0, st.Refundable[m]))
+		take := min(left, max(0, st.Refundable[m]))
 		if take > 0 {
 			out = append(out, methodTotal{Method: m, AmountCents: take, Count: 1})
 			left -= take
@@ -569,7 +555,7 @@ func (s *Server) refundMPPortion(ctx context.Context, tx pgx.Tx, clinicID, saleI
 		if left <= 0 {
 			break
 		}
-		take := minInt(left, c.amount-c.refunded)
+		take := min(left, c.amount-c.refunded)
 		full := c.refunded == 0 && take == c.amount
 		var body any
 		path := "/v1/orders/" + url.PathEscape(c.id) + "/refund"

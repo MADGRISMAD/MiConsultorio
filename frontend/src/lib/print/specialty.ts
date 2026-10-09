@@ -5,7 +5,7 @@ import type { BodymapData, Consent, NutritionPlanData, OdontogramData, Treatment
 import { doc, e, fmtDate, fmtDateTime, FOOTER_CONF, issuerBlock, multiline, patientBlock } from './base';
 
 const KIND_LABEL: Record<string, string> = { vaccine: 'Vacuna', deworming_internal: 'Desparasitación interna', deworming_external: 'Desparasitación externa', other: 'Otro' };
-const money = (cents: number) => (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+import { moneyCents as money } from '$lib/format';
 
 export const CONSENT_LABEL: Record<string, string> = {
   procedimiento: 'Consentimiento informado para procedimiento',
@@ -16,7 +16,8 @@ export const CONSENT_LABEL: Record<string, string> = {
   psicologia: 'Consentimiento para atención psicológica'
 };
 
-export function carnetHtml(patient: Patient, list: Vaccination[], weights: WeightPoint[], clinic: Issuer): string {
+/** `patientCopy` replaces the signature line and the footer with the note of the patient's own copy (portal). */
+export function carnetHtml(patient: Patient, list: Vaccination[], weights: WeightPoint[], clinic: Issuer, patientCopy?: string): string {
   const animal = patient.subject === 'animal';
   const active = list.filter((v) => !v.voided_at).sort((a, b) => a.applied_on.localeCompare(b.applied_on));
   const group = (kinds: string[]) => active.filter((v) => kinds.includes(v.kind));
@@ -37,8 +38,8 @@ export function carnetHtml(patient: Patient, list: Vaccination[], weights: Weigh
 <h2>Vacunas</h2>${table(group(['vaccine', 'other']))}
 ${animal ? `<h2>Desparasitación interna</h2>${table(group(['deworming_internal']))}<h2>Desparasitación externa</h2>${table(group(['deworming_external']))}` : ''}
 ${wTable}
-<div class="sig nobreak">Sello y firma del ${animal ? 'Médico Veterinario' : 'profesional'}</div>
-<div class="footer">${e(FOOTER_CONF)}</div>`;
+${patientCopy ? '' : `<div class="sig nobreak">Sello y firma del ${animal ? 'Médico Veterinario' : 'profesional'}</div>`}
+<div class="footer">${e(patientCopy ?? FOOTER_CONF)}</div>`;
   return doc('Carnet de vacunación', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
 }
 
@@ -149,7 +150,6 @@ const STATUS: Record<string, string> = { draft: 'Borrador', proposed: 'Propuesto
 
 export function planHtml(plan: TreatmentPlan, patient: Patient, clinic: Issuer, consent?: Consent | null): string {
   const phases = [...new Set(plan.items.map((i) => i.phase))].sort((a, b) => a - b);
-  const money2 = money;
   const phaseHtml = phases
     .map((ph) => {
       const items = plan.items.filter((i) => i.phase === ph);
@@ -157,9 +157,9 @@ export function planHtml(plan: TreatmentPlan, patient: Patient, clinic: Issuer, 
       return `<h2>Fase ${ph}</h2><table class="grid-t"><thead><tr><th>Concepto</th><th>Pieza / zona</th><th>Cant.</th><th>Precio</th><th>Importe</th><th>Estado</th></tr></thead><tbody>${items
         .map(
           (i) =>
-            `<tr class="nobreak ${i.status === 'cancelled' ? 'strike' : ''}"><td>${e(i.description)}</td><td>${e(i.tooth)}</td><td>${i.qty}</td><td>${money2(i.unit_price_cents)}</td><td>${money2(i.total_cents)}</td><td>${i.status === 'done' ? `Realizado ${e(fmtDate(i.done_at))}` : i.status === 'cancelled' ? 'Cancelado' : 'Pendiente'}</td></tr>`
+            `<tr class="nobreak ${i.status === 'cancelled' ? 'strike' : ''}"><td>${e(i.description)}</td><td>${e(i.tooth)}</td><td>${i.qty}</td><td>${money(i.unit_price_cents)}</td><td>${money(i.total_cents)}</td><td>${i.status === 'done' ? `Realizado ${e(fmtDate(i.done_at))}` : i.status === 'cancelled' ? 'Cancelado' : 'Pendiente'}</td></tr>`
         )
-        .join('')}<tr><td colspan="4" style="text-align:right"><strong>Subtotal de la fase</strong></td><td colspan="2"><strong>${money2(sub)}</strong></td></tr></tbody></table>`;
+        .join('')}<tr><td colspan="4" style="text-align:right"><strong>Subtotal de la fase</strong></td><td colspan="2"><strong>${money(sub)}</strong></td></tr></tbody></table>`;
     })
     .join('');
   const sig =
@@ -171,7 +171,7 @@ export function planHtml(plan: TreatmentPlan, patient: Patient, clinic: Issuer, 
 <div class="box nobreak">${patientBlock(patient)}</div>
 <p><span class="k">Plan</span><strong>${e(plan.title)}</strong></p>${plan.notes ? `<p>${multiline(plan.notes)}</p>` : ''}
 ${phaseHtml}
-<div class="box nobreak" style="text-align:right"><span class="k">Total del plan (IVA incluido cuando aplica)</span><strong style="font-size:16px">${money2(plan.total_cents)}</strong><div class="small">Realizado: ${money2(plan.done_cents)} · Pendiente: ${money2(plan.pending_cents)}</div></div>
+<div class="box nobreak" style="text-align:right"><span class="k">Total del plan (IVA incluido cuando aplica)</span><strong style="font-size:16px">${money(plan.total_cents)}</strong><div class="small">Realizado: ${money(plan.done_cents)} · Pendiente: ${money(plan.pending_cents)}</div></div>
 <p class="small">Los precios pueden cambiar si el diagnóstico cambia; cualquier concepto nuevo requiere tu autorización.</p>
 ${sig}
 <div class="footer">${e(FOOTER_CONF)}</div>`;

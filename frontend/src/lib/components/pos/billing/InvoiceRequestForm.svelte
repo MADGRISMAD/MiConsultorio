@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { emailOk } from '$lib/format';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { dateShort, moneyCents } from '$lib/format';
@@ -69,8 +70,8 @@
   const rfcNorm = $derived(rfc.trim().toUpperCase());
   const rfcOk = $derived(rfcNorm === GENERIC_RFC || RFC_RE.test(rfcNorm));
   const zipOk = $derived(ZIP_RE.test(zip.trim()));
-  const emailOk = $derived(email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()));
-  const valid = $derived(!!chosen && rfcOk && legalName.trim().length >= 2 && zipOk && emailOk);
+  const mailOk = $derived(email.trim() === '' || emailOk(email));
+  const valid = $derived(!!chosen && rfcOk && legalName.trim().length >= 2 && zipOk && mailOk);
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
@@ -163,7 +164,7 @@
     <div>
       <label class="label" for="inv-mail">Correo <span class="font-normal text-app-muted">(opcional)</span></label>
       <input id="inv-mail" type="email" class="field" bind:value={email} autocomplete="email" aria-invalid={touched && !emailOk} />
-      {#if touched && !emailOk}<p class="mt-1 text-xs text-app-danger">Revisa el correo.</p>{:else}<p class="hint">Donde se enviará la factura.</p>{/if}
+      {#if touched && !mailOk}<p class="mt-1 text-xs text-app-danger">Revisa el correo.</p>{:else}<p class="hint">Donde se enviará la factura.</p>{/if}
     </div>
     {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
   </form>

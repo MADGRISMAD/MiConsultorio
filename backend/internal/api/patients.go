@@ -134,7 +134,7 @@ func (in *patientIn) validateCore(kinds []string, quick bool) string {
 		return "Escribe el nombre."
 	}
 	for _, e := range []string{in.Email, in.GuardianEmail} {
-		if e != "" && (!strings.Contains(e, "@") || strings.ContainsAny(e, " \r\n")) {
+		if e != "" && !validEmail(e) {
 			return "El correo no es válido."
 		}
 	}
@@ -272,7 +272,7 @@ func patientKindsFor(subject string, clinicKinds []string) []string {
 // onlyActiveGiros keeps the patients of the giros the clinic works with now (untagged ones are always shown).
 func onlyActiveGiros(where string, args []any, kinds []string) (string, []any) {
 	args = append(args, kinds)
-	return where + " AND (cardinality(kinds) = 0 OR kinds && $" + itoa(len(args)) + "::text[])", args
+	return where + " AND " + tagsShown("kinds", len(args)), args
 }
 
 func searchWhere(clinicID, q string) (string, []any) {

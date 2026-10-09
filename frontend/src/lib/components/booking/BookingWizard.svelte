@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { emailOk } from '$lib/format';
   import { bookingApi } from '$lib/api/booking';
   import { bookingMonthApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
@@ -81,9 +82,7 @@
       })
       .catch(() => (personFound = null));
   });
-  const dateLong = (d: string) => fmtDay(d);
   const kindLabel = (k: string) => (k in CLINIC_KINDS ? t(`kind.${k}`) : t('kind.fallback'));
-  const emailOk = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
   /** the visitor's details come first: the calendar opens once they are complete */
   const dataReady = $derived.by(() => {
     if (registered) return forPet ? !!petId : personFound === true && (!needName || !!names.trim());
@@ -237,7 +236,7 @@
       {#if done.pending_confirmation}{t('booking.doneRequestedText')}{:else}{t('booking.doneBookedText')}{/if}
     </p>
     <dl class="mt-5 grid gap-2 rounded-xl bg-app-elevated p-4 text-sm">
-      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{dateLong(done.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{fmtDay(done.date)}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: done.start })}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{done.professional}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('booking.clinic')}</dt><dd class="font-semibold">{done.clinic}</dd></div>
@@ -390,7 +389,7 @@
         {/if}
         {#if date}
           <div class="mt-4" aria-live="polite">
-            <p class="label first-letter:uppercase">{dateLong(date)}</p>
+            <p class="label first-letter:uppercase">{fmtDay(date)}</p>
             {#if dayOp.phase === 'loading' || (!day && dayOp.phase !== 'error')}
               <p class="text-sm text-app-muted">{t('booking.searching')}</p>
             {:else if dayOp.phase === 'error'}
@@ -430,7 +429,7 @@
       <section class="card page-in px-5 py-5 sm:px-6" aria-labelledby="bk-s3">
         <h2 id="bk-s3" class="flex items-center gap-2.5 font-semibold"><span class={stepNo(3)}>3</span>{t('booking.step3')}</h2>
         <p class="mt-2 text-sm text-app-muted">
-          {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{dateLong(date)}</span> · {t('common.hourSuffix', { time: start })}. {t('booking.dataHint')}
+          {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{fmtDay(date)}</span> · {t('common.hourSuffix', { time: start })}. {t('booking.dataHint')}
         </p>
         {#if held}<p class="hint mt-1">{t('booking.held')}</p>{/if}
         {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}

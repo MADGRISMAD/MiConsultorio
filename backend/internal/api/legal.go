@@ -27,7 +27,7 @@ func (l *Legal) clean() string {
 			return "Uno de los campos es demasiado largo."
 		}
 	}
-	if l.PrivacyEmail != "" && (!strings.Contains(l.PrivacyEmail, "@") || strings.ContainsAny(l.PrivacyEmail, " \r\n")) {
+	if l.PrivacyEmail != "" && !validEmail(l.PrivacyEmail) {
 		return "El correo de privacidad no es válido."
 	}
 	return ""

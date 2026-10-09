@@ -57,7 +57,7 @@ export const isLow = (i: CatalogItem) => i.track_stock && i.stock <= i.min_stock
 // ---------- CSV / spreadsheet paste ----------
 
 /** Splits pasted text into rows of cells. Detects tab, semicolon or comma; supports "quoted, cells". */
-export function parseDelimited(text: string): string[][] {
+function parseDelimited(text: string): string[][] {
   const clean = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
   const firstLine = clean.split('\n').find((l) => l.trim()) ?? '';
   const delim = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ',';

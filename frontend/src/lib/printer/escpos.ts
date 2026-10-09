@@ -13,7 +13,7 @@ const CP858: Record<string, number> = {
   '°': 0xf8, '·': 0xfa, '“': 0x22, '”': 0x22, '‘': 0x27, '’': 0x27, '–': 0x2d, '—': 0x2d, '…': 0x2e
 };
 
-export function encodeText(s: string): number[] {
+function encodeText(s: string): number[] {
   const out: number[] = [];
   for (const ch of s) {
     const code = ch.codePointAt(0)!;

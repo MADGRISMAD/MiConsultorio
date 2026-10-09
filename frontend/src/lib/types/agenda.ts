@@ -153,7 +153,6 @@ export const STATUS_META: Record<ApptStatus, { label: string; tone: 'info' | 'ok
   cancelled: { label: 'Cancelada', tone: 'bad', card: 'bg-app-danger/8 text-app-muted border-app-danger/40 line-through decoration-app-danger/50' }
 };
 
-export const OPEN_STATUSES: ApptStatus[] = ['scheduled', 'confirmed', 'arrived', 'in_progress'];
 /** Appointments that still hold their slot. */
 export const isActive = (a: Appt) => a.status !== 'cancelled' && a.status !== 'no_show';
 

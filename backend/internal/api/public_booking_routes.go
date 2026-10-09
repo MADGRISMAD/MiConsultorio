@@ -78,19 +78,9 @@ type tokenAppt struct {
 }
 
 const tokenApptSQL = `
-	SELECT ap.id, ap.clinic_id, ap.status, coalesce(ap.patient_id::text, ''), ap.names,
-	       to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), to_char(ap.end_hour, 'HH24:MI'),
-	       ap.phone, ap.email,
-	       c.name, c.address, c.phone_number, coalesce(c.settings->>'timezone', ''),
-	       coalesce(u.name, ''), coalesce(ci.name, ''),
-	       coalesce(s.cancel_min_hours, 2), coalesce(s.booking_enabled, false), s.booking_slug,
-	       ap.reminders_consent OR coalesce(p.reminders_ok, false)
-	FROM appointments ap
-	JOIN clinics c ON c.id = ap.clinic_id
+	SELECT ap.clinic_id, ap.status, coalesce(ap.patient_id::text, ''), ap.names, ap.phone, ap.email,
+	       coalesce(s.cancel_min_hours, 2), ap.reminders_consent OR coalesce(p.reminders_ok, false), ` + apptInfoCols + ` ` + apptInfoFrom + `
 	LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
-	LEFT JOIN users u ON u.id = ap.professional_id
-	LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
-	LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
 	WHERE ap.confirm_token = $1`
 
 // findByToken loads an appointment by its secret link. forUpdate locks the row (use inside a transaction).
@@ -100,23 +90,16 @@ func (b *bookingAPI) findByToken(ctx context.Context, q queryRower, token string
 		sql += ` FOR UPDATE OF ap`
 	}
 	var a tokenAppt
-	var tz string
-	var enabled bool
-	var slug *string
-	err := q.QueryRow(ctx, sql, token).Scan(&a.ID, &a.ClinicID, &a.Status, &a.PatientID, &a.Names, &a.Date, &a.Start, &a.End, &a.Phone, &a.Email,
-		&a.Info.ClinicName, &a.Info.ClinicAddress, &a.Info.ClinicPhone, &tz, &a.Info.Professional, &a.Info.Service,
-		&a.CancelMinHours, &enabled, &slug, &a.ShowReminders)
+	var x apptInfoScan
+	err := q.QueryRow(ctx, sql, token).Scan(append([]any{&a.ClinicID, &a.Status, &a.PatientID, &a.Names, &a.Phone, &a.Email, &a.CancelMinHours, &a.ShowReminders}, a.Info.targets(&x)...)...)
 	if err != nil {
 		return nil, err
 	}
-	loc := locationOrDefault(tz)
-	if a.StartAt, err = localTime(loc, a.Date, a.Start); err != nil {
+	if err := a.Info.settle(x); err != nil {
 		return nil, err
 	}
-	a.Info.Start, a.Info.Token, a.Info.PatientName = a.StartAt, token, firstName(a.Names)
-	if enabled && slug != nil {
-		a.Info.Slug = *slug
-	}
+	a.ID, a.Date, a.Start, a.End, a.StartAt = a.Info.ID, x.date, x.start, x.end, a.Info.Start
+	a.Info.PatientName = firstName(a.Names)
 	return &a, nil
 }
 

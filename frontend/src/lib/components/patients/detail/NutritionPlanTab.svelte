@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { specialtyApi } from '$lib/api/specialty';
@@ -27,7 +28,6 @@
     return x;
   }
   const asData = (c: PatientChart) => normalize(c.data as NutritionPlanData);
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
   let history = $state<PatientChart[]>([]);
   let loading = $state(true);

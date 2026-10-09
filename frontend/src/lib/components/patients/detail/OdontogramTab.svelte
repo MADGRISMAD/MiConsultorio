@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
@@ -38,7 +39,6 @@
 
   const asData = (c: PatientChart) => c.data as OdontogramData;
   const copy = (d: OdontogramData): OdontogramData => JSON.parse(JSON.stringify(d));
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
   async function load() {
     try {

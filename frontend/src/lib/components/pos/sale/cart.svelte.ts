@@ -19,7 +19,7 @@ export interface CartLine {
   plan_item_id?: string;
 }
 
-export interface Person {
+export interface SalePerson {
   /** Patient id, when the person comes from the expedients. */
   id?: string;
   name: string;

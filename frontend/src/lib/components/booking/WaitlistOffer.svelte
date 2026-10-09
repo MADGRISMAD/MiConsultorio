@@ -16,7 +16,6 @@
   const load = new Op();
   const act = new Op();
 
-  const dateLong = (d: string) => fmtDay(d);
 
   const left = $derived.by(() => {
     if (!data?.offer) return 0;
@@ -83,7 +82,7 @@
     {:else if data.offer}
       <h2 class="display text-3xl leading-tight">{t('waitlist.offerTitle')}</h2>
       <dl class="mt-5 grid gap-2 rounded-xl bg-app-elevated p-4 text-sm">
-        <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{dateLong(data.offer.date)}</dd></div>
+        <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{fmtDay(data.offer.date)}</dd></div>
         <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: data.offer.start })}</dd></div>
         {#if data.offer.professional}<div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{data.offer.professional}</dd></div>{/if}
         {#if data.clinic.address}<div><dt class="text-xs text-app-muted">{t('common.address')}</dt><dd class="font-semibold">{data.clinic.address}</dd></div>{/if}

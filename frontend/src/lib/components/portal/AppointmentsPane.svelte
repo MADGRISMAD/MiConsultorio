@@ -48,7 +48,6 @@
   const tone = (s: string) => `pill pill-${STATUS[s] ?? 'info'}`.replace('pill-muted', '');
   const statusLabel = (s: string) => (s in STATUS ? t(`portal.appts.st.${s}`) : s);
 
-  const dateLong = (d: string) => fmtDay(d);
 
   async function confirmCancel() {
     if (!target) return;
@@ -69,7 +68,7 @@
 {#snippet card(a: PortalAppointment, withCancel: boolean)}
   <li class="card flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-5">
     <div class="min-w-0">
-      <p class="font-medium first-letter:uppercase">{dateLong(a.date)}</p>
+      <p class="font-medium first-letter:uppercase">{fmtDay(a.date)}</p>
       <p class="mt-0.5 flex items-center gap-1.5 text-sm text-app-muted"><Icon name="clock" size={15} />{t('portal.appts.hours', { start: a.start_hour, end: a.end_hour })}</p>
       {#if multi && a.patient_name}<p class="mt-1 text-sm">{t('portal.appts.patient')} <strong>{a.patient_name}</strong></p>{/if}
       {#if a.service}<p class="text-sm text-app-muted">{a.service}</p>{/if}
@@ -121,7 +120,7 @@
 
 <ConfirmModal open={target !== null} title={t('portal.appts.cancel')} op={cancelOp} onconfirm={confirmCancel} onclose={() => (target = null)} confirmLabel={t('portal.appts.confirmCancel')}>
   {#if target}
-    <p>{t('portal.appts.confirmBefore')}<strong>{dateLong(target.date)}</strong>{t('portal.appts.confirmAfter', { hour: t('common.hourSuffix', { time: target.start_hour }) })}</p>
+    <p>{t('portal.appts.confirmBefore')}<strong>{fmtDay(target.date)}</strong>{t('portal.appts.confirmAfter', { hour: t('common.hourSuffix', { time: target.start_hour }) })}</p>
     <label class="label mt-4" for="ap-reason">{t('portal.appts.reason')}</label>
     <input id="ap-reason" class="field" maxlength="300" bind:value={reason} />
   {/if}

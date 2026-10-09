@@ -286,7 +286,7 @@ func (s *Server) emailSale(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Email = strings.TrimSpace(req.Email)
-	if !strings.Contains(req.Email, "@") || len(req.Email) > 160 || strings.ContainsAny(req.Email, "\r\n<>,; ") {
+	if !validEmail(req.Email) || len(req.Email) > 160 {
 		writeError(w, http.StatusBadRequest, "Escribe un correo válido.")
 		return
 	}

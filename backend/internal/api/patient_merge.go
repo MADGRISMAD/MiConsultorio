@@ -215,25 +215,7 @@ func (s *Server) mergeDuplicatesRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 // runPatientMerge joins the duplicated records of every clinic now and then, so none lasts.
-func (s *Server) runPatientMerge(ctx context.Context) {
-	tick := time.NewTicker(6 * time.Hour)
-	defer tick.Stop()
-	for {
-		s.mergePass(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
-	}
-}
-
 func (s *Server) mergePass(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("patient merge: panic: %v", r)
-		}
-	}()
 	rows, err := s.db.Query(ctx, `SELECT DISTINCT a.clinic_id::text FROM patients a JOIN patients b ON a.id < b.id AND `+samePerson)
 	if err != nil {
 		log.Printf("patient merge: %v", err)

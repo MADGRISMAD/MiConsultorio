@@ -29,10 +29,18 @@ func ValidateName(n string) string {
 	return ""
 }
 
-func ValidateEmail(e string) string {
-	e = strings.TrimSpace(e)
+// ValidEmail is the one rule for an e-mail address everywhere: a plain address (no display name, no spaces or brackets)
+// with a dot in its domain, at most 254 characters.
+func ValidEmail(e string) bool {
+	if len(e) > 254 || strings.ContainsAny(e, " \t\r\n<>,;") {
+		return false
+	}
 	a, err := mail.ParseAddress(e)
-	if err != nil || a.Address != e || len(e) > 254 || !strings.Contains(e[strings.LastIndex(e, "@"):], ".") {
+	return err == nil && a.Address == e && strings.Contains(e[strings.LastIndex(e, "@"):], ".")
+}
+
+func ValidateEmail(e string) string {
+	if !ValidEmail(strings.TrimSpace(e)) {
 		return "El correo electrónico no es válido."
 	}
 	return ""

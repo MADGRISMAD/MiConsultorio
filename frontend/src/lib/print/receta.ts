@@ -10,7 +10,8 @@ function verifyHost(url: string): string {
   }
 }
 
-export function recetaHtml(rx: Prescription, patient: Patient, clinic: Issuer, verify?: { url: string; qr: string }): string {
+/** `patientCopy` is the note of the patient's own copy (portal): no QR and no signature line, that note at the bottom instead. */
+export function recetaHtml(rx: Prescription, patient: Patient, clinic: Issuer, verify?: { url: string; qr: string }, patientCopy?: string): string {
   const instr = rx.mode === 'instructions';
   const animal = patient.subject === 'animal';
   const voided = !!rx.voided_at;
@@ -50,7 +51,7 @@ ${retained ? '<p class="small"><strong>Receta retenida por la farmacia</strong> 
 ${rx.next_visit ? `<p><span class="k">Próxima cita</span>${e(fmtDate(rx.next_visit))}</p>` : ''}
 ${voided ? `<div class="box"><strong>Receta cancelada</strong> el ${e(fmtDateTime(rx.voided_at))}${rx.voided_by ? ` por ${e(rx.voided_by)}` : ''}.${rx.void_reason ? ` Motivo: ${e(rx.void_reason)}` : ''}</div>` : ''}
 
-${verify ? `<div class="verify nobreak"><img src="${e(verify.qr)}" alt="Código QR de verificación" width="84" height="84"><div class="small"><strong>Verifica esta receta en ${e(verifyHost(verify.url))}</strong><br>Escanea el código o abre la dirección: confirma que el folio, el profesional y la vigencia son auténticos. No muestra medicamentos ni diagnóstico.<br>${e(verify.url)}</div></div>` : ''}
-<div class="sig nobreak">Firma autógrafa del ${animal ? 'Médico Veterinario' : 'médico / profesional'}<br>${e(rx.author_name)}</div>`;
+${verify && !patientCopy ? `<div class="verify nobreak"><img src="${e(verify.qr)}" alt="Código QR de verificación" width="84" height="84"><div class="small"><strong>Verifica esta receta en ${e(verifyHost(verify.url))}</strong><br>Escanea el código o abre la dirección: confirma que el folio, el profesional y la vigencia son auténticos. No muestra medicamentos ni diagnóstico.<br>${e(verify.url)}</div></div>` : ''}
+${patientCopy ? `<div class="footer">${e(patientCopy)}</div>` : `<div class="sig nobreak">Firma autógrafa del ${animal ? 'Médico Veterinario' : 'médico / profesional'}<br>${e(rx.author_name)}</div>`}`;
   return doc(`${title} ${rx.folio}`, body, '.pair{display:grid;grid-template-columns:1.1fr 1fr;gap:0 14px}.pair .pro{border-left:1px solid #999;padding-left:12px}ol li { margin-bottom: 10px; font-size: 13px; } .verify{display:flex;gap:10px;align-items:center;margin-top:18px} .verify img{flex:none}');
 }

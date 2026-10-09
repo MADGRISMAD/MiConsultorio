@@ -24,6 +24,19 @@ export function ago(iso: string | null | undefined): string {
 export const dateShort = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
+const DATE_TIME: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
+
+/** "9 oct 2026, 14:30" */
+export const dateTime = (iso: string) => new Date(iso).toLocaleString('es-MX', DATE_TIME);
+/** "vie, 9 oct 2026, 14:30" */
+export const dateTimeWeekday = (iso: string) => new Date(iso).toLocaleString('es-MX', { weekday: 'short', ...DATE_TIME });
+
+/** "Ana Pérez" */
+export const fullName = (p: { names: string; last_names: string }) => `${p.names} ${p.last_names}`.trim();
+
+/** The one rule for an e-mail address in a form (the server checks it again). */
+export const emailOk = (v: string) => /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(v.trim());
+
 export const money = (pesos: number) => pesos.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 export const moneyCents = (cents: number) => (cents / 100).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 

@@ -301,28 +301,12 @@ func (s *Server) ntfCleanup(ctx context.Context) error {
 
 // runNotificationJobs runs the stock job and the cleanup about once an hour until ctx ends (the dedupe key
 // keeps it to one notice per clinic and day).
-func (s *Server) runNotificationJobs(ctx context.Context) {
-	tick := time.NewTicker(time.Hour)
-	defer tick.Stop()
-	for {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("notifications: panic: %v", r)
-				}
-			}()
-			if _, err := s.ntfStockPass(ctx); err != nil && ctx.Err() == nil {
-				log.Printf("notifications: stock: %v", err)
-			}
-			if err := s.ntfCleanup(ctx); err != nil && ctx.Err() == nil {
-				log.Printf("notifications: cleanup: %v", err)
-			}
-		}()
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
+func (s *Server) notificationPass(ctx context.Context) {
+	if _, err := s.ntfStockPass(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("notifications: stock: %v", err)
+	}
+	if err := s.ntfCleanup(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("notifications: cleanup: %v", err)
 	}
 }
 

@@ -1,3 +1,4 @@
+import { dateTime } from '$lib/format';
 import type { ArcoDeadlineState, ArcoKind, ArcoRequest, ArcoStatus } from '$lib/types/arco';
 
 export const KIND_LABEL: Record<ArcoKind, string> = {
@@ -6,14 +7,6 @@ export const KIND_LABEL: Record<ArcoKind, string> = {
   cancelacion: 'Cancelación',
   oposicion: 'Oposición',
   revocacion: 'Revocación del consentimiento'
-};
-
-export const KIND_HELP: Record<ArcoKind, string> = {
-  acceso: 'Quiero saber qué datos suyos tiene el consultorio y recibir una copia.',
-  rectificacion: 'Quiero corregir un dato mío que está incorrecto o incompleto.',
-  cancelacion: 'Quiero que dejen de usar mis datos. (El expediente clínico debe conservarse al menos 5 años por ley.)',
-  oposicion: 'Quiero que no usen mis datos para una finalidad concreta.',
-  revocacion: 'Quiero retirar el consentimiento que di para el uso de mis datos.'
 };
 
 export const KINDS = Object.keys(KIND_LABEL) as ArcoKind[];
@@ -53,5 +46,5 @@ export function fmtDay(d: string | null | undefined): string {
 
 export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return dateTime(iso);
 }

@@ -273,7 +273,7 @@ func (s *Server) portalPrescriptions(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query(r.Context(), `
 		SELECT id::text, patient_id::text, folio, mode, issued_at, to_char(valid_until, 'YYYY-MM-DD'), items, instructions,
 		       to_char(next_visit, 'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, to_char(voided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), area, complementary
-		FROM prescriptions WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND (area = '' OR area = ANY($3::text[])) ORDER BY issued_at DESC LIMIT 200`, sess.ClinicID, patientIDs(pts), activeKinds)
+		FROM prescriptions WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND `+areaShown("area", 3)+` ORDER BY issued_at DESC LIMIT 200`, sess.ClinicID, patientIDs(pts), activeKinds)
 	if err != nil {
 		serverError(w, r, err)
 		return

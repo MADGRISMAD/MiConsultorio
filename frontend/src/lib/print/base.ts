@@ -19,7 +19,8 @@ export const fmtDateTime = (iso: string | null | undefined) =>
     ? new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' h'
     : '';
 
-export const fullName = (p: Pick<Patient, 'names' | 'last_names'>) => `${p.names} ${p.last_names}`.trim();
+import { fullName } from '$lib/format';
+export { fullName };
 
 export function ageText(p: Patient): string {
   if (p.age == null) return '';

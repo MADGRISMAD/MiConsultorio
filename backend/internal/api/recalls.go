@@ -19,25 +19,7 @@ import (
 // Like the birthday greetings they go only to people who agreed to e-mails (reminders_ok), carry an unsubscribe link,
 // leave from 9:00 clinic time and are sent once per due date.
 
-func (s *Server) runRecalls(ctx context.Context) {
-	tick := time.NewTicker(30 * time.Minute)
-	defer tick.Stop()
-	for {
-		s.recallPass(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
-	}
-}
-
 func (s *Server) recallPass(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("recalls: panic: %v", r)
-		}
-	}()
 	if !s.mailEnabled() {
 		return
 	}

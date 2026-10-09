@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/mail"
+	"github.com/madgrismad/miconsultorio/backend/internal/db"
 	"net/url"
 	"regexp"
 	"strings"
@@ -120,13 +120,7 @@ func normalizePhoneMX(raw string) string {
 	return "+52" + n
 }
 
-func validEmail(e string) bool {
-	if len(e) > 254 || strings.ContainsAny(e, " \r\n<>") {
-		return false
-	}
-	a, err := mail.ParseAddress(e)
-	return err == nil && a.Address == e && strings.Contains(e[strings.LastIndex(e, "@"):], ".")
-}
+func validEmail(e string) bool { return db.ValidEmail(e) }
 
 // manageLink is the page where the patient confirms, cancels or reschedules.
 func (s *Server) manageLink(token string, query string) string {
@@ -199,17 +193,6 @@ func smallLink(href, label string) string {
 	return `<a href="` + esc(href) + `" style="color:#1673d1;text-decoration:underline">` + esc(label) + `</a>`
 }
 
-// actionRow renders the three buttons of a reminder.
-func (s *Server) actionRow(token string) string {
-	btn := func(href, label, bg, fg string) string {
-		return `<a href="` + esc(href) + `" style="background:` + bg + `;color:` + fg + `;text-decoration:none;padding:11px 18px;border-radius:999px;font-weight:600;font-size:14px;display:inline-block;margin:0 8px 8px 0;border:1px solid #0b2540">` + esc(label) + `</a>`
-	}
-	return `<p style="margin:20px 0 6px">` +
-		btn(s.manageLink(token, "accion=confirmar"), "Confirmar asistencia", "#0b2540", "#ffffff") +
-		btn(s.manageLink(token, "accion=reagendar"), "Reagendar", "#ffffff", "#0b2540") +
-		btn(s.manageLink(token, "accion=cancelar"), "Cancelar", "#ffffff", "#0b2540") + `</p>`
-}
-
 // attendRow asks the patient the one question of the reminder: will you come? Not answering changes nothing.
 func (s *Server) attendRow(token string) string {
 	btn := func(href, label, bg, fg string) string {
@@ -265,26 +248,56 @@ func (s *Server) bookingMail(a apptInfo, pendingClinic bool) (subject, text, htm
 	return subject, text, layout(title, body)
 }
 
+// What every query about one visit shares: the clinic, the professional, the service, the video link, the time and
+// the calendar identity. Each caller adds its own columns before apptInfoCols and its own joins after apptInfoFrom.
+const apptInfoCols = `c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), coalesce(c.settings->>'timezone', ''),
+	coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''), ap.id::text, to_char(ap.date, 'YYYY-MM-DD'),
+	to_char(ap.start_hour, 'HH24:MI'), to_char(ap.end_hour, 'HH24:MI'), ap.updated_at, coalesce(ap.confirm_token, '')`
+
+const apptInfoFrom = `FROM appointments ap
+	JOIN clinics c ON c.id = ap.clinic_id
+	LEFT JOIN professional_settings pv ON pv.user_id = ap.professional_id
+	LEFT JOIN users u ON u.id = ap.professional_id
+	LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
+	LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id`
+
+// the patient and the owner of a pet, for the greeting and the contact data
+const apptPatientJoins = `LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
+	LEFT JOIN owners o ON o.id = p.owner_id`
+
+// apptInfoScan holds the raw values of apptInfoCols until settle turns them into the apptInfo.
+type apptInfoScan struct {
+	tz, date, start, end string
+	enabled              bool
+	slug                 *string
+}
+
+// targets are the scan destinations of apptInfoCols, in order.
+func (a *apptInfo) targets(x *apptInfoScan) []any {
+	return []any{&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &x.tz, &x.enabled, &x.slug, &a.VideoURL, &a.ID,
+		&x.date, &x.start, &x.end, &a.Modified, &a.Token}
+}
+
+// settle fills the times (in the clinic's zone) and the booking slug.
+func (a *apptInfo) settle(x apptInfoScan) error {
+	if x.enabled && x.slug != nil {
+		a.Slug = *x.slug
+	}
+	loc := locationOrDefault(x.tz)
+	var err error
+	if a.Start, err = localTime(loc, x.date, x.start); err != nil {
+		return err
+	}
+	a.End, _ = localTime(loc, x.date, x.end)
+	return nil
+}
+
 // loadApptInfo gathers the data describing one appointment of a clinic. ok is false when it does not exist.
 func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appointmentID string) (a apptInfo, ok bool, err error) {
-	var date, start, endClock, tz string
-	var enabled bool
-	var slug *string
-	err = q.QueryRow(ctx, `
-		SELECT c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), `+patientGreetingSQL+`,
-		       to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), coalesce(ap.confirm_token, ''),
-		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''),
-		       ap.id::text, to_char(ap.end_hour, 'HH24:MI'), ap.updated_at
-		FROM appointments ap
-		JOIN clinics c ON c.id = ap.clinic_id
-		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
-		LEFT JOIN owners o ON o.id = p.owner_id
-		LEFT JOIN professional_settings pv ON pv.user_id = ap.professional_id
-		LEFT JOIN users u ON u.id = ap.professional_id
-		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
-		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
+	var x apptInfoScan
+	err = q.QueryRow(ctx, `SELECT `+patientGreetingSQL+`, `+apptInfoCols+` `+apptInfoFrom+` `+apptPatientJoins+`
 		WHERE ap.clinic_id = $1 AND ap.id = $2`, clinicID, appointmentID).
-		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug, &a.VideoURL, &a.ID, &endClock, &a.Modified)
+		Scan(append([]any{&a.PatientName, &a.PetName}, a.targets(&x)...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, false, nil
 	}
@@ -292,13 +305,6 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 		return a, false, err
 	}
 	a.PatientName = firstName(a.PatientName)
-	if enabled && slug != nil {
-		a.Slug = *slug
-	}
-	loc := locationOrDefault(tz)
-	a.Start, err = localTime(loc, date, start)
-	if err == nil {
-		a.End, _ = localTime(loc, date, endClock)
-	}
+	err = a.settle(x)
 	return a, err == nil, err
 }

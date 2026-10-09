@@ -137,3 +137,18 @@ func scopeProfile(profile map[string]any, fields []Field) map[string]any {
 	}
 	return out
 }
+
+// What a clinic shows once it stops working in a giro: the rows of that giro stay stored but are left out of what
+// people see. One rule, used by every list, so they cannot drift apart.
+//
+//	tagsShown: a column of giros (patients.kinds): untagged rows always show, tagged ones show if any tag is active.
+//	areaShown: a single giro (prescriptions.area): an empty one always shows.
+//
+// n is the position of the $-argument that carries the active giros as a text[].
+func tagsShown(col string, n int) string {
+	return "(cardinality(" + col + ") = 0 OR " + col + " && $" + itoa(n) + "::text[])"
+}
+
+func areaShown(col string, n int) string {
+	return "(" + col + " = '' OR " + col + " = ANY($" + itoa(n) + "::text[]))"
+}

@@ -97,7 +97,7 @@ function edge(e: string): number {
  * framer-motion's: "<element edge> <viewport edge>", e.g. ["start end", "end start"]
  * runs from the element's top touching the viewport's bottom until its bottom leaves the top.
  */
-export function scrollProgress(el: Element, offset: [string, string]): number {
+function scrollProgress(el: Element, offset: [string, string]): number {
   const rect = el.getBoundingClientRect();
   const vh = window.innerHeight;
   const [[es0, vs0], [es1, vs1]] = offset.map((o) => o.split(' ')) as [[string, string], [string, string]];

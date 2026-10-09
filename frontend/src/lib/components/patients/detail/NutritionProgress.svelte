@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateShort as dt } from '$lib/format';
   import { api } from '$lib/api';
   import { BODY_MEASURES, bmiLabel, bmiOf, latestMeasures, measureRows, numOf } from '$lib/nutritionMeasures';
   import { Op } from '$lib/op.svelte';
@@ -10,7 +11,6 @@
   let { patient, canWrite, encounters, onsaved }: { patient: Patient; canWrite: boolean; encounters: Encounter[]; onsaved: () => void | Promise<void> } = $props();
 
   const rows = $derived(measureRows(encounters));
-  const dt = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
   const fmt = (v: unknown) => (numOf(v) > 0 ? String(numOf(v)) : '—');
   /** height of a row, or the last known one before it */
   const heightAt = (i: number) => {

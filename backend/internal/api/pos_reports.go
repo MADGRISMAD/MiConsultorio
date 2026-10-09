@@ -327,7 +327,7 @@ func (s *Server) createInvoice(w http.ResponseWriter, r *http.Request) {
 	case utf8.RuneCountInString(req.TaxRegime) > 80 || utf8.RuneCountInString(req.Email) > 160:
 		writeError(w, http.StatusBadRequest, "Uno de los campos es demasiado largo.")
 		return
-	case req.Email != "" && !strings.Contains(req.Email, "@"):
+	case req.Email != "" && !validEmail(req.Email):
 		writeError(w, http.StatusBadRequest, "El correo no es válido.")
 		return
 	}

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,19 +90,7 @@ func (s seats) room(addUsers, addDoctors int) *httpError {
 	return nil
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(b[i:])
-}
+func itoa(n int) string { return strconv.Itoa(n) }
 
 // lockClinic serializes team changes of one clinic, so the "at least one admin" and seat
 // checks cannot race with a concurrent request.

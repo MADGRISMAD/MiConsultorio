@@ -3,7 +3,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { Professional } from '$lib/types/pos2';
-  import type { Cart, CartLine, Person } from './cart.svelte';
+  import type { Cart, CartLine, SalePerson } from './cart.svelte';
   import { lineGross } from './cart.svelte';
   import MoneyInput from './MoneyInput.svelte';
   import { qtyText } from './money';
@@ -12,7 +12,7 @@
     cart: Cart;
     canEditPrice: boolean;
     /** Patients to suggest; empty when the person may not browse expedients. */
-    people: Person[];
+    people: SalePerson[];
     /** Who can be credited with the sale (commissions); empty hides the selector. */
     professionals?: Professional[];
     showTax: boolean;
@@ -49,7 +49,7 @@
     if (t.length < 2 || !people.length) return [];
     return people.filter((p) => p.name.toLowerCase().includes(t) && p.name.toLowerCase() !== t).slice(0, 6);
   });
-  function choose(p: Person) {
+  function choose(p: SalePerson) {
     cart.customer = p.name;
     cart.curp = p.curp;
     cart.patientId = p.id ?? '';

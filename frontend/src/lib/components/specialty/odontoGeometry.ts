@@ -27,7 +27,7 @@ export const stateDef = (id: string | undefined) => STATES.find((s) => s.id === 
 export const SURFACE_NAMES: Record<Surface, string> = { V: 'Vestibular', L: 'Lingual', P: 'Palatina', M: 'Mesial', D: 'Distal', O: 'Oclusal', I: 'Incisal' };
 
 export const CELL = 34;
-export const GAP = 5;
+const GAP = 5;
 const IN = 9;
 
 export interface Row {
@@ -52,13 +52,11 @@ export function rowsFor(d: Dentition): Row[] {
   return [adultU, childU, childL, adultL];
 }
 
-export const allTeeth = () => [...range(11, 18), ...range(21, 28), ...range(31, 38), ...range(41, 48), ...range(51, 55), ...range(61, 65), ...range(71, 75), ...range(81, 85)];
-
 export const toothKind = (n: number) => {
   const u = n % 10;
   return u <= 2 ? 'Incisivo' : u === 3 ? 'Canino' : n >= 50 ? 'Molar temporal' : u <= 5 ? 'Premolar' : 'Molar';
 };
-export const isAnterior = (n: number) => n % 10 <= 3;
+const isAnterior = (n: number) => n % 10 <= 3;
 const quadrant = (n: number) => Math.floor(n / 10);
 /** quadrants shown on the left of the chart (patient's right) */
 const onLeft = (n: number) => [1, 4, 5, 8].includes(quadrant(n));
@@ -120,14 +118,12 @@ export function glyph(state: ToothState | undefined, s = CELL): string {
   }
 }
 
-export const WHOLE_GLYPH = new Set<ToothState>(['endodoncia', 'corona', 'extraccion_indicada', 'ausente', 'implante', 'protesis']);
-
 export function emptyOdontogram(dentition: Dentition = 'adult'): OdontogramData {
   return { dentition, teeth: {} };
 }
 
 /** Dentition that fits an age: baby teeth until ~6, both sets while they are replaced (~6-12), permanent after. */
-export function dentitionForAge(age: number | null | undefined): Dentition {
+function dentitionForAge(age: number | null | undefined): Dentition {
   if (age == null) return 'adult';
   return age < 6 ? 'child' : age < 13 ? 'mixed' : 'adult';
 }

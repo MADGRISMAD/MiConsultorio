@@ -37,31 +37,7 @@ func waitlistWake() {
 
 // runWaitlist hands out freed slots and expires unanswered offers until ctx ends. It also runs once a
 // minute, which covers every way a slot can free up (including ones that do not call waitlistWake).
-func (s *Server) runWaitlist(ctx context.Context) {
-	tick := time.NewTicker(time.Minute)
-	defer tick.Stop()
-	for {
-		s.waitlistPass(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		case <-waitlistKick:
-			select { // let a burst of changes settle
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-			}
-		}
-	}
-}
-
 func (s *Server) waitlistPass(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("waitlist: panic: %v", r)
-		}
-	}()
 	if _, err := s.waitlistRun(ctx); err != nil && ctx.Err() == nil {
 		log.Printf("waitlist: %v", err)
 	}

@@ -6,10 +6,10 @@ import { toCanvas } from 'html-to-image';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Printable dots across: 58 mm paper is 384 dots, 80 mm is 576. */
-export const dotsFor = (widthMm: number) => (widthMm === 58 ? 384 : 576);
+const dotsFor = (widthMm: number) => (widthMm === 58 ? 384 : 576);
 
 /** Loads the ticket's HTML in a hidden frame and draws it on a canvas exactly `dots` wide. */
-export async function renderTicketCanvas(html: string, widthMm: number): Promise<HTMLCanvasElement> {
+async function renderTicketCanvas(html: string, widthMm: number): Promise<HTMLCanvasElement> {
   const dots = dotsFor(widthMm);
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
@@ -52,7 +52,7 @@ export interface Bitmap {
 }
 
 /** Canvas to a 1-bit bitmap (black / white), trimming the blank paper left at the bottom. */
-export function canvasToBitmap(canvas: HTMLCanvasElement, threshold = 180): Bitmap {
+function canvasToBitmap(canvas: HTMLCanvasElement, threshold = 180): Bitmap {
   const { width, height } = canvas;
   const px = canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, width, height).data;
   const bytesPerRow = Math.ceil(width / 8);
@@ -73,7 +73,7 @@ export function canvasToBitmap(canvas: HTMLCanvasElement, threshold = 180): Bitm
 }
 
 /** ESC/POS bytes: the image in bands (GS v 0), then feed and cut. */
-export function rasterBytes(bitmap: Bitmap, opts: { openDrawer?: boolean; cut?: boolean } = {}): Uint8Array {
+function rasterBytes(bitmap: Bitmap, opts: { openDrawer?: boolean; cut?: boolean } = {}): Uint8Array {
   const parts: Uint8Array[] = [];
   const put = (...b: number[]) => parts.push(Uint8Array.from(b));
   put(0x1b, 0x40); // init

@@ -130,7 +130,7 @@ func (s *Server) prescriptionsFor(ctx context.Context, clinicID, patientID strin
 	if everything {
 		kinds = slices.Clone(areaKeys)
 	}
-	rows, err := s.db.Query(ctx, `SELECT `+rxCols+` FROM prescriptions WHERE clinic_id=$1 AND patient_id=$2 AND (area = '' OR area = ANY($3::text[])) ORDER BY issued_at DESC LIMIT 500`, clinicID, patientID, kinds)
+	rows, err := s.db.Query(ctx, `SELECT `+rxCols+` FROM prescriptions WHERE clinic_id=$1 AND patient_id=$2 AND `+areaShown("area", 3)+` ORDER BY issued_at DESC LIMIT 500`, clinicID, patientID, kinds)
 	if err != nil {
 		return nil, err
 	}

@@ -18,9 +18,7 @@ export function ageText(age: number | null | undefined): string {
   return age === 1 ? '1 año' : `${age} años`;
 }
 
-export const fullName = (p: { names: string; last_names: string }) => `${p.names} ${p.last_names}`.trim();
-
-export const SUBJECT_LABEL: Record<Subject, string> = { person: 'Persona', animal: 'Animal' };
+export { fullName } from '$lib/format';
 
 /** Second line under a patient's name: age and species for animals (with owner), age for people. */
 export function subtitle(p: PatientRow, withSpecies = true): string {

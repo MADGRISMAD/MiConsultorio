@@ -34,25 +34,7 @@ func pow4(n int) int {
 }
 
 // runReminders sends the queued appointment reminders until ctx ends.
-func (s *Server) runReminders(ctx context.Context) {
-	tick := time.NewTicker(time.Minute)
-	defer tick.Stop()
-	for {
-		s.reminderPass(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
-	}
-}
-
 func (s *Server) reminderPass(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("reminders: panic: %v", r)
-		}
-	}()
 	for i := 0; i < 50; i++ { // bounded: a backlog is drained over several minutes
 		n, err := s.processDueReminders(ctx)
 		if err != nil {
@@ -91,38 +73,22 @@ func (t reminderTarget) active() bool { return t.Status == "scheduled" || t.Stat
 // loadReminderTarget reads an appointment with its contact data and the clinic's reminder settings.
 // ok is false when the appointment does not belong to the clinic.
 func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID, appointmentID string) (t reminderTarget, ok bool, err error) {
-	var date, start, endClock, tz string
+	var x apptInfoScan
 	var apEmail, apPhone, pEmail, pPhone, gEmail, gPhone, oEmail, oPhone string
 	var apConsent, pConsent bool
-	var slug *string
-	var enabled bool
 	err = q.QueryRow(ctx, `
-		SELECT ap.status, to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), `+patientGreetingSQL+`, coalesce(ap.confirm_token, ''),
+		SELECT ap.status, `+patientGreetingSQL+`,
 		       ap.email, ap.phone, ap.reminders_consent,
 		       coalesce(p.email, ''), coalesce(p.phone, ''), coalesce(p.guardian_email, ''), coalesce(p.guardian_phone, ''),
 		       coalesce(p.reminders_ok, false) OR (p.owner_id IS NOT NULL AND EXISTS (SELECT 1 FROM patients q WHERE q.owner_id = p.owner_id AND q.reminders_ok)),
 		       coalesce(o.email, ''), coalesce(o.phone, ''),
-		       c.name, c.address, c.phone_number, coalesce(c.settings->>'timezone', ''),
-		       coalesce(u.name, ''), coalesce(ci.name, ''),
 		       coalesce(s.remind_email, true), coalesce(s.remind_whatsapp, false), coalesce(s.remind_hours, '{24,2}'), coalesce(s.reminder_template, ''),
-		       coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''),
-		       ap.id::text, to_char(ap.end_hour, 'HH24:MI'), ap.updated_at
-		FROM appointments ap
-		JOIN clinics c ON c.id = ap.clinic_id
-		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
-		LEFT JOIN owners o ON o.id = p.owner_id
-		LEFT JOIN professional_settings pv ON pv.user_id = ap.professional_id
-		LEFT JOIN users u ON u.id = ap.professional_id
-		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
-		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
+		       `+apptInfoCols+` `+apptInfoFrom+` `+apptPatientJoins+`
 		WHERE ap.clinic_id = $1 AND ap.id = $2`, clinicID, appointmentID).
-		Scan(&t.Status, &date, &start, &t.Info.PatientName, &t.Info.PetName, &t.Info.Token,
+		Scan(append([]any{&t.Status, &t.Info.PatientName, &t.Info.PetName,
 			&apEmail, &apPhone, &apConsent,
 			&pEmail, &pPhone, &gEmail, &gPhone, &pConsent, &oEmail, &oPhone,
-			&t.Info.ClinicName, &t.Info.ClinicAddress, &t.Info.ClinicPhone, &tz,
-			&t.Info.Professional, &t.Info.Service,
-			&t.RemindEmail, &t.RemindWA, &t.Hours, &t.Note,
-			&enabled, &slug, &t.Info.VideoURL, &t.Info.ID, &endClock, &t.Info.Modified)
+			&t.RemindEmail, &t.RemindWA, &t.Hours, &t.Note}, t.Info.targets(&x)...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, false, nil
 	}
@@ -130,17 +96,11 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 		return t, false, err
 	}
 	t.Info.PatientName = firstName(t.Info.PatientName)
-	if enabled && slug != nil {
-		t.Info.Slug = *slug
-	}
 	t.Consent = pConsent || apConsent
 	t.Email = firstNonEmpty(apEmail, pEmail, gEmail, oEmail)
 	t.Phone = firstNonEmpty(apPhone, pPhone, gPhone, oPhone)
-	t.Start, err = localTime(locationOrDefault(tz), date, start)
-	t.Info.Start = t.Start
-	if err == nil {
-		t.Info.End, _ = localTime(locationOrDefault(tz), date, endClock)
-	}
+	err = t.Info.settle(x)
+	t.Start = t.Info.Start
 	return t, err == nil, err
 }
 

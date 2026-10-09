@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateShort as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
@@ -32,7 +33,6 @@
     notes: string;
   }
 
-  const dt = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
   let loading = $state(true);
   let error = $state('');
   let results = $state<PatientChart[]>([]);

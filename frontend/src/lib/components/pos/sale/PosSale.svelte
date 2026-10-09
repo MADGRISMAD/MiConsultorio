@@ -18,7 +18,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import OpenCashModal from '../cash/OpenCashModal.svelte';
-  import { Cart, type Person } from './cart.svelte';
+  import { Cart, type SalePerson } from './cart.svelte';
   import CatalogBrowser from './CatalogBrowser.svelte';
   import CartPanel from './CartPanel.svelte';
   import ConsultChargesPanel from './ConsultChargesPanel.svelte';
@@ -36,7 +36,7 @@
   let cash = $state<CashSession | null>(null);
   let loading = $state(true);
   let loadError = $state('');
-  let people = $state<Person[]>([]);
+  let people = $state<SalePerson[]>([]);
   let professionals = $state<Professional[]>([]);
   let planOpen = $state<PlanPrefill | null>(null);
   let chargesKey = $state(0);

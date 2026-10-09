@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { filesApi } from '$lib/api/files';
@@ -60,7 +61,6 @@
   const visible = $derived(filter === 'all' ? files : files.filter((f) => f.kind === filter));
   const counts = $derived(KINDS.map((k) => ({ ...k, n: files.filter((f) => f.kind === k.value).length })).filter((k) => k.n > 0));
   const pct = $derived(usage ? Math.min(100, (usage.used_bytes / usage.quota_bytes) * 100) : 0);
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
   function take(list: FileList | null | undefined) {
     if (list && list.length) queue = Array.from(list);

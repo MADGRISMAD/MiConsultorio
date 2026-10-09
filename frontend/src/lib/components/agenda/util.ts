@@ -43,7 +43,7 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const fmtLong = (s: string) => cap(longFmt(s));
 const longFmt = (s: string) => parseDay(s).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 export const fmtShort = (s: string) => cap(parseDay(s).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }));
-export const fmtMonth = (s: string) => cap(parseDay(s).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
+const fmtMonth = (s: string) => cap(parseDay(s).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
 export const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export function rangeTitle(view: string, cursor: string): string {
@@ -84,7 +84,7 @@ export function proColor(pros: Professional[], id: string | null): string {
   return pros[i].color || PRO_COLORS[i % PRO_COLORS.length];
 }
 
-export const fullName = (a: { names: string; last_names: string }) => `${a.names} ${a.last_names}`.trim();
+export { fullName } from '$lib/format';
 
 /** Places overlapping appointments side by side: returns [lane, lanes] per appointment. */
 export function layoutLanes(items: Appt[]): Map<string, [number, number]> {

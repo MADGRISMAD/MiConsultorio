@@ -27,25 +27,7 @@ const (
 	birthdayAttempts = 3
 )
 
-func (s *Server) runBirthdays(ctx context.Context) {
-	tick := time.NewTicker(30 * time.Minute)
-	defer tick.Stop()
-	for {
-		s.birthdayPass(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-tick.C:
-		}
-	}
-}
-
 func (s *Server) birthdayPass(ctx context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("birthdays: panic: %v", r)
-		}
-	}()
 	if !s.mailEnabled() {
 		return
 	}

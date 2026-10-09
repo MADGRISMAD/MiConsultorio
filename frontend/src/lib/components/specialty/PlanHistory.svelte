@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import type { PlanEvent } from '$lib/types/specialty';
@@ -17,7 +18,6 @@
     item_cancel: 'Concepto cancelado',
     cancelled: 'Plan cancelado'
   };
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
   onMount(async () => {
     try {

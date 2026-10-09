@@ -132,7 +132,7 @@ func (a *appointmentIn) validate() string {
 		utf8.RuneCountInString(a.Room) > 40 || utf8.RuneCountInString(a.Phone) > 30 || utf8.RuneCountInString(a.Email) > 200 {
 		return "Uno de los campos es demasiado largo."
 	}
-	if a.Email != "" && (!strings.Contains(a.Email, "@") || strings.ContainsAny(a.Email, " \r\n")) {
+	if a.Email != "" && !validEmail(a.Email) {
 		return "El correo no es válido."
 	}
 	for _, id := range []**string{&a.PatientID, &a.ProfessionalID, &a.ServiceID} {
@@ -265,7 +265,8 @@ func (s *Server) listAppointments(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	add("(a.patient_id IS NULL OR EXISTS (SELECT 1 FROM patients hp WHERE hp.id = a.patient_id AND (cardinality(hp.kinds) = 0 OR hp.kinds && $$::text[])))", kinds)
+	args = append(args, kinds)
+	where = append(where, "(a.patient_id IS NULL OR EXISTS (SELECT 1 FROM patients hp WHERE hp.id = a.patient_id AND "+tagsShown("hp.kinds", len(args))+"))")
 	rows, err := s.db.Query(r.Context(), appointmentSelect+`WHERE `+strings.Join(where, " AND ")+` ORDER BY a.date, a.start_hour, a.created_at LIMIT 5000`, args...)
 	if err != nil {
 		serverError(w, r, err)
@@ -390,7 +391,7 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 		}
 		if msg := s.checkRefs(r.Context(), tx, p.ClinicID, &f); msg != "" {
 			// A professional who has since been deactivated may stay on an old appointment as long as it is not changed.
-			keepsProfessional := f.ProfessionalID != nil && strPtr(cur.ProfessionalID) == *f.ProfessionalID
+			keepsProfessional := f.ProfessionalID != nil && deref(cur.ProfessionalID) == *f.ProfessionalID
 			if !keepsProfessional || strings.Contains(msg, "servicio") {
 				return fail(http.StatusBadRequest, msg)
 			}
@@ -405,7 +406,7 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		sameSlot := cur.Date == f.Date && cur.StartHour == f.StartHour && cur.EndHour == f.EndHour && cur.Room == f.Room &&
-			strPtr(cur.ProfessionalID) == strPtr(f.ProfessionalID)
+			deref(cur.ProfessionalID) == deref(f.ProfessionalID)
 		if !sameSlot {
 			if err := s.checkSlot(r.Context(), tx, p.ClinicID, &f, id); err != nil {
 				return err
@@ -447,13 +448,6 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 	}
 	waitlistWake() // the old slot may be free now
 	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
-}
-
-func strPtr(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 func (s *Server) deleteAppointment(w http.ResponseWriter, r *http.Request) {

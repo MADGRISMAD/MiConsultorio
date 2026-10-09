@@ -11,7 +11,6 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"net/mail"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -166,8 +165,7 @@ func normalizeEmail(s string) (string, bool) {
 	if s == "" || len(s) > 200 {
 		return "", false
 	}
-	a, err := mail.ParseAddress(s)
-	if err != nil || a.Address != s || !strings.Contains(s, "@") {
+	if !validEmail(s) {
 		return "", false
 	}
 	return s, true

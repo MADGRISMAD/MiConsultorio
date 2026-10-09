@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as fmtDate } from '$lib/format';
   import { onMount } from 'svelte';
   import { growthApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
@@ -68,7 +69,6 @@
       await load();
     }
   }
-  const fmtDate = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const sexLabel = (s: string) => (s === 'M' ? 'Hombres / niños' : 'Mujeres / niñas');
 </script>
 

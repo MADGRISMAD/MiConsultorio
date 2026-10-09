@@ -1,6 +1,6 @@
 <script lang="ts">
   import { consult } from '$lib/api/consult';
-  import { moneyCents } from '$lib/format';
+  import { moneyCents, dateTimeWeekday as dt } from '$lib/format';
   import { session } from '$lib/session.svelte';
   import { ENCOUNTER_KINDS, type Encounter, type FieldDef, type Patient, type PatientSchema } from '$lib/types';
   import type { Charge } from '$lib/types/consult';
@@ -45,7 +45,6 @@
   );
   const addendaOf = (id: string) => encounters.filter((e) => e.addendum_of === id).sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
 
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   const late = (e: Encounter) => Math.abs(new Date(e.created_at).getTime() - new Date(e.occurred_at).getTime()) > 5 * 60_000;
 </script>
 

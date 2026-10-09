@@ -28,7 +28,6 @@
     cancelled: 'pill-bad'
   };
   const statusLabel = (s: string) => (s in STATUS ? t(`appt.status.${s}`) : s);
-  const dateLong = (d: string) => fmtDay(d);
 
   $effect(() => {
     load
@@ -102,7 +101,7 @@
     </div>
 
     <dl class="mt-4 grid gap-3 rounded-xl bg-app-elevated p-4 text-sm">
-      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{dateLong(appt.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{fmtDay(appt.date)}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: appt.start })}</dd></div>
       {#if appt.professional}<div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{appt.professional}</dd></div>{/if}
       {#if appt.service}<div><dt class="text-xs text-app-muted">{t('common.service')}</dt><dd class="font-semibold">{appt.service}</dd></div>{/if}

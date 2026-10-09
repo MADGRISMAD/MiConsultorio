@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
@@ -31,7 +32,6 @@
   let findingNote = $state('');
 
   const asData = (c: PatientChart) => c.data as BodymapData;
-  const dt = (iso: string) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 
   async function load() {
     try {

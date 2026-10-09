@@ -261,10 +261,6 @@ export interface Appointment extends AppointmentInput {
   id: string;
 }
 
-export function emptyAppointment(): AppointmentInput {
-  return { patient_id: null, names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '' };
-}
-
 /** What each clinic role can do, for the "who can do what" table (the server decides for real). */
 export const ROLE_PERMISSIONS: Record<ClinicRole, string[]> = {
   admin: ['navAppointments', 'adminAppointments', 'navHistorials', 'adminHistorials', 'adminUsers', 'pos', 'posReports', 'posManage'],
