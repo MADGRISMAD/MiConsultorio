@@ -22,6 +22,15 @@ type ownerRef struct {
 	Name  string `json:"name"`
 	Phone string `json:"phone"`
 	Email string `json:"email"`
+	// informative: the owner's domicilio and birth date (YYYY-MM-DD)
+	Address   string `json:"address"`
+	BirthDate string `json:"birth_date"`
+}
+
+const ownerSelect = `id::text, name, phone, email, address, coalesce(to_char(birth_date, 'YYYY-MM-DD'), '')`
+
+func (o *ownerRef) scanDest() []any {
+	return []any{&o.ID, &o.Name, &o.Phone, &o.Email, &o.Address, &o.BirthDate}
 }
 
 // ownerQuerier is what resolveOwner needs from the pool or a transaction.
@@ -61,14 +70,18 @@ func resolveOwner(ctx context.Context, q ownerQuerier, clinicID string, in *pati
 			return nil, fail(http.StatusBadRequest, "El propietario no es válido.")
 		}
 		var o ownerRef
-		err := q.QueryRow(ctx, `SELECT id::text, name, phone, email FROM owners WHERE clinic_id = $1 AND id = $2`, clinicID, id).Scan(&o.ID, &o.Name, &o.Phone, &o.Email)
+		err := q.QueryRow(ctx, `SELECT `+ownerSelect+` FROM owners WHERE clinic_id = $1 AND id = $2`, clinicID, id).Scan(o.scanDest()...)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fail(http.StatusBadRequest, "El propietario no existe en este consultorio.")
 		}
 		if err != nil {
 			return nil, err
 		}
-		in.GuardianName, in.GuardianPhone, in.GuardianEmail = o.Name, o.Phone, o.Email
+		if err := completeOwner(ctx, q, clinicID, &o, in); err != nil {
+			return nil, err
+		}
+		in.GuardianName, in.GuardianPhone, in.GuardianEmail, in.Address = o.Name, o.Phone, o.Email, o.Address
+		in.Phone, in.Email = o.Phone, o.Email
 		return &o.ID, nil
 	}
 	in.GuardianName = strings.Join(strings.Fields(in.GuardianName), " ") // single spaces
@@ -77,9 +90,9 @@ func resolveOwner(ctx context.Context, q ownerQuerier, clinicID string, in *pati
 	}
 	var o ownerRef
 	err := q.QueryRow(ctx, `
-		SELECT id::text, name, phone, email FROM owners
+		SELECT `+ownerSelect+` FROM owners
 		WHERE clinic_id = $1 AND caresia_name_key(name) = caresia_name_key($2) AND caresia_contact_key(phone, email) = caresia_contact_key($3, $4)
-		ORDER BY created_at LIMIT 1`, clinicID, in.GuardianName, in.GuardianPhone, in.GuardianEmail).Scan(&o.ID, &o.Name, &o.Phone, &o.Email)
+		ORDER BY created_at LIMIT 1`, clinicID, in.GuardianName, in.GuardianPhone, in.GuardianEmail).Scan(o.scanDest()...)
 	switch {
 	case err == nil:
 		// The same person: complete what the owner did not have yet (and the copies in their pets).
@@ -100,17 +113,46 @@ func resolveOwner(ctx context.Context, q ownerQuerier, clinicID string, in *pati
 			}
 		}
 	case errors.Is(err, pgx.ErrNoRows):
-		err = q.QueryRow(ctx, `INSERT INTO owners (clinic_id, name, phone, email) VALUES ($1,$2,$3,$4) RETURNING id::text`,
-			clinicID, in.GuardianName, in.GuardianPhone, in.GuardianEmail).Scan(&o.ID)
+		err = q.QueryRow(ctx, `INSERT INTO owners (clinic_id, name, phone, email, address, birth_date) VALUES ($1,$2,$3,$4,$5,nullif($6, '')::date) RETURNING id::text`,
+			clinicID, in.GuardianName, in.GuardianPhone, in.GuardianEmail, in.Address, in.OwnerBirthDate).Scan(&o.ID)
 		if err != nil {
 			return nil, err
 		}
-		o.Name, o.Phone, o.Email = in.GuardianName, in.GuardianPhone, in.GuardianEmail
+		o.Name, o.Phone, o.Email, o.Address, o.BirthDate = in.GuardianName, in.GuardianPhone, in.GuardianEmail, in.Address, in.OwnerBirthDate
 	default:
 		return nil, err
 	}
-	in.GuardianName, in.GuardianPhone, in.GuardianEmail = o.Name, o.Phone, o.Email
+	if err == nil {
+		if err := completeOwner(ctx, q, clinicID, &o, in); err != nil {
+			return nil, err
+		}
+	}
+	in.GuardianName, in.GuardianPhone, in.GuardianEmail, in.Address = o.Name, o.Phone, o.Email, o.Address
+	in.Phone, in.Email = o.Phone, o.Email
 	return &o.ID, nil
+}
+
+// completeOwner takes the domicilio and birth date typed in the pet's form into the owner: it fills what the
+// owner did not have and replaces what the person changed. Empty answers never erase anything.
+func completeOwner(ctx context.Context, q ownerQuerier, clinicID string, o *ownerRef, in *patientIn) error {
+	address, birth := o.Address, o.BirthDate
+	if a := strings.TrimSpace(in.Address); a != "" {
+		address = a
+	}
+	if b := strings.TrimSpace(in.OwnerBirthDate); b != "" {
+		birth = b
+	}
+	if address == o.Address && birth == o.BirthDate {
+		return nil
+	}
+	if _, err := q.Exec(ctx, `UPDATE owners SET address=$3, birth_date=nullif($4, '')::date, updated_at=now() WHERE clinic_id=$1 AND id=$2`, clinicID, o.ID, address, birth); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `UPDATE patients SET address=$3, updated_at=now() WHERE clinic_id=$1 AND owner_id=$2`, clinicID, o.ID, address); err != nil {
+		return err
+	}
+	o.Address, o.BirthDate = address, birth
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +175,7 @@ func (s *Server) searchOwners(w http.ResponseWriter, r *http.Request) {
 		digits = ""
 	}
 	rows, err := s.db.Query(r.Context(), `
-		SELECT o.id::text, o.name, o.phone, o.email,
+		SELECT o.id::text, o.name, o.phone, o.email, o.address, coalesce(to_char(o.birth_date, 'YYYY-MM-DD'), ''),
 		       (SELECT count(*) FROM patients p WHERE p.owner_id = o.id AND p.archived_at IS NULL)::int
 		FROM owners o
 		WHERE o.clinic_id = $1 AND ($2 = '' OR o.name ILIKE $3 OR o.email ILIKE $3
@@ -149,7 +191,7 @@ func (s *Server) searchOwners(w http.ResponseWriter, r *http.Request) {
 	ids := []string{}
 	for rows.Next() {
 		var x ownerListItem
-		if err := rows.Scan(&x.ID, &x.Name, &x.Phone, &x.Email, &x.PetCount); err != nil {
+		if err := rows.Scan(&x.ID, &x.Name, &x.Phone, &x.Email, &x.Address, &x.BirthDate, &x.PetCount); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -181,7 +223,7 @@ func (s *Server) getOwner(w http.ResponseWriter, r *http.Request) {
 	}
 	p := principalFrom(r.Context())
 	var x ownerListItem
-	err := s.db.QueryRow(r.Context(), `SELECT id::text, name, phone, email FROM owners WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id).Scan(&x.ID, &x.Name, &x.Phone, &x.Email)
+	err := s.db.QueryRow(r.Context(), `SELECT `+ownerSelect+` FROM owners WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id).Scan(x.scanDest()...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Propietario no encontrado.")
 		return
@@ -246,7 +288,7 @@ func (s *Server) groupedPatients(w http.ResponseWriter, r *http.Request) {
 	}
 	// The owners that have a pet in the requested state and match the search by themselves or through a pet.
 	rows, err := s.db.Query(r.Context(), `
-		SELECT o.id::text, o.name, o.phone, o.email
+		SELECT o.id::text, o.name, o.phone, o.email, o.address, coalesce(to_char(o.birth_date, 'YYYY-MM-DD'), '')
 		FROM owners o
 		WHERE o.clinic_id = $1 AND EXISTS (
 			SELECT 1 FROM patients p WHERE p.owner_id = o.id AND p.subject = 'animal' AND ((p.archived_at IS NOT NULL) = $5)
@@ -262,7 +304,7 @@ func (s *Server) groupedPatients(w http.ResponseWriter, r *http.Request) {
 	ids := []string{}
 	for rows.Next() {
 		var g ownerGroup
-		if err := rows.Scan(&g.Owner.ID, &g.Owner.Name, &g.Owner.Phone, &g.Owner.Email); err != nil {
+		if err := rows.Scan(&g.Owner.ID, &g.Owner.Name, &g.Owner.Phone, &g.Owner.Email, &g.Owner.Address, &g.Owner.BirthDate); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -318,8 +360,8 @@ func (s *Server) patientOwner(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
 	var o ownerRef
 	err := s.db.QueryRow(r.Context(), `
-		SELECT o.id::text, o.name, o.phone, o.email FROM patients p JOIN owners o ON o.id = p.owner_id
-		WHERE p.clinic_id = $1 AND p.id = $2`, p.ClinicID, id).Scan(&o.ID, &o.Name, &o.Phone, &o.Email)
+		SELECT o.id::text, o.name, o.phone, o.email, o.address, coalesce(to_char(o.birth_date, 'YYYY-MM-DD'), '') FROM patients p JOIN owners o ON o.id = p.owner_id
+		WHERE p.clinic_id = $1 AND p.id = $2`, p.ClinicID, id).Scan(o.scanDest()...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeJSON(w, http.StatusOK, map[string]any{"owner": nil, "siblings": []ownerPet{}})
 		return

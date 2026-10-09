@@ -8,6 +8,7 @@
   import { CAPABILITY_ROWS, CLINIC_ROLES, ROLE_PERMISSIONS, ROLES, type ClinicRole, type Person, type Seats } from '$lib/types';
   import ConfirmModal from './ConfirmModal.svelte';
   import Modal from './Modal.svelte';
+  import PermissionsModal from './team/PermissionsModal.svelte';
   import Avatar from './ui/Avatar.svelte';
   import Icon from './ui/Icon.svelte';
   import LoadingRows from './ui/LoadingRows.svelte';
@@ -57,6 +58,7 @@
   }
 
   // ----- change role -----
+  let permsFor = $state<Person | null>(null);
   let roleChange = $state<{ person: Person; role: ClinicRole } | null>(null);
   const roleOp = new Op();
   async function confirmRole() {
@@ -141,6 +143,7 @@
             <p class="flex flex-wrap items-center gap-2 font-semibold">
               <span class="truncate">{p.name}</span>
               {#if self}<Pill tone="info">Tú</Pill>{/if}
+              {#if (p.permissions_extra?.length ?? 0) + (p.permissions_denied?.length ?? 0) > 0}<Pill tone="info">Permisos personalizados</Pill>{/if}
             </p>
             <p class="truncate text-sm text-app-muted">{p.email || `@${p.username}`} · {p.last_login_at ? `entró ${ago(p.last_login_at)}` : 'aún no ha entrado'}</p>
           </div>
@@ -162,6 +165,7 @@
               {#each CLINIC_ROLES as r}<option value={r}>{ROLES[r].label}</option>{/each}
             </select>
             <div class="flex gap-1">
+              {#if p.role !== 'admin'}<button type="button" class="icon-btn" title="Permisos" aria-label="Permisos de {p.name}" onclick={() => (permsFor = p)}><Icon name="shield" size={18} /></button>{/if}
               <button type="button" class="icon-btn" title="Restablecer contraseña" aria-label="Restablecer la contraseña de {p.name}" onclick={() => { newPassword = ''; pwOp.reset(); pwFor = p; }}><Icon name="key" size={18} /></button>
               <button type="button" class="icon-btn danger" title="Desactivar" aria-label="Desactivar a {p.name}" onclick={() => { toggleOp.reset(); toggle = { person: p, disable: true }; }}><Icon name="ban" size={18} /></button>
             </div>
@@ -308,3 +312,13 @@
     </button>
   {/snippet}
 </Modal>
+
+<PermissionsModal
+  person={permsFor}
+  cobros={session.cobros}
+  onclose={() => (permsFor = null)}
+  onsaved={(saved) => {
+    people = people.map((x) => (x.id === saved.id ? { ...x, ...saved } : x));
+    permsFor = null;
+  }}
+/>

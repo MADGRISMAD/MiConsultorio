@@ -87,7 +87,8 @@ type patientIn struct {
 	GuardianRelation string         `json:"guardian_relation"`
 	GuardianPhone    string         `json:"guardian_phone"`
 	GuardianEmail    string         `json:"guardian_email"`
-	OwnerID          *string        `json:"owner_id"` // animals: an existing owner of the clinic (otherwise the typed data finds or creates one)
+	OwnerBirthDate   string         `json:"owner_birth_date"` // animals: the owner's birth date (informative)
+	OwnerID          *string        `json:"owner_id"`         // animals: an existing owner of the clinic (otherwise the typed data finds or creates one)
 	Profile          map[string]any `json:"profile"`
 	PrivacyAck       bool           `json:"privacy_ack"` // the patient received and accepted the aviso de privacidad
 }
@@ -141,6 +142,13 @@ func (in *patientIn) validateCore(kinds []string, quick bool) string {
 			return "La fecha de nacimiento no es válida."
 		}
 	}
+	in.OwnerBirthDate = strings.TrimSpace(in.OwnerBirthDate)
+	if in.OwnerBirthDate != "" {
+		t, err := time.Parse("2006-01-02", in.OwnerBirthDate)
+		if err != nil || t.After(time.Now()) || t.Year() < 1900 {
+			return "La fecha de nacimiento del propietario no es válida."
+		}
+	}
 	if in.Subject == "animal" {
 		if !slices.Contains([]string{"", "Macho", "Hembra"}, in.Sex) {
 			return "El sexo del animal no es válido."
@@ -191,8 +199,8 @@ func (s *Server) patientSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"subjects": subjects, "profile": prof, "measures": meas, "measures_all": measAll, "rx_mode": rxModeFor(kinds), "kinds": kinds,
-		"encounter_kinds": []string{"consulta", "seguimiento", "procedimiento", "llamada", "nota"},
-		"routes":          rxRoutes,
+		"encounter_kinds": encounterKindsFor("person", kinds), "encounter_kinds_animal": encounterKindsFor("animal", kinds),
+		"routes": rxRoutes,
 	})
 }
 

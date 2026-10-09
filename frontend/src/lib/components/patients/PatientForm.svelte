@@ -41,8 +41,12 @@
     guardian_name: patient?.guardian_name ?? '',
     guardian_relation: patient?.guardian_relation ?? '',
     guardian_phone: patient?.guardian_phone ?? '',
-    guardian_email: patient?.guardian_email ?? ''
+    guardian_email: patient?.guardian_email ?? '',
+    owner_birth_date: ''
   });
+  // animals carry the owner's surnames unless someone writes others
+  /* svelte-ignore state_referenced_locally */
+  let lastTouched = $state(!!patient?.last_names);
   /* svelte-ignore state_referenced_locally */
   let profile = $state<FieldValues>({ ...(patient?.profile ?? {}) });
   let ack = $state(false);
@@ -53,13 +57,26 @@
     f.guardian_name = o.name;
     f.guardian_phone = o.phone;
     f.guardian_email = o.email;
+    if (o.address) f.address = o.address;
+    f.owner_birth_date = o.birth_date ?? '';
   }
   function clearOwner() {
     owner = null;
     f.guardian_name = '';
     f.guardian_phone = '';
     f.guardian_email = '';
+    f.owner_birth_date = '';
   }
+
+  /** "Luis Enrique Pantoja Parra" → "Pantoja Parra"; two words → the second */
+  function surnamesOf(full: string): string {
+    const w = full.trim().split(/\s+/).filter(Boolean);
+    if (w.length < 2) return '';
+    return w.slice(w.length >= 3 ? -2 : -1).join(' ');
+  }
+  $effect(() => {
+    if (animal && !lastTouched) f.last_names = surnamesOf(f.guardian_name);
+  });
 
   let errors = $state<Record<string, string>>({});
   let profileErrors = $state<Record<string, string>>({});
@@ -146,13 +163,14 @@
     const body: PatientInput = {
       subject,
       names: f.names.trim(),
-      last_names: animal ? '' : f.last_names.trim(),
+      last_names: f.last_names.trim(),
       sex: f.sex,
       birth_date: f.birth_date,
       curp: animal ? '' : f.curp.trim().toUpperCase(),
-      phone: f.phone.trim(),
-      email: f.email.trim(),
+      phone: (animal ? f.guardian_phone : f.phone).trim(),
+      email: (animal ? f.guardian_email : f.email).trim(),
       address: f.address.trim(),
+      owner_birth_date: animal ? f.owner_birth_date : undefined,
       guardian_name: f.guardian_name.trim(),
       guardian_relation: animal ? '' : f.guardian_relation.trim(),
       guardian_phone: f.guardian_phone.trim(),
@@ -183,13 +201,12 @@
 {:else if !schema}
   <div class="card"><LoadingRows /></div>
 {:else}
-  <form id="patient-form" class="space-y-5 pb-24" onsubmit={submit} novalidate>
-    <!-- Datos generales -->
-    <section class="card p-5 sm:p-6" aria-labelledby="pf-general">
-      <h2 id="pf-general" class="display mb-4 text-2xl">Datos generales</h2>
-      <div class="grid gap-4 sm:grid-cols-2">
+  <form id="patient-form" class="flex flex-col gap-5 pb-24" onsubmit={submit} novalidate>
+    <!-- ¿Persona o animal? / expediente -->
+    {#if mixed || editing}
+      <div class="order-first">
         {#if mixed}
-          <div class="sm:col-span-2">
+          <div>
             <span class="label" id="pf-subject-l">¿Quién es el paciente?</span>
             <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="pf-subject-l">
               {#each schema.subjects as s}
@@ -200,14 +217,25 @@
             </div>
           </div>
         {:else if editing}
-          <p class="flex items-center gap-2 text-sm text-app-muted sm:col-span-2"><Icon name={animal ? 'paw' : 'user'} size={17} />{animal ? 'Paciente animal' : 'Paciente persona'} · expediente #{patient?.file_number}</p>
+          <p class="flex items-center gap-2 text-sm text-app-muted "><Icon name={animal ? 'paw' : 'user'} size={17} />{animal ? 'Paciente animal' : 'Paciente persona'} · expediente #{patient?.file_number}</p>
         {/if}
 
+      </div>
+    {/if}
+
+    <!-- Datos generales -->
+    <section class="card p-5 sm:p-6" aria-labelledby="pf-general">
+      <h2 id="pf-general" class="display mb-4 text-2xl">{animal ? 'Datos de la mascota' : 'Datos generales'}</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
         {#if animal}
           <div class="sm:col-span-2">
             <label class="label" for="pf-names">Nombre del animal <span class="text-app-danger" aria-hidden="true">*</span></label>
             <input id="pf-names" class="field" bind:value={f.names} maxlength="120" autocomplete="off" aria-invalid={!!errors.names} aria-describedby={errors.names ? 'pf-names-h' : undefined} />
             {@render err('names')}
+          </div>
+          <div class="sm:col-span-2">
+            <label class="label" for="pf-last_names">Apellidos <span class="font-normal text-app-muted">(se toman del propietario; puedes cambiarlos)</span></label>
+            <input id="pf-last_names" class="field" bind:value={f.last_names} oninput={() => (lastTouched = true)} maxlength="120" autocomplete="off" placeholder="Se llenan al escribir el nombre del propietario" />
           </div>
         {:else}
           <div>
@@ -250,7 +278,8 @@
       </div>
     </section>
 
-    <!-- Contacto -->
+    <!-- Contacto (de una mascota es el del propietario, abajo) -->
+    {#if !animal}
     <section class="card p-5 sm:p-6" aria-labelledby="pf-contact">
       <h2 id="pf-contact" class="display mb-4 text-2xl">Contacto</h2>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -270,11 +299,13 @@
       </div>
     </section>
 
+    {/if}
+
     <!-- Responsable / tutor / propietario -->
-    <section class="card p-5 sm:p-6" aria-labelledby="pf-guardian">
-      <h2 id="pf-guardian" class="display text-2xl">{animal ? 'Propietario' : 'Responsable o tutor'}</h2>
+    <section class="card p-5 sm:p-6 {animal ? 'order-first' : ''}" aria-labelledby="pf-guardian">
+      <h2 id="pf-guardian" class="display text-2xl">{animal ? 'Primero, el propietario' : 'Responsable o tutor'}</h2>
       <p class="mb-4 mt-1 text-sm text-app-muted">
-        {#if animal}Es quien autoriza la atención y recibe las indicaciones. Datos obligatorios.
+        {#if animal}Busca al propietario: si ya tiene otras mascotas, se agrupan con él. Si es nuevo, escribe sus datos. Es quien autoriza la atención y recibe las indicaciones.
         {:else if minor}El paciente es menor de edad ({ageText(age)}): los datos del padre, madre o tutor son obligatorios.
         {:else}Opcional para personas adultas. Se vuelve obligatorio si el paciente es menor de 18 años.{/if}
       </p>
@@ -303,6 +334,17 @@
           <input id="pf-guardian_email" class="field" type="email" bind:value={f.guardian_email} readonly={!!owner} maxlength="160" autocomplete="off" aria-invalid={!!errors.guardian_email} aria-describedby={errors.guardian_email ? 'pf-guardian_email-h' : undefined} />
           {@render err('guardian_email')}
         </div>
+        {#if animal}
+          <div class="sm:col-span-2">
+            <label class="label" for="pf-address">Domicilio</label>
+            <input id="pf-address" class="field" bind:value={f.address} maxlength="240" autocomplete="street-address" />
+          </div>
+          <div>
+            <label class="label" for="pf-owner_birth">Fecha de nacimiento del propietario <span class="font-normal text-app-muted">(opcional)</span></label>
+            <input id="pf-owner_birth" class="field" type="date" max={today} bind:value={f.owner_birth_date} aria-describedby="pf-owner_birth-t" />
+            <p id="pf-owner_birth-t" class="hint">Solo informativa; no se usa para nada más.</p>
+          </div>
+        {/if}
       </div>
     </section>
 

@@ -39,6 +39,7 @@
       items: [
         { label: 'Inicio', href: '/', icon: 'home' },
         { label: 'Citas', href: '/admin/navegar-citas', icon: 'calendar', perms: [PERMISSIONS.navAppointments] },
+        { label: 'En proceso', href: '/en-proceso', icon: 'users', perms: [PERMISSIONS.navAppointments] },
         { label: 'Lista de espera', href: '/agenda/espera', icon: 'clock-plus', perms: [PERMISSIONS.navAppointments] },
         { label: 'Avisos', href: '/avisos', icon: 'bell', perms: [PERMISSIONS.navAppointments, PERMISSIONS.pos, PERMISSIONS.posManage] },
         { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] },

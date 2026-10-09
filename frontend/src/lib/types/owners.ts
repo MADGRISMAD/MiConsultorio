@@ -4,6 +4,9 @@ export interface OwnerRef {
   name: string;
   phone: string;
   email: string;
+  /** informative: the owner's domicilio and birth date */
+  address?: string;
+  birth_date?: string;
 }
 
 export interface OwnerPet {

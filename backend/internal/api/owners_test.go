@@ -133,3 +133,31 @@ func TestOwnersGroupPetsAndTellSameNamedPetsApart(t *testing.T) {
 	}
 	vet.expect(400, "POST", "/api/patients/owners/"+oid+"/merge", map[string]any{"into": oid})
 }
+
+func TestOwnerKeepsDomicilioAndBirthDate(t *testing.T) {
+	e := setup(t)
+	e.exec(`UPDATE clinics SET kind = 'VETERINARY' WHERE id = $1`, e.clinicA)
+	vet := e.login("doc_a")
+	body := func(name string, extra map[string]any) map[string]any {
+		b := map[string]any{"subject": "animal", "names": name, "last_names": "Pérez Díaz", "privacy_ack": true, "guardian_name": "Luis Pérez Díaz", "guardian_phone": "664 111 2222",
+			"profile": map[string]any{"species": "Perro", "allergies_text": "Ninguna", "sterilized": "Sí"}}
+		for k, v := range extra {
+			b[k] = v
+		}
+		return b
+	}
+	first := sub(vet.expect(201, "POST", "/api/patients/", body("Max", map[string]any{"address": "Calle 1", "owner_birth_date": "1990-05-04"})), "patient")
+	if first["address"] != "Calle 1" || first["last_names"] != "Pérez Díaz" {
+		t.Fatalf("pet: %v", first)
+	}
+	ow := sub(vet.expect(200, "GET", "/api/patients/owners/"+first["owner_id"].(string), nil), "owner")
+	if ow["address"] != "Calle 1" || ow["birth_date"] != "1990-05-04" {
+		t.Fatalf("owner: %v", ow)
+	}
+	// a second pet of the same owner without those answers keeps them, and gets the owner's domicilio
+	second := sub(vet.expect(201, "POST", "/api/patients/", body("Luna", map[string]any{"owner_id": first["owner_id"]})), "patient")
+	if second["address"] != "Calle 1" {
+		t.Fatalf("second pet must carry the owner's domicilio: %v", second)
+	}
+	vet.expect(400, "POST", "/api/patients/", body("Toby", map[string]any{"owner_birth_date": "2999-01-01"}))
+}

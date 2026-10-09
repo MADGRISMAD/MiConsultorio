@@ -102,7 +102,7 @@ export const api = {
   team: () => request<{ people: Person[]; seats: Seats; roles: { id: string; label: string }[] }>('GET', '/team/'),
   addMember: (m: { name: string; email: string; username: string; phone: string; password: string; role: string }) =>
     request<{ person: Person }>('POST', '/team/', m),
-  updateMember: (id: string, patch: Partial<{ name: string; email: string; phone: string; role: string }>) =>
+  updateMember: (id: string, patch: Partial<{ name: string; email: string; phone: string; role: string; permissions_extra: string[]; permissions_denied: string[] }>) =>
     request<{ person: Person }>('PATCH', `/team/${seg(id)}`, patch),
   resetMemberPassword: (id: string, password: string) => request<void>('POST', `/team/${seg(id)}/password`, { password }),
   deactivateMember: (id: string) => request<void>('POST', `/team/${seg(id)}/deactivate`),

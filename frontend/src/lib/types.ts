@@ -92,6 +92,10 @@ export interface Person {
   disabled: boolean;
   last_login_at: string | null;
   created_at: string;
+  /** capabilities added to / taken from this person on top of the role, and what they can do in the end */
+  permissions_extra?: string[];
+  permissions_denied?: string[];
+  permissions?: string[];
 }
 
 export interface Seats {
@@ -618,6 +622,7 @@ export interface PatientSchema {
   rx_mode: 'medication' | 'instructions';
   kinds: ClinicKind[];
   encounter_kinds: EncounterKind[];
+  encounter_kinds_animal?: EncounterKind[];
   routes: string[];
 }
 
@@ -684,6 +689,8 @@ export interface PatientInput {
   guardian_relation: string;
   guardian_phone: string;
   guardian_email: string;
+  /** animals: the owner's birth date (informative) */
+  owner_birth_date?: string;
   /** animals: an owner picked from the clinic's list (otherwise the typed data finds or creates one) */
   owner_id?: string | null;
   profile: FieldValues;
@@ -692,7 +699,7 @@ export interface PatientInput {
 
 export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone' | 'owner_id'>> & { names: string };
 
-export type EncounterKind = 'consulta' | 'seguimiento' | 'procedimiento' | 'llamada' | 'nota' | 'adenda';
+export type EncounterKind = 'consulta' | 'seguimiento' | 'procedimiento' | 'llamada' | 'nota' | 'adenda' | 'estetica' | 'paseo' | 'adiestramiento' | 'hospedaje' | 'sesion';
 
 export const ENCOUNTER_KINDS: Record<EncounterKind, string> = {
   consulta: 'Consulta',
@@ -700,7 +707,12 @@ export const ENCOUNTER_KINDS: Record<EncounterKind, string> = {
   procedimiento: 'Procedimiento',
   llamada: 'Llamada',
   nota: 'Nota',
-  adenda: 'Adenda'
+  adenda: 'Adenda',
+  estetica: 'Estética',
+  paseo: 'Paseo',
+  adiestramiento: 'Adiestramiento',
+  hospedaje: 'Hospedaje',
+  sesion: 'Sesión'
 };
 
 export interface Encounter {

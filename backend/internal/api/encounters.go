@@ -165,7 +165,7 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 	if in.Kind == "" {
 		in.Kind = "consulta"
 	}
-	if !slices.Contains([]string{"consulta", "seguimiento", "procedimiento", "llamada", "nota"}, in.Kind) {
+	if !slices.Contains(encounterKindsFor(subject, kinds), in.Kind) {
 		writeError(w, http.StatusBadRequest, "Tipo de registro inválido.")
 		return
 	}

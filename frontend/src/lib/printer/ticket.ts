@@ -142,6 +142,54 @@ hr { border: 0; border-top: 1px dashed #000; margin: 5px 0; }
 </style></head><body>${head}${body}</body></html>`;
 }
 
+/** The receipt on a letter-size sheet (comprobante de pago "carta"). It is not a tax invoice. */
+export function cartaHtml(sale: Sale, s: PosSettings): string {
+  const itemDisc = (sale.lines ?? []).reduce((a, l) => a + l.discount_cents, 0);
+  const extraDisc = sale.discount_cents - itemDisc;
+  const lines = (sale.lines ?? [])
+    .map((l) => `<tr><td class="r">${esc(qty(l.qty))}</td><td>${esc(l.name)}</td><td class="r">${peso(l.unit_price_cents)}</td><td class="r">${l.discount_cents ? '-' + peso(l.discount_cents) : ''}</td><td class="r">${peso(l.total_cents)}</td></tr>`)
+    .join('');
+  const pays = (sale.payments ?? [])
+    .map((p) => `<tr><td>${esc(PAY_METHODS[p.method]?.label.replace(/ \(.*\)/, '') ?? p.method)}${p.reference ? ` <span class="s">Ref: ${esc(p.reference)}</span>` : ''}</td><td class="r">${peso(p.amount_cents)}</td></tr>`)
+    .join('');
+  const total = (l: string, v: string, b = false) => `<tr class="${b ? 'b' : ''}"><td>${l}</td><td class="r">${v}</td></tr>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante #${sale.folio}</title>
+<style>
+@page { size: letter; margin: 18mm; }
+* { box-sizing: border-box; }
+body { font: 13px/1.45 Arial, Helvetica, sans-serif; color: #000; margin: 0; }
+h1 { font-size: 22px; margin: 0 0 2px; } .s { font-size: 11px; color: #444; }
+.head { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px; }
+.doc { text-align: right; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+th { text-align: left; background: #eee; padding: 5px 8px; border: 1px solid #000; font-size: 12px; }
+td { padding: 5px 8px; border: 1px solid #bbb; vertical-align: top; }
+.r { text-align: right; white-space: nowrap; } th.r { text-align: right; }
+.tot { width: 55%; margin-left: auto; } .tot td { border: 0; padding: 3px 8px; } .b td { font-weight: 700; font-size: 15px; border-top: 2px solid #000; }
+.foot { margin-top: 26px; font-size: 11px; color: #333; text-align: center; border-top: 1px solid #999; padding-top: 8px; }
+</style></head><body>
+<div class="head">
+  <div><h1>${esc(s.business_name || 'Mi consultorio')}</h1>
+    ${s.legal_name && s.legal_name !== s.business_name ? `<div>${esc(s.legal_name)}</div>` : ''}
+    ${s.rfc ? `<div>RFC: ${esc(s.rfc)}</div>` : ''}
+    ${s.tax_address ? `<div class="s">${esc(s.tax_address)}${s.zip_code ? ', C.P. ' + esc(s.zip_code) : ''}</div>` : ''}
+    ${s.phone ? `<div class="s">Tel. ${esc(s.phone)}</div>` : ''}</div>
+  <div class="doc"><div><strong>Comprobante de pago</strong></div><div>Folio #${sale.folio}</div><div class="s">${esc(when(sale.created_at))}</div>
+    ${sale.status === 'void' ? '<div><strong>CANCELADO</strong></div>' : ''}</div>
+</div>
+${sale.customer_name ? `<div><strong>Paciente:</strong> ${esc(sale.customer_name)}</div>` : ''}
+${sale.created_by ? `<div><strong>Atendió:</strong> ${esc(sale.created_by)}</div>` : ''}
+<table><thead><tr><th class="r" style="width:60px">Cant.</th><th>Concepto</th><th class="r">Precio</th><th class="r">Desc.</th><th class="r">Importe</th></tr></thead><tbody>${lines}</tbody></table>
+<table class="tot"><tbody>
+${extraDisc > 0 ? total('Descuento', '-' + peso(extraDisc)) : ''}
+${s.show_tax_line && sale.tax_cents > 0 ? total('IVA incluido', peso(sale.tax_cents)) : ''}
+${total('Total', peso(sale.total_cents), true)}
+</tbody></table>
+${pays ? `<table class="tot"><tbody><tr><td colspan="2"><strong>Forma de pago</strong></td></tr>${pays}${(sale.balance_cents ?? 0) > 0 ? total('Saldo pendiente', peso(sale.balance_cents ?? 0), true) : ''}</tbody></table>` : ''}
+<div class="foot">${s.ticket_footer ? esc(s.ticket_footer).replace(/\n/g, '<br>') + '<br>' : ''}Este documento es un comprobante de pago y no sustituye a una factura (CFDI).</div>
+</body></html>`;
+}
+
 /** The return note (nota de devolución) for the browser's print dialog. */
 export function returnTicketHtml(ret: ReturnResult, s: PosSettings): string {
   const w = s.printer.width === 58 ? '54mm' : '76mm';

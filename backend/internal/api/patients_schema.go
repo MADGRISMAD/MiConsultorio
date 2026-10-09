@@ -453,3 +453,18 @@ func cleanValues(fields []Field, in map[string]any, requireAll bool) (map[string
 	}
 	return out, ""
 }
+
+// Logbook entry types. Animals can also log the services a veterinary clinic gives besides consultations;
+// people can log therapy sessions in the giros that work by sessions.
+func encounterKindsFor(subject string, kinds []string) []string {
+	out := []string{"consulta", "seguimiento", "procedimiento", "llamada", "nota"}
+	if subject == "animal" {
+		return append(out, "estetica", "paseo", "adiestramiento", "hospedaje")
+	}
+	for _, k := range kinds {
+		if k == "PSYCHOLOGY" || k == "PHYSIOTHERAPY" || k == "CHIROPRACTIC" {
+			return append(out, "sesion")
+		}
+	}
+	return out
+}

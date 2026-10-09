@@ -4,7 +4,7 @@
   import { pos2 } from '$lib/api/pos2';
   import { moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
-  import { printSale } from '$lib/printer/connection.svelte';
+  import { printLetter, printSale } from '$lib/printer/connection.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
   import { PAY_METHODS, type Sale } from '$lib/types';
@@ -64,6 +64,12 @@
   const when = (iso: string) => new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
   const canVoid = $derived(session.has('posManage') && (sale?.status === 'paid' || sale?.status === 'open'));
   const canInvoice = $derived(sale?.status === 'paid' && !sale.invoice_status);
+
+  async function printCarta() {
+    const s = sale;
+    if (!s) return;
+    if (await printOp.run(async () => printLetter(s, (await api.pos.settings()).settings))) toast.show('Comprobante enviado a imprimir');
+  }
 
   async function reprint() {
     const s = sale;
@@ -172,6 +178,7 @@
       {#if canReturn}<button type="button" class="btn-secondary" onclick={() => (returning = sale!.id)}><Icon name="refresh" size={18} />Devolución</button>{/if}
       {#if sale.status === 'open'}<a class="btn-secondary" href="/pos/cuentas"><Icon name="cash" size={18} />Registrar abono</a>{/if}
       {#if canInvoice}<button type="button" class="btn-secondary" onclick={() => oninvoice(sale!.id)}><Icon name="receipt" size={18} />Solicitar factura</button>{/if}
+      <button type="button" class="btn-secondary" disabled={printOp.phase === 'loading'} onclick={printCarta}><Icon name="receipt" size={18} />Imprimir carta</button>
       <button type="button" class="btn-primary" disabled={printOp.phase === 'loading'} onclick={reprint}>
         {#if printOp.phase === 'loading'}<span class="spin"></span>{/if}Reimprimir ticket
       </button>

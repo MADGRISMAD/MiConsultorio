@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { PosSettings, Sale } from '$lib/types';
-import { ticketBytes, ticketHtml, printHtml } from './ticket';
+import { cartaHtml, ticketBytes, ticketHtml, printHtml } from './ticket';
 import { EscPos } from './escpos';
 
 export type Transport = 'serial' | 'usb' | 'bluetooth';
@@ -252,6 +252,10 @@ export async function printSale(sale: Sale, s: PosSettings, opts: { reprint?: bo
     if (s.printer.kind === 'browser' || !printer.transport) await printHtml(ticketHtml(sale, s, opts));
     else await printer.write(ticketBytes(sale, s, opts));
   }
+}
+
+export async function printLetter(sale: Sale, s: PosSettings): Promise<void> {
+  await printHtml(cartaHtml(sale, s));
 }
 
 export async function printTest(s: PosSettings): Promise<void> {

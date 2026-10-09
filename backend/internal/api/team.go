@@ -30,13 +30,19 @@ type person struct {
 	Disabled    bool       `json:"disabled" db:"disabled"`
 	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	// capabilities added to / taken from this person on top of the role
+	Extra  []string `json:"permissions_extra" db:"permissions_extra"`
+	Denied []string `json:"permissions_denied" db:"permissions_denied"`
+	// what the person can do in the end
+	Effective []string `json:"permissions" db:"-"`
 }
 
-const personCols = `id, name, coalesce(email, '') AS email, username, phone, role, disabled, last_login_at, created_at`
+const personCols = `id, name, coalesce(email, '') AS email, username, phone, role, disabled, last_login_at, created_at, permissions_extra, permissions_denied`
 
 func withLabels(list []person) []person {
 	for i := range list {
 		list[i].RoleLabel = roleLabels[list[i].Role]
+		list[i].Effective = permissionsWith(list[i].Role, list[i].Extra, list[i].Denied)
 	}
 	return list
 }
@@ -131,6 +137,7 @@ func loadMember(ctx context.Context, tx pgx.Tx, clinicID, id string) (person, er
 		return person{}, fail(http.StatusNotFound, "Cuenta no encontrada.")
 	}
 	m.RoleLabel = roleLabels[m.Role]
+	m.Effective = permissionsWith(m.Role, m.Extra, m.Denied)
 	return m, err
 }
 
@@ -151,9 +158,9 @@ func (s *Server) listTeam(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	roles := make([]map[string]string, 0, len(clinicRoles))
+	roles := make([]map[string]any, 0, len(clinicRoles))
 	for _, role := range clinicRoles {
-		roles = append(roles, map[string]string{"id": role, "label": roleLabels[role]})
+		roles = append(roles, map[string]any{"id": role, "label": roleLabels[role], "permissions": permissionsFor(role)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"people": withLabels(people), "seats": st, "roles": roles})
 }
@@ -232,6 +239,9 @@ type memberPatch struct {
 	Email *string `json:"email"`
 	Phone *string `json:"phone"`
 	Role  *string `json:"role"`
+	// capabilities for this person only (null leaves them as they are)
+	PermissionsExtra  *[]string `json:"permissions_extra"`
+	PermissionsDenied *[]string `json:"permissions_denied"`
 }
 
 func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +249,7 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	if req.Name == nil && req.Email == nil && req.Phone == nil && req.Role == nil {
+	if req.Name == nil && req.Email == nil && req.Phone == nil && req.Role == nil && req.PermissionsExtra == nil && req.PermissionsDenied == nil {
 		writeError(w, http.StatusBadRequest, "No hay nada que actualizar.")
 		return
 	}
@@ -271,7 +281,7 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			// A new role means new permissions: end their session so they sign in again with it.
-			if _, err := tx.Exec(r.Context(), `UPDATE users SET role = $2, token_version = token_version + 1 WHERE id = $1`, m.ID, *req.Role); err != nil {
+			if _, err := tx.Exec(r.Context(), `UPDATE users SET role = $2, permissions_extra = '{}', permissions_denied = '{}', token_version = token_version + 1 WHERE id = $1`, m.ID, *req.Role); err != nil {
 				return err
 			}
 			if m.Role == RoleAdmin {
@@ -281,6 +291,45 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 			}
 			audit(r.Context(), tx, p.ClinicID, p, "user_role_changed",
 				"Cambió a "+m.Name+" de "+roleLabels[m.Role]+" a "+roleLabels[*req.Role], map[string]any{"userId": m.ID, "from": m.Role, "to": *req.Role})
+		}
+		if req.PermissionsExtra != nil || req.PermissionsDenied != nil {
+			if m.Role == RoleAdmin {
+				return fail(http.StatusBadRequest, "Los administradores siempre tienen todos los permisos.")
+			}
+			extra, denied := m.Extra, m.Denied
+			if req.PermissionsExtra != nil {
+				extra = *req.PermissionsExtra
+			}
+			if req.PermissionsDenied != nil {
+				denied = *req.PermissionsDenied
+			}
+			for _, list := range [][]string{extra, denied} {
+				for _, perm := range list {
+					if !hasPermission(grantablePerms, perm) {
+						return fail(http.StatusBadRequest, "Ese permiso no se puede asignar.")
+					}
+				}
+			}
+			for _, perm := range extra {
+				if hasPermission(denied, perm) || hasPermission(rolePermissions[m.Role], perm) {
+					return fail(http.StatusBadRequest, "Un permiso no puede estar a la vez agregado y quitado, ni agregarse si el rol ya lo tiene.")
+				}
+			}
+			for _, perm := range denied {
+				if !hasPermission(rolePermissions[m.Role], perm) {
+					return fail(http.StatusBadRequest, "Solo se pueden quitar permisos que el rol tiene.")
+				}
+			}
+			if extra == nil {
+				extra = []string{}
+			}
+			if denied == nil {
+				denied = []string{}
+			}
+			if _, err := tx.Exec(r.Context(), `UPDATE users SET permissions_extra = $2, permissions_denied = $3 WHERE id = $1`, m.ID, extra, denied); err != nil {
+				return err
+			}
+			audit(r.Context(), tx, p.ClinicID, p, "user_permissions_changed", "Cambió los permisos de "+m.Name, map[string]any{"userId": m.ID, "extra": extra, "denied": denied})
 		}
 		if req.Name != nil {
 			if msg := db.ValidateName(*req.Name); msg != "" {

@@ -35,8 +35,9 @@
     if (k.length && k.every((x) => x === 'NUTRITION')) return 'Evaluación (dieta, antropometría)';
     return 'Exploración';
   });
+  const examLabelShown = $derived(patient.subject === 'animal' ? 'Objetivo: exploración física' : examLabel);
   const measureDefs = $derived(schema.measures[patient.subject] ?? []);
-  const kinds = $derived((schema.encounter_kinds?.length ? schema.encounter_kinds : (Object.keys(ENCOUNTER_KINDS) as EncounterKind[])).filter((k) => k !== 'adenda'));
+  const kinds = $derived(((patient.subject === 'animal' ? schema.encounter_kinds_animal : undefined) ?? (schema.encounter_kinds?.length ? schema.encounter_kinds : (Object.keys(ENCOUNTER_KINDS) as EncounterKind[]))).filter((k) => k !== 'adenda'));
 
   let kind = $state<EncounterKind>('consulta');
   let when = $state(local(new Date()));
@@ -180,7 +181,7 @@
       <input id="enc-reason" class="field" bind:value={reason} autocomplete="off" />
     </div>
     <div>
-      <label class="label" for="enc-subj">Lo que cuenta el paciente</label>
+      <label class="label" for="enc-subj">{patient.subject === 'animal' ? 'Subjetivo: lo que cuenta el propietario' : 'Lo que cuenta el paciente'}</label>
       <textarea id="enc-subj" class="field min-h-40" rows="7" bind:value={subjective} placeholder="Su relato con sus propias palabras: cómo empezó, cómo se siente, qué ha notado…"></textarea>
       <p class="hint">Es la conversación con {patient.subject === 'animal' ? 'el propietario' : 'el paciente'}; escríbela con el detalle que necesites.</p>
     </div>
@@ -193,11 +194,11 @@
     {/if}
 
     <div>
-      <label class="label" for="enc-exam">{examLabel}</label>
+      <label class="label" for="enc-exam">{examLabelShown}</label>
       <textarea id="enc-exam" class="field min-h-24" rows="3" bind:value={exam}></textarea>
     </div>
     <div>
-      <label class="label" for="enc-ass">Diagnóstico o impresión clínica</label>
+      <label class="label" for="enc-ass">{patient.subject === 'animal' ? 'Impresión diagnóstica' : 'Diagnóstico o impresión clínica'}</label>
       <textarea id="enc-ass" class="field min-h-20" rows="2" bind:value={assessment}></textarea>
     </div>
     <div>

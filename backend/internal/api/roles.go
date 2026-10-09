@@ -45,6 +45,50 @@ var rolePermissions = map[string][]string{
 	RoleCashier:   {PermNavAppointments, PermPOS, PermPOSReports},
 }
 
+// grantablePerms are the capabilities an administrator can add to or take from one person. Managing the team and the
+// administrator role itself are never grantable.
+var grantablePerms = []string{PermNavAppointments, PermAdminAppointments, PermNavHistorials, PermAdminHistorials, PermPOS, PermPOSReports, PermPOSManage}
+
+// permissionsWith is the role's capabilities plus what was added and minus what was taken from this person.
+// Administrators ignore overrides. A capability that needs another one brings it (managing needs seeing), and
+// taking the basic one takes the dependent ones too.
+func permissionsWith(role string, extra, denied []string) []string {
+	base := permissionsFor(role)
+	if role == RoleAdmin || (len(extra) == 0 && len(denied) == 0) {
+		return base
+	}
+	set := map[string]bool{}
+	for _, p := range base {
+		set[p] = true
+	}
+	for _, p := range extra {
+		if hasPermission(grantablePerms, p) {
+			set[p] = true
+		}
+	}
+	// dependent -> basic
+	for dep, basic := range map[string]string{PermAdminAppointments: PermNavAppointments, PermAdminHistorials: PermNavHistorials, PermPOSReports: PermPOS, PermPOSManage: PermPOS} {
+		if set[dep] {
+			set[basic] = true
+		}
+	}
+	for _, p := range denied {
+		delete(set, p)
+	}
+	for dep, basic := range map[string]string{PermAdminAppointments: PermNavAppointments, PermAdminHistorials: PermNavHistorials, PermPOSReports: PermPOS, PermPOSManage: PermPOS} {
+		if !set[basic] {
+			delete(set, dep)
+		}
+	}
+	out := make([]string, 0, len(set))
+	for _, p := range grantablePerms { // stable order
+		if set[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func permissionsFor(role string) []string {
 	return append([]string{}, rolePermissions[role]...) // never nil, never aliased
 }

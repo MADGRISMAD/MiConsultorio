@@ -99,16 +99,12 @@
         </div>
       {/if}
       {#if animal}
-        <label class="block sm:col-span-2">
-          <span class="label">Nombre del animal *</span>
-          <input class="field" bind:value={names} maxlength="120" autocomplete="off" />
-        </label>
         <div class="sm:col-span-2">
           <OwnerPicker selected={owner} onpick={(o) => (owner = o)} onclear={() => (owner = null)} id="quick-owner-search" />
         </div>
         {#if !owner}
           <label class="block">
-            <span class="label">Propietario *</span>
+            <span class="label">Nombre del propietario *</span>
             <input class="field" bind:value={ownerName} maxlength="160" autocomplete="name" />
           </label>
           <label class="block">
@@ -116,6 +112,10 @@
             <input class="field" type="tel" bind:value={ownerPhone} maxlength="20" autocomplete="tel" />
           </label>
         {/if}
+        <label class="block sm:col-span-2">
+          <span class="label">Ahora, el nombre del animal *</span>
+          <input class="field" bind:value={names} maxlength="120" autocomplete="off" />
+        </label>
       {:else}
         <label class="block">
           <span class="label">Nombre(s) *</span>
