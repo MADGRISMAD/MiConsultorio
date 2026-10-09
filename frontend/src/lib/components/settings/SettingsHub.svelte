@@ -44,36 +44,48 @@
   const admin = () => unlocked() && session.has(PERMISSIONS.adminUsers);
   const cobros = () => unlocked() && session.cobros && session.has(PERMISSIONS.posManage);
 
+  const LAST_GROUP = 'Mi cuenta y esta app';
+  // Grouped by what the person is looking for, not by who built it
   const GROUPS: Group[] = [
     {
-      title: 'Tu consultorio',
+      title: 'Mi consultorio',
       items: [
         { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, giro, especialidades y horario', icon: 'building', show: admin },
-        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
-        { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
-        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Carga las tablas oficiales de la OMS o el CDC', icon: 'baby', show: admin },
-        { id: 'seguridad', label: 'Seguridad', desc: 'Verificación en dos pasos del equipo', icon: 'lock', show: admin },
-        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean citas, recetas y vacunas', icon: 'user', show: admin },
-        { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin },
-        { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
-        { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
-        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Porcentajes por profesional, categoría o servicio', icon: 'users', show: cobros },
-        { id: 'terminal', label: 'Mercado Pago y terminal', desc: 'Conecta tu cuenta y tu terminal Point', icon: 'wallet', show: cobros }
-      ]
-    },
-    {
-      title: 'Equipo y plan',
-      items: [
         { id: 'equipo', to: '/equipo', label: 'Equipo', desc: 'Quién entra, roles y lugares del plan', icon: 'users', show: admin },
         { id: 'plan', to: '/suscripcion', label: 'Suscripción y plan', desc: 'Tu plan, pagos y facturación de Caresia', icon: 'sparkles', show: () => session.has(PERMISSIONS.adminUsers) }
       ]
     },
     {
-      title: 'Esta app',
+      title: 'Citas y pacientes',
       items: [
-        { id: 'impresora', label: 'Impresora de tickets', desc: 'Térmica USB, Bluetooth o la del navegador', icon: 'receipt', show: cobros },
-        { id: 'apariencia', label: 'Apariencia', desc: 'Tema claro u oscuro', icon: 'sun', show: () => true },
-        { id: 'cuenta', label: 'Mi cuenta', desc: 'Tus datos y tu contraseña', icon: 'user', show: () => true }
+        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horarios, salas, reserva en línea y recordatorios', icon: 'calendar', show: admin },
+        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean citas, recetas y vacunas', icon: 'user', show: admin },
+        { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu catálogo propio para recetar', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
+        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Carga las tablas oficiales de la OMS o el CDC', icon: 'baby', show: admin }
+      ]
+    },
+    {
+      title: 'Cobros y facturación',
+      items: [
+        { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y cómo sale tu ticket', icon: 'receipt', show: cobros },
+        { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y métodos de pago', icon: 'cash', show: cobros },
+        { id: 'terminal', label: 'Mercado Pago y terminal', desc: 'Conecta tu cuenta y tu terminal Point', icon: 'wallet', show: cobros },
+        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Porcentajes por profesional, categoría o servicio', icon: 'users', show: cobros },
+        { id: 'impresora', label: 'Impresora de tickets', desc: 'Térmica USB, Bluetooth o la del navegador', icon: 'receipt', show: cobros }
+      ]
+    },
+    {
+      title: 'Seguridad y legal',
+      items: [
+        { id: 'seguridad', label: 'Seguridad', desc: 'Verificación en dos pasos del equipo', icon: 'lock', show: admin },
+        { id: 'cumplimiento', label: 'Cumplimiento (México)', desc: 'Datos legales, aviso de privacidad y pendientes', icon: 'shield', show: admin }
+      ]
+    },
+    {
+      title: LAST_GROUP,
+      items: [
+        { id: 'cuenta', label: 'Mi cuenta', desc: 'Tus datos y tu contraseña', icon: 'user', show: () => true },
+        { id: 'apariencia', label: 'Apariencia', desc: 'Tema claro u oscuro', icon: 'sun', show: () => true }
       ]
     }
   ];
@@ -203,7 +215,7 @@
   <nav class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 {section && !wide ? 'hidden' : ''}" aria-label="Secciones de ajustes">
     <header>
       <h1 class="display text-[2.25rem] leading-[1] sm:text-5xl">Ajustes</h1>
-      <p class="mt-2 text-[15px] text-app-muted">Tu consultorio, tus cobros y esta app.</p>
+      <p class="mt-2 text-[15px] text-app-muted">Tu consultorio, tus citas, tus cobros y tu cuenta.</p>
     </header>
 
     <div class="card grid min-w-0 gap-5 p-3">
@@ -242,7 +254,7 @@
                 {/if}
               </li>
             {/each}
-            {#if g.title === 'Esta app'}
+            {#if g.title === LAST_GROUP}
               <li>
                 <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-app-muted transition hover:bg-app-danger/10 hover:text-app-danger" onclick={logout}>
                   <Icon name="logout" size={20} class="flex-none" />
