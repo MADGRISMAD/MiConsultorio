@@ -8,6 +8,7 @@
   import Footer from './Footer.svelte';
   import Hero from './Hero.svelte';
   import Marquee from './Marquee.svelte';
+  import Modules from './Modules.svelte';
   import Nav from './Nav.svelte';
   import Pricing from './Pricing.svelte';
   import Specialties from './Specialties.svelte';
@@ -35,6 +36,7 @@
   <Hero />
   <Chaos />
   <Features />
+  <Modules />
   <Marquee />
   <Specialties />
   <Steps />

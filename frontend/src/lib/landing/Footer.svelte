@@ -5,7 +5,7 @@
   import { interp, reducedMotion, track } from './motion';
 
   const cols: [string, [string, string][]][] = [
-    ['Producto', [['#funciones', 'Funciones'], ['#especialidades', 'Especialidades'], ['#precios', 'Precios']]],
+    ['Producto', [['#funciones', 'Funciones'], ['#incluye', 'Todo incluido'], ['#especialidades', 'Especialidades'], ['#precios', 'Precios']]],
     ['Soporte', [['#preguntas', 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
   ];
@@ -24,7 +24,7 @@
   <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
     <div>
       <Wordmark light />
-      <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software de gestión para clínicas dentales y consultorios médicos.</p>
+      <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software de gestión para clínicas, consultorios, nutriólogos, veterinarias y más.</p>
     </div>
     {#each cols as [title, links]}
       <div>

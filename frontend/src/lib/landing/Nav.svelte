@@ -9,6 +9,7 @@
 
   const links = [
     ['#funciones', 'Funciones'],
+    ['#incluye', 'Todo incluido'],
     ['#especialidades', 'Especialidades'],
     ['#precios', 'Precios'],
     ['#preguntas', 'Preguntas']

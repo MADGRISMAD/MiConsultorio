@@ -98,7 +98,7 @@
   <div bind:this={text} class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="enter-fade flex items-center justify-between border-b border-ink/15 pb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft" style="--d: 0.1s">
       <span class="flex items-center gap-2"><span class="now-pulse h-1.5 w-1.5 rounded-full bg-signal"></span>Software clínico</span>
-      <span class="hidden sm:block">Odontología · Medicina general</span>
+      <span class="hidden sm:block">Dental · Médico · Nutrición · Veterinaria · y más</span>
     </div>
 
     <Split
@@ -112,7 +112,7 @@
 
     <div class="mt-10 grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-end">
       <p class="enter-up max-w-md text-lg leading-relaxed text-ink-soft [text-wrap:pretty] sm:text-xl" style="--d: 0.7s">
-        Agenda, expedientes e historial clínico para <span class="text-ink">clínicas dentales</span> y <span class="text-ink">consultorios médicos</span>. Todo en un solo lugar.
+        Agenda, expedientes, recetas, cobros y reportes para <span class="text-ink">clínicas dentales</span>, <span class="text-ink">consultorios médicos</span>, <span class="text-ink">nutriólogos</span>, <span class="text-ink">veterinarias</span> y más. Todo en un solo lugar, con IA donde ayuda.
       </p>
       <div class="enter-up flex flex-wrap items-center gap-3 md:justify-end" style="--d: 0.85s">
         <div class="inline-flex" use:magnetic>
