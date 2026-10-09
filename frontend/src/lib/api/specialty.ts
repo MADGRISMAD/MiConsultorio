@@ -34,7 +34,7 @@ export const specialtyApi = {
   /** a recommended next visit: lands in the agenda pending confirmation */
   followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string }) =>
     request<{ appointment: { id: string; date: string; startHour: string } }>('POST', `${p(patientId)}/follow-up`, body).then((r) => r.appointment),
-  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; preferences: string; dislikes: string }) =>
+  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string }) =>
     request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
 
   plans: (patientId: string) => request<{ plans: TreatmentPlan[] }>('GET', `${p(patientId)}/plans`).then((r) => r.plans),

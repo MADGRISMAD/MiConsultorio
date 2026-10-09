@@ -463,6 +463,14 @@ func TestNutritionPlanAI(t *testing.T) {
 	if strings.Contains(prompts[0], "Prueba") || strings.Contains(prompts[0], "mejj7003") {
 		t.Fatalf("the prompt must not carry identifying data: %s", prompts[0])
 	}
+	// without snacks the day has breakfast, lunch and dinner only; with them, five meals
+	plain := doc.expect(200, "POST", url, map[string]any{"goal": "Mantener", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "snacks": false})["plan"].(map[string]any)
+	if n := len(plain["days"].([]any)[0].(map[string]any)["meals"].([]any)); n != 3 {
+		t.Fatalf("no snacks: 3 meals a day, got %d", n)
+	}
+	if withSnacks := doc.expect(200, "POST", url, map[string]any{"goal": "Mantener", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "snacks": true})["plan"].(map[string]any); len(withSnacks["days"].([]any)[0].(map[string]any)["meals"].([]any)) != 5 {
+		t.Fatal("with snacks: 5 meals a day")
+	}
 	// the draft is not saved by itself
 	if got := doc.expect(200, "GET", "/api/patients/"+pid+"/charts?kind=nutrition_plan", nil); len(got["charts"].([]any)) != 0 {
 		t.Fatal("the AI draft must not be saved")

@@ -92,23 +92,31 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
       .map((m) => `<tr class="nobreak"><td><strong>${e(m.name)}</strong>${m.time ? `<div class="small">${e(m.time)}</div>` : ''}</td><td>${multiline(m.items)}</td><td style="text-align:right">${m.kcal ? `${m.kcal} kcal` : ''}</td></tr>`)
       .join('');
   const days = d.days?.length ? d.days : d.meals?.length ? [{ name: 'Día tipo', meals: d.meals }] : [];
-  const meals = days
-    .map((day, i) => `<div class="${i > 0 && i % 3 === 0 ? 'pb' : ''}"><h2>${e(day.name)}</h2><table class="grid-t"><thead><tr><th style="width:22%">Comida</th><th>Alimentos</th><th style="width:14%">Energía</th></tr></thead><tbody>${mealRows(day.meals)}</tbody></table></div>`)
-    .join('');
+  // weekly calendar: one row per day, one column per meal (by position, like the screen)
+  const cols = (days[0]?.meals ?? []).map((m) => m.name);
+  const kcalOf = (list: NutritionPlanData['meals']) => list.reduce((s, m) => s + (m.kcal || 0), 0);
+  const meals = cols.length
+    ? `<table class="grid-t week"><thead><tr><th style="width:11%"></th>${cols.map((c) => `<th>${e(c)}</th>`).join('')}<th style="width:8%">Total</th></tr></thead><tbody>${days
+        .map(
+          (day) =>
+            `<tr class="nobreak"><th class="day">${e(day.name)}</th>${cols.map((_, i) => `<td>${day.meals[i] ? multiline(day.meals[i].items) + (day.meals[i].kcal ? `<div class="small k">${day.meals[i].kcal} kcal</div>` : '') : ''}</td>`).join('')}<td class="c">${kcalOf(day.meals) ? `${kcalOf(day.meals)} kcal` : ''}</td></tr>`
+        )
+        .join('')}</tbody></table>`
+    : '';
   const block = (title: string, text: string) => (text.trim() ? `<h2>${e(title)}</h2><p>${multiline(text)}</p>` : '');
   const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
 <div class="box nobreak">${patientBlock(patient)}</div>
 ${d.goal ? `<p><span class="k">Objetivo</span><strong>${e(d.goal)}</strong></p>` : ''}
 ${plan.note ? `<p><span class="k">Nota</span>${multiline(plan.note)}</p>` : ''}
 ${d.kcal ? `<table class="grid-t nobreak"><tbody><tr><td><strong>Energía</strong><br>${d.kcal} kcal al día</td>${macro('Proteínas', d.protein_pct, 4)}${macro('Carbohidratos', d.carb_pct, 4)}${macro('Grasas', d.fat_pct, 9)}${d.water_liters ? `<td><strong>Agua</strong><br>${d.water_liters} L al día</td>` : ''}</tr></tbody></table>` : ''}
-${meals ? `<h2 style="margin-top:14px">Menú ${days.length > 1 ? 'de la semana' : 'del día'}</h2>${meals}` : ''}
+${meals ? `<h2 style="margin-top:14px">${days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h2>${meals}` : ''}
 ${block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? '')}
 ${block('Recomendaciones', d.recommendations)}${block('Alimentos o hábitos a evitar', d.avoid)}${block('Suplementos', d.supplements)}
 ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_days} días aproximadamente.</p>` : ''}
 ${d.basis ? `<p class="small">${e(d.basis)}</p>` : ''}
 <div class="sig nobreak">Firma del nutriólogo</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Plan nutricional', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:4px 8px;font-size:11px;vertical-align:top}.grid-t th{background:#eee}.pb{page-break-before:always}h2{margin:10px 0 4px}');
+  return doc('Plan nutricional', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:4px 8px;font-size:11px;vertical-align:top}.grid-t th{background:#eee}.week th,.week td{font-size:10.5px;padding:4px 5px}.week th.day{text-align:left;background:#eee;font-size:11.5px}.week .k{color:#444;margin-top:2px}.week .c{text-align:center;vertical-align:middle}h2{margin:10px 0 4px}@page{size:letter landscape;margin:12mm}');
 }
 
 const STATUS: Record<string, string> = { draft: 'Borrador', proposed: 'Propuesto', accepted: 'Aceptado', in_progress: 'En curso', completed: 'Completado', cancelled: 'Cancelado' };

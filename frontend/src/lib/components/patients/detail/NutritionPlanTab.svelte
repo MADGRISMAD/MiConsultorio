@@ -32,7 +32,6 @@
   let editing = $state(false);
   let viewing = $state<string | null>(null);
   let note = $state('');
-  let dayIdx = $state(0);
   const saveOp = new Op();
   let scheduleFollow = $state(true);
 
@@ -59,9 +58,7 @@
   /** the day's structure by number of meals (the server uses the same one) */
   const SLOTS: Record<number, [string, string, number][]> = {
     3: [['Desayuno', '08:00', 30], ['Comida', '14:30', 40], ['Cena', '20:30', 30]],
-    4: [['Desayuno', '08:00', 25], ['Colación', '11:30', 10], ['Comida', '14:30', 35], ['Cena', '20:30', 30]],
-    5: [['Desayuno', '08:00', 25], ['Colación 1', '11:00', 10], ['Comida', '14:30', 30], ['Colación 2', '17:30', 10], ['Cena', '20:30', 25]],
-    6: [['Desayuno', '08:00', 20], ['Colación 1', '10:30', 10], ['Comida', '14:00', 30], ['Colación 2', '17:00', 10], ['Cena', '20:00', 20], ['Colación nocturna', '22:00', 10]]
+    5: [['Desayuno', '08:00', 25], ['Snack', '11:00', 10], ['Comida', '14:30', 30], ['Snack', '17:30', 10], ['Cena', '20:30', 25]]
   };
   const OTHER = 'Otro (escribir)';
 
@@ -70,7 +67,7 @@
   let gWeight = $state('');
   let gHeight = $state('');
   let gActivity = $state(1.375);
-  let gMeals = $state(5);
+  let gSnacks = $state(true);
   let gPrefs = $state('');
   let gDislikes = $state('');
   let gOpen = $state(false);
@@ -117,7 +114,7 @@
 
   /** the 7 days with the day's structure and the calories of each meal; the foods are written by the nutritionist */
   function skeleton(kcal: number): NutritionDay[] {
-    const slots = SLOTS[gMeals] ?? SLOTS[5];
+    const slots = SLOTS[gSnacks ? 5 : 3];
     return WEEK.map((name) => {
       let left = kcal;
       const meals: NutritionMeal[] = slots.map(([n, time, pct], i) => {
@@ -146,7 +143,7 @@
       follow_up_days: work.follow_up_days || 30,
       basis: `Calculado con la fórmula de Mifflin-St Jeor: metabolismo basal ${t.bmr} kcal × actividad ${gActivity}, ajustado al objetivo (${ADJUST[goalText] ?? 0} kcal). Es una estimación: ajústala con tu criterio clínico.`
     };
-    dayIdx = 0;
+    
     editing = true;
     gOpen = false;
   }
@@ -172,7 +169,8 @@
         activity_factor: gActivity,
         activity: ACTIVITY.find((a) => a.v === gActivity)?.label ?? '',
         kcal: 0,
-        meals: gMeals,
+        meals: gSnacks ? 5 : 3,
+        snacks: gSnacks,
         preferences: gPrefs.trim(),
         dislikes: gDislikes.trim()
       });
@@ -181,7 +179,7 @@
     });
     if (!ok || !drafted) return;
     work = normalize(drafted);
-    dayIdx = 0;
+    
     editing = true;
     gOpen = false;
     toast.show(warn.length ? `Borrador listo, pero revisa estos alimentos: ${warn.join('; ')}` : 'Borrador de la semana listo: revísalo y ajústalo antes de guardar', warn.length ? 'error' : undefined);
@@ -207,47 +205,58 @@
   const dirty = $derived(JSON.stringify(work) !== base);
   const readonly = $derived(!canWrite || !editing || !!viewed);
   const grams = (pct: number, per: number) => (shown.kcal && pct ? Math.round((shown.kcal * pct) / 100 / per) : 0);
-  const day = $derived(shown.days[Math.min(dayIdx, Math.max(0, shown.days.length - 1))] as NutritionDay | undefined);
-  const dayKcal = $derived((day?.meals ?? []).reduce((s, m) => s + (Number(m.kcal) || 0), 0));
   const macroSum = $derived(shown.protein_pct + shown.carb_pct + shown.fat_pct);
 
   const num = (v: string) => {
     const n = Number(v.replace(',', '.'));
     return Number.isFinite(n) && n > 0 ? n : 0;
   };
-  const current = () => Math.min(dayIdx, Math.max(0, work.days.length - 1));
-  function setDay(i: number, fn: (d: NutritionDay) => NutritionDay) {
-    work = { ...work, days: work.days.map((d, j) => (j === i ? fn(d) : d)) };
+  /** the columns of the weekly grid are the meals of the day, by position */
+  const cols = $derived((shown.days[0]?.meals ?? []).map((m) => m.name));
+  let wide = $state(true);
+  onMount(() => {
+    const mq = window.matchMedia('(min-width: 900px)');
+    const upd = () => (wide = mq.matches);
+    upd();
+    mq.addEventListener('change', upd);
+    return () => mq.removeEventListener('change', upd);
+  });
+  const dayTotal = (d: NutritionDay) => d.meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
+
+  function setMeal(di: number, mi: number, patch: Partial<NutritionMeal>) {
+    work = { ...work, days: work.days.map((d, j) => (j === di ? { ...d, meals: d.meals.map((m, k) => (k === mi ? { ...m, ...patch } : m)) } : d)) };
   }
-  function addMeal() {
+  /** renames a column in every day */
+  function renameColumn(mi: number, name: string) {
+    work = { ...work, days: work.days.map((d) => ({ ...d, meals: d.meals.map((m, k) => (k === mi ? { ...m, name } : m)) })) };
+  }
+  function addColumn() {
     if (!work.days.length) work = { ...work, days: [{ name: 'Día tipo', meals: [] }] };
-    setDay(current(), (d) => ({ ...d, meals: [...d.meals, { name: '', time: '', items: '', kcal: 0 }] }));
+    if ((work.days[0]?.meals.length ?? 0) >= 8) return;
+    work = { ...work, days: work.days.map((d) => ({ ...d, meals: [...d.meals, { name: 'Snack', time: '', items: '', kcal: 0 }] })) };
   }
-  function removeMeal(i: number) {
-    setDay(current(), (d) => ({ ...d, meals: d.meals.filter((_, j) => j !== i) }));
+  function removeColumn(mi: number) {
+    work = { ...work, days: work.days.map((d) => ({ ...d, meals: d.meals.filter((_, k) => k !== mi) })) };
   }
-  function setMeal(i: number, patch: Partial<NutritionMeal>) {
-    setDay(current(), (d) => ({ ...d, meals: d.meals.map((m, j) => (j === i ? { ...m, ...patch } : m)) }));
-  }
-  /** the open day's meals become the plan of every day of the week */
+  /** the first day's meals become the plan of every day of the week */
   function copyToAll() {
-    const src = work.days[current()];
+    const src = work.days[0];
     if (!src) return;
     work = { ...work, days: WEEK.map((name) => ({ name, meals: copy(src.meals) })) };
-    toast.show('Este día se copió a toda la semana');
+    toast.show('El primer día se copió a toda la semana');
   }
   function useAsBase(c: PatientChart) {
     work = asData(c);
     viewing = null;
     editing = true;
-    dayIdx = 0;
+    
     toast.show('Cargado como borrador: guarda para crear una nueva versión');
   }
   function startNew() {
     work = empty();
     viewing = null;
     editing = true;
-    dayIdx = 0;
+    
     openGenerator();
   }
 
@@ -348,8 +357,10 @@
           <p class="hint">La IA no los usa en ningún día de la semana y busca sustitutos parecidos.</p></div>
         <div class="mt-3"><label class="label" for="g-prefs">Otras preferencias o restricciones <span class="font-normal text-app-muted">(opcional)</span></label>
           <textarea id="g-prefs" class="field min-h-20" rows="2" maxlength="1500" bind:value={gPrefs} placeholder="Ej. Vegetariano, presupuesto bajo, come fuera de casa al mediodía"></textarea></div>
-        <div class="mt-3"><label class="label" for="g-meals">Comidas al día</label>
-          <select id="g-meals" class="field !w-auto" bind:value={gMeals}>{#each [3, 4, 5, 6] as n}<option value={n}>{n}</option>{/each}</select></div>
+        <label class="check-row mt-3">
+          <input type="checkbox" class="check" bind:checked={gSnacks} />
+          <span class="text-sm leading-snug"><strong class="font-semibold">Incluir snacks</strong> entre comidas <span class="text-app-muted">(con snacks: desayuno, snack, comida, snack y cena; sin ellos: desayuno, comida y cena)</span></span>
+        </label>
         {#if bmi}<p class="hint">Índice de masa corporal: <strong>{bmi.value}</strong> ({bmi.label}).</p>{/if}
         <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}. El peso y la talla se toman de la última nota que los tenga.</p>
         {#if gError}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{gError}</p>{/if}
@@ -395,35 +406,72 @@
 
     <section class="card mt-4 p-4 sm:p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="display text-xl">Menú de la semana</h3>
-        {#if shown.kcal && dayKcal}<p class="text-sm {Math.abs(dayKcal - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{day?.name}: suma {dayKcal} de {shown.kcal} kcal</p>{/if}
+        <h3 class="display text-xl">{shown.days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h3>
+        {#if shown.kcal}<p class="text-sm text-app-muted">Meta: {shown.kcal} kcal al día</p>{/if}
       </div>
-      {#if shown.days.length > 1}
-        <div class="mt-3 flex gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1" role="tablist" aria-label="Día de la semana">
-          {#each shown.days as d, i}
-            <button type="button" role="tab" aria-selected={dayIdx === i} class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition {dayIdx === i ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => (dayIdx = i)}>{d.name.slice(0, 3)}</button>
-          {/each}
-        </div>
+      {#if shown.days.length === 0 || cols.length === 0}
+        <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : 'Usa «Generar semana con IA» o «Calcular y armar a mano».'}</p>
       {/if}
-      {#if !day || day.meals.length === 0}<p class="mt-3 text-sm text-app-muted">Sin comidas. {readonly ? '' : 'Agrega las comidas del día o usa «Generar semana con IA».'}</p>{/if}
-      <ul class="mt-3 grid gap-3">
-        {#each day?.meals ?? [] as m, i}
-          <li class="rounded-xl border border-app-ink/10 p-3">
-            <div class="grid grid-cols-2 gap-2">
-              <div class="col-span-2 min-w-0"><label class="label" for="m-n-{i}">Comida</label><input id="m-n-{i}" class="field" maxlength="60" readonly={readonly} value={m.name} oninput={(e) => setMeal(i, { name: e.currentTarget.value })} /></div>
-              <div><label class="label" for="m-t-{i}">Hora</label><input id="m-t-{i}" type="time" class="field" readonly={readonly} value={m.time} oninput={(e) => setMeal(i, { time: e.currentTarget.value })} /></div>
-              <div><label class="label" for="m-k-{i}">kcal</label><input id="m-k-{i}" class="field" inputmode="numeric" readonly={readonly} value={m.kcal || ''} oninput={(e) => setMeal(i, { kcal: Math.round(num(e.currentTarget.value)) })} /></div>
-            </div>
-            <label class="label mt-2" for="m-i-{i}">Alimentos y porciones</label>
-            <textarea id="m-i-{i}" class="field min-h-20" rows="3" maxlength="1200" readonly={readonly} value={m.items} oninput={(e) => setMeal(i, { items: e.currentTarget.value })} placeholder="Ej. 1 taza de avena, 1 manzana, 1 huevo cocido"></textarea>
-            {#if !readonly}<button type="button" class="btn-ghost mt-1 text-app-danger" onclick={() => removeMeal(i)}><Icon name="trash" size={16} />Quitar comida</button>{/if}
-          </li>
-        {/each}
-      </ul>
+
+      {#snippet cell(di: number, mi: number)}
+        {@const m = shown.days[di]?.meals[mi]}
+        {#if m}
+          <textarea class="field min-h-[5.5rem] !px-2.5 !py-2 text-[13px] leading-snug [field-sizing:content]" rows="4" maxlength="1200" readonly={readonly} value={m.items} aria-label="{shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { items: e.currentTarget.value })} placeholder={readonly ? '' : 'Alimentos y porciones'}></textarea>
+          <label class="mt-1 flex items-center gap-1 text-[11px] text-app-muted"><input class="w-14 rounded-md border border-app-ink/15 bg-app-panel px-1.5 py-0.5 text-right text-[11px] text-app-ink" inputmode="numeric" readonly={readonly} value={m.kcal || ''} aria-label="Calorías de {shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { kcal: Math.round(num(e.currentTarget.value)) })} />kcal</label>
+        {/if}
+      {/snippet}
+
+      {#if cols.length > 0 && wide}
+        <div class="mt-3 overflow-x-auto rounded-xl border border-app-ink/10">
+          <table class="w-full min-w-[52rem] table-fixed border-collapse text-sm">
+            <caption class="sr-only">Plan de alimentación semanal</caption>
+            <thead>
+              <tr class="bg-app-elevated">
+                <th class="w-24 px-2 py-2"></th>
+                {#each cols as c, ci}
+                  <th class="border-l border-app-ink/10 px-1.5 py-2 text-center">
+                    {#if readonly}<span class="text-xs font-semibold uppercase tracking-wide">{c}</span>
+                    {:else}
+                      <span class="flex items-center gap-1">
+                        <input class="w-full min-w-0 rounded-md bg-transparent px-1 text-center text-xs font-semibold uppercase tracking-wide hover:bg-app-ink/5 focus:bg-app-panel" value={c} maxlength="60" aria-label="Nombre de la comida {ci + 1}" oninput={(e) => renameColumn(ci, e.currentTarget.value)} />
+                        {#if cols.length > 1}<button type="button" class="icon-btn danger !h-6 !w-6 flex-none" title="Quitar esta comida de todos los días" aria-label="Quitar {c}" onclick={() => removeColumn(ci)}><Icon name="x" size={13} /></button>{/if}
+                      </span>
+                    {/if}
+                  </th>
+                {/each}
+                <th class="w-20 border-l border-app-ink/10 px-1.5 py-2 text-center text-xs font-semibold uppercase tracking-wide">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each shown.days as d, di}
+                <tr class="border-t border-app-ink/10">
+                  <th scope="row" class="px-2 py-2 text-left align-top text-sm font-semibold">{d.name}</th>
+                  {#each cols as _, ci}<td class="border-l border-app-ink/10 p-1.5 align-top">{@render cell(di, ci)}</td>{/each}
+                  <td class="border-l border-app-ink/10 px-1.5 py-2 text-center align-top text-xs {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'font-semibold text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else if cols.length > 0}
+        <ul class="mt-3 grid gap-3">
+          {#each shown.days as d, di}
+            <li class="rounded-xl border border-app-ink/10 p-3">
+              <p class="flex items-baseline justify-between font-semibold">{d.name}<span class="text-xs font-normal {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</span></p>
+              <div class="mt-2 grid gap-2.5">
+                {#each cols as c, ci}
+                  <div><p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-app-muted">{c}</p>{@render cell(di, ci)}</div>
+                {/each}
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
       {#if !readonly}
         <div class="mt-3 flex flex-wrap gap-2">
-          {#if (day?.meals.length ?? 0) < 12}<button type="button" class="btn-secondary" onclick={addMeal}><Icon name="plus" size={18} />Agregar comida</button>{/if}
-          {#if day && day.meals.length}<button type="button" class="btn-ghost" onclick={copyToAll}>Copiar este día a toda la semana</button>{/if}
+          {#if cols.length < 8}<button type="button" class="btn-secondary" onclick={addColumn}><Icon name="plus" size={18} />Agregar comida o snack</button>{/if}
+          {#if shown.days.length > 1 && cols.length}<button type="button" class="btn-ghost" onclick={copyToAll}>Copiar el primer día a toda la semana</button>{/if}
         </div>
       {/if}
     </section>
@@ -468,7 +516,7 @@
               <p class="truncate text-xs text-app-muted">{h.created_by_name} · {d.goal || 'Sin objetivo'}{d.kcal ? ` · ${d.kcal} kcal` : ''}{d.days.length > 1 ? ` · ${d.days.length} días` : ''}{h.note ? ` · ${h.note}` : ''}</p>
             </div>
             <div class="flex flex-wrap gap-1">
-              <button type="button" class="btn-ghost" onclick={() => { viewing = h.id; editing = false; gOpen = false; dayIdx = 0; }}><Icon name="eye" size={16} />Ver</button>
+              <button type="button" class="btn-ghost" onclick={() => { viewing = h.id; editing = false; gOpen = false; }}><Icon name="eye" size={16} />Ver</button>
               {#if canWrite && i > 0}<button type="button" class="btn-ghost" onclick={() => useAsBase(h)}>Usar como base</button>{/if}
             </div>
           </li>

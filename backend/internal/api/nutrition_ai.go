@@ -45,8 +45,9 @@ type nutritionAIReq struct {
 	HeightCm       float64 `json:"height_cm"`
 	ActivityFactor float64 `json:"activity_factor"`
 	Activity       string  `json:"activity"`
-	Kcal           int     `json:"kcal"` // optional: the nutritionist's own target
-	Meals          int     `json:"meals"`
+	Kcal           int     `json:"kcal"`   // optional: the nutritionist's own target
+	Meals          int     `json:"meals"`  // 3 to 6 meals a day (used when Snacks is not given)
+	Snacks         *bool   `json:"snacks"` // true: breakfast, lunch, dinner and two snacks; false: only the three meals
 	Preferences    string  `json:"preferences"`
 	Dislikes       string  `json:"dislikes"` // foods the patient does not like
 }
@@ -61,9 +62,9 @@ type mealSlot struct {
 // the day's structure by number of meals; the shares add up to 100
 var nutritionSlots = map[int][]mealSlot{
 	3: {{"Desayuno", "08:00", 30}, {"Comida", "14:30", 40}, {"Cena", "20:30", 30}},
-	4: {{"Desayuno", "08:00", 25}, {"Colación", "11:30", 10}, {"Comida", "14:30", 35}, {"Cena", "20:30", 30}},
-	5: {{"Desayuno", "08:00", 25}, {"Colación 1", "11:00", 10}, {"Comida", "14:30", 30}, {"Colación 2", "17:30", 10}, {"Cena", "20:30", 25}},
-	6: {{"Desayuno", "08:00", 20}, {"Colación 1", "10:30", 10}, {"Comida", "14:00", 30}, {"Colación 2", "17:00", 10}, {"Cena", "20:00", 20}, {"Colación nocturna", "22:00", 10}},
+	4: {{"Desayuno", "08:00", 25}, {"Snack", "11:30", 10}, {"Comida", "14:30", 35}, {"Cena", "20:30", 30}},
+	5: {{"Desayuno", "08:00", 25}, {"Snack", "11:00", 10}, {"Comida", "14:30", 30}, {"Snack", "17:30", 10}, {"Cena", "20:30", 25}},
+	6: {{"Desayuno", "08:00", 20}, {"Snack", "10:30", 10}, {"Comida", "14:00", 30}, {"Snack", "17:00", 10}, {"Cena", "20:00", 20}, {"Snack", "22:00", 10}},
 }
 
 // carb, protein, fat shares by goal (the goals offered in the form; anything else is maintenance)
@@ -196,6 +197,9 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Revisa el peso, la talla y las calorías.")
 		return
 	}
+	if in.Snacks != nil {
+		in.Meals = map[bool]int{true: 5, false: 3}[*in.Snacks]
+	}
 	if in.Meals < 3 || in.Meals > 6 {
 		in.Meals = 5
 	}
@@ -274,7 +278,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 		shares = append(shares, fmt.Sprintf("- %s (%s): aprox. %d kcal", sl.Name, sl.Time, int(math.Round(float64(target*sl.Pct)/1000))*10))
 	}
 	basePrompt := "Eres un asistente para nutriólogos en México. Redacta el menú de UNA SEMANA (los 7 días: " + strings.Join(nutritionWeek, ", ") + ") como BORRADOR que el nutriólogo revisará y corregirá. " +
-		"Responde SOLO con JSON. Cada día tiene exactamente estas " + fmt.Sprint(in.Meals) + " comidas, con esos nombres y en este orden, y las porciones deben acercarse a las calorías indicadas:\n" + strings.Join(shares, "\n") + "\n" +
+		"Responde SOLO con JSON. Cada día tiene exactamente estas " + fmt.Sprint(in.Meals) + " comidas (los snacks son colaciones ligeras entre comidas), con esos nombres y en este orden, y las porciones deben acercarse a las calorías indicadas:\n" + strings.Join(shares, "\n") + "\n" +
 		fmt.Sprintf("Objetivo: %s. Total diario: %d kcal; proteínas %d %%, carbohidratos %d %%, grasas %d %%. ", in.Goal, target, macros[1], macros[0], macros[2]) +
 		"En cada comida escribe los alimentos con porciones concretas (tazas, piezas, gramos). Usa alimentos comunes y accesibles en México y VARÍA el menú: no repitas el mismo platillo principal más de dos veces en la semana. " +
 		"NUNCA incluyas alimentos a los que el paciente sea alérgico o intolerante, y respeta sus enfermedades y su medicación. " +
