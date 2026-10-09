@@ -125,7 +125,7 @@
   </label>
   <label class="flex cursor-pointer items-start gap-2 text-sm sm:col-span-2">
     <input type="checkbox" bind:checked={data.reminders_consent} class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" />
-    El paciente acepta recibir recordatorios de su cita
+    El paciente recibe recordatorios de su cita (un día antes, por correo; puede pedir no recibirlos)
   </label>
   <label class="block sm:col-span-2">
     <span class="label">Notas de la cita</span>

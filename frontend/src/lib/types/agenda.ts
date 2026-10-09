@@ -54,7 +54,7 @@ export interface ApptInput {
 export function emptyApptInput(): ApptInput {
   return {
     patient_id: null, names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '',
-    professional_id: null, service_id: null, room: '', phone: '', email: '', reminders_consent: false, overbook: false
+    professional_id: null, service_id: null, room: '', phone: '', email: '', reminders_consent: true, overbook: false
   };
 }
 

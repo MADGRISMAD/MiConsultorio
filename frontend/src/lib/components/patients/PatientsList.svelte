@@ -8,6 +8,9 @@
   import { session } from '$lib/session.svelte';
   import { PERMISSIONS, type PatientRow } from '$lib/types';
   import type { OwnerGroup, OwnerRef } from '$lib/types/owners';
+  import { Op } from '$lib/op.svelte';
+  import { toast } from '$lib/toast.svelte';
+  import ConfirmModal from '../ConfirmModal.svelte';
   import EmptyState from '../ui/EmptyState.svelte';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
@@ -53,6 +56,30 @@
   let orphans = $state<PatientRow[]>([]);
   let editingOwner = $state<OwnerRef | null>(null);
   let reloadKey = $state(0);
+
+  // archive / reactivate from the list (the expediente has the same buttons)
+  const canArchive = $derived(session.has(PERMISSIONS.adminHistorials));
+  let archiveFor = $state<{ id: string; name: string; restore: boolean } | null>(null);
+  let archiveReason = $state('');
+  const archiveOp = new Op();
+  function askArchive(id: string, name: string) {
+    archiveReason = '';
+    archiveOp.reset();
+    archiveFor = { id, name, restore: tab === 'archivados' };
+  }
+  async function confirmArchive() {
+    const t = archiveFor;
+    if (!t) return;
+    if (!t.restore && !archiveReason.trim()) return archiveOp.fail('Escribe el motivo.');
+    const ok = await archiveOp.run(async () => {
+      if (t.restore) await api.patients.unarchive(t.id);
+      else await api.patients.archive(t.id, archiveReason.trim());
+    });
+    if (!ok) return;
+    toast.show(t.restore ? 'Expediente reactivado' : 'Expediente archivado');
+    archiveFor = null;
+    reloadKey++;
+  }
 
   let search = $state('');
   let items = $state<PatientRow[]>([]);
@@ -185,14 +212,15 @@
             </div>
             <ul class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {#each g.pets as pet (pet.id)}
-                <li>
-                  <a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border px-3 py-2.5 transition hover:bg-app-ink/[0.04] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20 {search.trim() && !pet.matched ? 'border-app-ink/8 opacity-60' : 'border-app-ink/12'}">
+                <li class="relative">
+                  <a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border py-2.5 pl-3 {canArchive ? 'pr-11' : 'pr-3'} transition hover:bg-app-ink/[0.04] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-app-primary/20 {search.trim() && !pet.matched ? 'border-app-ink/8 opacity-60' : 'border-app-ink/12'}">
                     <span class="grid h-9 w-9 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name="paw" size={17} /></span>
                     <span class="min-w-0">
                       <span class="flex items-center gap-2"><span class="truncate font-semibold">{pet.names}</span>{#if pet.species}<span class="pill pill-info flex-none">{pet.species}</span>{/if}</span>
                       <span class="block truncate text-xs text-app-muted"><span class="font-mono">#{pet.file_number}</span> · {pet.last_visit ? `visita ${ago(pet.last_visit)}` : 'Sin consultas'}</span>
                     </span>
                   </a>
+                  {#if canArchive}<span class="absolute right-1.5 top-1/2 -translate-y-1/2">{@render archiveBtn(pet.id, pet.names)}</span>{/if}
                 </li>
               {/each}
             </ul>
@@ -203,7 +231,7 @@
             <p class="font-semibold">Mascotas sin propietario registrado</p>
             <ul class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {#each orphans as pet (pet.id)}
-                <li><a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border border-app-ink/12 px-3 py-2.5 hover:bg-app-ink/[0.04]"><Icon name="paw" size={17} class="text-app-primary" /><span class="font-semibold">{pet.names}</span> <span class="font-mono text-xs text-app-muted">#{pet.file_number}</span></a></li>
+                <li class="relative"><a href={petHref(pet.id)} class="flex items-center gap-3 rounded-xl border border-app-ink/12 py-2.5 pl-3 hover:bg-app-ink/[0.04] {canArchive ? 'pr-11' : 'pr-3'}"><Icon name="paw" size={17} class="text-app-primary" /><span class="font-semibold">{pet.names}</span> <span class="font-mono text-xs text-app-muted">#{pet.file_number}</span></a>{#if canArchive}<span class="absolute right-1.5 top-1/2 -translate-y-1/2">{@render archiveBtn(pet.id, pet.names)}</span>{/if}</li>
               {/each}
             </ul>
           </li>
@@ -223,6 +251,7 @@
             <th class="th">Edad</th>
             <th class="th">Teléfono</th>
             <th class="th">Última visita</th>
+            {#if canArchive}<th class="th w-12"><span class="sr-only">Acciones</span></th>{/if}
           </tr>
         </thead>
         <tbody class="divide-y divide-app-ink/8">
@@ -243,6 +272,7 @@
               <td class="td whitespace-nowrap">{ageText(p.age) || '—'}</td>
               <td class="td whitespace-nowrap">{p.phone || '—'}</td>
               <td class="td whitespace-nowrap text-app-muted">{lastVisit(p)}</td>
+              {#if canArchive}<td class="td w-12 text-right">{@render archiveBtn(p.id, fullName(p))}</td>{/if}
             </tr>
           {/each}
         </tbody>
@@ -252,8 +282,8 @@
     <!-- phones -->
     <ul class="divide-y divide-app-ink/8 md:hidden {loading ? 'opacity-60' : ''}">
       {#each rows as p (p.id)}
-        <li>
-          <a href={href(p)} class="flex items-start gap-3 px-4 py-3.5 transition hover:bg-app-ink/[0.03] focus-visible:bg-app-ink/[0.04] focus-visible:outline-none">
+        <li class="flex items-center">
+          <a href={href(p)} class="flex min-w-0 flex-1 items-start gap-3 px-4 py-3.5 transition hover:bg-app-ink/[0.03] focus-visible:bg-app-ink/[0.04] focus-visible:outline-none">
             <span class="grid h-10 w-10 flex-none place-items-center rounded-full bg-app-primary/12 text-app-primary"><Icon name={p.subject === 'animal' ? 'paw' : 'user'} size={18} /></span>
             <span class="min-w-0 flex-1">
               <span class="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">{fullName(p)} <span class="font-mono text-xs font-normal text-app-muted">#{p.file_number}</span>{#if p.subject === 'animal' && p.species}<span class="pill pill-info">{p.species}</span>{/if}</span>
@@ -263,12 +293,31 @@
             </span>
             <Icon name="arrow-right" size={18} class="mt-2.5 flex-none text-app-muted" />
           </a>
+          {#if canArchive}<span class="pr-3">{@render archiveBtn(p.id, fullName(p))}</span>{/if}
         </li>
       {/each}
     </ul>
     {/if}
   {/if}
 </div>
+
+{#snippet archiveBtn(id: string, name: string)}
+  {#if canArchive}
+    <button type="button" class="icon-btn flex-none" title={tab === 'archivados' ? 'Reactivar' : 'Archivar'} aria-label="{tab === 'archivados' ? 'Reactivar' : 'Archivar'} a {name}" onclick={() => askArchive(id, name)}>
+      <Icon name={tab === 'archivados' ? 'refresh' : 'ban'} size={17} />
+    </button>
+  {/if}
+{/snippet}
+
+<ConfirmModal open={archiveFor !== null} title={archiveFor?.restore ? 'Reactivar expediente' : 'Archivar expediente'} op={archiveOp} onconfirm={confirmArchive} onclose={() => (archiveFor = null)} confirmLabel={archiveFor?.restore ? 'Reactivar' : 'Archivar'}>
+  {#if archiveFor?.restore}
+    <p><strong class="text-app-ink">{archiveFor.name}</strong> volverá a aparecer entre los pacientes activos.</p>
+  {:else if archiveFor}
+    <p><strong class="text-app-ink">{archiveFor.name}</strong> dejará de aparecer entre los pacientes activos, pero <strong class="text-app-ink">no se borra</strong>: por norma (NOM-004) se conserva al menos 5 años desde el último acto médico. Puedes reactivarlo cuando quieras en la pestaña «Archivados».</p>
+    <label class="label mt-4" for="list-arch-reason">Motivo</label>
+    <input id="list-arch-reason" class="field" bind:value={archiveReason} autocomplete="off" placeholder="Ej. Se mudó de ciudad" />
+  {/if}
+</ConfirmModal>
 
 <OwnerEditModal owner={editingOwner} onclose={() => (editingOwner = null)} onchanged={() => reloadKey++} />
 

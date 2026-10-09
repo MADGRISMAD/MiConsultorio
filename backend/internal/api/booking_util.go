@@ -185,6 +185,17 @@ func (s *Server) actionRow(token string) string {
 		btn(s.manageLink(token, "accion=cancelar"), "Cancelar", "#ffffff", "#0b2540") + `</p>`
 }
 
+// attendRow asks the patient the one question of the reminder: will you come? Not answering changes nothing.
+func (s *Server) attendRow(token string) string {
+	btn := func(href, label, bg, fg string) string {
+		return `<a href="` + esc(href) + `" style="background:` + bg + `;color:` + fg + `;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600;font-size:15px;display:inline-block;margin:0 8px 8px 0;border:1px solid #0b2540">` + esc(label) + `</a>`
+	}
+	return `<p style="margin:20px 0 6px;font-size:16px;font-weight:600">¿Asistirás a tu cita?</p><p style="margin:0 0 6px">` +
+		btn(s.manageLink(token, "accion=confirmar"), "Sí, asistiré", "#0b2540", "#ffffff") +
+		btn(s.manageLink(token, "accion=cancelar"), "No podré asistir", "#ffffff", "#0b2540") + `</p>` +
+		`<p style="margin:0;font-size:13px;color:#7a8b9b">Si no respondes, tu cita sigue agendada. ¿Prefieres otro día? ` + smallLink(s.manageLink(token, "accion=reagendar"), "Reagendar") + `.</p>`
+}
+
 // reminderMail builds the reminder e-mail. note is the clinic's own text from the agenda settings.
 func (s *Server) reminderMail(a apptInfo, note string) (subject, text, html string) {
 	hello := "Hola"
@@ -198,12 +209,12 @@ func (s *Server) reminderMail(a apptInfo, note string) (subject, text, html stri
 	if note != "" {
 		text += "\n" + note + "\n"
 	}
-	text += "\nConfirmar, reagendar o cancelar:\n" + confirm + "\n\nSi ya no quieres recibir recordatorios:\n" + optout + "\n"
+	text += "\n¿Asistirás a tu cita?\nSí, asistiré: " + confirm + "\nNo podré asistir: " + s.manageLink(a.Token, "accion=cancelar") + "\n\nSi no respondes, tu cita sigue agendada. ¿Prefieres otro día? Reagendar: " + s.manageLink(a.Token, "accion=reagendar") + "\n\nSi ya no quieres recibir recordatorios:\n" + optout + "\n"
 	body := `<p style="margin:0 0 8px">` + esc(hello) + `, te recordamos tu cita en <strong>` + esc(a.ClinicName) + `</strong> ` + esc(when) + `.</p>` + a.details()
 	if note != "" {
 		body += `<p style="margin:12px 0">` + esc(note) + `</p>`
 	}
-	body += s.actionRow(a.Token) +
+	body += s.attendRow(a.Token) +
 		`<p style="font-size:13px;color:#7a8b9b;margin:14px 0 0">Si ya no quieres recibir recordatorios, ` + smallLink(optout, "date de baja aquí") + `.</p>`
 	return subject, text, layout("Recordatorio de tu cita", body)
 }

@@ -130,6 +130,8 @@
 
     {#if askCancel && appt.can_cancel}
       <form class="mt-5 grid gap-3 rounded-xl border border-app-danger/30 p-4" onsubmit={(e) => { e.preventDefault(); cancel(); }}>
+        <p class="font-semibold">{t('appt.sure')}</p>
+        <p class="text-sm text-app-muted">{t('appt.sureText')}</p>
         <label class="label" for="ap-reason">{t('appt.reasonLabel')} <span class="font-normal text-app-muted">{t('booking.optional')}</span></label>
         <input id="ap-reason" class="field" bind:value={reason} maxlength="300" />
         <div class="flex flex-wrap gap-2">

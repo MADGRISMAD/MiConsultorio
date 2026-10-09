@@ -381,7 +381,7 @@ func TestRemindersScheduleAndSend(t *testing.T) {
 		}
 	}
 	m := b.mail.wait(t, 3)
-	if m.To[0] != "ana@correo.mx" || !strings.Contains(m.Text, "/cita/"+tok+"?accion=confirmar") || !strings.Contains(m.Text, "baja=1") || !strings.Contains(m.HTML, "Cancelar") {
+	if m.To[0] != "ana@correo.mx" || !strings.Contains(m.Text, "/cita/"+tok+"?accion=confirmar") || !strings.Contains(m.Text, "baja=1") || !strings.Contains(m.HTML, "No podré asistir") || !strings.Contains(m.HTML, "Si no respondes, tu cita sigue agendada") || !strings.Contains(m.Text, "accion=cancelar") {
 		t.Fatalf("reminder mail: %+v", m)
 	}
 	if b.wa.count() != 2 {
@@ -397,6 +397,11 @@ func TestRemindersScheduleAndSend(t *testing.T) {
 	}
 	if b.tick() != 0 {
 		t.Fatal("sent reminders must not repeat")
+	}
+	// the patient never answered: the appointment is still booked (nothing cancels it on its own)
+	var status string
+	if err := b.pool.QueryRow(t.Context(), `SELECT status FROM appointments WHERE confirm_token = $1`, tok).Scan(&status); err != nil || status != "scheduled" {
+		t.Fatalf("an unanswered reminder must leave the appointment booked: %q %v", status, err)
 	}
 }
 
