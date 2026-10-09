@@ -79,7 +79,7 @@
 {:else if !s}
   <LoadingRows />
 {:else}
-  <form onsubmit={save} class="grid gap-8">
+  <form onsubmit={save} class="grid gap-10">
     <section aria-labelledby="ag-general">
       <h3 id="ag-general" class="section-title mb-3">Citas y salas</h3>
       <div class="grid gap-4">
@@ -176,7 +176,7 @@
     </div>
   </form>
 
-  <section class="mt-10" aria-labelledby="ag-pros">
+  <section aria-labelledby="ag-pros">
     <h3 id="ag-pros" class="section-title mb-1">Agenda de cada profesional</h3>
     <p class="hint mb-4 !mt-0">Si dejas los horarios vacíos se usa el horario del consultorio.</p>
     {#if pros.length === 0}

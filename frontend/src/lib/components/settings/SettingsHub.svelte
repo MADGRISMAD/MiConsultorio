@@ -286,9 +286,11 @@
       {#if section.id === 'negocio'}
         <ClinicSettings />
       {:else if section.id === 'agenda'}
-        <AgendaSettings />
-        <div class="mt-10"><PortalSettings /></div>
-        <ServiceDurations />
+        <div class="grid gap-10">
+          <AgendaSettings />
+          <PortalSettings />
+          <ServiceDurations />
+        </div>
       {:else if section.id === 'crecimiento'}
         <GrowthReferencesSettings />
       {:else if section.id === 'seguridad'}

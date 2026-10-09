@@ -36,7 +36,7 @@
   {:else if !s}
     <LoadingRows />
   {:else}
-    <form onsubmit={save} class="grid max-w-xl gap-4">
+    <form onsubmit={save} class="grid gap-4">
       <p class="text-sm text-app-muted">
         Tus pacientes (o sus tutores) entran con un código que les llega al correo registrado en su expediente y ven sus citas, recetas y carnet de vacunación. No ven notas clínicas.
       </p>
