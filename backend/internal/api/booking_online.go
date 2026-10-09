@@ -174,18 +174,20 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 
 var weekdayKeys = []string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 
-// bookingWindows are the working ranges ("HH:MM") of a professional on a weekday key: their own
-// hours or, when they have none, the clinic's.
+// bookingWindows are the working ranges ("HH:MM") of a professional on a weekday key: their own hours for that
+// day or, on a day where they have none, the clinic's. (The settings screen says exactly that: a day left empty
+// uses the clinic's hours, so setting Monday does not close the rest of the week.)
 func (c *bookingClinic) bookingWindows(p bookable, key string) [][2]string {
 	var windows [][2]string
-	if len(p.Hours) > 0 {
-		for _, w := range p.Hours[key] {
-			if len(w) == 2 {
-				windows = append(windows, [2]string{w[0], w[1]})
-			}
+	for _, w := range p.Hours[key] {
+		if len(w) == 2 {
+			windows = append(windows, [2]string{w[0], w[1]})
 		}
-	} else if h := c.Hours.Hours[key]; h.Open {
-		windows = append(windows, [2]string{h.Start, h.End})
+	}
+	if len(windows) == 0 {
+		if h := c.Hours.Hours[key]; h.Open {
+			windows = append(windows, [2]string{h.Start, h.End})
+		}
 	}
 	return windows
 }

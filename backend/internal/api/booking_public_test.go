@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestProfessionalBlocksOwnTimeOnly(t *testing.T) {
@@ -167,5 +168,30 @@ func TestRegisteredPatientBooksWithTheirProfessional(t *testing.T) {
 	}
 	if st, body := book(b.pro, "11:00"); st != 201 {
 		t.Fatalf("their own professional: %d %v", st, body)
+	}
+}
+
+func TestProfessionalHoursFallBackPerDay(t *testing.T) {
+	b := newBookingEnv(t, false)
+	// the specialist sets only one day of their own; every other day keeps the clinic's hours, as the settings screen says
+	b.exec(`UPDATE professional_settings SET hours = '{"mon":[["09:00","10:00"]]}' WHERE user_id = $1`, b.pro)
+	var mon, tue string
+	for d, n := time.Now().AddDate(0, 0, 3), 0; n < 14; d, n = d.AddDate(0, 0, 1), n+1 {
+		if d.Weekday() == time.Monday && mon == "" {
+			mon = d.Format("2006-01-02")
+		}
+		if d.Weekday() == time.Tuesday && tue == "" {
+			tue = d.Format("2006-01-02")
+		}
+	}
+	count := func(date string) int {
+		g := b.anon().expect(200, "GET", fmt.Sprintf("/api/public/booking/%s/availability?professional=%s&date=%s", b.slugA, b.pro, date), nil)
+		return len(g["slots"].([]any))
+	}
+	if n := count(mon); n != 2 {
+		t.Fatalf("Monday uses the specialist's own 09:00-10:00 (two 30-minute slots): %d", n)
+	}
+	if n := count(tue); n < 2 {
+		t.Fatalf("Tuesday falls back to the clinic's hours, it must not be closed: %d", n)
 	}
 }
