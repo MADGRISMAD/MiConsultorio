@@ -395,9 +395,9 @@
       {#if noticeDate}
         <p class="flex items-start gap-2 text-sm"><Icon name="shield" size={18} class="mt-0.5 flex-none text-app-accent" /><span>Registrado el {dateShort(noticeDate)}{patient?.privacy_notice_by ? ` por ${patient.privacy_notice_by}` : ''}. <button type="button" class="text-app-primary underline underline-offset-2" onclick={() => (noticeOpen = true)}>Ver el aviso de privacidad</button></span></p>
       {:else}
-        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-app-ink/15 p-4 transition hover:border-app-ink/30 {errors.ack ? 'border-app-danger' : ''}">
-          <input id="pf-ack" type="checkbox" class="mt-1 h-5 w-5 flex-none accent-app-primary" bind:checked={ack} aria-invalid={!!errors.ack} aria-describedby={errors.ack ? 'pf-ack-h' : undefined} />
-          <span class="text-sm">{animal ? 'El propietario' : 'El paciente'} recibió el <button type="button" class="font-semibold text-app-primary underline underline-offset-2" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); noticeOpen = true; }}>aviso de privacidad</button> y otorga su consentimiento expreso para el tratamiento de sus datos personales y de salud.</span>
+        <label class="check-row {errors.ack ? 'invalid' : ''}">
+          <input id="pf-ack" type="checkbox" class="check" bind:checked={ack} aria-invalid={!!errors.ack} aria-describedby={errors.ack ? 'pf-ack-h' : undefined} />
+          <span class="text-sm leading-snug">{animal ? 'El propietario' : 'El paciente'} recibió el <button type="button" class="font-semibold text-app-primary underline underline-offset-2" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); noticeOpen = true; }}>aviso de privacidad</button> y otorga su consentimiento expreso para el tratamiento de sus datos personales y de salud.</span>
         </label>
         {@render err('ack')}
         <p class="hint">Conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP).</p>

@@ -144,9 +144,9 @@
           <input class="field" type="tel" bind:value={phone} maxlength="20" autocomplete="tel" />
         </label>
       {/if}
-      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-app-ink/15 p-3.5 sm:col-span-2">
-        <input id="{uid}-ack" type="checkbox" class="mt-1 h-5 w-5 flex-none accent-app-primary" bind:checked={privacyAck} />
-        <span class="text-sm">{animal ? 'El propietario' : 'El paciente'} recibió el <button type="button" class="font-semibold text-app-primary underline underline-offset-2" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); noticeOpen = true; }}>aviso de privacidad</button> y otorga su consentimiento para el tratamiento de sus datos personales y de salud. <span class="text-app-muted">(Si aún no, queda pendiente en el expediente.)</span></span>
+      <label class="check-row sm:col-span-2">
+        <input id="{uid}-ack" type="checkbox" class="check" bind:checked={privacyAck} />
+        <span class="text-sm leading-snug">{animal ? 'El propietario' : 'El paciente'} recibió el <button type="button" class="font-semibold text-app-primary underline underline-offset-2" onclick={(ev) => { ev.preventDefault(); ev.stopPropagation(); noticeOpen = true; }}>aviso de privacidad</button> y otorga su consentimiento para el tratamiento de sus datos personales y de salud. <span class="text-app-muted">(Si aún no, queda pendiente en el expediente.)</span></span>
       </label>
     </form>
     <div aria-live="polite">
