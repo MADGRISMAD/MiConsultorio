@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { labApi } from '$lib/api/lab';
+  import { specialtyApi } from '$lib/api/specialty';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
@@ -57,6 +58,9 @@
   /** Giros that order or interpret lab studies. The others keep their studies in Archivos. */
   const LAB_KINDS = ['GENERAL_MEDICAL', 'INTERNAL_MEDICINE', 'PEDIATRICS', 'GYNECOLOGY', 'DERMATOLOGY', 'ORTHOPEDICS', 'VETERINARY'];
   let hasLabData = $state(false);
+  /** Costed treatment plans make sense for these giros; nutrition and psychology work with a menu or sessions instead. */
+  const PLAN_KINDS = ['DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'VETERINARY'];
+  let hasPlanData = $state(false);
 
   async function load() {
     try {
@@ -67,6 +71,7 @@
       prescriptions = r;
       loadError = '';
       if (!(s.kinds ?? []).some((k) => LAB_KINDS.includes(k))) labApi.orders(id).then((o) => (hasLabData = o.length > 0)).catch(() => {});
+      if (!(s.kinds ?? []).some((k) => PLAN_KINDS.includes(k))) specialtyApi.plans(id).then((l) => (hasPlanData = l.length > 0)).catch(() => {});
       if (isAdmin) api.patients.access(id).then((a) => (access = a)).catch(() => {});
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) notFound = true;
@@ -156,6 +161,7 @@
   const isPerson = $derived(patient?.subject === 'person');
   const hasKind = (...k: string[]) => (schema?.kinds ?? []).some((x) => k.includes(x));
   const labGiro = $derived(hasKind(...LAB_KINDS));
+  const planGiro = $derived(hasKind(...PLAN_KINDS) || hasPlanData);
   const hasMeasures = $derived(encounters.some((e) => ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')));
   const showGrowth = $derived(hasKind('PEDIATRICS') || patient?.subject === 'animal' || hasMeasures);
   const tabs = $derived<{ key: Tab; label: string; count?: number }[]>([
@@ -166,7 +172,7 @@
     ...(isPerson && hasKind('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
     ...(isPerson && hasKind('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
     ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
-    ...(hasKind('DENTAL', 'CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS', 'NUTRITION', 'PSYCHOLOGY', 'VETERINARY') ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : []),
+    ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
     ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio' }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento' }] : []),
     { key: 'archivos', label: 'Archivos' },
@@ -288,7 +294,7 @@
       {:else if patient && tab === 'esquema'}
         <BodyMapTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'planes'}
-        <PlansTab {patient} {schema} {canWrite} {isAdmin} />
+        <PlansTab {patient} {schema} {canWrite} {isAdmin} plansOn={planGiro} />
       {:else if tab === 'accesos' && isAdmin}
         <AccessTab {access} />
       {/if}

@@ -20,7 +20,7 @@
   import Icon from '../../ui/Icon.svelte';
   import Pill from '../../ui/Pill.svelte';
 
-  let { patient, schema, canWrite }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean } = $props();
+  let { patient, schema, canWrite, plansOn = true }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean; plansOn?: boolean } = $props();
 
   const animal = $derived(patient.subject === 'animal');
   const dental = $derived((schema?.kinds ?? []).includes('DENTAL'));
@@ -152,6 +152,7 @@
   }
 </script>
 
+{#if plansOn}
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
   <p class="max-w-xl text-sm text-app-muted">Planes por fases con costo. Al aceptarlos con firma quedan conservados: después solo se agregan conceptos (nueva versión) o se cancelan los pendientes.</p>
   {#if canWrite}<button type="button" class="btn-primary" onclick={() => (editor = { mode: 'create', plan: null })}><Icon name="plus" size={18} />Nuevo plan</button>{/if}
@@ -245,6 +246,7 @@
       </li>
     {/each}
   </ul>
+{/if}
 {/if}
 
 <ConsentSection {patient} {canWrite} version={consentVersion} />
