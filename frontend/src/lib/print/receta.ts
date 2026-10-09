@@ -51,7 +51,6 @@ ${rx.next_visit ? `<p><span class="k">Próxima cita</span>${e(fmtDate(rx.next_vi
 ${voided ? `<div class="box"><strong>Receta cancelada</strong> el ${e(fmtDateTime(rx.voided_at))}${rx.voided_by ? ` por ${e(rx.voided_by)}` : ''}.${rx.void_reason ? ` Motivo: ${e(rx.void_reason)}` : ''}</div>` : ''}
 
 ${verify ? `<div class="verify nobreak"><img src="${e(verify.qr)}" alt="Código QR de verificación" width="84" height="84"><div class="small"><strong>Verifica esta receta en ${e(verifyHost(verify.url))}</strong><br>Escanea el código o abre la dirección: confirma que el folio, el profesional y la vigencia son auténticos. No muestra medicamentos ni diagnóstico.<br>${e(verify.url)}</div></div>` : ''}
-<div class="sig nobreak">Firma autógrafa del ${animal ? 'Médico Veterinario' : 'médico / profesional'}<br>${e(rx.author_name)}</div>
-<div class="footer">${instr ? 'Hoja de indicaciones' : 'Receta'} emitida con Caresia.${rx.valid_until ? ` Vigente hasta el ${e(fmtDate(rx.valid_until))}.` : ''} Caresia no firma: la firma autógrafa del profesional da validez al documento.</div>`;
-  return doc(`${title} ${rx.folio}`, body, '.pair{display:grid;grid-template-columns:1.1fr 1fr;gap:0 14px}.pair .pro{border-left:1px solid #999;padding-left:12px}ol li { margin-bottom: 10px; font-size: 13px; } .footer{bottom:-12mm} .verify{display:flex;gap:10px;align-items:center;margin-top:18px} .verify img{flex:none}');
+<div class="sig nobreak">Firma autógrafa del ${animal ? 'Médico Veterinario' : 'médico / profesional'}<br>${e(rx.author_name)}</div>`;
+  return doc(`${title} ${rx.folio}`, body, '.pair{display:grid;grid-template-columns:1.1fr 1fr;gap:0 14px}.pair .pro{border-left:1px solid #999;padding-left:12px}ol li { margin-bottom: 10px; font-size: 13px; } .verify{display:flex;gap:10px;align-items:center;margin-top:18px} .verify img{flex:none}');
 }

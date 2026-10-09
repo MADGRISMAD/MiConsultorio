@@ -602,3 +602,24 @@ func TestGenericChartsAndScales(t *testing.T) {
 		t.Fatalf("history of scales: %v", got)
 	}
 }
+
+func TestClinicLogo(t *testing.T) {
+	e := setup(t)
+	admin, doc := e.login("admin_a"), e.login("doc_a")
+	png := "data:image/png;base64,iVBORw0KGgo="
+	doc.expect(403, "PUT", "/api/clinic", map[string]any{"image_url": png})
+	admin.expect(400, "PUT", "/api/clinic", map[string]any{"image_url": "https://x.mx/logo.png"})
+	admin.expect(400, "PUT", "/api/clinic", map[string]any{"image_url": "data:image/svg+xml;base64,PHN2Zz4="})
+	admin.expect(400, "PUT", "/api/clinic", map[string]any{"image_url": "data:image/png;base64,%%%no-base64"})
+	admin.expect(400, "PUT", "/api/clinic", map[string]any{"image_url": "data:image/png;base64," + strings.Repeat("A", 400000)})
+	if got := sub(admin.expect(200, "PUT", "/api/clinic", map[string]any{"image_url": png}), "clinic")["image_url"]; got != png {
+		t.Fatalf("logo saved: %v", got)
+	}
+	// saving other fields keeps it; an empty value goes back to the default logo
+	if got := sub(admin.expect(200, "PUT", "/api/clinic", map[string]any{"phone_number": "55 1"}), "clinic")["image_url"]; got != png {
+		t.Fatalf("kept: %v", got)
+	}
+	if got := sub(admin.expect(200, "PUT", "/api/clinic", map[string]any{"image_url": ""}), "clinic")["image_url"]; got != "" {
+		t.Fatalf("reset: %v", got)
+	}
+}

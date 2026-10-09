@@ -30,7 +30,7 @@ export async function renderTicketCanvas(html: string, widthMm: number): Promise
     await sleep(120);
     const width = el.offsetWidth;
     if (!width) throw new Error('El ticket no tiene tamaño.');
-    const raw = await toCanvas(el, { pixelRatio: dots / width, backgroundColor: '#ffffff', style: { margin: '0' } });
+    const raw = await toCanvas(el, { pixelRatio: dots / width, backgroundColor: '#ffffff', style: { margin: '0' }, skipFonts: true, cacheBust: false });
     const out = document.createElement('canvas');
     out.width = dots;
     out.height = Math.max(1, Math.round((raw.height * dots) / raw.width));

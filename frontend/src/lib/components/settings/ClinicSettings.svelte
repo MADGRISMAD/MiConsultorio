@@ -16,6 +16,7 @@
   let name = $state('');
   let phone = $state('');
   let address = $state('');
+  let image = $state('');
   let kind = $state<ClinicKind>('GENERAL_MEDICAL');
   let specialties = $state<ClinicKind[]>([]);
   let settings = $state<ClinicSettings>({ hours: {} as ClinicSettings['hours'], appointment_minutes: 30 });
@@ -29,6 +30,7 @@
     ({ name, kind } = c);
     phone = c.phone_number;
     address = c.address;
+    image = c.image_url ?? '';
     specialties = [...c.specialties];
     settings = structuredClone($state.snapshot(c.settings));
     ready = true;
@@ -55,9 +57,9 @@
   <div class="card"><LoadingRows /></div>
 {:else}
   <div class="grid gap-4">
-    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(dataOp, { name, phone_number: phone, address }, 'Datos guardados'); }}>
+    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(dataOp, { name, phone_number: phone, address, image_url: image }, 'Datos guardados'); }}>
       <h2 class="display mb-5 text-3xl">Nombre y contacto</h2>
-      <ClinicFields bind:name bind:phone bind:address />
+      <ClinicFields bind:name bind:phone bind:address bind:image />
       {#if dataOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{dataOp.message}</p>{/if}
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>
     </form>

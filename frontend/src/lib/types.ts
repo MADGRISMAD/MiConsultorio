@@ -824,6 +824,8 @@ export interface Issuer {
   phone: string;
   kind: ClinicKind;
   legal: Legal;
+  /** logo o foto del consultorio (data URL); vacío = logo de Caresia */
+  logo?: string;
   /** Id corto del formulario público ARCO (/arco/<id>). */
   arco_slug?: string;
 }

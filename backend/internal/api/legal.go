@@ -78,6 +78,8 @@ type issuer struct {
 	Phone   string `json:"phone"`
 	Kind    string `json:"kind"`
 	Legal   Legal  `json:"legal"`
+	// Logo is the clinic's logo or photo as a data URL; empty means the Caresia logo is printed.
+	Logo string `json:"logo"`
 	// ArcoSlug is the short id of the public ARCO form (/arco/<slug>).
 	ArcoSlug string `json:"arco_slug"`
 }
@@ -96,7 +98,7 @@ func (s *Server) issuerInfo(ctx context.Context, clinicID string) (issuer, error
 	}
 	var arco string
 	_ = s.db.QueryRow(ctx, `SELECT arco_code FROM clinics WHERE id = $1`, clinicID).Scan(&arco)
-	return issuer{Name: c.Name, Address: c.Address, Phone: c.PhoneNumber, Kind: c.Kind, Legal: l, ArcoSlug: arco}, nil
+	return issuer{Name: c.Name, Address: c.Address, Phone: c.PhoneNumber, Kind: c.Kind, Legal: l, Logo: c.ImageURL, ArcoSlug: arco}, nil
 }
 
 // ---------------------------------------------------------------------------

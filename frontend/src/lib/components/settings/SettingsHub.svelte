@@ -58,8 +58,7 @@
     {
       title: 'Citas y pacientes',
       items: [
-        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horario de cada profesional, salas, enlace para que agenden en línea y recordatorios por correo', icon: 'calendar', show: admin },
-        { id: 'portal', label: 'Portal del paciente', desc: 'Que tus pacientes vean sus citas, recetas y vacunas desde su celular', icon: 'user', show: admin },
+        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horario de cada profesional, salas, enlace para que agenden en línea, recordatorios por correo y portal del paciente', icon: 'calendar', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu lista de medicamentos para hacer recetas más rápido', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
         { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños y mascotas (tablas de la OMS o el CDC)', icon: 'baby', show: admin }
       ]
@@ -288,13 +287,12 @@
         <ClinicSettings />
       {:else if section.id === 'agenda'}
         <AgendaSettings />
+        <div class="mt-10"><PortalSettings /></div>
         <ServiceDurations />
       {:else if section.id === 'crecimiento'}
         <GrowthReferencesSettings />
       {:else if section.id === 'seguridad'}
         <SecuritySettings />
-      {:else if section.id === 'portal'}
-        <PortalSettings />
       {:else if section.id === 'cumplimiento'}
         <ComplianceSection />
       {:else if section.id === 'apariencia'}

@@ -36,6 +36,7 @@
   let name = $state('');
   let phone = $state('');
   let address = $state('');
+  let image = $state('');
   let settings = $state<ClinicSettings>({ hours: {} as ClinicSettings['hours'], appointment_minutes: 30 });
   $effect(() => {
     const c = session.clinic;
@@ -44,6 +45,7 @@
     specialties = [...c.specialties];
     phone = c.phone_number;
     address = c.address;
+    image = c.image_url ?? '';
     settings = structuredClone($state.snapshot(c.settings));
     ready = true;
   });
@@ -70,7 +72,7 @@
     const ok = await op.run(async () => {
       let saved = null;
       if (step === 0) saved = await api.updateClinic({ kind, specialties });
-      else if (step === 1) saved = await api.updateClinic({ name, phone_number: phone, address });
+      else if (step === 1) saved = await api.updateClinic({ name, phone_number: phone, address, image_url: image });
       else if (step === 2) saved = await api.updateClinic({ settings: $state.snapshot(settings) });
       if (saved) session.setClinic(saved);
     });
@@ -118,7 +120,7 @@
         {:else if step === 1}
           <h1 class="display text-[2.4rem] leading-none sm:text-5xl">Datos del <em class="italic text-app-primary">consultorio</em></h1>
           <p class="mb-7 mt-3 text-[15px] text-app-muted">Aparecen en tu panel y en tus documentos. Podrás cambiarlos cuando quieras.</p>
-          <ClinicFields bind:name bind:phone bind:address />
+          <ClinicFields bind:name bind:phone bind:address bind:image />
         {:else if step === 2}
           <h1 class="display text-[2.4rem] leading-none sm:text-5xl">Horario y <em class="italic text-app-primary">citas</em></h1>
           <p class="mb-7 mt-3 text-[15px] text-app-muted">Ayuda a agendar sin empalmes y avisa cuando una cita cae fuera de horario.</p>

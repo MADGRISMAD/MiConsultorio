@@ -60,7 +60,11 @@ func TestBirthdayGreetings(t *testing.T) {
 	// the link takes the pet's owner off the list
 	tok := regexp.MustCompile(`/baja/([A-Za-z0-9.\-]+)`).FindStringSubmatch(pet)[1]
 	anon := b.anon()
-	anon.expect(404, "GET", "/api/public/unsubscribe/"+tok[:len(tok)-1]+"0", nil)
+	bad := "0" // a tampered signature: change the last character to anything different
+	if strings.HasSuffix(tok, "0") {
+		bad = "1"
+	}
+	anon.expect(404, "GET", "/api/public/unsubscribe/"+tok[:len(tok)-1]+bad, nil)
 	anon.expect(200, "GET", "/api/public/unsubscribe/"+tok, nil)
 	anon.expect(200, "POST", "/api/public/unsubscribe/"+tok, nil)
 	var ok bool

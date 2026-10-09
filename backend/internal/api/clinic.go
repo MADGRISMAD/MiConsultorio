@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -145,6 +146,7 @@ type clinicUpdate struct {
 	Kind        *string   `json:"kind"`
 	Specialties *[]string `json:"specialties"`
 	Settings    *Settings `json:"settings"`
+	ImageURL    *string   `json:"image_url"` // the clinic's logo or photo as a small data URL; empty goes back to the Caresia logo
 }
 
 // updateOwnClinic lets the clinic's administrator edit its profile and scheduling settings.
@@ -182,6 +184,12 @@ func (s *Server) updateOwnClinic(w http.ResponseWriter, r *http.Request) {
 				return fail(http.StatusBadRequest, "La dirección es demasiado larga.")
 			}
 			c.Address = strings.TrimSpace(*req.Address)
+		}
+		if req.ImageURL != nil {
+			if msg := validLogo(*req.ImageURL); msg != "" {
+				return fail(http.StatusBadRequest, msg)
+			}
+			c.ImageURL = *req.ImageURL
 		}
 		if req.Kind != nil {
 			if !clinicKinds[*req.Kind] {
@@ -223,8 +231,8 @@ func (s *Server) updateOwnClinic(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `
-			UPDATE clinics SET name=$2, phone_number=$3, address=$4, kind=$5, specialties=$6, settings=$7, updated_at=now()
-			WHERE id = $1`, p.ClinicID, c.Name, c.PhoneNumber, c.Address, c.Kind, c.Specialties, raw); err != nil {
+			UPDATE clinics SET name=$2, phone_number=$3, address=$4, kind=$5, specialties=$6, settings=$7, image_url=$8, updated_at=now()
+			WHERE id = $1`, p.ClinicID, c.Name, c.PhoneNumber, c.Address, c.Kind, c.Specialties, raw, c.ImageURL); err != nil {
 			return err
 		}
 		audit(r.Context(), tx, p.ClinicID, p, "clinic_settings", "Actualizó la configuración del consultorio", nil)
@@ -255,4 +263,26 @@ func (s *Server) completeSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, sessionResponse{Session: sessionOf(fresh)})
+}
+
+const maxLogoChars = 300_000
+
+// validLogo accepts an empty string (the default Caresia logo) or a small PNG, JPEG or WebP as a base64 data URL.
+func validLogo(v string) string {
+	if v == "" {
+		return ""
+	}
+	var rest string
+	for _, pre := range []string{"data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,"} {
+		if strings.HasPrefix(v, pre) {
+			rest = v[len(pre):]
+		}
+	}
+	if rest == "" || len(v) > maxLogoChars {
+		return "La imagen debe ser PNG, JPG o WebP y pesar menos de 200 KB."
+	}
+	if _, err := base64.StdEncoding.DecodeString(rest); err != nil {
+		return "La imagen no es válida."
+	}
+	return ""
 }

@@ -40,5 +40,5 @@ ${list.length ? list.map(orderHtml).join('') : '<p>Sin órdenes de laboratorio.<
 <p class="small" style="margin-top:12px">Indicadores: ↑ alto, ↓ bajo, ‼ crítico, ! alterado. ${e(notice)}</p>
 <div class="sig nobreak">Sello y firma del profesional</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Resultados de laboratorio', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 6px;font-size:11px}.grid-t th{background:#eee}');
+  return doc('Resultados de laboratorio', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
 }

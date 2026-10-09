@@ -39,7 +39,7 @@ ${animal ? `<h2>Desparasitación interna</h2>${table(group(['deworming_internal'
 ${wTable}
 <div class="sig nobreak">Sello y firma del ${animal ? 'Médico Veterinario' : 'profesional'}</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Carnet de vacunación', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 6px;font-size:11px}.grid-t th{background:#eee}');
+  return doc('Carnet de vacunación', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
 }
 
 function legendHtml(): string {
@@ -80,7 +80,7 @@ ${chart.note ? `<p><span class="k">Nota</span>${multiline(chart.note)}</p>` : ''
 ${content}
 <div class="sig nobreak">Firma del profesional</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc(title, body, '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 6px;font-size:11px}.grid-t th{background:#eee}');
+  return doc(title, body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
 }
 
 /** Shrinks the menu's text until page 1 holds it all, then stretches the table to fill what is left of the sheet. */
@@ -138,7 +138,7 @@ ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_d
     body,
     '@page{size:letter portrait;margin:10mm 10mm 12mm}h2{margin:10px 0 4px;break-after:avoid;page-break-after:avoid}p{orphans:2;widows:2}' +
       '.menu{break-after:page;page-break-after:always}.more{padding-top:2mm}.more p{font-size:12.5px;line-height:1.5}.more h2{font-size:14px}' +
-      '.menu .head{padding-bottom:4px;margin-bottom:4px}.menu h1{font-size:16px}.menu .box{padding:4px 8px;margin:4px 0}.menu .grid{grid-template-columns:1fr 1fr;gap:2px 10px;font-size:10px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.pair .pro{border-top:0;border-left:1px solid #999;margin:0;padding:0 0 0 12px}.menu .grid .k{font-size:7.5px}.menu p{margin:0 0 3px}.menu h2{margin:6px 0 3px;font-size:12px}.menu .sig{margin-top:8mm}.menu{--fs:10px}.grid-t th,.grid-t td{border:1px solid #000;padding:4px 5px;font-size:var(--fs);line-height:1.25;vertical-align:top}.grid-t th{background:#eee}' +
+      '.menu .head{padding:7px 12px 15px;margin-bottom:5px}.menu .brand .logo,.menu .brand .logo-svg{width:42px;height:42px}.menu h1{font-size:16px}.menu .box{padding:4px 8px;margin:4px 0}.menu .grid{grid-template-columns:1fr 1fr;gap:2px 10px;font-size:10px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.pair .pro{border-top:0;border-left:1px solid #999;margin:0;padding:0 0 0 12px}.menu .grid .k{font-size:7.5px}.menu p{margin:0 0 3px}.menu h2{margin:6px 0 3px;font-size:12px}.menu .sig{margin-top:8mm}.menu{--fs:10px}.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:4px 5px;font-size:var(--fs);line-height:1.25;vertical-align:top}.grid-t th{background:#E3EEFB;color:#0B2540}' +
       '.week{table-layout:fixed}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
       '.week thead{height:8mm}.week th.day{width:10%;text-align:left;font-size:10.5px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
       '.week .k{color:#444;font-size:8.4px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}'
@@ -175,7 +175,7 @@ ${phaseHtml}
 <p class="small">Los precios pueden cambiar si el diagnóstico cambia; cualquier concepto nuevo requiere tu autorización.</p>
 ${sig}
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Plan de tratamiento', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 6px;font-size:11px}.grid-t th{background:#eee}.strike{text-decoration:line-through;color:#555}');
+  return doc('Plan de tratamiento', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}.strike{text-decoration:line-through;color:#555}');
 }
 
 export function signedConsentHtml(c: Consent, patient: Patient | null, patientName: string, clinic: Issuer): string {

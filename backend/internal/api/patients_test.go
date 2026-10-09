@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -447,6 +448,23 @@ func TestAppointmentsWithPatients(t *testing.T) {
 	recep.expect(201, "POST", "/api/appointments", map[string]any{"patient_id": dog, "names": "Luna", "date": "2030-05-02", "startHour": "09:00", "endHour": "09:30"})
 	// without a registered patient the surname is still required
 	recep.expect(400, "POST", "/api/appointments", map[string]any{"names": "Luna", "date": "2030-05-02", "startHour": "10:00", "endHour": "10:30"})
+	// changing the giro hides the visits of patients of the old one, without deleting them
+	count := func() int {
+		return len(recep.expect(200, "GET", "/api/appointments?from=2030-05-01&to=2030-05-03", nil)["appointments"].([]any))
+	}
+	before := count()
+	e.exec(`UPDATE clinics SET kind = 'DENTAL', specialties = '{}' WHERE id = $1`, e.clinicA)
+	if got := count(); got >= before {
+		t.Fatalf("visits of the previous giro still shown: %d of %d", got, before)
+	}
+	var stored int
+	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM appointments WHERE clinic_id = $1`, e.clinicA).Scan(&stored); err != nil || stored < before {
+		t.Fatalf("visits must stay stored: %d %v", stored, err)
+	}
+	e.exec(`UPDATE clinics SET kind = 'GENERAL_MEDICAL', specialties = '{VETERINARY}' WHERE id = $1`, e.clinicA)
+	if got := count(); got != before {
+		t.Fatalf("visits must come back with the giro: %d of %d", got, before)
+	}
 	// a patient of another clinic cannot be used
 	recep.expect(400, "POST", "/api/appointments", map[string]any{"patient_id": sub(e.login("doc_b").expect(201, "POST", "/api/patients/", person(nil)), "patient")["id"], "names": "X", "last_names": "Y", "date": "2030-05-03", "startHour": "09:00", "endHour": "09:30"})
 }

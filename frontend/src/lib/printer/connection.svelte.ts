@@ -6,6 +6,7 @@
 import type { PosSettings, Sale } from '$lib/types';
 import { cartaHtml, ticketBytes, ticketHtml, printHtml, paidCash } from './ticket';
 import { htmlToRasterBytes } from './raster';
+import { toast } from '$lib/toast.svelte';
 import { EscPos } from './escpos';
 
 export type Transport = 'serial' | 'usb' | 'bluetooth';
@@ -264,6 +265,7 @@ async function ticketPayload(sale: Sale, s: PosSettings, opts: { test?: boolean;
     });
   } catch (e) {
     console.warn('Ticket como imagen no disponible, se imprime como texto:', e);
+    toast.show(`No se pudo armar el diseño del ticket (${e instanceof Error ? e.message : 'error desconocido'}). Se imprimió en texto.`, 'error', 9000);
     return ticketBytes(sale, s, opts);
   }
 }

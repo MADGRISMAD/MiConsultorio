@@ -259,6 +259,13 @@ func (s *Server) listAppointments(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("room"); v != "" {
 		add("a.room = $$", v)
 	}
+	// Visits of patients from a giro the clinic no longer works with stay stored but are not shown (as the patients themselves).
+	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	add("(a.patient_id IS NULL OR EXISTS (SELECT 1 FROM patients hp WHERE hp.id = a.patient_id AND (cardinality(hp.kinds) = 0 OR hp.kinds && $$::text[])))", kinds)
 	rows, err := s.db.Query(r.Context(), appointmentSelect+`WHERE `+strings.Join(where, " AND ")+` ORDER BY a.date, a.start_hour, a.created_at LIMIT 5000`, args...)
 	if err != nil {
 		serverError(w, r, err)

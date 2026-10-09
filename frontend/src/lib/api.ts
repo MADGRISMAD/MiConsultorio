@@ -85,7 +85,7 @@ export const api = {
   resetPassword: (token: string, password: string) => request<{ ok: boolean }>('POST', '/reset-password', { token, password }),
   session: () => request<{ session: SessionInfo }>('GET', '/session').then((r) => r.session),
   clinic: () => request<{ clinic: Clinic }>('GET', '/clinic').then((r) => r.clinic),
-  updateClinic: (patch: Partial<{ name: string; phone_number: string; address: string; kind: string; specialties: string[]; settings: ClinicSettings }>) =>
+  updateClinic: (patch: Partial<{ name: string; phone_number: string; address: string; kind: string; specialties: string[]; settings: ClinicSettings; image_url: string }>) =>
     request<{ clinic: Clinic }>('PUT', '/clinic', patch).then((r) => r.clinic),
   completeSetup: () => request<{ session: SessionInfo }>('POST', '/clinic/setup').then((r) => r.session),
 

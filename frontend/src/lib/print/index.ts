@@ -30,7 +30,7 @@ export async function printExpediente(patientId: string): Promise<void> {
 /** Builds the establishment block when the caller has no Issuer at hand. */
 export async function loadIssuer(): Promise<Issuer> {
   const [clinic, legal] = await Promise.all([api.clinic(), api.legal.get()]);
-  return { name: clinic.name, address: clinic.address, phone: clinic.phone_number, kind: clinic.kind, legal };
+  return { name: clinic.name, address: clinic.address, phone: clinic.phone_number, kind: clinic.kind, legal, logo: clinic.image_url };
 }
 
 export async function printPrivacyNotice(patient: Patient | null, issuer?: Issuer): Promise<void> {
