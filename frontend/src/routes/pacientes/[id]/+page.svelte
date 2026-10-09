@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { labApi } from '$lib/api/lab';
+  import { filesApi } from '$lib/api/files';
   import { specialtyApi } from '$lib/api/specialty';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -93,6 +94,29 @@
     }
   });
 
+  // How many records each tab holds (the first two come with the page). Refreshed whenever a tab is opened,
+  // so what was just saved in one shows in its counter.
+  let counts = $state<Record<string, number>>({});
+  async function loadCounts() {
+    const set = (key: string, p: Promise<number>) => p.then((n) => (counts[key] = n)).catch(() => {});
+    const chartCount = (kind: Parameters<typeof specialtyApi.charts>[1]) => specialtyApi.charts(id, kind).then((r) => r.charts.length);
+    const k = schema?.kinds ?? [];
+    await Promise.all([
+      set('archivos', filesApi.list(id).then((r) => r.files.length)),
+      set('vacunas', specialtyApi.vaccinations(id).then((r) => r.vaccinations.filter((v) => !v.voided_at).length)),
+      set('laboratorio', labApi.orders(id).then((o) => o.length)),
+      set('planes', specialtyApi.plans(id).then((l) => l.length)),
+      ...(k.includes('DENTAL') ? [set('odontograma', chartCount('odontogram'))] : []),
+      ...(k.includes('NUTRITION') ? [set('nutricion', chartCount('nutrition_plan'))] : []),
+      ...(k.includes('PSYCHOLOGY') ? [set('psico', chartCount('scale'))] : []),
+      ...(k.some((x) => ['CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS'].includes(x)) ? [set('esquema', chartCount('bodymap'))] : [])
+    ]);
+  }
+  $effect(() => {
+    tab; // opening a tab refreshes the counters
+    if (schema) loadCounts();
+  });
+
   const refreshEncounters = async () => (encounters = await api.patients.encounters(id));
   const refreshRx = async () => (prescriptions = await api.patients.prescriptions(id));
 
@@ -172,16 +196,16 @@
     { key: 'resumen', label: 'Resumen' },
     { key: 'bitacora', label: 'Bitácora', count: encounters.filter((e) => !e.addendum_of).length },
     { key: 'recetas', label: schema?.rx_mode === 'instructions' ? 'Indicaciones' : 'Recetas', count: prescriptions.length },
-    ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación' }] : hasKind('PEDIATRICS') ? [{ key: 'vacunas' as Tab, label: 'Carnet de vacunación' }] : []),
-    ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma' }] : []),
-    ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional' }] : []),
-    ...(isPerson && hasKind('PSYCHOLOGY') && inMyAreas('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos' }] : []),
-    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal' }] : []),
-    ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento' }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
-    ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio' }] : []),
-    ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento' }] : []),
-    { key: 'archivos', label: 'Archivos' },
-    ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos' }] : [])
+    ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación', count: counts.vacunas }] : hasKind('PEDIATRICS') ? [{ key: 'vacunas' as Tab, label: 'Carnet de vacunación', count: counts.vacunas }] : []),
+    ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma', count: counts.odontograma }] : []),
+    ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional', count: counts.nutricion }] : []),
+    ...(isPerson && hasKind('PSYCHOLOGY') && inMyAreas('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos', count: counts.psico }] : []),
+    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal', count: counts.esquema }] : []),
+    ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento', count: counts.planes }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
+    ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio', count: counts.laboratorio }] : []),
+    ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento', count: encounters.filter((e) => !e.hidden && ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')).length }] : []),
+    { key: 'archivos', label: 'Archivos', count: counts.archivos },
+    ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos', count: access.length }] : [])
   ]);
   function tabKey(ev: KeyboardEvent) {
     const i = tabs.findIndex((t) => t.key === tab);
