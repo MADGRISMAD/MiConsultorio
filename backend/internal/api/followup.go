@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+
 	"errors"
+	"github.com/madgrismad/miconsultorio/backend/internal/mail"
 	"net/http"
 	"strings"
 	"time"
@@ -117,6 +119,7 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, r, err)
 		return
 	}
+	s.mailBooked(r.Context(), p.ClinicID, out.ID)
 	writeJSON(w, http.StatusCreated, map[string]any{"appointment": out})
 }
 
@@ -149,4 +152,24 @@ func (s *Server) firstFreeSlot(ctx context.Context, q queryRower, clinicID strin
 		}
 	}
 	return fail(http.StatusConflict, "No hay horario libre ese día. Elige otra fecha u hora.")
+}
+
+// mailBooked e-mails the patient as soon as an appointment is booked from the app (by staff, or as a follow-up
+// recommended by a professional), when it has an e-mail and the patient receives reminders. The mail carries the
+// links to confirm, reschedule or cancel. A failure never affects the booking.
+func (s *Server) mailBooked(ctx context.Context, clinicID, appointmentID string) {
+	var to string
+	var consent bool
+	if err := s.db.QueryRow(ctx, `SELECT email, reminders_consent FROM appointments WHERE clinic_id = $1 AND id = $2 AND status = 'scheduled'`, clinicID, appointmentID).Scan(&to, &consent); err != nil || to == "" || !consent {
+		return
+	}
+	if !s.mailEnabled() {
+		return
+	}
+	info, ok, err := s.loadApptInfo(ctx, s.db, clinicID, appointmentID)
+	if err != nil || !ok || info.Token == "" || !info.Start.After(time.Now()) {
+		return
+	}
+	subject, text, html := s.bookingMail(info, false)
+	s.sendMail(mail.Message{To: []string{to}, Subject: subject, Text: text, HTML: html})
 }

@@ -583,3 +583,23 @@ func TestRemindersUseThePatientsConsentAndContact(t *testing.T) {
 		t.Fatalf("too late: %d", n)
 	}
 }
+
+func TestStaffBookingMailsThePatientRightAway(t *testing.T) {
+	b := newBookingEnv(t, false)
+	recep := b.login("recep_a")
+	body := func(email string, consent bool, hour string) map[string]any {
+		return map[string]any{"names": "Ana", "last_names": "López", "date": b.date, "startHour": hour, "endHour": hour[:3] + "30", "email": email, "reminders_consent": consent, "professional_id": b.pro}
+	}
+	recep.expect(201, "POST", "/api/appointments", body("ana@correo.mx", true, "10:00"))
+	m := b.mail.wait(t, 1)
+	if m.To[0] != "ana@correo.mx" || !strings.Contains(m.Subject, "Tu cita quedó agendada") || !strings.Contains(m.Text, "/cita/") {
+		t.Fatalf("booking mail: %+v", m)
+	}
+	// without consent, or without an e-mail, nothing is sent
+	recep.expect(201, "POST", "/api/appointments", body("otra@correo.mx", false, "11:00"))
+	recep.expect(201, "POST", "/api/appointments", body("", true, "12:00"))
+	time.Sleep(300 * time.Millisecond)
+	if n := b.mail.count(); n != 1 {
+		t.Fatalf("only the consenting patient with an e-mail is mailed: %d", n)
+	}
+}

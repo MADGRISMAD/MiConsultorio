@@ -344,6 +344,7 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		writeFailure(w, r, err)
 		return
 	}
+	s.mailBooked(r.Context(), p.ClinicID, out.ID)
 	writeJSON(w, http.StatusCreated, map[string]any{"appointment": out})
 }
 
