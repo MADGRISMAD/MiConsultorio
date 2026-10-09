@@ -566,6 +566,9 @@ func TestRemindersUseThePatientsConsentAndContact(t *testing.T) {
 	// a late reminder is only created when the visit is more than 30 minutes away
 	loc, _ := time.LoadLocation("America/Mexico_City")
 	soon := time.Now().In(loc).Add(time.Hour)
+	if soon.Hour() == 23 { // a visit starting at 23:xx cannot end at 23:59 in a valid span: go past midnight instead
+		soon = soon.Add(90 * time.Minute)
+	}
 	b.exec(`UPDATE appointments SET date = $2, start_hour = $3, end_hour = '23:59' WHERE id = $1`, apptID, soon.Format("2006-01-02"), soon.Format("15:04"))
 	if err := api.ScheduleRemindersFor(context.Background(), b.pool, b.cfg, b.mail, b.clinicA, apptID); err != nil {
 		t.Fatal(err)
