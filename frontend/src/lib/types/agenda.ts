@@ -139,7 +139,7 @@ export interface ApptFilters {
 
 /** Label and colour classes (Tailwind, theme tokens) of each status. */
 export const STATUS_META: Record<ApptStatus, { label: string; tone: 'info' | 'ok' | 'warn' | 'bad' | 'muted'; card: string }> = {
-  scheduled: { label: 'Programada', tone: 'info', card: 'bg-app-primary/14 text-app-ink border-app-primary' },
+  scheduled: { label: 'Por confirmar', tone: 'info', card: 'bg-app-primary/14 text-app-ink border-app-primary' },
   confirmed: { label: 'Confirmada', tone: 'ok', card: 'bg-app-accent/16 text-app-ink border-app-accent' },
   arrived: { label: 'Llegó', tone: 'warn', card: 'bg-app-warning/16 text-app-ink border-app-warning' },
   in_progress: { label: 'En consulta', tone: 'info', card: 'bg-app-primary/30 text-app-ink border-app-primary' },

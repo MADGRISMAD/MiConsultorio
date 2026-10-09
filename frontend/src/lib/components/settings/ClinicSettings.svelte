@@ -4,7 +4,8 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { ClinicKind, ClinicSettings } from '$lib/types';
+  import { CLINIC_KINDS, type ClinicKind, type ClinicSettings } from '$lib/types';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import ClinicFields from '$lib/components/setup/ClinicFields.svelte';
   import HoursEditor from '$lib/components/setup/HoursEditor.svelte';
   import SpecialtyPicker from '$lib/components/setup/SpecialtyPicker.svelte';
@@ -33,6 +34,15 @@
     ready = true;
   });
 
+  // changing the giro asks first: the patients of a giro the clinic leaves stop showing (they are kept)
+  const giros = (k: ClinicKind, s: ClinicKind[]) => [...new Set([k, ...s])];
+  const savedGiros = $derived(session.clinic ? giros(session.clinic.kind, session.clinic.specialties) : []);
+  const newGiros = $derived(giros(kind, specialties));
+  const leaving = $derived(savedGiros.filter((g) => !newGiros.includes(g)));
+  const joining = $derived(newGiros.filter((g) => !savedGiros.includes(g)));
+  const giroChanged = $derived(!!session.clinic && (session.clinic.kind !== kind || leaving.length > 0 || joining.length > 0));
+  let confirmGiro = $state(false);
+  const label = (g: ClinicKind) => CLINIC_KINDS[g]?.label ?? g;
   const dataOp = new Op();
   const kindOp = new Op();
   const hoursOp = new Op();
@@ -52,7 +62,7 @@
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
 
-    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
+    <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); if (giroChanged) { kindOp.reset(); confirmGiro = true; } else void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
       <h2 class="display mb-5 text-3xl">Giro y especialidades</h2>
       <SpecialtyPicker bind:kind bind:specialties />
       {#if kindOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{kindOp.message}</p>{/if}
@@ -68,3 +78,27 @@
     </form>
   </div>
 {/if}
+
+<ConfirmModal
+  open={confirmGiro}
+  title="¿Cambiar el giro del consultorio?"
+  confirmLabel="Sí, cambiar giro"
+  op={kindOp}
+  onclose={() => (confirmGiro = false)}
+  onconfirm={async () => {
+    await save(kindOp, { kind, specialties }, 'Giro guardado');
+    if (kindOp.phase !== 'error') confirmGiro = false;
+  }}
+>
+  {#if leaving.length}
+    <p>Los pacientes de <strong class="text-app-ink">{leaving.map(label).join(', ')}</strong> dejarán de mostrarse en listas y búsquedas.</p>
+    <p class="mt-2 text-sm"><strong class="text-app-ink">No se elimina nada:</strong> sus expedientes, citas y cobros se conservan, y vuelven a aparecer si más adelante activas de nuevo ese giro.</p>
+  {/if}
+  {#if joining.length}
+    <p class="{leaving.length ? 'mt-2' : ''}">Se agregará <strong class="text-app-ink">{joining.map(label).join(', ')}</strong>: los formularios y secciones se ajustan a esa especialidad.</p>
+  {/if}
+  {#if !leaving.length && !joining.length}
+    <p>El giro principal pasará a ser <strong class="text-app-ink">{label(kind)}</strong>.</p>
+  {/if}
+  <p class="mt-2 text-sm">Los pacientes que registres desde ahora pertenecen a los giros activos. Si trabajas con más de un giro, todos se muestran juntos.</p>
+</ConfirmModal>

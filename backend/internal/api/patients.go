@@ -249,6 +249,29 @@ func (s *Server) patientQuery(w http.ResponseWriter, r *http.Request, where stri
 	return out
 }
 
+// patientKindsFor are the tags a new patient gets: animals belong to veterinary, people to the other giros of the clinic.
+func patientKindsFor(subject string, clinicKinds []string) []string {
+	if subject == "animal" {
+		return []string{"VETERINARY"}
+	}
+	out := []string{}
+	for _, k := range clinicKinds {
+		if k != "VETERINARY" {
+			out = append(out, k)
+		}
+	}
+	if len(out) == 0 {
+		return slices.Clone(clinicKinds)
+	}
+	return out
+}
+
+// onlyActiveGiros keeps the patients of the giros the clinic works with now (untagged ones are always shown).
+func onlyActiveGiros(where string, args []any, kinds []string) (string, []any) {
+	args = append(args, kinds)
+	return where + " AND (cardinality(kinds) = 0 OR kinds && $" + itoa(len(args)) + "::text[])", args
+}
+
 func searchWhere(clinicID, q string) (string, []any) {
 	where, args := "clinic_id = $1", []any{clinicID}
 	if q = strings.TrimSpace(q); q != "" {
@@ -260,7 +283,13 @@ func searchWhere(clinicID, q string) (string, []any) {
 
 func (s *Server) listPatients(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
+	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	where, args := searchWhere(p.ClinicID, r.URL.Query().Get("q"))
+	where, args = onlyActiveGiros(where, args, kinds)
 	if r.URL.Query().Get("archived") == "1" {
 		where += " AND archived_at IS NOT NULL"
 	} else {
@@ -277,7 +306,13 @@ func (s *Server) listPatients(w http.ResponseWriter, r *http.Request) {
 // lookupPatients is the minimum the front desk needs to book a visit: name and contact, no clinical data.
 func (s *Server) lookupPatients(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
+	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	where, args := searchWhere(p.ClinicID, r.URL.Query().Get("q"))
+	where, args = onlyActiveGiros(where, args, kinds)
 	where += " AND archived_at IS NULL"
 	list := s.patientQuery(w, r, where, args, 12)
 	if list == nil {
@@ -369,11 +404,11 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 			}
 			row := tx.QueryRow(r.Context(), `
 				INSERT INTO patients (clinic_id, file_number, subject, names, last_names, sex, birth_date, curp, phone, email, address,
-					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by, id, owner_id)
-				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid,$22::uuid)
+					guardian_name, guardian_relation, guardian_phone, guardian_email, profile, incomplete, privacy_notice_at, privacy_notice_by, created_by, id, owner_id, kinds)
+				VALUES ($1,$2,$3,$4,$5,$6,nullif($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::uuid,$22::uuid,$23)
 				RETURNING `+patientCols,
 				p.ClinicID, n, in.Subject, in.Names, in.LastNames, in.Sex, in.BirthDate, in.CURP, in.Phone, in.Email, in.Address,
-				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, quick, ack, who, p.actorName(), patID, ownerID)
+				in.GuardianName, in.GuardianRelation, in.GuardianPhone, in.GuardianEmail, profileJSON, quick, ack, who, p.actorName(), patID, ownerID, patientKindsFor(in.Subject, kinds))
 			if created, err = scanPatient(row); err != nil {
 				return err
 			}

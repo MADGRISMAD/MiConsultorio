@@ -31,8 +31,11 @@ export const specialtyApi = {
   saveChart: (patientId: string, kind: ChartKind, data: unknown, note: string) =>
     request<{ chart: PatientChart }>('POST', `${p(patientId)}/charts`, { kind, data, note }).then((r) => r.chart),
 
-  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity: string; kcal: number; meals: number; preferences: string }) =>
-    request<{ plan: NutritionPlanData }>('POST', `${p(patientId)}/nutrition-plan/ai`, body).then((r) => r.plan),
+  /** a recommended next visit: lands in the agenda pending confirmation */
+  followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string }) =>
+    request<{ appointment: { id: string; date: string; startHour: string } }>('POST', `${p(patientId)}/follow-up`, body).then((r) => r.appointment),
+  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; preferences: string; dislikes: string }) =>
+    request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
 
   plans: (patientId: string) => request<{ plans: TreatmentPlan[] }>('GET', `${p(patientId)}/plans`).then((r) => r.plans),
   plan: (id: string) => request<{ plan: TreatmentPlan }>('GET', `/plans/${seg(id)}`).then((r) => r.plan),

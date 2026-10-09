@@ -16,6 +16,8 @@ func (s *Server) mountSpecialty(r chi.Router) {
 	r.With(clinical).Get("/patients/{id}/charts", s.listCharts)
 	r.With(write).Post("/patients/{id}/charts", s.createChart)
 	r.With(write).Post("/patients/{id}/nutrition-plan/ai", s.nutritionPlanAI)
+	// any professional who writes clinical notes (or manages the agenda) can recommend the next visit
+	r.With(require(PermAdminHistorials, PermAdminAppointments)).Post("/patients/{id}/follow-up", s.recommendFollowUp)
 
 	r.With(clinical).Get("/patients/{id}/plans", s.listPlans)
 	r.With(write).Post("/patients/{id}/plans", s.createPlan)

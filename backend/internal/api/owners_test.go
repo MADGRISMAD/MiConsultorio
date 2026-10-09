@@ -161,3 +161,57 @@ func TestOwnerKeepsDomicilioAndBirthDate(t *testing.T) {
 	}
 	vet.expect(400, "POST", "/api/patients/", body("Toby", map[string]any{"owner_birth_date": "2999-01-01"}))
 }
+
+func TestChangingGiroHidesButKeepsThePatientsOfTheOldOne(t *testing.T) {
+	e := setup(t)
+	doc := e.login("doc_a")
+	names := func() []string {
+		out := []string{}
+		for _, p := range doc.expect(200, "GET", "/api/patients/", nil)["patients"].([]any) {
+			out = append(out, p.(map[string]any)["names"].(string))
+		}
+		return out
+	}
+	has := func(list []string, n string) bool {
+		for _, x := range list {
+			if x == n {
+				return true
+			}
+		}
+		return false
+	}
+
+	e.exec(`UPDATE clinics SET kind = 'VETERINARY', specialties = '{}' WHERE id = $1`, e.clinicA)
+	doc.expect(201, "POST", "/api/patients/", map[string]any{"subject": "animal", "names": "Firulais", "privacy_ack": true, "guardian_name": "Ana Ruiz", "guardian_phone": "664 000 1111",
+		"profile": map[string]any{"species": "Perro", "allergies_text": "Ninguna", "sterilized": "Sí"}})
+	if !has(names(), "Firulais") {
+		t.Fatalf("the pet shows while the clinic is veterinary: %v", names())
+	}
+
+	// the clinic becomes general medicine: the pets stop showing, but they are still in the database
+	e.exec(`UPDATE clinics SET kind = 'GENERAL_MEDICAL' WHERE id = $1`, e.clinicA)
+	if has(names(), "Firulais") {
+		t.Fatalf("pets must not show in a clinic that no longer works with animals: %v", names())
+	}
+	var n int
+	_ = e.pool.QueryRow(t.Context(), `SELECT count(*) FROM patients WHERE clinic_id = $1 AND names = 'Firulais'`, e.clinicA).Scan(&n)
+	if n != 1 {
+		t.Fatalf("nothing is deleted: %d", n)
+	}
+	grouped := doc.expect(200, "GET", "/api/patients/grouped", nil)
+	if len(grouped["groups"].([]any)) != 0 {
+		t.Fatalf("owners of hidden pets must not show: %v", grouped)
+	}
+
+	// a person registered now belongs to general medicine; with two giros both groups show
+	doc.expect(201, "POST", "/api/patients/", map[string]any{"subject": "person", "names": "Luis", "last_names": "Prueba", "sex": "Hombre", "birth_date": "1990-01-01", "privacy_ack": true,
+		"profile": map[string]any{"allergies_text": "Ninguna"}})
+	e.exec(`UPDATE clinics SET kind = 'VETERINARY', specialties = '{GENERAL_MEDICAL}' WHERE id = $1`, e.clinicA)
+	if l := names(); !has(l, "Firulais") || !has(l, "Luis") {
+		t.Fatalf("with both giros everyone shows: %v", l)
+	}
+	e.exec(`UPDATE clinics SET kind = 'DENTAL', specialties = '{}' WHERE id = $1`, e.clinicA)
+	if l := names(); has(l, "Firulais") || has(l, "Luis") {
+		t.Fatalf("patients of other giros stay hidden: %v", l)
+	}
+}

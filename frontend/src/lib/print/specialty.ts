@@ -87,8 +87,13 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
   const d = plan.data;
   const grams = (pct: number, per: number) => (d.kcal && pct ? Math.round((d.kcal * pct) / 100 / per) : 0);
   const macro = (label: string, pct: number, per: number) => (pct ? `<td><strong>${e(label)}</strong><br>${pct} % · ${grams(pct, per)} g</td>` : '');
-  const meals = d.meals
-    .map((m) => `<tr class="nobreak"><td><strong>${e(m.name)}</strong>${m.time ? `<div class="small">${e(m.time)}</div>` : ''}</td><td>${multiline(m.items)}</td><td style="text-align:right">${m.kcal ? `${m.kcal} kcal` : ''}</td></tr>`)
+  const mealRows = (list: NutritionPlanData['meals']) =>
+    list
+      .map((m) => `<tr class="nobreak"><td><strong>${e(m.name)}</strong>${m.time ? `<div class="small">${e(m.time)}</div>` : ''}</td><td>${multiline(m.items)}</td><td style="text-align:right">${m.kcal ? `${m.kcal} kcal` : ''}</td></tr>`)
+      .join('');
+  const days = d.days?.length ? d.days : d.meals?.length ? [{ name: 'Día tipo', meals: d.meals }] : [];
+  const meals = days
+    .map((day, i) => `<div class="${i > 0 && i % 3 === 0 ? 'pb' : ''}"><h2>${e(day.name)}</h2><table class="grid-t"><thead><tr><th style="width:22%">Comida</th><th>Alimentos</th><th style="width:14%">Energía</th></tr></thead><tbody>${mealRows(day.meals)}</tbody></table></div>`)
     .join('');
   const block = (title: string, text: string) => (text.trim() ? `<h2>${e(title)}</h2><p>${multiline(text)}</p>` : '');
   const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Plan nutricional</h1><div class="small">${e(fmtDateTime(plan.at))}</div>${plan.by ? `<div class="small">Elaboró: ${e(plan.by)}</div>` : ''}</div></div>
@@ -96,13 +101,14 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
 ${d.goal ? `<p><span class="k">Objetivo</span><strong>${e(d.goal)}</strong></p>` : ''}
 ${plan.note ? `<p><span class="k">Nota</span>${multiline(plan.note)}</p>` : ''}
 ${d.kcal ? `<table class="grid-t nobreak"><tbody><tr><td><strong>Energía</strong><br>${d.kcal} kcal al día</td>${macro('Proteínas', d.protein_pct, 4)}${macro('Carbohidratos', d.carb_pct, 4)}${macro('Grasas', d.fat_pct, 9)}${d.water_liters ? `<td><strong>Agua</strong><br>${d.water_liters} L al día</td>` : ''}</tr></tbody></table>` : ''}
-${meals ? `<h2>Distribución de comidas</h2><table class="grid-t"><thead><tr><th>Comida</th><th>Alimentos</th><th>Energía</th></tr></thead><tbody>${meals}</tbody></table>` : ''}
+${meals ? `<h2 style="margin-top:14px">Menú ${days.length > 1 ? 'de la semana' : 'del día'}</h2>${meals}` : ''}
+${block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? '')}
 ${block('Recomendaciones', d.recommendations)}${block('Alimentos o hábitos a evitar', d.avoid)}${block('Suplementos', d.supplements)}
 ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_days} días aproximadamente.</p>` : ''}
 ${d.basis ? `<p class="small">${e(d.basis)}</p>` : ''}
 <div class="sig nobreak">Firma del nutriólogo</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Plan nutricional', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:4px 8px;font-size:11px;vertical-align:top}.grid-t th{background:#eee}');
+  return doc('Plan nutricional', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:4px 8px;font-size:11px;vertical-align:top}.grid-t th{background:#eee}.pb{page-break-before:always}h2{margin:10px 0 4px}');
 }
 
 const STATUS: Record<string, string> = { draft: 'Borrador', proposed: 'Propuesto', accepted: 'Aceptado', in_progress: 'En curso', completed: 'Completado', cancelled: 'Cancelado' };

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -169,6 +170,9 @@ type ownerListItem struct {
 
 func (s *Server) searchOwners(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
+	if !s.worksWithAnimals(w, r, p.ClinicID) {
+		return
+	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	digits := nonDigits.ReplaceAllString(q, "")
 	if len(digits) < 3 {
@@ -279,6 +283,9 @@ func (s *Server) petsOfOwners(ctx context.Context, clinicID string, ids []string
 
 func (s *Server) groupedPatients(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
+	if !s.worksWithAnimals(w, r, p.ClinicID) {
+		return
+	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	archived := r.URL.Query().Get("archived") == "1"
 	like := "%" + escapeLike(q) + "%"
@@ -489,4 +496,19 @@ func (s *Server) mergeOwner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"moved": moved})
+}
+
+// worksWithAnimals answers an empty owners list (and false) when the clinic no longer works with veterinary:
+// its animals and their owners are kept, just not shown.
+func (s *Server) worksWithAnimals(w http.ResponseWriter, r *http.Request, clinicID string) bool {
+	kinds, err := s.clinicKindsFor(r.Context(), clinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	if !slices.Contains(kinds, "VETERINARY") {
+		writeJSON(w, http.StatusOK, map[string]any{"owners": []ownerListItem{}, "groups": []ownerGroup{}, "orphans": []patientRow{}})
+		return false
+	}
+	return true
 }

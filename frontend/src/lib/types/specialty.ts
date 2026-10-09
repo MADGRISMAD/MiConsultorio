@@ -79,6 +79,10 @@ export interface NutritionMeal {
   items: string;
   kcal: number;
 }
+export interface NutritionDay {
+  name: string;
+  meals: NutritionMeal[];
+}
 export interface NutritionPlanData {
   goal: string;
   basis: string;
@@ -87,7 +91,12 @@ export interface NutritionPlanData {
   carb_pct: number;
   fat_pct: number;
   water_liters: number;
+  /** plans saved before the weekly format: one typical day */
   meals: NutritionMeal[];
+  /** the 7 days of the week */
+  days: NutritionDay[];
+  /** foods the patient does not like */
+  dislikes: string;
   recommendations: string;
   avoid: string;
   supplements: string;

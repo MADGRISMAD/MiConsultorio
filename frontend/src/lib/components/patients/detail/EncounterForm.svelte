@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from '$lib/api';
   import { consult } from '$lib/api/consult';
+  import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -11,6 +12,7 @@
   import Icon from '../../ui/Icon.svelte';
   import ConsultChargeEditor from './ConsultChargeEditor.svelte';
   import { toItems } from './consultLines';
+  import FollowUpField from './FollowUpField.svelte';
 
   interface Props {
     open: boolean;
@@ -55,6 +57,8 @@
   let plan = $state('');
   let notes = $state('');
   let isPrivate = $state(false);
+  let followDate = $state('');
+  let followTime = $state('');
   let error = $state('');
   /** services and supplies of this consultation, saved as a pre-account once the note exists */
   let chargeLines = $state<ChargeDraftLine[]>([]);
@@ -77,6 +81,7 @@
       codes = [];
       codeDraft = codeError = error = '';
       isPrivate = false;
+      followDate = followTime = '';
       chargeLines = [];
       sendToCash = true;
       op.reset();
@@ -123,6 +128,15 @@
     }
   }
 
+  async function saveFollowUp() {
+    try {
+      const a = await specialtyApi.followUp(patient.id, { date: followDate, start_hour: followTime || undefined, reason: reason.trim() });
+      toast.show(`Cita de seguimiento agendada el ${a.date} a las ${a.startHour} (por confirmar)`);
+    } catch (e) {
+      toast.show(`La nota quedó guardada, pero la cita de seguimiento no: ${e instanceof Error ? e.message : 'inténtalo de nuevo'}`, 'error');
+    }
+  }
+
   async function save(thenRx: boolean) {
     error = '';
     if (codeDraft && !addCode()) return;
@@ -155,6 +169,7 @@
     if (ok && saved) {
       toast.show('Nota guardada en la bitácora');
       if (chargeLines.length) await saveCharge(saved);
+      if (followDate) await saveFollowUp();
       onsaved(saved, thenRx);
     }
   }
@@ -230,6 +245,8 @@
         </label>
       {/if}
     </fieldset>
+
+    <FollowUpField bind:date={followDate} bind:time={followTime} id="enc-follow" />
 
     <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-app-ink/10 bg-app-elevated/60 p-4">
       <input type="checkbox" class="mt-1 h-5 w-5 accent-[rgb(var(--app-primary))]" bind:checked={isPrivate} />

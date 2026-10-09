@@ -176,6 +176,12 @@ type nutritionMealIn struct {
 	Kcal  int    `json:"kcal"`
 }
 
+// one day of a weekly plan
+type nutritionDayIn struct {
+	Name  string            `json:"name"`
+	Meals []nutritionMealIn `json:"meals"`
+}
+
 type nutritionPlanIn struct {
 	Goal            string            `json:"goal"`
 	Basis           string            `json:"basis"`
@@ -184,7 +190,9 @@ type nutritionPlanIn struct {
 	CarbPct         int               `json:"carb_pct"`
 	FatPct          int               `json:"fat_pct"`
 	WaterLiters     float64           `json:"water_liters"`
-	Meals           []nutritionMealIn `json:"meals"`
+	Meals           []nutritionMealIn `json:"meals"`    // plans saved before the weekly format: one typical day
+	Days            []nutritionDayIn  `json:"days"`     // the 7 days of the week
+	Dislikes        string            `json:"dislikes"` // foods the patient does not like
 	Recommendations string            `json:"recommendations"`
 	Avoid           string            `json:"avoid"`
 	Supplements     string            `json:"supplements"`
@@ -198,7 +206,7 @@ func validateNutritionPlan(raw []byte) (string, bool) {
 	}
 	long := func(v string, max int) bool { return utf8.RuneCountInString(v) > max }
 	switch {
-	case long(in.Goal, 300) || long(in.Basis, 400) || long(in.Recommendations, 3000) || long(in.Avoid, 1500) || long(in.Supplements, 600):
+	case long(in.Goal, 300) || long(in.Basis, 400) || long(in.Recommendations, 3000) || long(in.Avoid, 1500) || long(in.Supplements, 600) || long(in.Dislikes, 1000):
 		return "Algún texto del plan nutricional es demasiado largo.", false
 	case in.Kcal < 0 || in.Kcal > 10000:
 		return "Las calorías deben estar entre 0 y 10 000.", false
@@ -210,13 +218,32 @@ func validateNutritionPlan(raw []byte) (string, bool) {
 		return "El seguimiento debe ser en un plazo de 0 a 365 días.", false
 	case len(in.Meals) > 12:
 		return "El plan tiene demasiadas comidas.", false
+	case len(in.Days) > 7:
+		return "El plan semanal tiene como máximo 7 días.", false
 	}
-	for _, m := range in.Meals {
-		if strings.TrimSpace(m.Name) == "" || long(m.Name, 60) || long(m.Time, 20) || long(m.Items, 1200) {
-			return "Cada comida necesita un nombre corto y su detalle no puede ser tan largo.", false
+	check := func(meals []nutritionMealIn) (string, bool) {
+		if len(meals) > 12 {
+			return "Un día tiene demasiadas comidas.", false
 		}
-		if m.Kcal < 0 || m.Kcal > 10000 {
-			return "Las calorías de una comida no son válidas.", false
+		for _, m := range meals {
+			if strings.TrimSpace(m.Name) == "" || long(m.Name, 60) || long(m.Time, 20) || long(m.Items, 1200) {
+				return "Cada comida necesita un nombre corto y su detalle no puede ser tan largo.", false
+			}
+			if m.Kcal < 0 || m.Kcal > 10000 {
+				return "Las calorías de una comida no son válidas.", false
+			}
+		}
+		return "", true
+	}
+	if msg, ok := check(in.Meals); !ok {
+		return msg, false
+	}
+	for _, d := range in.Days {
+		if strings.TrimSpace(d.Name) == "" || long(d.Name, 40) {
+			return "Cada día necesita un nombre corto.", false
+		}
+		if msg, ok := check(d.Meals); !ok {
+			return msg, false
 		}
 	}
 	return "", true

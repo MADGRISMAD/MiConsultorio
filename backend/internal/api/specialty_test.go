@@ -389,7 +389,8 @@ func TestNutritionPlanChart(t *testing.T) {
 }
 
 func TestNutritionPlanAI(t *testing.T) {
-	var prompt string
+	var prompts []string
+	fish := true // the first answer still uses a disliked food: the server asks again
 	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Contents []struct {
@@ -397,11 +398,19 @@ func TestNutritionPlanAI(t *testing.T) {
 			} `json:"contents"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		prompt = body.Contents[0].Parts[0]["text"].(string)
-		text := `{"goal":"Bajar de peso","kcal":1800.4,"protein_pct":30,"carb_pct":50,"fat_pct":40,"water_liters":2.5,
-			"meals":[{"name":"Desayuno","time":"08:00","items":"Avena con fruta","kcal":450.6},{"name":"","items":"x","kcal":1}],
-			"recommendations":"Come despacio","avoid":"Refrescos","supplements":"","follow_up_days":30}`
-		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": text}}}}}})
+		prompts = append(prompts, body.Contents[0].Parts[0]["text"].(string))
+		meal := func(n, items string) map[string]any { return map[string]any{"name": n, "items": items} }
+		days := []any{}
+		for i := 0; i < 7; i++ {
+			lunch := "Pollo con arroz"
+			if fish && i == 2 {
+				lunch = "Filete de Pescado a la plancha"
+			}
+			days = append(days, map[string]any{"name": "x", "meals": []any{meal("Desayuno", "Avena con fruta"), meal("Colación 1", "Manzana"), meal("Comida", lunch), meal("Colación 2", "Nueces"), meal("Cena", "Quesadilla")}})
+		}
+		fish = false
+		out, _ := json.Marshal(map[string]any{"goal": "Bajar de peso", "days": days, "recommendations": "Come despacio", "avoid": "Refrescos", "supplements": "", "follow_up_days": 30})
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
 	}))
 	defer gem.Close()
 	e := setupWith(t, func(c *config.Config) {
@@ -413,23 +422,53 @@ func TestNutritionPlanAI(t *testing.T) {
 
 	recep.expect(403, "POST", url, map[string]any{"goal": "Bajar de peso"})
 	doc.expect(400, "POST", url, map[string]any{})
-	out := doc.expect(200, "POST", url, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity": "Ligera", "preferences": "No le gusta el pescado"})
+	doc.expect(400, "POST", url, map[string]any{"goal": "Bajar de peso"}) // no weight and height: the calories cannot be computed
+	out := doc.expect(200, "POST", url, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "activity": "Ligera",
+		"preferences": "Vegetariano", "dislikes": "pescado, hígado", "meals": 5})
 	plan := out["plan"].(map[string]any)
-	if num(plan, "kcal") != 1800 || len(plan["meals"].([]any)) != 1 {
-		t.Fatalf("plan: %v", plan)
+
+	// calories are computed here: patient born 1970-03-12 ("mejj700312"), so 55 years old; Mifflin-St Jeor
+	// 10*82 + 6.25*170 - 5*age + sexTerm, times 1.375, minus 500 to lose weight
+	days := plan["days"].([]any)
+	if len(days) != 7 {
+		t.Fatalf("a week has 7 days: %d", len(days))
 	}
-	// 30+50+40 is more than 100: scaled down so the plan is storable
-	if num(plan, "protein_pct")+num(plan, "carb_pct")+num(plan, "fat_pct") > 100 {
+	kcal := num(plan, "kcal")
+	if kcal < 1200 || kcal > 3500 || int(kcal)%10 != 0 {
+		t.Fatalf("kcal: %v", kcal)
+	}
+	for _, d := range days {
+		meals := d.(map[string]any)["meals"].([]any)
+		sum := 0.0
+		for _, m := range meals {
+			sum += num(m.(map[string]any), "kcal")
+		}
+		if len(meals) != 5 || sum != kcal {
+			t.Fatalf("each day closes the target exactly: %v vs %v (%d meals)", sum, kcal, len(meals))
+		}
+	}
+	if num(plan, "carb_pct")+num(plan, "protein_pct")+num(plan, "fat_pct") != 100 || num(plan, "carb_pct") != 45 {
 		t.Fatalf("macros: %v", plan)
 	}
-	if !strings.Contains(prompt, "82.0 kg") || !strings.Contains(prompt, "No le gusta el pescado") {
-		t.Fatalf("prompt lacks the data: %s", prompt)
+	if plan["dislikes"] != "pescado, hígado" {
+		t.Fatalf("dislikes must travel with the plan: %v", plan["dislikes"])
 	}
-	if strings.Contains(prompt, "Prueba") || strings.Contains(prompt, "mejj7003") {
-		t.Fatalf("the prompt must not carry identifying data: %s", prompt)
+	// the first answer used a disliked food, so the model was asked again with the violation
+	if len(prompts) != 2 || !strings.Contains(prompts[0], "pescado, hígado") || !strings.Contains(prompts[1], "prohibidos") {
+		t.Fatalf("prompts: %d %v", len(prompts), prompts)
+	}
+	if w, _ := out["warnings"].([]any); len(w) != 0 {
+		t.Fatalf("the second answer is clean: %v", w)
+	}
+	if strings.Contains(prompts[0], "Prueba") || strings.Contains(prompts[0], "mejj7003") {
+		t.Fatalf("the prompt must not carry identifying data: %s", prompts[0])
 	}
 	// the draft is not saved by itself
 	if got := doc.expect(200, "GET", "/api/patients/"+pid+"/charts?kind=nutrition_plan", nil); len(got["charts"].([]any)) != 0 {
 		t.Fatal("the AI draft must not be saved")
+	}
+	// the weekly plan can be saved as it came
+	if status, body := doc.do("POST", "/api/patients/"+pid+"/charts", map[string]any{"kind": "nutrition_plan", "data": plan}); status != 201 {
+		t.Fatalf("saving the weekly plan: %d %v", status, body)
 	}
 }
