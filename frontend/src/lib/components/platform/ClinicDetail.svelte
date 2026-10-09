@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
@@ -39,21 +40,18 @@
   let seats = $state<Seats | null>(null);
   let activity = $state<ActivityItem[]>([]);
   let payments = $state<Payment[]>([]);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el negocio.', { loading: false });
   let loadedId = $state('');
 
   async function load() {
     const target = id;
-    try {
+    await ld.run(async (current) => {
       const d = await api.platform.clinic(target);
-      if (target !== id) return;
+      if (target !== id || !current()) return;
       ({ clinic, people, seats, activity, payments } = d);
       fill();
-      error = '';
       loadedId = target;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el negocio.';
-    }
+    });
   }
   $effect(() => {
     id;
@@ -138,8 +136,8 @@
   const seatLine = (max: number | null, used: number) => (max === null ? `${used} (sin límite)` : `${used} de ${max}`);
 </script>
 
-{#if error}
-  <Alert>{error}</Alert>
+{#if ld.error}
+  <Alert>{ld.error}</Alert>
 {:else if !clinic || loadedId !== id}
   <div class="card"><LoadingRows /></div>
 {:else}

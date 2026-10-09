@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -21,8 +22,7 @@
   let settings = $state<PosSettings | null>(null);
   let current = $state<CashSession | null>(null);
   let history = $state<CashSession[]>([]);
-  let loading = $state(true);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo cargar la caja.');
 
   let opening = $state<number | null>(null);
   const openOp = new Op();
@@ -49,17 +49,14 @@
     }
   }
   async function load() {
-    loading = true;
-    loadError = '';
-    try {
-      const [s] = await Promise.all([api.pos.settings(), loadCurrent()]);
-      settings = s.settings;
-      await loadHistory();
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo cargar la caja.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(
+      async () => {
+        const [s] = await Promise.all([api.pos.settings(), loadCurrent()]);
+        settings = s.settings;
+        await loadHistory();
+      },
+      { reset: true }
+    );
   }
   onMount(load);
 
@@ -100,12 +97,12 @@
   {/snippet}
 </PageHeader>
 
-{#if loadError}
+{#if ld.error}
   <div class="card p-6">
-    <Alert>{loadError}</Alert>
+    <Alert>{ld.error}</Alert>
     <button type="button" class="btn-primary mt-4" onclick={load}><Icon name="refresh" size={16} />Reintentar</button>
   </div>
-{:else if loading}
+{:else if ld.loading}
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-busy="true">
     {#each Array(4) as _, n (n)}<div class="h-28 animate-pulse rounded-2xl bg-app-ink/5"></div>{/each}
   </div>

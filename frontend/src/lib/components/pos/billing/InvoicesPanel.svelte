@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -37,9 +38,7 @@
   let notConfigured = $state(false);
   let tab = $state<InvoiceRequest['status']>('pending');
   let rows = $state<InvoiceRequest[]>([]);
-  let loading = $state(true);
-  let error = $state('');
-  let seq = 0;
+  const ld = new Loader('No se pudieron cargar las solicitudes.');
 
   let formOpen = $state(false);
   let formSale = $state('');
@@ -50,17 +49,15 @@
   const cancelOp = new Op();
 
   async function load() {
-    const my = ++seq;
-    loading = true;
-    error = '';
-    try {
-      const r = await pos2.invoices(tab);
-      if (my === seq) (rows = r.invoices), (stampEnabled = r.stamping);
-    } catch (e) {
-      if (my === seq) error = e instanceof Error ? e.message : 'No se pudieron cargar las solicitudes.';
-    } finally {
-      if (my === seq) loading = false;
-    }
+    await ld.run(
+      async (current) => {
+        const r = await pos2.invoices(tab);
+        if (!current()) return;
+        rows = r.invoices;
+        stampEnabled = r.stamping;
+      },
+      { reset: true }
+    );
   }
   $effect(() => {
     void tab;
@@ -148,10 +145,10 @@
 </div>
 
 <div class="card overflow-hidden">
-  {#if loading && !rows.length}
+  {#if ld.loading && !rows.length}
     <LoadingRows />
-  {:else if error}
-    <Alert class="m-4">{error}</Alert>
+  {:else if ld.error}
+    <Alert class="m-4">{ld.error}</Alert>
   {:else if !rows.length}
     <EmptyState icon="receipt" title="Sin solicitudes" text={TABS.find((t) => t.id === tab)?.empty}>
       {#if tab === 'pending'}<button type="button" class="btn-primary" onclick={openNew}>Nueva solicitud</button>{/if}

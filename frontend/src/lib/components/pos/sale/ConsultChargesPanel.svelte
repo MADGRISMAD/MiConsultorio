@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { consult } from '$lib/api/consult';
   import { ago, moneyCents } from '$lib/format';
@@ -16,25 +17,17 @@
 
   const EVERY_MS = 20_000;
   let charges = $state<Charge[]>([]);
-  let loaded = $state(false);
-  let failed = $state(false);
+  const ld = new Loader('No se pudieron cargar las pre-cuentas.');
   let updatedAt = $state<Date | null>(null);
   let timer: ReturnType<typeof setInterval> | undefined;
-  let seq = 0;
 
   async function load() {
-    const my = ++seq;
-    try {
+    await ld.run(async (current) => {
       const r = await consult.list({ status: 'sent' });
-      if (my !== seq) return;
+      if (!current()) return;
       charges = r;
-      failed = false;
       updatedAt = new Date();
-    } catch {
-      if (my === seq) failed = true;
-    } finally {
-      if (my === seq) loaded = true;
-    }
+    });
   }
 
   const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
@@ -61,13 +54,13 @@
   });
   $effect(() => {
     void refreshKey;
-    if (loaded) void load();
+    if (!ld.loading) void load();
   });
 
   const hhmm = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 </script>
 
-{#if loaded && !failed}
+{#if !ld.loading && !ld.error}
   <section class="card mb-5 p-4" aria-labelledby="precuentas-title" data-testid="consult-charges-panel">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 id="precuentas-title" class="flex items-center gap-2 text-sm font-semibold">

@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { arcoApi } from '$lib/api/arco';
   import { toast } from '$lib/toast.svelte';
@@ -16,7 +17,7 @@
   let rows = $state<ArcoRequest[] | null>(null);
   let summary = $state<ArcoSummary>({ open: 0, overdue: 0, soon: 0, pending_execute: 0 });
   let settings = $state<ArcoSettings | null>(null);
-  let error = $state('');
+  const ld = new Loader('No se pudieron cargar las solicitudes.');
   let status = $state('abiertas');
   let kind = $state('');
   let q = $state('');
@@ -24,14 +25,15 @@
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   async function load() {
-    error = '';
-    try {
-      const r = await arcoApi.list({ status, kind, q: q.trim() });
-      rows = r.requests;
-      summary = r.summary;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudieron cargar las solicitudes.';
-    }
+    await ld.run(
+      async (current) => {
+        const r = await arcoApi.list({ status, kind, q: q.trim() });
+        if (!current()) return;
+        rows = r.requests;
+        summary = r.summary;
+      },
+      { reset: true }
+    );
   }
 
   $effect(() => {
@@ -124,8 +126,8 @@
       </div>
     </div>
 
-    {#if error}
-      <Alert class="m-4">{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
+    {#if ld.error}
+      <Alert class="m-4">{ld.error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
     {:else if !rows}
       <LoadingRows />
     {:else if rows.length === 0}

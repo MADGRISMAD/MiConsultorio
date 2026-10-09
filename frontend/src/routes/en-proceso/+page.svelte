@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
@@ -13,8 +14,7 @@
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
 
   let list = $state<Appt[]>([]);
-  let loading = $state(true);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el panel.');
   let now = $state(Date.now());
   let busy = $state('');
   const op = new Op();
@@ -26,14 +26,9 @@
   async function load() {
     const d = new Date();
     const back = new Date(d.getTime() - 2 * 86400000);
-    try {
+    await ld.run(async () => {
       list = await agendaApi.list({ from: ymd(back), to: ymd(d) });
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el panel.';
-    } finally {
-      loading = false;
-    }
+    });
   }
   onMount(() => {
     load();
@@ -82,9 +77,9 @@
 <Guard title="En proceso" permissions={['navAppointments', 'adminAppointments']}>
   <PageHeader title="En proceso" subtitle="Quién está en el consultorio ahora: en espera y en consulta. Se actualiza solo." />
 
-  {#if error}<Alert class="mb-4">{error}</Alert>{/if}
+  {#if ld.error}<Alert class="mb-4">{ld.error}</Alert>{/if}
 
-  {#if loading}
+  {#if ld.loading}
     <div class="card"><LoadingRows /></div>
   {:else}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

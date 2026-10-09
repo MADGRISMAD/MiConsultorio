@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as fmtDate } from '$lib/format';
@@ -11,7 +12,7 @@
   import LoadingRows from '../ui/LoadingRows.svelte';
 
   let imports = $state<GrowthImportRecord[] | null>(null);
-  let loadError = $state('');
+  const ld = new Loader('No se pudieron cargar las tablas.');
   let standard = $state('');
   let source = $state('');
   let fileName = $state('');
@@ -29,11 +30,9 @@
   };
 
   async function load() {
-    try {
+    await ld.run(async () => {
       imports = await growthApi.imports();
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudieron cargar las tablas.';
-    }
+    });
   }
   onMount(load);
 
@@ -136,8 +135,8 @@
 
     <div>
       <h4 class="section-title mb-2">Cargas anteriores</h4>
-      {#if loadError}
-        <Alert>{loadError}</Alert>
+      {#if ld.error}
+        <Alert>{ld.error}</Alert>
       {:else if !imports}
         <LoadingRows />
       {:else if imports.length === 0}

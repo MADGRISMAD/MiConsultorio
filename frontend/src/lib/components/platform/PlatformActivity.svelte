@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
@@ -10,15 +11,12 @@
   import PageHeader from '../ui/PageHeader.svelte';
 
   let items = $state<ActivityItem[] | null>(null);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar la actividad.');
 
   async function load() {
-    try {
+    await ld.run(async () => {
       items = await api.platform.activity();
-      error = '';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar la actividad.';
-    }
+    });
   }
   onMount(load);
 
@@ -31,8 +29,8 @@
 </PageHeader>
 
 <section class="card overflow-hidden">
-  {#if error}
-    <Alert class="m-5">{error}</Alert>
+  {#if ld.error}
+    <Alert class="m-5">{ld.error}</Alert>
   {:else if !items}
     <LoadingRows />
   {:else if items.length === 0}

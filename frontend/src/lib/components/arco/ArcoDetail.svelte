@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
@@ -19,7 +20,7 @@
   let req = $state<ArcoRequest | null>(null);
   let events = $state<ArcoEvent[]>([]);
   let pkg = $state<ArcoPackage | null>(null);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo cargar la solicitud.');
   let tab = $state<'resumen' | 'responder' | 'paquete' | 'historial'>('resumen');
 
   const op = new Op();
@@ -40,14 +41,14 @@
 
   async function load() {
     if (!id) return;
-    loadError = '';
-    try {
-      const r = await arcoApi.get(id);
-      apply(r.request);
-      events = r.events;
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo cargar la solicitud.';
-    }
+    await ld.run(
+      async () => {
+        const r = await arcoApi.get(id);
+        apply(r.request);
+        events = r.events;
+      },
+      { reset: true }
+    );
   }
 
   function apply(r: ArcoRequest) {
@@ -138,8 +139,8 @@
 </script>
 
 <Modal open={!!id} title={req ? `Solicitud ${req.folio}` : 'Solicitud ARCO'} {onclose} wide>
-  {#if loadError}
-    <Alert>{loadError}</Alert>
+  {#if ld.error}
+    <Alert>{ld.error}</Alert>
   {:else if !req}
     <LoadingRows />
   {:else}

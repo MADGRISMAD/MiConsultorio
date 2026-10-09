@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
@@ -10,16 +11,16 @@
 
   let items = $state<ComplianceItem[] | null>(null);
   let legal = $state<Legal | null>(null);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar el cumplimiento.');
   const saveOp = new Op();
 
   async function load() {
-    error = '';
-    try {
-      [items, legal] = await Promise.all([api.legal.compliance(), api.legal.get()]);
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar el cumplimiento.';
-    }
+    await ld.run(
+      async () => {
+        [items, legal] = await Promise.all([api.legal.compliance(), api.legal.get()]);
+      },
+      { reset: true }
+    );
   }
   void load();
 
@@ -35,8 +36,8 @@
   const pending = $derived(items?.filter((i) => i.status === 'todo').length ?? 0);
 </script>
 
-{#if error}
-  <Alert>{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
+{#if ld.error}
+  <Alert>{ld.error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
 {:else if !items || !legal}
   <div class="card"><LoadingRows /></div>
 {:else}

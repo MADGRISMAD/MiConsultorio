@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { labApi } from '$lib/api/lab';
@@ -44,9 +45,8 @@
   let encounters = $state<Encounter[]>([]);
   let prescriptions = $state<Prescription[]>([]);
   let access = $state<AccessEntry[]>([]);
-  let loading = $state(true);
+  const ld = new Loader('No se pudo abrir el expediente.');
   let notFound = $state(false);
-  let loadError = $state('');
   let tab = $state<Tab>('resumen');
 
   const canWrite = $derived(session.has('adminHistorials'));
@@ -66,22 +66,21 @@
   let hasPlanData = $state(false);
 
   async function load() {
-    try {
-      const [p, s, e, r] = await Promise.all([api.patients.get(id), api.patients.schema(), api.patients.encounters(id), api.patients.prescriptions(id)]);
-      patient = p;
-      schema = s;
-      encounters = e;
-      prescriptions = r;
-      loadError = '';
-      if (!(s.kinds ?? []).some((k) => LAB_KINDS.includes(k))) labApi.orders(id).then((o) => (hasLabData = o.length > 0)).catch(() => {});
-      if (!(s.kinds ?? []).some((k) => PLAN_KINDS.includes(k))) specialtyApi.plans(id).then((l) => (hasPlanData = l.length > 0)).catch(() => {});
-      if (isAdmin) api.patients.access(id).then((a) => (access = a)).catch(() => {});
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) notFound = true;
-      else loadError = err instanceof Error ? err.message : 'No se pudo abrir el expediente.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(async () => {
+      try {
+        const [p, s, e, r] = await Promise.all([api.patients.get(id), api.patients.schema(), api.patients.encounters(id), api.patients.prescriptions(id)]);
+        patient = p;
+        schema = s;
+        encounters = e;
+        prescriptions = r;
+        if (!(s.kinds ?? []).some((k) => LAB_KINDS.includes(k))) labApi.orders(id).then((o) => (hasLabData = o.length > 0)).catch(() => {});
+        if (!(s.kinds ?? []).some((k) => PLAN_KINDS.includes(k))) specialtyApi.plans(id).then((l) => (hasPlanData = l.length > 0)).catch(() => {});
+        if (isAdmin) api.patients.access(id).then((a) => (access = a)).catch(() => {});
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) notFound = true;
+        else throw err;
+      }
+    });
   }
   onMount(async () => {
     const q = page.url.searchParams;
@@ -224,12 +223,12 @@
 <Guard permissions={['navHistorials', 'adminHistorials']} title="Expediente">
   <a href="/pacientes" class="btn-ghost -ml-3 mb-3"><Icon name="arrow-left" size={16} />Pacientes</a>
 
-  {#if loading}
+  {#if ld.loading}
     <div class="card"><LoadingRows /></div>
   {:else if notFound}
     <div class="card mx-auto mt-6 max-w-md"><EmptyState icon="search" title="No encontramos este paciente" text="Puede que el enlace sea incorrecto o que el expediente no pertenezca a tu consultorio."><a href="/pacientes" class="btn-primary">Ver pacientes</a></EmptyState></div>
-  {:else if loadError || !patient || !schema}
-    <Alert>{loadError || 'No se pudo abrir el expediente.'}</Alert>
+  {:else if ld.error || !patient || !schema}
+    <Alert>{ld.error || 'No se pudo abrir el expediente.'}</Alert>
   {:else}
     <header class="card mb-5 p-5 sm:p-7">
       <div class="flex flex-wrap items-start justify-between gap-4">

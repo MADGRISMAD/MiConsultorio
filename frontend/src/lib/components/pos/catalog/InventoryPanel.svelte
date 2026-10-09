@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -22,21 +23,15 @@
   const canManage = $derived(session.has('posManage'));
 
   let all = $state<CatalogItem[]>([]);
-  let loading = $state(true);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo cargar el inventario.');
   /** bumped on every reload so the alerts follow the stock */
   let alertsKey = $state(0);
 
   async function load() {
     alertsKey++;
-    try {
+    await ld.run(async () => {
       all = (await api.pos.items()).items;
-      loadError = '';
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo cargar el inventario.';
-    } finally {
-      loading = false;
-    }
+    });
   }
   onMount(load);
 
@@ -158,7 +153,7 @@
   {/snippet}
 </PageHeader>
 
-{#if !loading && !loadError}
+{#if !ld.loading && !ld.error}
   <AlertsPanel refresh={alertsKey} onitem={(id) => (search = all.find((x) => x.id === id)?.name ?? '')} />
   <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {#each [['Artículos controlados', String(tracked.length), ''], ['Bajo mínimo', String(lowCount), lowCount ? 'text-app-danger' : ''], ['Valor al costo', moneyCents(costValue), ''], ['Valor a precio público', moneyCents(retailValue), '']] as [label, val, cls]}
@@ -188,10 +183,10 @@
     <p class="flex items-center gap-2 bg-app-primary/8 px-4 py-2.5 text-sm text-app-primary" role="status"><Icon name="info" size={16} />Escribe la cantidad contada de cada producto. Deja en blanco lo que no cuentes; solo se guardan las diferencias.</p>
   {/if}
 
-  {#if loading}
+  {#if ld.loading}
     <LoadingRows />
-  {:else if loadError}
-    <Alert class="m-5">{loadError}</Alert>
+  {:else if ld.error}
+    <Alert class="m-5">{ld.error}</Alert>
   {:else if !tracked.length}
     <EmptyState icon="box" title="Aún no controlas existencias" text="Marca “Controlar existencias” al editar un producto en tu catálogo y aquí verás cuántas piezas te quedan, con avisos de bajo mínimo.">
       <a class="btn-primary" href="/pos/servicios">Ir al catálogo</a>
@@ -282,7 +277,7 @@
   {/if}
 </div>
 
-{#if !loading && !loadError && untrackedCount}
+{#if !ld.loading && !ld.error && untrackedCount}
   <p class="mt-4 flex items-start gap-2 text-sm text-app-muted">
     <Icon name="info" size={16} class="mt-0.5 shrink-0" />
     <span>Tienes {untrackedCount} {untrackedCount === 1 ? 'producto' : 'productos'} sin control de existencias. {canManage ? 'Edítalos en' : 'Se activa en'} <a class="font-medium text-app-primary underline-offset-2 hover:underline" href="/pos/servicios">Servicios y precios</a> con la opción “Controlar existencias”.</span>

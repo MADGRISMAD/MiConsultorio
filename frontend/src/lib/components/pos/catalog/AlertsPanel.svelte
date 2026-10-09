@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { pos2 } from '$lib/api/pos2';
@@ -17,17 +18,13 @@
   const uid = $props.id();
   let days = $state(60);
   let alerts = $state<PosAlerts | null>(null);
-  let error = $state('');
-  let seq = 0;
+  const ld = new Loader('No se pudieron cargar las alertas.');
 
   async function load() {
-    const my = ++seq;
-    try {
+    await ld.run(async (current) => {
       const a = await pos2.alerts(days);
-      if (my === seq) (alerts = a), (error = '');
-    } catch (e) {
-      if (my === seq) error = e instanceof Error ? e.message : 'No se pudieron cargar las alertas.';
-    }
+      if (current()) alerts = a;
+    });
   }
   onMount(load);
   $effect(() => {
@@ -65,8 +62,8 @@
       </select>
     </div>
   </div>
-  {#if error}
-    <Alert class="m-4">{error}</Alert>
+  {#if ld.error}
+    <Alert class="m-4">{ld.error}</Alert>
   {:else if alerts && total > 0}
     <div class="border-t border-app-ink/10">
       {#if alerts.expired.length}

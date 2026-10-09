@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { securityApi } from '$lib/api/security';
@@ -19,18 +20,18 @@
 
   let policy = $state<TwoFactorPolicy | null>(null);
   let members = $state<SecurityMember[] | null>(null);
-  let error = $state('');
+  const ld = new Loader('No se pudo cargar la seguridad.');
   const policyOp = new Op();
   const resetOp = new Op();
   let target = $state<SecurityMember | null>(null);
 
   async function load() {
-    error = '';
-    try {
-      [policy, members] = await Promise.all([securityApi.policy(), securityApi.members()]);
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'No se pudo cargar la seguridad.';
-    }
+    await ld.run(
+      async () => {
+        [policy, members] = await Promise.all([securityApi.policy(), securityApi.members()]);
+      },
+      { reset: true }
+    );
   }
   void load();
 
@@ -54,8 +55,8 @@
   const withoutIt = $derived(members?.filter((m) => !m.disabled && !m.two_factor_enabled).length ?? 0);
 </script>
 
-{#if error}
-  <Alert>{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
+{#if ld.error}
+  <Alert>{ld.error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
 {:else if !members || !policy}
   <div class="card"><LoadingRows /></div>
 {:else}

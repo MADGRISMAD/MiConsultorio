@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
@@ -22,20 +23,16 @@
   let confirmOff = $state(false);
   let terminals = $state<PointTerminal[]>([]);
   let ready = $state<PointState | null>(null);
-  let loading = $state(false);
-  let loadError = $state('');
+  const ld = new Loader('No se pudieron cargar las terminales.', { loading: false });
   let choosing = $state('');
 
   async function load() {
-    loading = true;
-    loadError = '';
-    try {
-      [terminals, ready] = await Promise.all([api.pos.pointTerminals(), api.pos.pointStatus()]);
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudieron cargar las terminales.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(
+      async () => {
+        [terminals, ready] = await Promise.all([api.pos.pointTerminals(), api.pos.pointStatus()]);
+      },
+      { reset: true }
+    );
   }
   $effect(() => {
     if (providers.point_connected) void load();
@@ -105,10 +102,10 @@
           <span>{ready.ok ? `Lista para cobrar${ready.terminal_label ? ` en ${ready.terminal_label}` : ''}.` : ready.message}</span>
         </p>
       {/if}
-      {#if loading && !terminals.length}
+      {#if ld.loading && !terminals.length}
         <div class="mt-2 h-12 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
-      {:else if loadError}
-        <Alert class="mt-2">{loadError}</Alert>
+      {:else if ld.error}
+        <Alert class="mt-2">{ld.error}</Alert>
       {:else if !terminals.length}
         <p class="mt-2 text-sm text-app-muted">No encontramos terminales vinculadas a tu cuenta. Vincula tu Point desde la app de Mercado Pago y actualiza.</p>
       {:else}

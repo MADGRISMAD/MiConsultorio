@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -35,8 +36,7 @@
   let items = $state<CatalogItem[]>([]);
   let categories = $state<string[]>([]);
   let cash = $state<CashSession | null>(null);
-  let loading = $state(true);
-  let loadError = $state('');
+  const ld = new Loader('No se pudo cargar el punto de venta.');
   let people = $state<SalePerson[]>([]);
   let professionals = $state<PosProfessional[]>([]);
   let planOpen = $state<PlanPrefill | null>(null);
@@ -84,19 +84,16 @@
   }
 
   async function load() {
-    loading = true;
-    loadError = '';
-    try {
-      const s = await api.pos.settings();
-      settings = s.settings;
-      cart.configure(settings);
-      await Promise.all([loadItems(), loadCash()]);
-      void prefill();
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : 'No se pudo cargar el punto de venta.';
-    } finally {
-      loading = false;
-    }
+    await ld.run(
+      async () => {
+        const s = await api.pos.settings();
+        settings = s.settings;
+        cart.configure(settings);
+        await Promise.all([loadItems(), loadCash()]);
+        void prefill();
+      },
+      { reset: true }
+    );
   }
 
   /** Loads a consultation's pre-account (services and supplies) into the cart. */
@@ -300,23 +297,23 @@
       <a href="/pos/caja" class="pill pill-ok min-h-9 px-3.5 text-[13px]" title="Ver caja">
         <Icon name="cash" size={15} />Caja abierta · desde {sinceText(cash.opened_at)} · {cash.sales} {cash.sales === 1 ? 'venta' : 'ventas'}
       </a>
-    {:else if settings && !loading}
+    {:else if settings && !ld.loading}
       <a href="/pos/caja" class="pill pill-warn min-h-9 px-3.5 text-[13px]"><Icon name="lock" size={15} />Caja cerrada</a>
     {/if}
   {/snippet}
 </PageHeader>
 
-{#if loadError}
+{#if ld.error}
   <div class="card p-6">
-    <Alert>{loadError}</Alert>
+    <Alert>{ld.error}</Alert>
     <button type="button" class="btn-primary mt-4" onclick={load}><Icon name="refresh" size={16} />Reintentar</button>
   </div>
 {:else if done && settings}
   <SaleDone sale={done.sale} change={done.change} {printing} onprint={() => print(done!.sale)} onnew={() => (done = null)} />
 {:else}
-  {#if !loading}<AlertsSummary />{/if}
-  {#if !loading && settings}<ConsultChargesPanel activeId={cart.consultChargeId} refreshKey={chargesKey} onopen={openCharge} />{/if}
-  {#if needsCash && !loading}
+  {#if !ld.loading}<AlertsSummary />{/if}
+  {#if !ld.loading && settings}<ConsultChargesPanel activeId={cart.consultChargeId} refreshKey={chargesKey} onopen={openCharge} />{/if}
+  {#if needsCash && !ld.loading}
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 border-app-warning/40 bg-app-warning/10 px-4 py-3" role="status">
       <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />La caja está cerrada. Ábrela para poder cobrar.</p>
       <button type="button" class="btn-primary min-h-11" onclick={() => ((afterCash = null), (cashOpen = true))}>Abrir caja</button>
@@ -324,10 +321,10 @@
   {/if}
 
   <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
-    <CatalogBrowser {items} {loading} allowNegative={settings?.allow_negative_stock ?? false} {inCart} onadd={add} />
+    <CatalogBrowser {items} loading={ld.loading} allowNegative={settings?.allow_negative_stock ?? false} {inCart} onadd={add} />
 
     <aside class="min-w-0 lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col">
-      <CartPanel {cart} {canEditPrice} {people} {professionals} showTax={settings?.show_tax_line ?? true} busy={loading || !settings} onfree={() => (freeOpen = true)} oncheckout={checkoutClicked} />
+      <CartPanel {cart} {canEditPrice} {people} {professionals} showTax={settings?.show_tax_line ?? true} busy={ld.loading || !settings} onfree={() => (freeOpen = true)} oncheckout={checkoutClicked} />
     </aside>
   </div>
 
@@ -338,7 +335,7 @@
         <span class="block text-xs text-app-muted">{cart.count} {cart.count === 1 ? 'concepto' : 'conceptos'} · ver cuenta</span>
         <span class="display block text-2xl tabular-nums" aria-live="polite">{moneyCents(cart.total)}</span>
       </a>
-      <button type="button" class="btn-primary min-h-12 px-8 text-base" disabled={!!cart.problem || loading} onclick={checkoutClicked}>Cobrar</button>
+      <button type="button" class="btn-primary min-h-12 px-8 text-base" disabled={!!cart.problem || ld.loading} onclick={checkoutClicked}>Cobrar</button>
     </div>
   {/if}
 {/if}
