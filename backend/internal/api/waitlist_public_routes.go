@@ -475,7 +475,7 @@ func (s *Server) wlAccept(ctx context.Context, token string, v *wlView, clinicID
 		_ = s.db.QueryRow(ctx, `SELECT email FROM appointments WHERE id = $1`, apptID).Scan(&email)
 		if email != "" {
 			subject, text, html := s.bookingMail(info, false)
-			s.sendMail(mail.Message{To: []string{email}, Subject: subject, Text: text, HTML: html})
+			s.sendMail(mail.Message{To: []string{email}, Subject: subject, Text: text, HTML: html, Attachments: info.calendarAttachments(false, s.manageLink(info.Token, ""))})
 		}
 	}
 	return "", nil

@@ -494,7 +494,7 @@ func (s *Server) portalHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	names := patientNames(pts)
 	rows, err := s.db.Query(r.Context(), `
-		SELECT * FROM (
+		SELECT id, patient_id, at, type, title, by, area FROM (
 			SELECT e.id::text, e.patient_id::text, e.occurred_at AS at, 'consulta' AS type, e.kind AS title, e.author_name AS by,
 			       CASE WHEN cardinality(u.areas) = 1 THEN u.areas[1] ELSE '' END AS area
 			FROM encounters e LEFT JOIN users u ON u.id = e.author_id

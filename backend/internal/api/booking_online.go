@@ -585,7 +585,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 	info, ok, err := b.loadApptInfo(ctx, b.db, c.ID, apptID)
 	if err == nil && ok && req.Email != "" {
 		subject, text, html := b.bookingMail(info, c.RequiresConfirmation)
-		b.sendMail(mail.Message{To: []string{req.Email}, Subject: subject, Text: text, HTML: html})
+		b.sendMail(mail.Message{To: []string{req.Email}, Subject: subject, Text: text, HTML: html, Attachments: info.calendarAttachments(c.RequiresConfirmation, b.manageLink(info.Token, ""))})
 	}
 	b.mailSpecialist(ctx, c, pro, req, end)
 	writeJSON(w, http.StatusCreated, map[string]any{"appointment": map[string]any{

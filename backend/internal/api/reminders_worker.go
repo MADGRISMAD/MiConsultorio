@@ -91,7 +91,7 @@ func (t reminderTarget) active() bool { return t.Status == "scheduled" || t.Stat
 // loadReminderTarget reads an appointment with its contact data and the clinic's reminder settings.
 // ok is false when the appointment does not belong to the clinic.
 func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID, appointmentID string) (t reminderTarget, ok bool, err error) {
-	var date, start, tz string
+	var date, start, endClock, tz string
 	var apEmail, apPhone, pEmail, pPhone, gEmail, gPhone, oEmail, oPhone string
 	var apConsent, pConsent bool
 	var slug *string
@@ -105,7 +105,8 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 		       c.name, c.address, c.phone_number, coalesce(c.settings->>'timezone', ''),
 		       coalesce(u.name, ''), coalesce(ci.name, ''),
 		       coalesce(s.remind_email, true), coalesce(s.remind_whatsapp, false), coalesce(s.remind_hours, '{24,2}'), coalesce(s.reminder_template, ''),
-		       coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, '')
+		       coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''),
+		       ap.id::text, to_char(ap.end_hour, 'HH24:MI'), ap.updated_at
 		FROM appointments ap
 		JOIN clinics c ON c.id = ap.clinic_id
 		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
@@ -121,7 +122,7 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 			&t.Info.ClinicName, &t.Info.ClinicAddress, &t.Info.ClinicPhone, &tz,
 			&t.Info.Professional, &t.Info.Service,
 			&t.RemindEmail, &t.RemindWA, &t.Hours, &t.Note,
-			&enabled, &slug, &t.Info.VideoURL)
+			&enabled, &slug, &t.Info.VideoURL, &t.Info.ID, &endClock, &t.Info.Modified)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, false, nil
 	}
@@ -137,6 +138,9 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 	t.Phone = firstNonEmpty(apPhone, pPhone, gPhone, oPhone)
 	t.Start, err = localTime(locationOrDefault(tz), date, start)
 	t.Info.Start = t.Start
+	if err == nil {
+		t.Info.End, _ = localTime(locationOrDefault(tz), date, endClock)
+	}
 	return t, err == nil, err
 }
 
@@ -315,7 +319,7 @@ func (s *Server) deliverReminder(ctx context.Context, q queryRower, r reminderRo
 		subject, text, html := s.reminderMail(t.Info, t.Note)
 		sctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 		defer cancel()
-		if err := s.mailer.Send(sctx, mail.Message{To: []string{t.Email}, Subject: subject, Text: text, HTML: html}); err != nil {
+		if err := s.mailer.Send(sctx, mail.Message{To: []string{t.Email}, Subject: subject, Text: text, HTML: html, Attachments: t.Info.calendarAttachments(false, s.manageLink(t.Info.Token, ""))}); err != nil {
 			return "failed", truncate("Correo: "+err.Error(), 300), true
 		}
 		return "sent", "", false

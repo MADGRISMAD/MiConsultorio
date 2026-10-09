@@ -25,6 +25,9 @@ type apptInfo struct {
 	PatientName                            string // first name only; for a pet, the owner's
 	PetName                                string // the pet's name when the patient is an animal
 	Start                                  time.Time
+	ID                                     string    // appointment id (the calendar event's identity)
+	End                                    time.Time // when the visit ends
+	Modified                               time.Time // last change (the calendar event's version)
 	Token                                  string
 	Slug                                   string // booking slug when online booking is enabled
 	VideoURL                               string // the professional's video-call link, when they have one
@@ -231,12 +234,13 @@ func (s *Server) reminderMail(a apptInfo, note string) (subject, text, html stri
 	if note != "" {
 		text += "\n" + note + "\n"
 	}
-	text += "\n¿Asistirás a tu cita?\nSí, asistiré: " + confirm + "\nNo podré asistir: " + s.manageLink(a.Token, "accion=cancelar") + "\n\nSi no respondes, tu cita sigue agendada. ¿Prefieres otro día? Reagendar: " + s.manageLink(a.Token, "accion=reagendar") + "\n\nSi ya no quieres recibir recordatorios:\n" + optout + "\n"
+	text += "\n¿Asistirás a tu cita?\nSí, asistiré: " + confirm + "\nNo podré asistir: " + s.manageLink(a.Token, "accion=cancelar") + "\n\nSi no respondes, tu cita sigue agendada. ¿Prefieres otro día? Reagendar: " + s.manageLink(a.Token, "accion=reagendar") + "\n" + a.calendarText() + "\nSi ya no quieres recibir recordatorios:\n" + optout + "\n"
 	body := `<p style="margin:0 0 8px">` + esc(hello) + `, te recordamos ` + esc(a.citaDe()) + ` en <strong>` + esc(a.ClinicName) + `</strong> ` + esc(when) + `.</p>` + a.details()
 	if note != "" {
 		body += `<p style="margin:12px 0">` + esc(note) + `</p>`
 	}
 	body += s.attendRow(a.Token) +
+		a.calendarHTML() +
 		`<p style="font-size:13px;color:#7a8b9b;margin:14px 0 0">Si ya no quieres recibir recordatorios, ` + smallLink(optout, "date de baja aquí") + `.</p>`
 	return subject, text, layout("Recordatorio de tu cita", body)
 }
@@ -256,20 +260,21 @@ func (s *Server) bookingMail(a apptInfo, pendingClinic bool) (subject, text, htm
 	}
 	manage := s.manageLink(a.Token, "")
 	subject = title + " · " + a.ClinicName
-	text = hello + ", " + lead + "\n\n" + a.detailsText() + "\nPuedes confirmar, reagendar o cancelar aquí:\n" + manage + "\n"
-	body := `<p style="margin:0 0 8px">` + esc(hello) + `, ` + esc(lead) + `</p>` + a.details() + button(manage, "Administrar mi cita")
+	text = hello + ", " + lead + "\n\n" + a.detailsText() + "\nPuedes confirmar, reagendar o cancelar aquí:\n" + manage + "\n" + a.calendarText()
+	body := `<p style="margin:0 0 8px">` + esc(hello) + `, ` + esc(lead) + `</p>` + a.details() + button(manage, "Administrar mi cita") + a.calendarHTML()
 	return subject, text, layout(title, body)
 }
 
 // loadApptInfo gathers the data describing one appointment of a clinic. ok is false when it does not exist.
 func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appointmentID string) (a apptInfo, ok bool, err error) {
-	var date, start, tz string
+	var date, start, endClock, tz string
 	var enabled bool
 	var slug *string
 	err = q.QueryRow(ctx, `
 		SELECT c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), `+patientGreetingSQL+`,
 		       to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), coalesce(ap.confirm_token, ''),
-		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, '')
+		       coalesce(c.settings->>'timezone', ''), coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''),
+		       ap.id::text, to_char(ap.end_hour, 'HH24:MI'), ap.updated_at
 		FROM appointments ap
 		JOIN clinics c ON c.id = ap.clinic_id
 		LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
@@ -279,7 +284,7 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 		LEFT JOIN catalog_items ci ON ci.id = ap.service_id AND ci.clinic_id = ap.clinic_id
 		LEFT JOIN agenda_settings s ON s.clinic_id = ap.clinic_id
 		WHERE ap.clinic_id = $1 AND ap.id = $2`, clinicID, appointmentID).
-		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug, &a.VideoURL)
+		Scan(&a.ClinicName, &a.ClinicAddress, &a.ClinicPhone, &a.Professional, &a.Service, &a.PatientName, &a.PetName, &date, &start, &a.Token, &tz, &enabled, &slug, &a.VideoURL, &a.ID, &endClock, &a.Modified)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, false, nil
 	}
@@ -290,6 +295,10 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 	if enabled && slug != nil {
 		a.Slug = *slug
 	}
-	a.Start, err = localTime(locationOrDefault(tz), date, start)
+	loc := locationOrDefault(tz)
+	a.Start, err = localTime(loc, date, start)
+	if err == nil {
+		a.End, _ = localTime(loc, date, endClock)
+	}
 	return a, err == nil, err
 }

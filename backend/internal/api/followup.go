@@ -167,5 +167,5 @@ func (s *Server) mailBooked(ctx context.Context, clinicID, appointmentID string)
 		return
 	}
 	subject, text, html := s.bookingMail(t.Info, false)
-	s.sendMail(mail.Message{To: []string{t.Email}, Subject: subject, Text: text, HTML: html})
+	s.sendMail(mail.Message{To: []string{t.Email}, Subject: subject, Text: text, HTML: html, Attachments: t.Info.calendarAttachments(false, s.manageLink(t.Info.Token, ""))})
 }

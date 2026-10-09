@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AddToCalendar from '$lib/components/ui/AddToCalendar.svelte';
   import { onMount } from 'svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
@@ -8,7 +9,7 @@
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
   import { fmtDay, t } from '$lib/i18n/index.svelte';
 
-  let { slug, patientId, multi }: { slug: string; patientId: string; multi: boolean } = $props();
+  let { slug, patientId, multi, clinic }: { slug: string; patientId: string; multi: boolean; clinic: { name: string; address: string } } = $props();
 
   let upcoming = $state<PortalAppointment[]>([]);
   let history = $state<PortalAppointment[]>([]);
@@ -77,6 +78,7 @@
     <div class="flex flex-col items-end gap-2">
       <span class={tone(a.status)}>{statusLabel(a.status)}</span>
       {#if withCancel}
+        <AddToCalendar size="small" event={{ title: `Cita en ${clinic.name}`, date: a.date, start: a.start_hour, end: a.end_hour, location: clinic.address, details: [a.professional && `Atiende: ${a.professional}`, a.service && `Servicio: ${a.service}`].filter(Boolean).join('\n'), uid: a.id }} />
         {#if a.can_cancel}
           <button class="btn-secondary !min-h-9" onclick={() => { target = a; reason = ''; cancelOp.reset(); }}>{t('portal.appts.cancel')}</button>
         {:else}

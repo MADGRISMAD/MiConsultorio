@@ -181,6 +181,16 @@ func TestBookingAvailabilityAndDoubleBooking(t *testing.T) {
 	if m.To[0] != "ana@correo.mx" || !strings.Contains(m.Text, "/cita/"+b.token(out)) {
 		t.Fatalf("confirmation mail: %+v", m)
 	}
+	// the visit goes to the patient's calendar: an .ics attached and a Google Calendar link
+	if len(m.Attachments) != 1 || m.Attachments[0].Name != "cita.ics" || !strings.Contains(m.HTML, "calendar.google.com/calendar/render") {
+		t.Fatalf("calendar invitation: %+v", m.Attachments)
+	}
+	ics := string(m.Attachments[0].Data)
+	for _, want := range []string{"BEGIN:VEVENT", "UID:cita-", "DTSTART:", "DTEND:", "SUMMARY:Cita en Clinica a", "STATUS:CONFIRMED", "BEGIN:VALARM"} {
+		if !strings.Contains(ics, want) {
+			t.Fatalf("ics lacks %q:\n%s", want, ics)
+		}
+	}
 	var logged int
 	_ = b.pool.QueryRow(context.Background(), `SELECT count(*) FROM activity_log WHERE type = 'appointment_booked_online' AND clinic_id = $1`, b.clinicA).Scan(&logged)
 	if logged != 1 {
@@ -383,6 +393,9 @@ func TestRemindersScheduleAndSend(t *testing.T) {
 	m := b.mail.wait(t, 3)
 	if m.To[0] != "ana@correo.mx" || !strings.Contains(m.Text, "/cita/"+tok+"?accion=confirmar") || !strings.Contains(m.Text, "baja=1") || !strings.Contains(m.HTML, "No podré asistir") || !strings.Contains(m.HTML, "Si no respondes, tu cita sigue agendada") || !strings.Contains(m.Text, "accion=cancelar") {
 		t.Fatalf("reminder mail: %+v", m)
+	}
+	if len(m.Attachments) != 1 || !strings.Contains(string(m.Attachments[0].Data), "SEQUENCE:") {
+		t.Fatalf("the reminder carries the same calendar event: %+v", m.Attachments)
 	}
 	if b.wa.count() != 2 {
 		t.Fatalf("whatsapp calls: %d", b.wa.count())

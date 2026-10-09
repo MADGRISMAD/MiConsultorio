@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AddToCalendar from '$lib/components/ui/AddToCalendar.svelte';
   import { page } from '$app/state';
   import { bookingApi } from '$lib/api/booking';
   import { Op } from '$lib/op.svelte';
@@ -116,6 +117,9 @@
     <div class="mt-6 grid gap-3">
       {#if appt.can_confirm}
         <button class="btn-primary btn-lg" onclick={confirm} disabled={act.phase === 'loading'}><Icon name="check" size={18} />{t('appt.confirm')}</button>
+      {/if}
+      {#if !appt.past && (appt.status === 'scheduled' || appt.status === 'confirmed')}
+        <AddToCalendar event={{ title: `Cita en ${appt.clinic.name}`, date: appt.date, start: appt.start, end: appt.end, location: appt.clinic.address, details: [appt.professional && `Atiende: ${appt.professional}`, appt.service && `Servicio: ${appt.service}`, appt.clinic.phone && `Teléfono: ${appt.clinic.phone}`].filter(Boolean).join('\n') }} />
       {/if}
       {#if appt.rebook_slug && !appt.past && (appt.status === 'scheduled' || appt.status === 'confirmed' || appt.status === 'cancelled')}
         <a class="btn-secondary btn-lg" href="/reservar/{appt.rebook_slug}"><Icon name="calendar" size={18} />{appt.status === 'cancelled' ? t('appt.rebookNew') : t('appt.rebook')}</a>

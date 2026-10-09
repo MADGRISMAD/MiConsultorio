@@ -138,7 +138,7 @@
 
     <div role="tabpanel" id="pp-{tab}" aria-labelledby="pt-{tab}">
       {#if tab === 'citas'}
-        <AppointmentsPane {slug} {patientId} {multi} />
+        <AppointmentsPane {slug} {patientId} {multi} clinic={me.clinic} />
       {:else if tab === 'recetas'}
         <RxPane patients={me.patients} {patientId} {multi} />
       {:else if tab === 'historial'}
