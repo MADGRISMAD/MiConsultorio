@@ -42,17 +42,18 @@ type encounter struct {
 	AuthorRole     string         `json:"author_role"`
 	AuthorLicense  string         `json:"author_license"`
 	CreatedAt      time.Time      `json:"created_at"`
+	NextVisit      *string        `json:"next_visit"` // suggested date of the next consultation (YYYY-MM-DD)
 }
 
 const encounterCols = `id, patient_id, kind, occurred_at, appointment_id::text, reason, subjective, measures, exam, assessment, diagnosis_codes,
-	plan, notes, private, addendum_of::text, coalesce(author_id::text, ''), author_name, author_role, author_license, created_at`
+	plan, notes, private, addendum_of::text, coalesce(author_id::text, ''), author_name, author_role, author_license, created_at, to_char(next_visit, 'YYYY-MM-DD')`
 
 func scanEncounter(row pgx.Row, me string) (encounter, error) {
 	var e encounter
 	var raw []byte
 	var authorID string
 	err := row.Scan(&e.ID, &e.PatientID, &e.Kind, &e.OccurredAt, &e.AppointmentID, &e.Reason, &e.Subjective, &raw, &e.Exam, &e.Assessment, &e.DiagnosisCodes,
-		&e.Plan, &e.Notes, &e.Private, &e.AddendumOf, &authorID, &e.AuthorName, &e.AuthorRole, &e.AuthorLicense, &e.CreatedAt)
+		&e.Plan, &e.Notes, &e.Private, &e.AddendumOf, &authorID, &e.AuthorName, &e.AuthorRole, &e.AuthorLicense, &e.CreatedAt, &e.NextVisit)
 	if err != nil {
 		return e, err
 	}
@@ -135,6 +136,7 @@ type encounterIn struct {
 	Plan           string         `json:"plan"`
 	Notes          string         `json:"notes"`
 	Private        bool           `json:"private"`
+	NextVisit      string         `json:"next_visit"` // optional suggested date for the next consultation
 }
 
 func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
@@ -175,6 +177,11 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "Uno de los textos es demasiado largo.")
 			return
 		}
+	}
+	in.NextVisit = strings.TrimSpace(in.NextVisit)
+	if _, err := time.Parse("2006-01-02", in.NextVisit); in.NextVisit != "" && err != nil {
+		writeError(w, http.StatusBadRequest, "La fecha de la siguiente consulta no es válida.")
+		return
 	}
 	measures, msg := cleanValues(measureFields(subject, kinds), in.Measures, false)
 	if msg != "" {
@@ -232,10 +239,10 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		row := tx.QueryRow(r.Context(), `
 			INSERT INTO encounters (clinic_id, patient_id, kind, occurred_at, appointment_id, reason, subjective, measures, exam, assessment,
-				diagnosis_codes, plan, notes, private, author_id, author_name, author_role, author_license, id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::uuid) RETURNING `+encounterCols,
+				diagnosis_codes, plan, notes, private, author_id, author_name, author_role, author_license, id, next_visit)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::uuid, nullif($20, '')::date) RETURNING `+encounterCols,
 			p.ClinicID, id, in.Kind, occurred, appt, in.Reason, sub, jsonOrEmpty(measures), exam, assess, codes, plan, notes,
-			in.Private, p.UserID, p.actorName(), roleLabels[p.Role], license, encID)
+			in.Private, p.UserID, p.actorName(), roleLabels[p.Role], license, encID, in.NextVisit)
 		var err error
 		if out, err = scanEncounter(row, p.UserID); err != nil {
 			return err

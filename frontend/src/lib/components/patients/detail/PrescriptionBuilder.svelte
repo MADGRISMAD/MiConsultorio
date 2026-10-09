@@ -18,10 +18,12 @@
     schema: PatientSchema;
     encounterId?: string;
     diagnosis?: string;
+    /** the next consultation suggested in the note (YYYY-MM-DD) */
+    nextVisit?: string;
     onclose: () => void;
     oncreated: (rx: Prescription) => void;
   }
-  let { open, patient, schema, encounterId, diagnosis: diagnosisSeed = '', onclose, oncreated }: Props = $props();
+  let { open, patient, schema, encounterId, diagnosis: diagnosisSeed = '', nextVisit: nextVisitSeed = '', onclose, oncreated }: Props = $props();
 
   const instr = $derived(schema.rx_mode === 'instructions');
   const CONTROLS: RxControl[] = ['No', 'Antibiótico', 'Fracción III', 'Fracción I o II'];
@@ -67,6 +69,7 @@
       reasonText = weight = weightNote = '';
       loadWeight();
       instructions = nextVisit = error = '';
+      if (nextVisitSeed >= today) nextVisit = nextVisitSeed;
       validDays = 30;
       needCedula = false;
       created = null;
@@ -81,6 +84,12 @@
   async function loadWeight() {
     try {
       const list = await api.patients.encounters(patient.id);
+      // opened from the recetas tab (no note picked): start from the latest note's diagnosis and suggested next visit
+      const latest = [...list].filter((e) => !e.hidden && !e.addendum_of).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0];
+      if (latest) {
+        if (!diagnosis.trim() && latest.assessment?.trim()) diagnosis = latest.assessment.trim();
+        if (!nextVisit && latest.next_visit && latest.next_visit >= today) nextVisit = latest.next_visit;
+      }
       const last = [...list]
         .filter((e) => !e.hidden && Number(e.measures?.weight_kg) > 0)
         .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0];

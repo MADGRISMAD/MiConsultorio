@@ -53,7 +53,7 @@
   let prefill = $state<{ appointment_id?: string; reason?: string } | undefined>();
   let addendumFor = $state<Encounter | null>(null);
   let rxOpen = $state(false);
-  let rxEncounter = $state<{ id?: string; diagnosis?: string }>({});
+  let rxEncounter = $state<{ id?: string; diagnosis?: string; nextVisit?: string }>({});
 
   /** Giros that order or interpret lab studies. The others keep their studies in Archivos. */
   const LAB_KINDS = ['GENERAL_MEDICAL', 'INTERNAL_MEDICINE', 'PEDIATRICS', 'GYNECOLOGY', 'DERMATOLOGY', 'ORTHOPEDICS', 'VETERINARY'];
@@ -103,7 +103,7 @@
     formOpen = false;
     await refreshEncounters();
     if (thenRx) {
-      rxEncounter = { id: e.id, diagnosis: e.assessment };
+      rxEncounter = { id: e.id, diagnosis: e.assessment, nextVisit: e.next_visit ?? '' };
       rxOpen = true;
       tab = 'recetas';
     }
@@ -302,7 +302,7 @@
 
     <EncounterForm open={formOpen} {patient} {schema} {prefill} onclose={() => (formOpen = false)} onsaved={saved} />
     <AddendumModal target={addendumFor} onclose={() => (addendumFor = null)} onsaved={async () => { addendumFor = null; await refreshEncounters(); }} />
-    <PrescriptionBuilder open={rxOpen} {patient} {schema} encounterId={rxEncounter.id} diagnosis={rxEncounter.diagnosis} onclose={() => (rxOpen = false)} oncreated={refreshRx} />
+    <PrescriptionBuilder open={rxOpen} {patient} {schema} encounterId={rxEncounter.id} diagnosis={rxEncounter.diagnosis} nextVisit={rxEncounter.nextVisit} onclose={() => (rxOpen = false)} oncreated={refreshRx} />
 
     <ConfirmModal open={archiveOpen} title="Archivar expediente" op={archiveOp} onconfirm={archive} onclose={() => (archiveOpen = false)} confirmLabel="Archivar">
       <p>El expediente dejará de aparecer entre los pacientes activos, pero <strong class="text-app-ink">no se borra</strong>: por norma (NOM-004) se conserva al menos 5 años desde el último acto médico. Puedes reactivarlo cuando quieras.</p>

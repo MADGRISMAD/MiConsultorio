@@ -163,7 +163,8 @@
         diagnosis_codes: codes,
         plan: plan.trim(),
         notes: notes.trim(),
-        private: isPrivate
+        private: isPrivate,
+        ...(followDate ? { next_visit: followDate } : {})
       });
     });
     if (ok && saved) {

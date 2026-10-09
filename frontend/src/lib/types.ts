@@ -740,6 +740,8 @@ export interface Encounter {
   author_role: string;
   author_license: string;
   created_at: string;
+  /** the professional's suggested date for the next consultation (YYYY-MM-DD) */
+  next_visit?: string | null;
 }
 
 export interface EncounterInput {
@@ -755,6 +757,7 @@ export interface EncounterInput {
   plan: string;
   notes: string;
   private: boolean;
+  next_visit?: string;
 }
 
 export type RxControl = 'No' | 'Antibiótico' | 'Fracción III' | 'Fracción I o II';

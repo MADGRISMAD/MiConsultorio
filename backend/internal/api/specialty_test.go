@@ -551,3 +551,19 @@ func TestNutritionPlanAIVariesFromPreviousPlans(t *testing.T) {
 		t.Fatalf("the retry says it repeated: %s", prompts[1])
 	}
 }
+
+func TestEncounterKeepsTheSuggestedNextVisit(t *testing.T) {
+	e := setup(t)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/encounters"
+	doc.expect(400, "POST", url, map[string]any{"reason": "Control", "next_visit": "mañana"})
+	out := sub(doc.expect(201, "POST", url, map[string]any{"reason": "Control", "assessment": "Faringitis", "next_visit": "2030-05-20"}), "encounter")
+	if out["next_visit"] != "2030-05-20" {
+		t.Fatalf("next_visit: %v", out["next_visit"])
+	}
+	none := sub(doc.expect(201, "POST", url, map[string]any{"reason": "Otra"}), "encounter")
+	if none["next_visit"] != nil {
+		t.Fatalf("no suggestion: %v", none["next_visit"])
+	}
+}
