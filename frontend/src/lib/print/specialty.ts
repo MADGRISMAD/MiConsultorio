@@ -92,14 +92,16 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
       .map((m) => `<tr class="nobreak"><td><strong>${e(m.name)}</strong>${m.time ? `<div class="small">${e(m.time)}</div>` : ''}</td><td>${multiline(m.items)}</td><td style="text-align:right">${m.kcal ? `${m.kcal} kcal` : ''}</td></tr>`)
       .join('');
   const days = d.days?.length ? d.days : d.meals?.length ? [{ name: 'Día tipo', meals: d.meals }] : [];
-  // weekly calendar: one row per day, one column per meal (by position, like the screen)
+  // weekly calendar: one row per day, one column per meal (by position, like the screen). Compact so a week fits a portrait page.
   const cols = (days[0]?.meals ?? []).map((m) => m.name);
   const kcalOf = (list: NutritionPlanData['meals']) => list.reduce((s, m) => s + (m.kcal || 0), 0);
   const meals = cols.length
-    ? `<table class="grid-t week"><thead><tr><th style="width:11%"></th>${cols.map((c) => `<th>${e(c)}</th>`).join('')}<th style="width:8%">Total</th></tr></thead><tbody>${days
+    ? `<table class="grid-t week"><thead><tr><th class="day"></th>${cols.map((c) => `<th>${e(c)}</th>`).join('')}</tr></thead><tbody>${days
         .map(
           (day) =>
-            `<tr class="nobreak"><th class="day">${e(day.name)}</th>${cols.map((_, i) => `<td>${day.meals[i] ? multiline(day.meals[i].items) + (day.meals[i].kcal ? `<div class="small k">${day.meals[i].kcal} kcal</div>` : '') : ''}</td>`).join('')}<td class="c">${kcalOf(day.meals) ? `${kcalOf(day.meals)} kcal` : ''}</td></tr>`
+            `<tr><th class="day">${e(day.name)}${kcalOf(day.meals) ? `<div class="k">${kcalOf(day.meals)} kcal</div>` : ''}</th>${cols
+              .map((_, i) => `<td>${day.meals[i] ? multiline(day.meals[i].items) + (day.meals[i].kcal ? `<span class="k"> · ${day.meals[i].kcal} kcal</span>` : '') : ''}</td>`)
+              .join('')}</tr>`
         )
         .join('')}</tbody></table>`
     : '';
@@ -115,8 +117,16 @@ ${block('Recomendaciones', d.recommendations)}${block('Alimentos o hábitos a ev
 ${d.follow_up_days ? `<p><span class="k">Siguiente cita</span>En ${d.follow_up_days} días aproximadamente.</p>` : ''}
 ${d.basis ? `<p class="small">${e(d.basis)}</p>` : ''}
 <div class="sig nobreak">Firma del nutriólogo</div>
-<div class="footer">${e(FOOTER_CONF)}</div>`;
-  return doc('Plan nutricional', body, '.grid-t th,.grid-t td{border:1px solid #000;padding:4px 8px;font-size:11px;vertical-align:top}.grid-t th{background:#eee}.week th,.week td{font-size:10.5px;padding:4px 5px}.week th.day{text-align:left;background:#eee;font-size:11.5px}.week .k{color:#444;margin-top:2px}.week .c{text-align:center;vertical-align:middle}h2{margin:10px 0 4px}@page{size:letter landscape;margin:12mm}');
+<div class="small" style="margin-top:12px;text-align:center;color:#333">${e(FOOTER_CONF)}</div>`;
+  return doc(
+    'Plan nutricional',
+    body,
+    '@page{size:letter portrait;margin:10mm 10mm 12mm}h2{margin:10px 0 4px;break-after:avoid;page-break-after:avoid}p{orphans:2;widows:2}' +
+      '.grid-t th,.grid-t td{border:1px solid #000;padding:3px 4px;font-size:8.4px;line-height:1.22;vertical-align:top}.grid-t th{background:#eee}' +
+      '.week{table-layout:fixed}.week thead{display:table-header-group}.week tr{break-inside:avoid;page-break-inside:avoid}' +
+      '.week th.day{width:9%;text-align:left;font-size:9px}.week thead th{text-align:center;text-transform:uppercase;letter-spacing:.03em}' +
+      '.week .k{color:#444;font-size:7.6px;font-weight:400;display:inline}.week th.day .k{display:block;margin-top:2px}'
+  );
 }
 
 const STATUS: Record<string, string> = { draft: 'Borrador', proposed: 'Propuesto', accepted: 'Aceptado', in_progress: 'En curso', completed: 'Completado', cancelled: 'Cancelado' };
