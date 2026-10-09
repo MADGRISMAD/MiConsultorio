@@ -34,3 +34,16 @@ func TestRecommendedFollowUpGoesToTheAgendaPendingConfirmation(t *testing.T) {
 	doc.expect(400, "POST", url, map[string]any{"date": "no es fecha"})
 	cash.expect(403, "POST", url, map[string]any{"date": date})
 }
+
+func TestQuickRegistrationCanRecordThePrivacyNotice(t *testing.T) {
+	e := setup(t)
+	recep := e.login("recep_a")
+	with := sub(recep.expect(201, "POST", "/api/patients/quick", map[string]any{"names": "Luis", "last_names": "Gómez", "phone": "664 111 2222", "privacy_ack": true}), "patient")
+	if with["privacy_notice_at"] == nil || with["privacy_notice_by"] == "" {
+		t.Fatalf("the notice must be recorded: %v", with)
+	}
+	without := sub(recep.expect(201, "POST", "/api/patients/quick", map[string]any{"names": "Eva", "last_names": "Ruiz", "phone": "664 111 3333"}), "patient")
+	if without["privacy_notice_at"] != nil {
+		t.Fatalf("without the box the notice stays pending: %v", without)
+	}
+}

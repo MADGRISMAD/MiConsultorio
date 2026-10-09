@@ -23,6 +23,7 @@
   let phone = $state('');
   let ownerName = $state('');
   let ownerSurnames = $state('');
+  let privacyAck = $state(false);
   /** surnames of a full name: the last two words, or the last one of a two-word name */
   const surnamesOf = (full: string) => {
     const w = full.trim().split(/\s+/).filter(Boolean);
@@ -42,6 +43,7 @@
   $effect(() => {
     if (!open) return;
     names = lastNames = phone = ownerName = ownerSurnames = ownerPhone = error = '';
+    privacyAck = false;
     owner = null;
     op.reset();
     if (schema) return;
@@ -70,9 +72,9 @@
       created = await api.patients.quick(
         animal
           ? owner
-            ? { subject, names: names.trim(), last_names: surnamesOf(owner.name), owner_id: owner.id }
-            : { subject, names: names.trim(), last_names: ownerSurnames.trim(), guardian_name: `${ownerName.trim()} ${ownerSurnames.trim()}`, guardian_phone: ownerPhone.trim() }
-          : { subject, names: names.trim(), last_names: lastNames.trim(), phone: phone.trim() }
+            ? { subject, names: names.trim(), last_names: surnamesOf(owner.name), owner_id: owner.id, privacy_ack: privacyAck }
+            : { subject, names: names.trim(), last_names: ownerSurnames.trim(), guardian_name: `${ownerName.trim()} ${ownerSurnames.trim()}`, guardian_phone: ownerPhone.trim(), privacy_ack: privacyAck }
+          : { subject, names: names.trim(), last_names: lastNames.trim(), phone: phone.trim(), privacy_ack: privacyAck }
       );
     });
     if (!ok || !created) return;
@@ -84,7 +86,7 @@
 <Modal {open} title="Registro rápido" {onclose}>
   <p class="mb-4 flex items-start gap-2 rounded-xl bg-app-primary/8 px-3.5 py-3 text-sm text-app-muted">
     <Icon name="info" size={18} class="mt-0.5 flex-none text-app-primary" />
-    Crea un expediente <strong class="font-semibold text-app-ink">incompleto</strong> con lo mínimo para agendar. El personal clínico lo completará después, junto con el aviso de privacidad.
+    Crea un expediente <strong class="font-semibold text-app-ink">incompleto</strong> con lo mínimo para agendar. El personal clínico lo completará después.
   </p>
   {#if schemaError}
     <p class="alert" role="alert"><Icon name="alert" size={18} />{schemaError}</p>
@@ -140,6 +142,10 @@
           <input class="field" type="tel" bind:value={phone} maxlength="20" autocomplete="tel" />
         </label>
       {/if}
+      <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-app-ink/15 p-3.5 sm:col-span-2">
+        <input id="{uid}-ack" type="checkbox" class="mt-1 h-5 w-5 flex-none accent-app-primary" bind:checked={privacyAck} />
+        <span class="text-sm">{animal ? 'El propietario' : 'El paciente'} recibió el <strong class="font-semibold">aviso de privacidad</strong> y otorga su consentimiento para el tratamiento de sus datos personales y de salud. <span class="text-app-muted">(Si aún no, queda pendiente en el expediente.)</span></span>
+      </label>
     </form>
     <div aria-live="polite">
       {#if error || op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{error || op.message}</p>{/if}

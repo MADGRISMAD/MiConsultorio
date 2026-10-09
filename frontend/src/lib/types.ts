@@ -697,7 +697,7 @@ export interface PatientInput {
   privacy_ack: boolean;
 }
 
-export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone' | 'owner_id'>> & { names: string };
+export type QuickPatientInput = Partial<Pick<PatientInput, 'subject' | 'names' | 'last_names' | 'phone' | 'guardian_name' | 'guardian_phone' | 'owner_id' | 'privacy_ack'>> & { names: string };
 
 export type EncounterKind = 'consulta' | 'seguimiento' | 'procedimiento' | 'llamada' | 'nota' | 'adenda' | 'estetica' | 'paseo' | 'adiestramiento' | 'hospedaje' | 'sesion';
 
