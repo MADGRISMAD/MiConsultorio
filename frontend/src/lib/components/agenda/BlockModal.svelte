@@ -39,7 +39,7 @@
   $effect(() => {
     if (open) {
       from = to = preset?.date ?? date;
-      professional = ownOnly ?? '';
+      professional = ownOnly ?? selfId ?? ''; // the owner who consults marks themselves first; "todo el consultorio" is one click away
       allDay = !preset;
       if (preset) {
         const [h, m] = preset.start.split(':').map(Number);
@@ -92,7 +92,7 @@
   }
 </script>
 
-<Modal {open} title={ownOnly ? "Marcar no disponible" : "Bloquear horarios"} wide {onclose}>
+<Modal {open} title={ownOnly || selfId ? "No atiendo / bloquear horarios" : "Bloquear horarios"} wide {onclose}>
   <form id="block-form" class="grid gap-3 text-left sm:grid-cols-2" onsubmit={create}>
     {#if ownOnly || selfId}
       <div class="sm:col-span-2">
@@ -112,7 +112,7 @@
       <span class="label">A quién aplica</span>
       <select class="field" bind:value={professional}>
         <option value="">Todo el consultorio</option>
-        {#each pros as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+        {#each pros as p (p.id)}<option value={p.id}>{p.id === selfId ? `Yo (${p.name})` : p.name}</option>{/each}
       </select>
     </label>
     {/if}
@@ -127,7 +127,7 @@
     {/if}
     <label class="block sm:col-span-2">
       <span class="label">Motivo</span>
-      <input type="text" class="field" bind:value={reason} maxlength="200" placeholder="Vacaciones, congreso, mantenimiento…" />
+      <input type="text" class="field" bind:value={reason} maxlength="200" placeholder="Vacaciones, congreso, día personal…" />
     </label>
     <div class="flex justify-end sm:col-span-2">
       <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}{ownOnly ? 'Marcar no disponible' : 'Crear bloqueo'}</button>
