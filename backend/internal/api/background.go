@@ -8,5 +8,6 @@ func (s *Server) StartBackground(ctx context.Context) {
 	go s.runWaitlist(ctx)
 	go s.runBirthdays(ctx)
 	go s.runRecalls(ctx)
+	go s.runPatientMerge(ctx)
 	go s.runNotificationJobs(ctx)
 }

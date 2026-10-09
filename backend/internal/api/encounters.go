@@ -183,7 +183,7 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "La fecha de la siguiente consulta no es válida.")
 		return
 	}
-	measures, msg := cleanValues(measureFields(subject, kinds), in.Measures, false)
+	measures, msg := cleanValues(measureFields(subject, p.myKinds(kinds)), in.Measures, false)
 	if msg != "" {
 		writeError(w, http.StatusBadRequest, msg)
 		return

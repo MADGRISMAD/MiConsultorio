@@ -197,7 +197,8 @@ func (s *Server) patientSchema(w http.ResponseWriter, r *http.Request) {
 	subjects := subjectsFor(kinds)
 	prof, meas, measAll := map[string][]Field{}, map[string][]Field{}, map[string][]Field{}
 	for _, sub := range subjects {
-		prof[sub], meas[sub], measAll[sub] = profileFields(sub, kinds), measureFields(sub, kinds), allMeasureFields(sub, kinds)
+		mine := p.myKinds(kinds)
+		prof[sub], meas[sub], measAll[sub] = profileFields(sub, mine), measureFields(sub, mine), allMeasureFields(sub, kinds)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"subjects": subjects, "profile": prof, "measures": meas, "measures_all": measAll, "rx_mode": rxModeFor(kinds), "kinds": kinds,
@@ -348,6 +349,9 @@ func (s *Server) getPatient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logAccess(r.Context(), p.ClinicID, id, p, "view")
+	if kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID); err == nil {
+		x.Profile = scopeProfile(x.Profile, profileFields(x.Subject, p.myKinds(kinds)))
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"patient": x})
 }
 
@@ -374,7 +378,7 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 		profile := map[string]any{}
 		if !quick {
 			var msg string
-			if profile, msg = cleanValues(profileFields(in.Subject, kinds), in.Profile, true); msg != "" {
+			if profile, msg = cleanValues(profileFields(in.Subject, p.myKinds(kinds)), in.Profile, true); msg != "" {
 				writeError(w, http.StatusBadRequest, msg)
 				return
 			}
@@ -390,7 +394,20 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 			return
 		}
 		var created patient
+		reused := false
 		err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
+			// The same person (e-mail, name and surname) is one record in every giro of the clinic: it is not duplicated,
+			// the giro is added to it and what the new form knows fills what was empty.
+			if existing, found, err := findSamePerson(r.Context(), tx, p.ClinicID, &in); err != nil {
+				return err
+			} else if found {
+				var err error
+				if created, err = s.reusePatient(r.Context(), tx, p, existing, &in, profile, patientKindsFor(in.Subject, kinds)); err != nil {
+					return err
+				}
+				reused = true
+				return nil
+			}
 			var n int
 			if err := tx.QueryRow(r.Context(), `UPDATE clinics SET patient_seq = patient_seq + 1 WHERE id = $1 RETURNING patient_seq`, p.ClinicID).Scan(&n); err != nil {
 				return err
@@ -423,6 +440,11 @@ func (s *Server) createPatient(quick bool) http.HandlerFunc {
 		}
 		if err != nil {
 			writeFailure(w, r, err)
+			return
+		}
+		created.Profile = scopeProfile(created.Profile, profileFields(created.Subject, p.myKinds(kinds)))
+		if reused {
+			writeJSON(w, http.StatusOK, map[string]any{"patient": created, "reused": true})
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"patient": created})
@@ -459,10 +481,21 @@ func (s *Server) updatePatient(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
-	profile, msg := cleanValues(profileFields(in.Subject, kinds), in.Profile, true)
+	myFields := profileFields(in.Subject, p.myKinds(kinds))
+	profile, msg := cleanValues(myFields, in.Profile, true)
 	if msg != "" {
 		writeError(w, http.StatusBadRequest, msg)
 		return
+	}
+	// the answers that belong to other giros are not shown to this person, and are kept as they are
+	mine := map[string]bool{}
+	for _, f := range myFields {
+		mine[f.Key] = true
+	}
+	for k, v := range cur.Profile {
+		if !mine[k] {
+			profile[k] = v
+		}
 	}
 	profileJSON, err := encProfile(id, profile)
 	if err != nil {
@@ -498,6 +531,7 @@ func (s *Server) updatePatient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "patient_updated", "Actualizó los datos del paciente #"+itoa(out.FileNumber), map[string]any{"patient": id})
+	out.Profile = scopeProfile(out.Profile, myFields)
 	writeJSON(w, http.StatusOK, map[string]any{"patient": out})
 }
 

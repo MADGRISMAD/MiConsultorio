@@ -113,6 +113,7 @@ func TestWeightsFromEncounters(t *testing.T) {
 
 func TestChartValidationAndHistory(t *testing.T) {
 	e := setup(t)
+	e.exec(`UPDATE clinics SET specialties = '{DENTAL,NUTRITION,PSYCHOLOGY,GYNECOLOGY,PEDIATRICS,PHYSIOTHERAPY}' WHERE id = $1`, e.clinicA) // the records of a giro show while the clinic works in it
 	doc, recep, other := e.login("doc_a"), e.login("recep_a"), e.login("doc_b")
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/charts"
@@ -364,6 +365,7 @@ func TestPlanCancelAndSaleLink(t *testing.T) {
 
 func TestNutritionPlanChart(t *testing.T) {
 	e := setup(t)
+	e.exec(`UPDATE clinics SET specialties = '{DENTAL,NUTRITION,PSYCHOLOGY,GYNECOLOGY,PEDIATRICS,PHYSIOTHERAPY}' WHERE id = $1`, e.clinicA) // the records of a giro show while the clinic works in it
 	doc := e.login("doc_a")
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/charts"
@@ -570,6 +572,7 @@ func TestEncounterKeepsTheSuggestedNextVisit(t *testing.T) {
 
 func TestGenericChartsAndScales(t *testing.T) {
 	e := setup(t)
+	e.exec(`UPDATE clinics SET specialties = '{DENTAL,NUTRITION,PSYCHOLOGY,GYNECOLOGY,PEDIATRICS,PHYSIOTHERAPY}' WHERE id = $1`, e.clinicA) // the records of a giro show while the clinic works in it
 	doc, recep := e.login("doc_a"), e.login("recep_a")
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/charts"

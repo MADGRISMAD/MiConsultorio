@@ -175,6 +175,7 @@ func (s *Server) router() http.Handler {
 						r.With(front).Get("/owners/{id}", s.getOwner)
 						r.With(require(PermAdminAppointments, PermAdminHistorials)).Put("/owners/{id}", s.updateOwner)
 						r.With(write).Post("/owners/{id}/merge", s.mergeOwner)
+						r.With(require(PermAdminUsers)).Post("/merge-duplicates", s.mergeDuplicatesRoute)
 						r.With(clinical).Get("/grouped", s.groupedPatients)
 						r.With(clinical).Get("/{id}/owner", s.patientOwner)
 						r.With(clinical).Get("/", s.listPatients)

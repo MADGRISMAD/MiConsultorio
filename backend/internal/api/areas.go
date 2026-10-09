@@ -110,3 +110,30 @@ var areaKeys = func() []string {
 	}
 	return out
 }()
+
+// myKinds are the giros whose forms this person fills: their areas among the clinic's, or all of the clinic's.
+func (p *Principal) myKinds(clinicKinds []string) []string {
+	if p.Role == RoleAdmin || len(p.Areas) == 0 {
+		return clinicKinds
+	}
+	mine := slices.DeleteFunc(slices.Clone(p.Areas), func(a string) bool { return !slices.Contains(clinicKinds, a) })
+	if len(mine) == 0 {
+		return clinicKinds
+	}
+	return mine
+}
+
+// scopeProfile leaves in the profile only the answers the fields ask for (the rest belongs to other giros).
+func scopeProfile(profile map[string]any, fields []Field) map[string]any {
+	keys := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		keys[f.Key] = true
+	}
+	out := map[string]any{}
+	for k, v := range profile {
+		if keys[k] {
+			out[k] = v
+		}
+	}
+	return out
+}

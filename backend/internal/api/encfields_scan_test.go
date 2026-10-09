@@ -19,7 +19,7 @@ import (
 func TestEncryptedColumnsOnlyThroughHelpers(t *testing.T) {
 	// Files that read or write sealed columns: each one must call at least one helper.
 	helperFiles := map[string]bool{
-		"appointments.go": true, "booking_online.go": true, "encounters.go": true, "patients.go": true,
+		"appointments.go": true, "booking_online.go": true, "encounters.go": true, "patients.go": true, "patient_merge.go": true,
 		"portal_data.go": true, "nutrition_ai.go": true, "followup.go": true, "recalls.go": true, "prescriptions.go": true, "vaccinations.go": true, "waitlist_public_routes.go": true, "lab.go": true,
 	}
 	// Files that mention one of the words for a different table or column (clinics.plan, medications.notes,

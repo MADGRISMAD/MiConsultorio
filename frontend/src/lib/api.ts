@@ -1,3 +1,4 @@
+import { toast } from './toast.svelte';
 import type {
   ActivityItem,
   Appointment,
@@ -75,6 +76,12 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 
 export const seg = encodeURIComponent;
 
+/** The same person (e-mail, name and surname) is one record: registering her again adds the giro to the existing one. */
+function noteReused(r: { patient: Patient; reused?: boolean }): Patient {
+  if (r.reused) toast.show('Ya estaba registrado: se usó su expediente existente y se agregó a este giro, sin duplicarlo.');
+  return r.patient;
+}
+
 export const api = {
   login: (identifier: string, password: string) =>
     request<{ session: SessionInfo }>('POST', '/login', { identifier, password }).then((r) => r.session),
@@ -127,8 +134,8 @@ export const api = {
     /** name and contact only: what the front desk needs to book a visit */
     lookup: (q: string) => request<{ patients: PatientRow[] }>('GET', `/patients/lookup?q=${encodeURIComponent(q)}`).then((r) => r.patients),
     get: (id: string) => request<{ patient: Patient }>('GET', `/patients/${seg(id)}`).then((r) => r.patient),
-    create: (p: PatientInput) => request<{ patient: Patient }>('POST', '/patients/', p).then((r) => r.patient),
-    quick: (p: QuickPatientInput) => request<{ patient: Patient }>('POST', '/patients/quick', p).then((r) => r.patient),
+    create: (p: PatientInput) => request<{ patient: Patient; reused?: boolean }>('POST', '/patients/', p).then(noteReused),
+    quick: (p: QuickPatientInput) => request<{ patient: Patient; reused?: boolean }>('POST', '/patients/quick', p).then(noteReused),
     update: (id: string, p: PatientInput) => request<{ patient: Patient }>('PUT', `/patients/${seg(id)}`, p).then((r) => r.patient),
     privacy: (id: string) => request<{ patient: Patient }>('POST', `/patients/${seg(id)}/privacy`).then((r) => r.patient),
     archive: (id: string, reason: string) => request<{ patient: Patient }>('POST', `/patients/${seg(id)}/archive`, { reason }).then((r) => r.patient),
