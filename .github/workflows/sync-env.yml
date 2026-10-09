@@ -2,6 +2,7 @@
 # (Settings → Secrets and variables → Actions). Se ejecuta SOLO a mano: Actions → «Sincronizar .env del servidor» → Run workflow.
 #
 # - Solo toca las variables de la lista de abajo; el resto del .env se queda como está.
+# - Por defecto SOLO AGREGA las que el servidor no tiene (o tiene vacías). Con «sobrescribir» también reemplaza las que ya existen.
 # - Antes de cambiar nada guarda una copia en el servidor: ~/miconsultorio/.env.bak-FECHA.
 # - Si una variable no existe en GitHub (o está vacía), se omite y la que ya tenga el servidor no se toca.
 # - Nunca imprime los valores, solo los nombres.
@@ -9,6 +10,11 @@ name: Sincronizar .env del servidor
 
 on:
   workflow_dispatch:
+    inputs:
+      sobrescribir:
+        description: 'Reemplazar también las variables que el servidor ya tiene (por defecto solo se agregan las que faltan)'
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-backend
@@ -49,7 +55,7 @@ jobs:
       - name: Actualizar el .env del servidor y reiniciar
         run: |
           scp new.env "$HOST:/tmp/caresia-new.env"
-          ssh "$HOST" 'bash -s' < .github/scripts/apply-env-update.sh
+          ssh "$HOST" "OVERWRITE=${{ inputs.sobrescribir && '1' || '0' }} bash -s" < .github/scripts/apply-env-update.sh
 
       - name: Comprobar que responde
         run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors https://miconsultorio.15-235-62-27.sslip.io/api/health
