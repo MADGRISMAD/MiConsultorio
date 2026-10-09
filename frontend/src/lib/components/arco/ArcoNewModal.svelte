@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { arcoApi } from '$lib/api/arco';
   import { Op } from '$lib/op.svelte';
   import type { ArcoNewInput, ArcoRequest } from '$lib/types/arco';
@@ -63,7 +64,7 @@
       <label class="label" for="an-desc">Qué solicita</label>
       <textarea id="an-desc" class="field" rows="4" maxlength="3000" bind:value={form.description} required minlength="5"></textarea>
     </div>
-    {#if op.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="sm:col-span-2" />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

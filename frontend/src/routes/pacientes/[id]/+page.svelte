@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { labApi } from '$lib/api/lab';
   import { filesApi } from '$lib/api/files';
@@ -228,7 +229,7 @@
   {:else if notFound}
     <div class="card mx-auto mt-6 max-w-md"><EmptyState icon="search" title="No encontramos este paciente" text="Puede que el enlace sea incorrecto o que el expediente no pertenezca a tu consultorio."><a href="/pacientes" class="btn-primary">Ver pacientes</a></EmptyState></div>
   {:else if loadError || !patient || !schema}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError || 'No se pudo abrir el expediente.'}</p>
+    <Alert>{loadError || 'No se pudo abrir el expediente.'}</Alert>
   {:else}
     <header class="card mb-5 p-5 sm:p-7">
       <div class="flex flex-wrap items-start justify-between gap-4">

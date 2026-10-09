@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { publicOrigin } from '$lib/site';
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
@@ -19,7 +22,7 @@
     }
   });
 
-  const link = $derived(s?.slug && typeof location !== 'undefined' ? `${location.origin}/portal/${s.slug}` : '');
+  const link = $derived(s?.slug ? `${publicOrigin()}/portal/${s.slug}` : '');
 
   async function save(e: SubmitEvent) {
     e.preventDefault();
@@ -32,7 +35,7 @@
 <section aria-labelledby="pt-set">
   <h3 id="pt-set" class="section-title mb-3">Portal del paciente</h3>
   {#if loadError}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert>{loadError}</Alert>
   {:else if !s}
     <LoadingRows />
   {:else}
@@ -45,7 +48,7 @@
         Activar el portal del paciente
       </label>
       {#if !s.slug}
-        <p class="rounded-xl bg-app-warning/14 px-3.5 py-3 text-sm text-app-warning">Para activarlo, primero define la dirección de reserva en línea en los ajustes de agenda: el portal usa la misma dirección.</p>
+        <p class="note">Para activarlo, primero define la dirección de reserva en línea en los ajustes de agenda: el portal usa la misma dirección.</p>
       {:else if link}
         <p class="text-sm">Dirección del portal: <a class="break-all font-medium text-app-primary underline" href={link} target="_blank" rel="noopener">{link}</a></p>
       {/if}
@@ -53,7 +56,7 @@
         <label class="label" for="pt-welcome">Mensaje de bienvenida (opcional)</label>
         <textarea id="pt-welcome" class="field" rows="3" maxlength="600" bind:value={s.welcome}></textarea>
       </div>
-      {#if saveOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+      <OpError op={saveOp} />
       <div><button class="btn-primary" disabled={saveOp.phase === 'loading'}>Guardar</button></div>
     </form>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -303,7 +304,7 @@
       {:else if section.id === 'cuenta'}
         <AccountPanel embedded />
       {:else if loadError}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError} <button type="button" class="ml-2 underline" onclick={loadPos}>Reintentar</button></p>
+        <Alert>{loadError} <button type="button" class="ml-2 underline" onclick={loadPos}>Reintentar</button></Alert>
       {:else if !s || !providers}
         <div class="card"><LoadingRows /></div>
       {:else}

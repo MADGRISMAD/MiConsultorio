@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -138,7 +139,7 @@
   {#if loading}
     <div class="card"><LoadingRows /></div>
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error} <button type="button" class="ml-2 underline" onclick={() => load()}>Reintentar</button></p>
+    <Alert>{error} <button type="button" class="ml-2 underline" onclick={() => load()}>Reintentar</button></Alert>
   {:else if billing}
     <!-- Return from Mercado Pago -->
     {#if pago === 'error'}
@@ -200,7 +201,7 @@
       {#if sandbox}<span class="text-xs text-app-warning">Modo de pruebas: los pagos no son reales.</span>{/if}
     </div>
 
-    {#if payError}<p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{payError}</p>{/if}
+    {#if payError}<Alert class="mb-4">{payError}</Alert>{/if}
 
     <div class="grid gap-4 lg:grid-cols-3">
       {#each offers as o (o.id)}

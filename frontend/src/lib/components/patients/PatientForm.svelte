@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -216,7 +217,7 @@
 {/snippet}
 
 {#if loadError}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+  <Alert>{loadError}</Alert>
 {:else if !schema}
   <div class="card"><LoadingRows /></div>
 {:else}

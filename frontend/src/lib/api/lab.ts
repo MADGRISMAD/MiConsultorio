@@ -1,7 +1,7 @@
-import { request, seg } from '$lib/api';
+import { patientPath, request, seg } from '$lib/api';
 import type { GrowthImportInput, GrowthImportPreview, GrowthImportRecord, LabCatalog, LabOrder, LabOrderInput, LabResultInput, LabTrends, PatientGrowth } from '$lib/types/lab';
 
-const p = (id: string) => `/patients/${seg(id)}`;
+const p = patientPath;
 
 export const labApi = {
   catalog: () => request<LabCatalog>('GET', '/lab/catalog'),

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { agendaApi } from '$lib/api/agenda';
   import { Op } from '$lib/op.svelte';
@@ -114,7 +115,7 @@
     </dl>
 
     {#if op.phase === 'error'}
-      <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+      <Alert class="mt-4">{op.message}</Alert>
     {/if}
 
     {#if cancelling || noShowAsk}

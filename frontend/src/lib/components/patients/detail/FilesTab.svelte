@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
@@ -142,7 +143,7 @@
   {#if loading}
     <div class="card p-6 text-sm text-app-muted" role="status"><span class="spin"></span> Cargando…</div>
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if visible.length === 0}
     <div class="card"><EmptyState icon="folder" title={showArchived ? 'Sin archivos archivados' : 'Sin archivos'} text={showArchived ? '' : canWrite ? 'Arrastra aquí un archivo o usa «Subir archivo».' : 'Aún no hay archivos en este expediente.'} /></div>
   {:else}

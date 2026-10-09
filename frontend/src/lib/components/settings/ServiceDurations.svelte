@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { agendaLoadApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
@@ -38,11 +40,11 @@
 <section class="card px-5 py-5 sm:px-6" aria-labelledby="{uid}-t">
   <h2 id="{uid}-t" class="font-semibold">Duración de los servicios</h2>
   <p class="mt-1 text-sm text-app-muted">Cuánto tiempo reserva cada servicio en la agenda y en la reserva en línea. Si lo dejas vacío se usa el intervalo del profesional.</p>
-  {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+  <OpError op={op} class="mt-4" />
   {#if load.phase === 'loading'}
     <LoadingRows />
   {:else if load.phase === 'error'}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{load.message}</p>
+    <Alert class="mt-4">{load.message}</Alert>
   {:else if rows.length === 0}
     <p class="mt-4 text-sm text-app-muted">Aún no hay servicios en el catálogo.</p>
   {:else}

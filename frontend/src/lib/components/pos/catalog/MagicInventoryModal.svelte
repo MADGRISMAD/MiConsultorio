@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -184,13 +186,13 @@
       {/if}
 
       {#if blocked}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{usage && !usage.available ? 'La magia no está disponible en tu cuenta (no está configurada en el servidor o tu plan no la incluye).' : 'Ya usaste toda la magia de este mes. Se renueva el mes siguiente.'}</p>
+        <Alert>{usage && !usage.available ? 'La magia no está disponible en tu cuenta (no está configurada en el servidor o tu plan no la incluye).' : 'Ya usaste toda la magia de este mes. Se renueva el mes siguiente.'}</Alert>
       {/if}
       <div aria-live="polite">
         {#if askOp.phase === 'loading'}
           <p class="flex items-center gap-2 text-sm text-app-muted"><span class="spin"></span>Leyendo tu lista y armando el catálogo… puede tardar unos segundos.</p>
         {:else if askOp.phase === 'error'}
-          <p class="alert" role="alert"><Icon name="alert" size={18} />{askOp.message}</p>
+          <Alert>{askOp.message}</Alert>
         {/if}
       </div>
     {:else}
@@ -224,7 +226,7 @@
         </table>
       </div>
       <p class="text-xs text-app-muted">{rows.length} {rows.length === 1 ? 'artículo' : 'artículos'} por agregar.</p>
-      {#if saveOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+      <OpError op={saveOp} />
     {/if}
   </div>
   {#snippet footer()}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { onMount } from 'svelte';
   import { ApiError } from '$lib/api';
   import { waitlistApi } from '$lib/api/waitlist';
@@ -51,7 +52,7 @@
 </script>
 
 {#if load.phase === 'loading' || (load.phase === 'idle' && !data)}
-  <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
+  <div class="card-empty" role="status">{t('common.loading')}</div>
 {:else if !data}
   <section class="card px-6 py-9" role="alert">
     <div class="grid h-12 w-12 place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name="clock" size={24} /></div>
@@ -88,7 +89,7 @@
         {#if data.clinic.address}<div><dt class="text-xs text-app-muted">{t('common.address')}</dt><dd class="font-semibold">{data.clinic.address}</dd></div>{/if}
       </dl>
       <p class="mt-4 text-sm text-app-muted">{t('waitlist.holdBefore')}<span class="font-mono font-semibold text-app-ink" role="timer">{clock}</span>{t('waitlist.holdAfter')}</p>
-      {#if act.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{act.message}</p>{/if}
+      <OpError op={act} class="mt-4" />
       <div class="mt-5 flex flex-wrap gap-2">
         <button type="button" class="btn-primary btn-lg" onclick={() => respond('accept')} disabled={act.phase === 'loading' || left === 0}>
           {#if act.phase === 'loading'}<span class="spin"></span>{/if}{t('waitlist.accept')}
@@ -100,7 +101,7 @@
       <p class="mt-3 text-app-muted">
         {data.expired ? t('waitlist.timeUpText') : t('waitlist.stillText')}
       </p>
-      {#if act.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{act.message}</p>{/if}
+      <OpError op={act} class="mt-4" />
       <button type="button" class="btn-secondary mt-5" onclick={() => respond('leave')} disabled={act.phase === 'loading'}>{t('waitlist.leave')}</button>
     {/if}
     {#if data.clinic.phone}<p class="mt-5 text-sm text-app-muted">{t('waitlist.questions')} <a class="text-app-primary underline" href="tel:{data.clinic.phone}">{data.clinic.phone}</a>.</p>{/if}

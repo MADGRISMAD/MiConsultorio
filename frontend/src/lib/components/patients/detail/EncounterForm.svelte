@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { consult } from '$lib/api/consult';
   import { specialtyApi } from '$lib/api/specialty';
@@ -257,8 +259,8 @@
       </span>
     </label>
 
-    {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    {#if error}<Alert>{error}</Alert>{/if}
+    <OpError op={op} />
     <p class="flex items-start gap-2 text-sm text-app-muted"><Icon name="lock" size={16} class="mt-0.5 shrink-0" />Al guardar, la nota ya no se puede editar ni borrar (NOM-004). Si hay un error, se agrega una adenda.</p>
   </form>
   {#snippet footer()}

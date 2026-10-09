@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { waitlistApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -62,7 +63,7 @@
   {:else}
     <form class="grid gap-4" novalidate onsubmit={submit}>
       <p class="text-sm font-medium">{t('waitlist.join.heading', { clinic: clinicName })}</p>
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
       <div class="grid gap-4 sm:grid-cols-2">
         <div><label class="label" for="{uid}-n">{t('common.firstNames')}</label><input id="{uid}-n" class="field" bind:value={names} autocomplete="given-name" maxlength="100" required /></div>
         <div><label class="label" for="{uid}-l">{t('common.lastNames')}</label><input id="{uid}-l" class="field" bind:value={lastNames} autocomplete="family-name" maxlength="100" required /></div>

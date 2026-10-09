@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import type { CatalogItem, StockMovement } from '$lib/types';
   import Modal from '$lib/components/Modal.svelte';
@@ -39,7 +40,7 @@
   {#if loading}
     <LoadingRows />
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if !moves.length}
     <EmptyState icon="clock" title="Sin movimientos" text="Aquí verás cada entrada, venta y ajuste de este producto." />
   {:else}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -137,7 +139,7 @@
       {/if}
       <div aria-live="polite">
         {#if askOp.phase === 'loading'}<p class="flex items-center gap-2 text-sm text-app-muted"><span class="spin"></span>Calculando precios sugeridos…</p>
-        {:else if askOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{askOp.message}</p>{/if}
+        {:else if askOp.phase === 'error'}<Alert>{askOp.message}</Alert>{/if}
       </div>
     {:else}
       <p class="flex items-center gap-2 text-sm">
@@ -162,7 +164,7 @@
           </tbody>
         </table>
       </div>
-      {#if saveOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+      <OpError op={saveOp} />
     {/if}
   </div>
   {#snippet footer()}

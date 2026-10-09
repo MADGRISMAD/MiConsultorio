@@ -88,7 +88,7 @@ func Load() (*Config, error) {
 		ClinicAdminUsername: firstOr("admin", "CLINIC_ADMIN_USERNAME", "ADMIN_USERNAME"),
 		ClinicAdminPassword: first("CLINIC_ADMIN_PASSWORD", "ADMIN_PASSWORD"),
 	}
-	c.AppURL = strings.TrimRight(os.Getenv("APP_URL"), "/")
+	c.AppURL = strings.TrimRight(env("APP_URL", "https://caresia.mx"), "/") // the public address of the app: the links of every e-mail
 	// API_PUBLIC_URL is the server's address WITHOUT "/api" (routes add it); accept it with the suffix too.
 	c.APIPublicURL = strings.TrimSuffix(strings.TrimRight(os.Getenv("API_PUBLIC_URL"), "/"), "/api")
 	c.MPAccessToken, c.MPPublicKey, c.MPWebhookSecret = os.Getenv("MP_ACCESS_TOKEN"), os.Getenv("MP_PUBLIC_KEY"), os.Getenv("MP_WEBHOOK_SECRET")

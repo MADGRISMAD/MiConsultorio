@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import EmailTicket from '$lib/components/pos/sale/EmailTicket.svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
@@ -95,7 +97,7 @@
   {#if loading}
     <div class="space-y-3" role="status" aria-label="Cargando">{#each [0, 1, 2] as i}<div class="h-10 animate-pulse rounded-lg bg-app-ink/8"></div>{/each}</div>
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if sale}
     <div class="mb-4 flex flex-wrap items-center gap-2 text-sm text-app-muted">
       <Pill tone={sale.status === 'paid' ? 'ok' : sale.status === 'open' ? 'warn' : 'bad'}>{sale.status === 'paid' ? 'Pagada' : sale.status === 'open' ? 'Con saldo' : 'Cancelada'}</Pill>
@@ -155,7 +157,7 @@
 
     {#if sale.status !== 'void'}<div class="mt-4"><EmailTicket saleId={sale.id} /></div>{/if}
 
-    {#if printOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+    <OpError op={printOp} class="mt-4" />
 
     {#if voiding}
       <form class="mt-5 grid gap-3 rounded-xl border border-app-danger/30 bg-app-danger/5 p-4" onsubmit={doVoid}>
@@ -164,7 +166,7 @@
           <label class="label" for="void-reason">Motivo de la cancelación</label>
           <input id="void-reason" class="field" bind:value={reason} maxlength="200" required />
         </div>
-        {#if voidOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{voidOp.message}</p>{/if}
+        <OpError op={voidOp} />
         <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="btn-secondary" onclick={() => (voiding = false)}>No cancelar</button>
           <button type="submit" class="btn-danger" disabled={voidOp.phase === 'loading'}>{#if voidOp.phase === 'loading'}<span class="spin"></span>{/if}Cancelar venta</button>

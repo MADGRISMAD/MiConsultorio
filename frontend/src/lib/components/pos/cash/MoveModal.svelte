@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { Op } from '$lib/op.svelte';
@@ -51,7 +52,7 @@
       <label class="label" for="move-concept">Concepto</label>
       <input id="move-concept" class="field" bind:value={concept} maxlength="120" autocomplete="off" placeholder={kind === 'in' ? 'Ej. Fondo adicional' : 'Ej. Pago de agua purificada'} />
     </div>
-    {#if error || op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{error || op.message}</p>{/if}
+    {#if error || op.phase === 'error'}<Alert>{error || op.message}</Alert>{/if}
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

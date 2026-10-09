@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import type { Snippet } from 'svelte';
   import Modal from './Modal.svelte';
   import Icon from './ui/Icon.svelte';
@@ -19,7 +20,7 @@
 <Modal {open} {title} {onclose}>
   <div class="text-app-muted">{@render children?.()}</div>
   {#if op.phase === 'error'}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+    <Alert class="mt-4">{op.message}</Alert>
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

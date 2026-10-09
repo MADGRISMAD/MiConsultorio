@@ -2,7 +2,7 @@
   import { moneyCents } from '$lib/format';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { Professional } from '$lib/types/pos2';
+  import type { Professional as PosProfessional } from '$lib/types/pos2';
   import type { Cart, CartLine, SalePerson } from './cart.svelte';
   import { lineGross } from './cart.svelte';
   import MoneyInput from './MoneyInput.svelte';
@@ -14,7 +14,7 @@
     /** Patients to suggest; empty when the person may not browse expedients. */
     people: SalePerson[];
     /** Who can be credited with the sale (commissions); empty hides the selector. */
-    professionals?: Professional[];
+    professionals?: PosProfessional[];
     showTax: boolean;
     busy: boolean;
     onfree: () => void;

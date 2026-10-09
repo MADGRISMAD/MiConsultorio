@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { Op } from '$lib/op.svelte';
@@ -86,7 +87,7 @@
         <label class="label" for="close-note">Nota (opcional)</label>
         <input id="close-note" class="field" bind:value={note} maxlength="200" autocomplete="off" placeholder="Ej. Faltante por cambio mal entregado" />
       </div>
-      {#if error || op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{error || op.message}</p>{/if}
+      {#if error || op.phase === 'error'}<Alert>{error || op.message}</Alert>{/if}
     </form>
   {/if}
   {#snippet footer()}

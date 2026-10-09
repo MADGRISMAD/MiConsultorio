@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api, ApiError } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { printReceta } from '$lib/print';
@@ -304,7 +305,7 @@
                     required
                   />
                   {#each alertsOf(it) as a}
-                    <p class="alert mt-2" role="alert"><Icon name="alert" size={18} /><span>Alergia registrada: «{a.allergy}»{a.family ? ` (familia ${a.family})` : ''}. Al crear la receta tendrás que indicar el motivo para continuar.</span></p>
+                    <Alert class="mt-2"><span>Alergia registrada: «{a.allergy}»{a.family ? ` (familia ${a.family})` : ''}. Al crear la receta tendrás que indicar el motivo para continuar.</span></Alert>
                   {/each}
                   {#if picked[n]}
                     {@const m = picked[n]}
@@ -412,9 +413,9 @@
           <span>Para emitir recetas necesitas registrar tu cédula profesional y la institución que expidió tu título. <a href="/cuenta" class="underline">Registra tu cédula</a></span>
         </div>
       {:else if error}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+        <Alert>{error}</Alert>
       {:else if op.phase === 'error'}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+        <Alert>{op.message}</Alert>
       {/if}
     </form>
   {/if}

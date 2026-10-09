@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { dateShort, moneyCents } from '$lib/format';
   import { PAY_METHODS, type PosReport, type Sale } from '$lib/types';
@@ -129,7 +130,7 @@
 </div>
 
 {#if error}
-  <p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert class="mb-4">{error}</Alert>
 {/if}
 
 {#if loading && !report}
@@ -279,7 +280,7 @@
     {#if sLoading && !sales.length}
       <LoadingRows />
     {:else if sError}
-      <p class="alert m-4" role="alert"><Icon name="alert" size={18} />{sError}</p>
+      <Alert class="m-4">{sError}</Alert>
     {:else if !sales.length}
       <EmptyState icon="receipt" title="Sin ventas" text="No hay ventas con estos filtros en el periodo elegido." />
     {:else}

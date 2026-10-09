@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
@@ -52,11 +54,11 @@
 {#if !loaded && loadOp.phase !== 'error'}
   <LoadingRows />
 {:else if !loaded}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{loadOp.message}</p>
+  <Alert>{loadOp.message}</Alert>
 {:else if shown.length === 0}
-  <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.rx.none')}</div>
+  <div class="card-empty">{t('portal.rx.none')}</div>
 {:else}
-  {#if printOp.phase === 'error'}<p class="alert mb-3" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+  <OpError op={printOp} class="mb-3" />
   {#each groups as g (g.key)}
   {#if g.label}<h3 class="section-title mb-2 mt-5 first:mt-0">{g.label}</h3>{/if}
   <ul class="grid gap-3">

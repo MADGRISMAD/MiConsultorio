@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -6,7 +7,7 @@
   import { consult } from '$lib/api/consult';
   import { pos2 } from '$lib/api/pos2';
   import type { Charge } from '$lib/types/consult';
-  import type { PlanPrefill, PlanPrefillItem, Professional } from '$lib/types/pos2';
+  import type { PlanPrefill, PlanPrefillItem, Professional as PosProfessional } from '$lib/types/pos2';
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -37,7 +38,7 @@
   let loading = $state(true);
   let loadError = $state('');
   let people = $state<SalePerson[]>([]);
-  let professionals = $state<Professional[]>([]);
+  let professionals = $state<PosProfessional[]>([]);
   let planOpen = $state<PlanPrefill | null>(null);
   let chargesKey = $state(0);
   /** a sale refused because of expired lots, waiting for an administrator's reason */
@@ -307,7 +308,7 @@
 
 {#if loadError}
   <div class="card p-6">
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert>{loadError}</Alert>
     <button type="button" class="btn-primary mt-4" onclick={load}><Icon name="refresh" size={16} />Reintentar</button>
   </div>
 {:else if done && settings}

@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { arcoApi } from '$lib/api/arco';
   import { toast } from '$lib/toast.svelte';
   import type { ArcoRequest, ArcoSettings, ArcoSummary } from '$lib/types/arco';
@@ -93,7 +94,7 @@
         <p class="hint mt-2">Este servidor no tiene correo configurado: las solicitudes se guardan, pero no se envían acuses por correo.</p>
       {/if}
     {/if}
-    <p class="mt-3 rounded-xl bg-app-warning/10 px-3.5 py-2.5 text-sm text-app-warning">{LEGAL_REMINDER}</p>
+    <p class="mt-3 note">{LEGAL_REMINDER}</p>
   </section>
 
   <section class="card" aria-label="Solicitudes">
@@ -124,7 +125,7 @@
     </div>
 
     {#if error}
-      <p class="alert m-4" role="alert"><Icon name="alert" size={18} />{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></p>
+      <Alert class="m-4">{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
     {:else if !rows}
       <LoadingRows />
     {:else if rows.length === 0}

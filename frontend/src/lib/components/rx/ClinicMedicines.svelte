@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { rxApi } from '$lib/api/rx';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
@@ -181,7 +182,7 @@
         <button type="button" class="btn-secondary" onclick={() => (f.concs = [...f.concs, { label: '', mg: '' }])}><Icon name="plus" size={16} />Agregar concentración</button>
       </fieldset>
       <div class="sm:col-span-2"><label class="label" for="cm-notes">Notas</label><input id="cm-notes" class="field" bind:value={f.notes} /></div>
-      {#if save.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{save.message}</p>{/if}
+      <OpError op={save} class="sm:col-span-2" />
     </form>
   {/if}
   {#snippet footer()}

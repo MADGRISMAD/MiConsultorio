@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
   import { moneyCents } from '$lib/format';
@@ -118,7 +120,7 @@
   {#if loading}
     <div class="space-y-3" role="status" aria-label="Cargando">{#each [0, 1, 2] as i}<div class="h-10 animate-pulse rounded-lg bg-app-ink/8"></div>{/each}</div>
   {:else if loadError}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert>{loadError}</Alert>
   {:else if done}
     <div class="grid gap-4">
       <p class="rounded-xl bg-app-success/10 px-3.5 py-3 text-sm text-app-success"><strong>Devolución registrada por {moneyCents(done.total_cents)}.</strong></p>
@@ -138,11 +140,11 @@
       {#if done.credit_note_pending}
         <p class="rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm"><Icon name="alert" size={16} class="mr-1 inline" />Esta venta tiene factura emitida: falta emitir la <strong>nota de crédito (CFDI de egreso)</strong> con tu proveedor o contador. Caresia todavía no la genera.</p>
       {/if}
-      {#if printOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+      <OpError op={printOp} />
     </div>
   {:else if info}
     {#if !info.can_return}
-      <p class="alert" role="alert"><Icon name="alert" size={18} />{info.sale.status === 'open' ? 'La venta todavía tiene saldo por cobrar: cóbrala completa o cancélala.' : 'Esta venta ya no admite devoluciones.'}</p>
+      <Alert>{info.sale.status === 'open' ? 'La venta todavía tiene saldo por cobrar: cóbrala completa o cancélala.' : 'Esta venta ya no admite devoluciones.'}</Alert>
     {:else if info.lines.every((l) => l.returnable_qty <= 0)}
       <p class="alert" role="alert"><Icon name="info" size={18} />Todo lo de esta venta ya fue devuelto.</p>
     {:else}
@@ -201,7 +203,7 @@
           </div>
         {/if}
 
-        {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+        <OpError op={op} />
       </form>
     {/if}
     {#if info.returns.length > 0}

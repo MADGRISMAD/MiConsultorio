@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { dateTime as dt } from '$lib/format';
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { specialtyApi } from '$lib/api/specialty';
@@ -11,6 +12,8 @@
   import type { Encounter, Patient } from '$lib/types';
   import type { NutritionDay, NutritionMeal, NutritionPlanData, PatientChart } from '$lib/types/specialty';
   import Modal from '../../Modal.svelte';
+  import VersionHistory from '../../specialty/VersionHistory.svelte';
+  import ViewedVersionBanner from '../../specialty/ViewedVersionBanner.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';
   import Icon from '../../ui/Icon.svelte';
   import NutritionProgress from './NutritionProgress.svelte';
@@ -398,7 +401,7 @@
 {#if loading}
   <div class="card h-64 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else}
   <NutritionProgress {patient} {canWrite} {encounters} onsaved={async () => { await onchange?.(); }} />
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -417,10 +420,7 @@
   </div>
 
   {#if viewed}
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-app-warning/12 px-4 py-3 text-sm" role="status">
-      <span>Versión del {dt(viewed.created_at)} por {viewed.created_by_name}{viewed.note ? `: ${viewed.note}` : ''}. Solo lectura.</span>
-      <button type="button" class="btn-secondary" onclick={() => (viewing = null)}>Volver al plan vigente</button>
-    </div>
+    <ViewedVersionBanner {viewed} back={() => (viewing = null)} backLabel="Volver al plan vigente" />
   {/if}
 
   {#if !history.length && !editing}
@@ -458,10 +458,10 @@
         </label>
         {#if bmi}<p class="hint">Índice de masa corporal: <strong>{bmi.value}</strong> ({bmi.label}).</p>{/if}
         <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}.</p>
-        {#if gError}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{gError}</p>{/if}
-        {#if aiOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{aiOp.message}</p>{/if}
+        {#if gError}<Alert class="mt-3">{gError}</Alert>{/if}
+        <OpError op={aiOp} class="mt-3" />
         <p class="hint">La IA usa la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Tarda unos segundos. Siempre revísalo antes de guardarlo.</p>
-        <p class="mt-2 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><strong>Generar la semana completa usa 1 uso de magia</strong> de tu plan. Cada cambio de una comida, snack o día con IA, después, usa <strong>1 uso más</strong>.</p>
+        <p class="mt-2 note" role="note"><strong>Generar la semana completa usa 1 uso de magia</strong> de tu plan. Cada cambio de una comida, snack o día con IA, después, usa <strong>1 uso más</strong>.</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-primary" disabled={aiOp.phase === 'loading'} onclick={generateAI}>{#if aiOp.phase === 'loading'}<span class="spin"></span>Armando la semana…{:else}<Icon name="sparkles" size={18} />Generar semana con IA{/if}</button>
           <button type="button" class="btn-secondary" disabled={aiOp.phase === 'loading'} onclick={generate}>Calcular y armar a mano</button>
@@ -500,7 +500,7 @@
             <input id="np-dislikes" class="field" maxlength="1000" readonly={readonly} value={shown.dislikes} oninput={(e) => (work.dislikes = e.currentTarget.value)} placeholder="Ej. pescado, hígado, brócoli" /></div>
         {/if}
       </div>
-      {#if macroSum > 100}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />Los porcentajes suman {macroSum} %: no pueden pasar de 100 %.</p>
+      {#if macroSum > 100}<Alert class="mt-3">Los porcentajes suman {macroSum} %: no pueden pasar de 100 %.</Alert>
       {:else if macroSum > 0 && macroSum < 100}<p class="hint">Los macronutrientes suman {macroSum} %.</p>{/if}
       {#if shown.basis}<p class="hint">{shown.basis}</p>{/if}
     </section>
@@ -511,7 +511,7 @@
         {#if shown.kcal}<p class="text-sm text-app-muted">Meta: {shown.kcal} kcal al día</p>{/if}
       </div>
       {#if !readonly && shown.days.length > 0}
-        <p class="mt-2 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa. Si falla, el uso se devuelve.</p>
+        <p class="mt-2 note" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa. Si falla, el uso se devuelve.</p>
       {/if}
       {#if shown.days.length === 0 || cols.length === 0}
         <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : 'Usa «Generar semana con IA» o «Calcular y armar a mano».'}</p>
@@ -605,7 +605,7 @@
         {#if work.follow_up_days > 0}
           <label class="mt-3 flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={scheduleFollow} />Agendar la cita de seguimiento en {work.follow_up_days} días (queda por confirmar en la agenda)</label>
         {/if}
-        {#if saveOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+        <OpError op={saveOp} class="mt-3" />
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="btn-primary" disabled={saveOp.phase === 'loading' || (!dirty && history.length > 0)} onclick={save}>
             {#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}<Icon name="check" size={18} />Guardar plan
@@ -618,22 +618,9 @@
 
   {#if history.length}
     <section class="mt-6" aria-labelledby="np-history">
-      <h3 id="np-history" class="display mb-2 text-xl">Historial de planes</h3>
-      <ul class="space-y-2">
-        {#each history as h, i (h.id)}
-          {@const d = asData(h)}
-          <li class="card flex flex-wrap items-center justify-between gap-2 p-3 sm:px-5 {viewing === h.id ? 'ring-2 ring-app-primary' : ''}">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">{dt(h.created_at)}{#if i === 0}<span class="badge ml-2">Vigente</span>{/if}</p>
-              <p class="truncate text-xs text-app-muted">{h.created_by_name} · {d.goal || 'Sin objetivo'}{d.kcal ? ` · ${d.kcal} kcal` : ''}{d.days.length > 1 ? ` · ${d.days.length} días` : ''}{h.note ? ` · ${h.note}` : ''}</p>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <button type="button" class="btn-ghost" onclick={() => { viewing = h.id; editing = false; gOpen = false; }}><Icon name="eye" size={16} />Ver</button>
-              {#if canWrite && i > 0}<button type="button" class="btn-ghost" onclick={() => useAsBase(h)}>Usar como base</button>{/if}
-            </div>
-          </li>
-        {/each}
-      </ul>
+      <VersionHistory id="np-history" title="Historial de planes" {history} {viewing} {canWrite} icon="leaf" emptyText="Cuando guardes el primer plan aparecerá aquí."
+        summary={(h) => { const d = asData(h); return `${d.goal || 'Sin objetivo'}${d.kcal ? ` · ${d.kcal} kcal` : ''}${d.days.length > 1 ? ` · ${d.days.length} días` : ''}`; }}
+        onview={(h) => { viewing = h.id; editing = false; gOpen = false; }} onbase={useAsBase} />
     </section>
   {/if}
 {/if}
@@ -644,9 +631,9 @@
   <input id="frag-dislike" class="field" maxlength="300" bind:value={fragDislike} placeholder="Ej. pescado, brócoli" />
   <label class="label mt-3" for="frag-req">Indicación <span class="font-normal text-app-muted">(opcional)</span></label>
   <input id="frag-req" class="field" maxlength="300" bind:value={fragRequest} placeholder="Ej. algo más ligero, con avena" />
-  <p class="mt-3 rounded-xl bg-app-warning/14 px-3.5 py-2.5 text-sm text-app-warning" role="note"><strong>Este cambio usa 1 uso de magia</strong> del plan (igual que generar la semana completa). Si falla, se devuelve.</p>
+  <p class="mt-3 note" role="note"><strong>Este cambio usa 1 uso de magia</strong> del plan (igual que generar la semana completa). Si falla, se devuelve.</p>
   <p class="hint">Se agrega a «Alimentos que no le gustan» y no se guarda nada hasta que presiones «Guardar plan».</p>
-  {#if fragOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{fragOp.message}</p>{/if}
+  <OpError op={fragOp} class="mt-3" />
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => { frag = null; fragModal = false; }}>Cancelar</button>
     <button type="button" class="btn-primary" disabled={fragOp.phase === 'loading'} onclick={regenerateFrag}>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { notificationsApi } from '$lib/api/waitlist';
@@ -60,12 +62,12 @@
     <button type="button" aria-pressed={onlyUnread} class="rounded-full px-4 py-1.5 text-sm font-medium transition {onlyUnread ? 'bg-app-panel shadow-sm' : 'text-app-muted'}" onclick={() => (onlyUnread = true)}>Sin leer{unread ? ` (${unread})` : ''}</button>
   </div>
 
-  {#if act.phase === 'error'}<p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{act.message}</p>{/if}
+  <OpError op={act} class="mb-4" />
 
   {#if load.phase === 'loading' && items.length === 0}
     <LoadingRows />
   {:else if load.phase === 'error'}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{load.message}</p>
+    <Alert>{load.message}</Alert>
   {:else if shown.length === 0}
     <div class="card"><EmptyState icon="check" title={onlyUnread ? 'Estás al día' : 'Sin avisos'} text="Cuando algo requiera tu atención aparecerá aquí." /></div>
   {:else}

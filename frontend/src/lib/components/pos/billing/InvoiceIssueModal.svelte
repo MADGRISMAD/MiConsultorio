@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
@@ -56,7 +57,7 @@
         <label class="label" for="iss-note">Nota <span class="font-normal text-app-muted">(opcional)</span></label>
         <input id="iss-note" class="field" bind:value={note} maxlength="200" />
       </div>
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
     </form>
   {/if}
   {#snippet footer()}

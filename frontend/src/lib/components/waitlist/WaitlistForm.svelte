@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { untrack } from 'svelte';
   import { waitlistApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
@@ -92,7 +93,7 @@
 
 <Modal {open} title={entry ? 'Editar lista de espera' : 'Agregar a la lista de espera'} {onclose}>
   <form id="{uid}-form" class="space-y-4" onsubmit={submit} novalidate>
-    {#if error || op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{error || op.message}</p>{/if}
+    {#if error || op.phase === 'error'}<Alert>{error || op.message}</Alert>{/if}
     <div>
       <label class="label" for="{uid}-name">Nombre</label>
       <input id="{uid}-name" class="field" bind:value={name} maxlength="200" autocomplete="off" required />

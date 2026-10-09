@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { dateShort as dt } from '$lib/format';
   import { api } from '$lib/api';
   import { BODY_MEASURES, bmiLabel, bmiOf, latestMeasures, measureRows, numOf } from '$lib/nutritionMeasures';
@@ -80,8 +82,8 @@
       {#if bmiNow}<p class="hint">Índice de masa corporal: <strong>{bmiNow}</strong> ({bmiLabel(bmiNow)}).</p>{/if}
       <label class="label mt-3" for="pm-note">Observaciones (opcional)</label>
       <input id="pm-note" class="field" maxlength="500" bind:value={note} />
-      {#if error}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
-      {#if op.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      {#if error}<Alert class="mt-3">{error}</Alert>{/if}
+      <OpError op={op} class="mt-3" />
       <div class="mt-3 flex flex-wrap gap-2">
         <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}<Icon name="check" size={18} />Guardar medición</button>
         <button type="button" class="btn-ghost" onclick={() => (open = false)}>Cancelar</button>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { loadIssuer, privacyNoticeHtml } from '$lib/print';
   import type { Issuer, Patient } from '$lib/types';
   import Modal from '../Modal.svelte';
@@ -32,7 +33,7 @@
 
 <Modal {open} title="Aviso de privacidad" {onclose} wide>
   {#if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if !issuer}
     <div class="h-64 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
   {:else}

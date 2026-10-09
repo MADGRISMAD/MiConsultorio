@@ -34,7 +34,7 @@
 
 <PublicShell wide>
   {#if view === 'loading'}
-    <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
+    <div class="card-empty" role="status">{t('common.loading')}</div>
   {:else if view === 'ready' && info}
     {#key slug}<BookingWizard {slug} {info} />{/key}
   {:else if view === 'missing'}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { ago } from '$lib/format';
@@ -101,7 +103,7 @@
   {#if loading}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else}
     <ul class="divide-y divide-app-ink/8">
       {#each active as p (p.id)}
@@ -169,7 +171,7 @@
       </div>
     </fieldset>
   </form>
-  {#if addOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{addOp.message}</p>{/if}
+  <OpError op={addOp} class="mt-4" />
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (addOpen = false)}>Cancelar</button>
     <button type="submit" form="add-staff" class="btn-primary" disabled={addOp.phase === 'loading'}>{#if addOp.phase === 'loading'}<span class="spin"></span>{/if}Agregar</button>
@@ -190,7 +192,7 @@
     <label class="label" for="spw">Nueva contraseña</label>
     <input id="spw" class="field" type="password" bind:value={newPassword} required minlength="8" maxlength="72" autocomplete="new-password" />
   </form>
-  {#if pwOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{pwOp.message}</p>{/if}
+  <OpError op={pwOp} class="mt-4" />
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (pwFor = null)}>Cancelar</button>
     <button type="submit" form="pw-staff" class="btn-primary" disabled={pwOp.phase === 'loading'}>{#if pwOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar</button>

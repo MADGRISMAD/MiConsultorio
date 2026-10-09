@@ -155,5 +155,5 @@
     {me.clinic.name}{me.clinic.address ? ` · ${me.clinic.address}` : ''}{me.clinic.phone ? ` · ${t('portal.app.phonePrefix', { phone: me.clinic.phone })}` : ''}
   </footer>
 {:else}
-  <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
+  <div class="card-empty" role="status">{t('common.loading')}</div>
 {/if}

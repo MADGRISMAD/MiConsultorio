@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
@@ -28,11 +30,11 @@
 {#if !loaded && !error}
   <LoadingRows />
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if shown.length === 0}
-  <div class="card px-5 py-8 text-center text-sm text-app-muted">Aún no tienes un plan nutricional.</div>
+  <div class="card-empty">Aún no tienes un plan nutricional.</div>
 {:else}
-  {#if printOp.phase === 'error'}<p class="alert mb-3" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+  <OpError op={printOp} class="mb-3" />
   <ul class="grid gap-3">
     {#each shown as p, i (p.id)}
       {@const isOpen = !!open[p.id]}

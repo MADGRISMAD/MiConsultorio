@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { emailOk } from '$lib/format';
   import { bookingApi } from '$lib/api/booking';
   import { bookingMonthApi } from '$lib/api/waitlist';
@@ -284,7 +286,7 @@
           </div>
           {#if forPet}
             <div class="flex items-end"><button type="button" class="btn-secondary w-full" disabled={lookupOp.phase === 'loading'} onclick={findPets}>{#if lookupOp.phase === 'loading'}<span class="spin"></span>{/if}{t('booking.findPets')}</button></div>
-            {#if lookupOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{lookupOp.message}</p>{/if}
+            <OpError op={lookupOp} class="sm:col-span-2" />
             {#if pets && pets.length === 0}<p class="rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted sm:col-span-2">{t('booking.noPets')}</p>{/if}
             {#if pets && pets.length > 0}
               <fieldset class="sm:col-span-2">
@@ -393,7 +395,7 @@
             {#if dayOp.phase === 'loading' || (!day && dayOp.phase !== 'error')}
               <p class="text-sm text-app-muted">{t('booking.searching')}</p>
             {:else if dayOp.phase === 'error'}
-              <p class="alert" role="alert"><Icon name="alert" size={18} />{dayOp.message}</p>
+              <Alert>{dayOp.message}</Alert>
             {:else if day}
               {#if !anySlot}<p class="mb-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.noneThatDay')}</p>{/if}
               <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-app-muted">{t('booking.specialists')}</p>
@@ -414,7 +416,7 @@
                   </li>
                 {/each}
               </ul>
-              {#if holdOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{holdOp.message}</p>{/if}
+              <OpError op={holdOp} class="mt-3" />
             {/if}
           </div>
         {/if}
@@ -432,7 +434,7 @@
           {professional?.name ?? ''} · <span class="inline-block first-letter:uppercase">{fmtDay(date)}</span> · {t('common.hourSuffix', { time: start })}. {t('booking.dataHint')}
         </p>
         {#if held}<p class="hint mt-1">{t('booking.held')}</p>{/if}
-        {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+        <OpError op={op} class="mt-4" />
         <div class="mt-4">
           <label class="label" for="bk-reason">{t('booking.reason')} <span class="font-normal text-app-muted">{t('booking.reasonHint')}</span></label>
           <input id="bk-reason" class="field" bind:value={reason} maxlength="300" placeholder={t('booking.reasonPlaceholder')} />

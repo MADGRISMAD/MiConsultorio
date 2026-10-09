@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { ago } from '$lib/format';
@@ -154,7 +156,7 @@
   {#if loading}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else}
     <ul class="divide-y divide-app-ink/8">
       {#each active as p (p.id)}
@@ -286,7 +288,7 @@
     {#if form.role === 'doctor'}<div class="sm:col-span-2"><AreaPicker bind:value={form.areas} /></div>{/if}
   </form>
   {#if addOp.phase === 'error'}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{addOp.message}</p>
+    <Alert class="mt-4">{addOp.message}</Alert>
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (addOpen = false)}>Cancelar</button>
@@ -298,7 +300,7 @@
 
 <Modal open={areasFor !== null} title="Áreas de {areasFor?.name ?? ''}" onclose={() => (areasFor = null)}>
   <AreaPicker bind:value={areasValue} />
-  {#if areasOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{areasOp.message}</p>{/if}
+  <OpError op={areasOp} class="mt-4" />
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (areasFor = null)}>Cancelar</button>
     <button type="button" class="btn-primary" disabled={areasOp.phase === 'loading'} onclick={saveAreas}>Guardar</button>
@@ -337,7 +339,7 @@
     <p class="hint">Mínimo 8 caracteres.</p>
   </form>
   {#if pwOp.phase === 'error'}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{pwOp.message}</p>
+    <Alert class="mt-4">{pwOp.message}</Alert>
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (pwFor = null)}>Cancelar</button>

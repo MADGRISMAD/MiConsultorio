@@ -52,7 +52,7 @@ export interface Billing {
 }
 
 /** Data printed on recetas and notes (cédula profesional, school, title). */
-export interface Professional {
+export interface ProfessionalInfo {
   cedula: string;
   institution: string;
   specialty_license: string;
@@ -78,7 +78,7 @@ export interface SessionInfo {
   twoFactorEnabled: boolean;
   /** el consultorio la exige y aún no está activa: los datos clínicos responden SETUP_2FA */
   mustSetup2fa: boolean;
-  professional: Professional;
+  professional: ProfessionalInfo;
 }
 
 export interface Person {
@@ -556,7 +556,7 @@ export interface PointState {
   terminal_label?: string;
 }
 
-export interface Charge {
+export interface PaymentCharge {
   id: string;
   kind: 'point' | 'link';
   status: 'open' | 'approved' | 'canceled' | 'error';

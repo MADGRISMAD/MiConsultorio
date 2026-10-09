@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
   import { agendaLoadApi, waitlistApi } from '$lib/api/waitlist';
@@ -115,7 +116,7 @@
   {#if load.phase === 'loading' && entries.length === 0}
     <div class="card"><LoadingRows /></div>
   {:else if load.phase === 'error'}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{load.message}</p>
+    <Alert>{load.message}</Alert>
   {:else if entries.length === 0}
     <div class="card">
       <EmptyState icon="clock-plus" title="Nadie en espera" text="Aquí aparecen quienes se anotan desde la reserva en línea cuando no hay lugar, y a quienes agregues tú.">

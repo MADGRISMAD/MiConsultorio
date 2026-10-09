@@ -1,5 +1,7 @@
 
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { arcoApi } from '$lib/api/arco';
   import { Op } from '$lib/op.svelte';
@@ -137,7 +139,7 @@
 
 <Modal open={!!id} title={req ? `Solicitud ${req.folio}` : 'Solicitud ARCO'} {onclose} wide>
   {#if loadError}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert>{loadError}</Alert>
   {:else if !req}
     <LoadingRows />
   {:else}
@@ -159,7 +161,7 @@
       {/each}
     </div>
 
-    {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-4" />
 
     {#if tab === 'resumen'}
       <div class="mt-5 grid gap-6 md:grid-cols-2">
@@ -261,9 +263,9 @@
         {#if !req.open}
           <p class="rounded-xl bg-app-ink/5 px-4 py-3 text-sm text-app-muted">Esta solicitud ya tiene una determinación. Puedes consultarla en «Resumen».</p>
         {:else}
-          <p class="rounded-xl bg-app-warning/10 px-4 py-3 text-sm text-app-warning">{LEGAL_REMINDER} Revisa el texto con tu asesor antes de enviarlo.</p>
+          <p class="note">{LEGAL_REMINDER} Revisa el texto con tu asesor antes de enviarlo.</p>
           {#if !req.identity_verified}
-            <p class="alert mt-3" role="alert"><Icon name="alert" size={18} />Primero verifica y registra la identidad de quien solicita (pestaña «Resumen»).</p>
+            <Alert class="mt-3">Primero verifica y registra la identidad de quien solicita (pestaña «Resumen»).</Alert>
           {/if}
           <fieldset class="mt-4">
             <legend class="label">Determinación</legend>
@@ -296,7 +298,7 @@
         {#if !pkg}
           <LoadingRows />
         {:else}
-          <p class="rounded-xl bg-app-warning/10 px-4 py-3 text-sm text-app-warning">{pkg.legal_note}</p>
+          <p class="note">{pkg.legal_note}</p>
           <h3 class="section-title mt-5">Lista de pasos · {pkg.kind_label}</h3>
           <ul class="mt-2 space-y-2">
             {#each pkg.steps as s}

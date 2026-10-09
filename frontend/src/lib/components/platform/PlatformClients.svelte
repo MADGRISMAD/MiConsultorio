@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
@@ -85,7 +86,7 @@
     {#if loading}
       <LoadingRows />
     {:else if error}
-      <p class="alert m-4" role="alert"><Icon name="alert" size={18} />{error}</p>
+      <Alert class="m-4">{error}</Alert>
     {:else if clinics.length === 0}
       <EmptyState icon="building" title={counts.all ? 'Ningún negocio coincide' : 'Aún no hay negocios'} text={counts.all ? 'Cambia el filtro o la búsqueda.' : 'Cuando alguien cree su consultorio aparecerá aquí.'} />
     {:else}

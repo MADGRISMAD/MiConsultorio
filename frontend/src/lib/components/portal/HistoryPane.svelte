@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import type { PortalHistoryItem } from '$lib/types/portal';
   import Icon from '$lib/components/ui/Icon.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
@@ -21,9 +22,9 @@
 {#if !loaded && !error}
   <LoadingRows />
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if groups.length === 0}
-  <div class="card px-5 py-8 text-center text-sm text-app-muted">Aún no hay movimientos en tu historial.</div>
+  <div class="card-empty">Aún no hay movimientos en tu historial.</div>
 {:else}
   <div class="mb-3 flex justify-end">
     <button class="btn-ghost !min-h-9" onclick={() => setAll(!allClosed)}>{allClosed ? 'Expandir todo' : 'Contraer todo'}</button>

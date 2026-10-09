@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { orgApi } from '$lib/api/org';
   import { moneyCents } from '$lib/format';
   import type { OrgBranchReport, OrgSummary } from '$lib/types/org';
@@ -86,7 +87,7 @@
   <a href={orgApi.csvUrl(from, to)} download class="btn-secondary"><Icon name="download" size={18} />Exportar CSV</a>
 </div>
 
-{#if error}<p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
+{#if error}<Alert class="mb-4">{error}</Alert>{/if}
 
 {#if loading && !report}
   <div class="card"><LoadingRows /></div>

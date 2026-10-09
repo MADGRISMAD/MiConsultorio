@@ -7,7 +7,7 @@ import type {
   CashSession,
   CatalogInput,
   CatalogItem,
-  Charge,
+  PaymentCharge,
   CheckoutRow,
   ComplianceItem,
   Clinic,
@@ -75,6 +75,8 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 }
 
 export const seg = encodeURIComponent;
+/** `/patients/<id>`: the base of everything that hangs from a patient. */
+export const patientPath = (id: string) => `/patients/${seg(id)}`;
 
 /** The same person (e-mail, name and surname) is one record: registering her again adds the giro to the existing one. */
 function noteReused(r: { patient: Patient; reused?: boolean }): Patient {
@@ -224,7 +226,7 @@ export const api = {
     pointRegister: (terminal_id: string) => request<{ terminal_id: string; label: string }>('POST', '/pos/point/terminal', { terminal_id }),
     pointCharge: (amount_cents: number) => request<{ id: string }>('POST', '/pos/point/charges', { amount_cents }),
     payLink: (amount_cents: number, title: string) => request<{ id: string; url: string }>('POST', '/pos/mp/links', { amount_cents, title }),
-    charge: (id: string) => request<{ charge: Charge }>('GET', `/pos/charges/${seg(id)}`).then((r) => r.charge),
+    charge: (id: string) => request<{ charge: PaymentCharge }>('GET', `/pos/charges/${seg(id)}`).then((r) => r.charge),
     cancelCharge: (id: string) => request<unknown>('DELETE', `/pos/charges/${seg(id)}`),
 
     // magic (AI)

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { consult } from '$lib/api/consult';
   import { moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
@@ -116,7 +117,7 @@
         {/each}
       </ul>
     {/if}
-    {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-4" />
     {#if confirmCancel}
       <p class="alert mt-4" role="alertdialog">
         <Icon name="alert" size={18} />

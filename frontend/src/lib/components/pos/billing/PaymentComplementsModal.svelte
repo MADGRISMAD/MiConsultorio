@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { consult } from '$lib/api/consult';
   import { dateShort, moneyCents } from '$lib/format';
   import { toast } from '$lib/toast.svelte';
@@ -66,7 +67,7 @@
   {#if loading && !data}
     <p class="text-sm text-app-muted" role="status">Cargando…</p>
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if data}
     {#if data.payments.length === 0}
       <p class="text-sm text-app-muted">Esta venta no tiene abonos.</p>

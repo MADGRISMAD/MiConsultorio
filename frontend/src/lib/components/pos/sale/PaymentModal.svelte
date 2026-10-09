@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy, untrack } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -373,14 +374,14 @@
               {#if pointState?.ok}
                 <p class="flex items-center gap-2 text-sm text-app-muted"><Icon name="check" size={16} class="text-app-accent" />Terminal lista{pointState.terminal_label ? `: ${pointState.terminal_label}` : ''}</p>
               {:else if pointState}
-                <p class="alert" role="alert"><Icon name="alert" size={18} />{pointState.message} <a class="underline" href="/ajustes?s=terminal">Ir a Ajustes</a></p>
+                <Alert>{pointState.message} <a class="underline" href="/ajustes?s=terminal">Ir a Ajustes</a></Alert>
               {/if}
             {/if}
             <button type="button" class="btn-primary btn-lg min-h-12" disabled={starting || mpMissing || (method === 'mp_point' && !!pointState && !pointState.ok)} onclick={startCharge}>
               {#if starting}<span class="spin"></span>{/if}{method === 'mp_point' ? 'Enviar cobro a la terminal' : 'Generar liga de pago'}
             </button>
           {/if}
-          {#if mpError}<p class="alert" role="alert"><Icon name="alert" size={18} />{mpError}</p>{/if}
+          {#if mpError}<Alert>{mpError}</Alert>{/if}
         {:else if method === 'mixed'}
           <form
             class="space-y-4"
@@ -452,7 +453,7 @@
             <button type="submit" class="btn-primary btn-lg min-h-12">{amount && amount === remaining ? 'Cobrar ' + moneyCents(amount) : 'Agregar pago' + (amount ? ' de ' + moneyCents(amount) : '')}</button>
           </form>
         {/if}
-        {#if formError}<p class="alert" role="alert"><Icon name="alert" size={18} />{formError}</p>{/if}
+        {#if formError}<Alert>{formError}</Alert>{/if}
       {:else if remaining === 0}
         <div class="grid place-items-center rounded-2xl bg-app-accent/10 px-4 py-10 text-center text-app-accent">
           <Icon name="check" size={28} />
@@ -460,12 +461,12 @@
           <p class="text-sm">Confirma el cobro para registrar la venta.</p>
         </div>
       {:else}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />Quita un pago: la suma excede el total de la cuenta.</p>
+        <Alert>Quita un pago: la suma excede el total de la cuenta.</Alert>
       {/if}
     </div>
   </div>
 
-  {#if error}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
+  {#if error}<Alert class="mt-4">{error}</Alert>{/if}
 
   {#snippet footer()}
     <button type="button" class="btn-secondary min-h-11" onclick={onclose}>Volver a la cuenta</button>

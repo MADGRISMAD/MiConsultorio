@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import AddToCalendar from '$lib/components/ui/AddToCalendar.svelte';
   import { onMount } from 'svelte';
   import { portalApi } from '$lib/api/portal';
@@ -91,7 +92,7 @@
 {#if !loaded && loadOp.phase !== 'error'}
   <LoadingRows />
 {:else if loadOp.phase === 'error' && !loaded}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{loadOp.message}</p>
+  <Alert>{loadOp.message}</Alert>
 {:else}
   <div class="grid gap-8">
     {#if notice}<p class="rounded-xl bg-app-accent/12 px-3.5 py-3 text-sm font-medium text-app-accent" role="status">{notice}</p>{/if}
@@ -101,7 +102,7 @@
         <a class="btn-primary !min-h-9" href="/reservar/{encodeURIComponent(slug)}"><Icon name="plus" size={16} />{t('portal.appts.book')}</a>
       </div>
       {#if up.length === 0}
-        <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.appts.none')}</div>
+        <div class="card-empty">{t('portal.appts.none')}</div>
       {:else}
         <ul class="grid gap-3">{#each up as a (a.id)}{@render card(a, true)}{/each}</ul>
       {/if}
@@ -110,7 +111,7 @@
     <section aria-labelledby="ap-hist">
       <h2 id="ap-hist" class="section-title mb-3">{t('portal.appts.history')}</h2>
       {#if past.length === 0}
-        <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.appts.noneHistory')}</div>
+        <div class="card-empty">{t('portal.appts.noneHistory')}</div>
       {:else}
         <ul class="grid gap-3">{#each past as a (a.id)}{@render card(a, false)}{/each}</ul>
       {/if}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { moneyCents } from '$lib/format';
@@ -189,7 +191,7 @@
   {#if loading}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else if !tracked.length}
     <EmptyState icon="box" title="Aún no controlas existencias" text="Marca “Controlar existencias” al editar un producto en tu catálogo y aquí verás cuántas piezas te quedan, con avisos de bajo mínimo.">
       <a class="btn-primary" href="/pos/servicios">Ir al catálogo</a>
@@ -300,7 +302,7 @@
         </li>
       {/each}
     </ul>
-    {#if saveOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+    <OpError op={saveOp} class="mt-4" />
     {#snippet footer()}
       <button type="button" class="btn-secondary" onclick={() => (reviewOpen = false)}>Seguir contando</button>
       <button type="button" class="btn-primary" disabled={!diffs.length || saveOp.phase === 'loading'} onclick={applyCount}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar {diffs.length} {diffs.length === 1 ? 'ajuste' : 'ajustes'}</button>

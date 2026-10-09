@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { orgApi } from '$lib/api/org';
   import { Op } from '$lib/op.svelte';
   import { CLINIC_KIND_KEYS, CLINIC_KINDS } from '$lib/types';
@@ -57,7 +58,7 @@
         <input id="{uid}-address" class="field" bind:value={form.address} maxlength="250" autocomplete="off" />
       </div>
     </div>
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

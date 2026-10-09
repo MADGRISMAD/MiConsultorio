@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -44,7 +45,7 @@
       <label class="label" for="add-text">Texto de la adenda</label>
       <textarea id="add-text" class="field min-h-32" rows="5" bind:value={text}></textarea>
     </div>
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

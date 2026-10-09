@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
   import { Op } from '$lib/op.svelte';
@@ -86,7 +87,7 @@
           {useRecovery ? 'Escribe uno de tus códigos de recuperación. Cada uno sirve una sola vez.' : 'Escribe el código de 6 dígitos que muestra tu app de autenticación.'}
         </p>
         {#if op.phase === 'error'}
-          <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+          <Alert>{op.message}</Alert>
         {/if}
         <div>
           <label class="label" for="login-code">{useRecovery ? 'Código de recuperación' : 'Código de 6 dígitos'}</label>
@@ -105,7 +106,7 @@
     {:else}
     <form class="grid gap-4" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+        <Alert>{op.message}</Alert>
       {/if}
 
       <div>

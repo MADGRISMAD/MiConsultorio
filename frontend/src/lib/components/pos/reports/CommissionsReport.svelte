@@ -1,8 +1,9 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { pos2 } from '$lib/api/pos2';
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
-  import type { CommissionReport, Professional } from '$lib/types/pos2';
+  import type { CommissionReport, Professional as PosProfessional } from '$lib/types/pos2';
   import Icon from '$lib/components/ui/Icon.svelte';
 
   interface Props {
@@ -12,7 +13,7 @@
   let { from, to }: Props = $props();
 
   const uid = $props.id();
-  let pros = $state<Professional[]>([]);
+  let pros = $state<PosProfessional[]>([]);
   let professional = $state('');
   let report = $state<CommissionReport | null>(null);
   let loading = $state(true);
@@ -70,7 +71,7 @@
     </div>
   </div>
   {#if error}
-    <p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert class="mt-3">{error}</Alert>
   {:else if loading && !report}
     <p class="mt-3 text-sm text-app-muted" role="status">Cargando…</p>
   {:else if report}

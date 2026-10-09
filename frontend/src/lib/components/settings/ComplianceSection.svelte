@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -34,7 +36,7 @@
 </script>
 
 {#if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></p>
+  <Alert>{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
 {:else if !items || !legal}
   <div class="card"><LoadingRows /></div>
 {:else}
@@ -104,7 +106,7 @@
           <input id="lg-pa" class="field" bind:value={legal.privacy_address} placeholder="Si lo dejas vacío se usa el del consultorio" />
         </div>
       </div>
-      {#if saveOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+      <OpError op={saveOp} class="mt-4" />
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar datos legales</button></div>
     </form>
   </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api, ApiError } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
@@ -87,7 +88,7 @@
 {#if loading}
   <div class="card overflow-hidden"><LoadingRows /></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if data}
   {#if !data.customers.length}
     <div class="card">

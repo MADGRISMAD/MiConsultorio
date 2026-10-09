@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { publicOrigin } from '$lib/site';
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
   import { Op } from '$lib/op.svelte';
@@ -28,7 +31,7 @@
     }
   });
 
-  const origin = typeof location !== 'undefined' ? location.origin : '';
+  const origin = publicOrigin();
   const slugPreview = $derived((s?.booking_slug ?? '').trim().toLowerCase());
   const slugOk = $derived(/^[a-z0-9][a-z0-9-]{1,62}$/.test(slugPreview));
 
@@ -75,7 +78,7 @@
 </script>
 
 {#if loadError}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+  <Alert>{loadError}</Alert>
 {:else if !s}
   <LoadingRows />
 {:else}
@@ -170,7 +173,7 @@
       </div>
     </section>
 
-    {#if saveOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+    <OpError op={saveOp} />
     <div class="flex justify-end">
       <button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar ajustes</button>
     </div>

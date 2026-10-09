@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { securityApi } from '$lib/api/security';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -53,7 +55,7 @@
 </script>
 
 {#if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></p>
+  <Alert>{error} <button type="button" class="ml-2 underline" onclick={load}>Reintentar</button></Alert>
 {:else if !members || !policy}
   <div class="card"><LoadingRows /></div>
 {:else}
@@ -75,7 +77,7 @@
           </label>
         {/each}
       </fieldset>
-      {#if policyOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{policyOp.message}</p>{/if}
+      <OpError op={policyOp} class="mt-3" />
       {#if policy !== 'none' && withoutIt > 0}
         <p class="mt-3 text-sm text-app-warning">{withoutIt} {withoutIt === 1 ? 'persona aún no la tiene activa' : 'personas aún no la tienen activa'}.</p>
       {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { pos2 } from '$lib/api/pos2';
   import { dayLabel } from './expiry';
@@ -65,7 +66,7 @@
     </div>
   </div>
   {#if error}
-    <p class="alert m-4" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert class="m-4">{error}</Alert>
   {:else if alerts && total > 0}
     <div class="border-t border-app-ink/10">
       {#if alerts.expired.length}

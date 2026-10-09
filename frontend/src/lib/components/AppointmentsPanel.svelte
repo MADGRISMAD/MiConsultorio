@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount, untrack } from 'svelte';
   import { ApiError } from '$lib/api';
   import { agendaApi } from '$lib/api/agenda';
@@ -311,7 +312,7 @@
   {#if loading && appts.length === 0}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else if view === 'day' || view === 'week'}
     <TimeGrid
       {days} {appts} {blocks} {pros} {slot} range={gridRange} {isClosed} canEdit={canEdit}
@@ -381,7 +382,7 @@
     <AppointmentForm bind:data={form} professionals={pros} {rooms} {services} {conflict} slotMinutes={slot} />
   </form>
   {#if formOp.phase === 'error'}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{formOp.message}</p>
+    <Alert class="mt-4">{formOp.message}</Alert>
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (formOpen = false)}>Cancelar</button>

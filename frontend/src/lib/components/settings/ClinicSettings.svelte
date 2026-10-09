@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { summarizeHours } from '$lib/clinic';
   import { Op } from '$lib/op.svelte';
@@ -60,14 +61,14 @@
     <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(dataOp, { name, phone_number: phone, address, image_url: image }, 'Datos guardados'); }}>
       <h2 class="display mb-5 text-3xl">Nombre y contacto</h2>
       <ClinicFields bind:name bind:phone bind:address bind:image />
-      {#if dataOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{dataOp.message}</p>{/if}
+      <OpError op={dataOp} class="mt-4" />
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
 
     <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); if (giroChanged) { kindOp.reset(); confirmGiro = true; } else void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
       <h2 class="display mb-5 text-3xl">Giro y especialidades</h2>
       <SpecialtyPicker bind:kind bind:specialties />
-      {#if kindOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{kindOp.message}</p>{/if}
+      <OpError op={kindOp} class="mt-4" />
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={kindOp.phase === 'loading'}>Guardar giro</button></div>
     </form>
 
@@ -75,7 +76,7 @@
       <h2 class="display mb-1 text-3xl">Horario y citas</h2>
       <p class="mb-5 text-sm text-app-muted">Ahora: {summarizeHours(settings)} · citas de {settings.appointment_minutes} min</p>
       <HoursEditor bind:settings />
-      {#if hoursOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{hoursOp.message}</p>{/if}
+      <OpError op={hoursOp} class="mt-4" />
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={hoursOp.phase === 'loading'}>Guardar horario</button></div>
     </form>
   </div>

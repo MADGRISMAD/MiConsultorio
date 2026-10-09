@@ -1,4 +1,4 @@
-import { request, seg } from '$lib/api';
+import { patientPath, request, seg } from '$lib/api';
 import type {
   ChartKind,
   ChartList,
@@ -20,7 +20,7 @@ import type {
   WeightPoint
 } from '$lib/types/specialty';
 
-const p = (id: string) => `/patients/${seg(id)}`;
+const p = patientPath;
 
 export const specialtyApi = {
   vaccinations: (patientId: string) => request<VaccinationList>('GET', `${p(patientId)}/vaccinations`),

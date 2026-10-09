@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { reportsApi } from '$lib/api/reports';
   import type { OperationsReport, RptProfessional, RptRate } from '$lib/types/reports';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -97,7 +98,7 @@
 {/if}
 
 {#if error}
-  <p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert class="mb-4">{error}</Alert>
 {/if}
 
 {#if loading && !report}

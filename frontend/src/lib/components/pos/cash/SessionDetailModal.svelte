@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { api } from '$lib/api';
@@ -50,7 +51,7 @@
 
 <Modal open={id != null} {title} {onclose} wide>
   {#if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if detail}
     <p class="mb-4 text-sm text-app-muted">
       Abrió {detail.opened_by || '—'} · {new Date(detail.opened_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}

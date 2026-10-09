@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { page } from '$app/state';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
@@ -42,13 +43,13 @@
       </div>
       <a href="/login" class="btn-primary btn-lg mt-7">Ir al login</a>
     {:else if !token}
-      <p class="alert mt-5" role="alert"><Icon name="alert" size={18} />Este enlace está incompleto. Pide uno nuevo.</p>
+      <Alert class="mt-5">Este enlace está incompleto. Pide uno nuevo.</Alert>
       <a href="/forgot" class="btn-primary btn-lg mt-7">Pedir otro enlace</a>
     {:else}
       <p class="mt-3 text-[15px] text-app-muted">Elige una contraseña de al menos 8 caracteres.</p>
       <form class="mt-6 grid gap-4" novalidate onsubmit={submit}>
         {#if op.phase === 'error'}
-          <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+          <Alert>{op.message}</Alert>
         {/if}
         <div>
           <label class="label" for="rp-pass">Contraseña nueva</label>

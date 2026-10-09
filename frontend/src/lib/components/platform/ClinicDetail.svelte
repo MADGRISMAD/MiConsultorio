@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { ago, dateShort, moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
@@ -137,7 +139,7 @@
 </script>
 
 {#if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if !clinic || loadedId !== id}
   <div class="card"><LoadingRows /></div>
 {:else}
@@ -194,7 +196,7 @@
         </dl>
       {:else if tab === 'licencia'}
         {#if !canEdit}
-          <p class="mb-5 flex items-start gap-2 rounded-xl bg-app-warning/12 px-4 py-3 text-sm text-app-warning"><Icon name="info" size={17} class="mt-0.5 flex-none" />Estás en modo soporte: puedes ver los datos, pero solo un administrador cambia el plan, el estado o los datos del negocio.</p>
+          <p class="mb-5 flex items-start gap-2 note"><Icon name="info" size={17} class="mt-0.5 flex-none" />Estás en modo soporte: puedes ver los datos, pero solo un administrador cambia el plan, el estado o los datos del negocio.</p>
         {/if}
         <form class="grid gap-4 sm:grid-cols-2" onsubmit={save}>
           <fieldset class="contents" disabled={!canEdit}>
@@ -243,7 +245,7 @@
               <input id="cl-trial" class="field" type="date" bind:value={draft.trial_ends_on} />
             </div>
           </fieldset>
-          {#if saveOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+          <OpError op={saveOp} class="sm:col-span-2" />
           {#if canEdit}
             <div class="flex gap-2 sm:col-span-2">
               <button type="submit" class="btn-primary" disabled={!dirty || saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}{dirty ? 'Guardar cambios' : 'Sin cambios'}</button>
@@ -269,7 +271,7 @@
               <input id="pay-note" class="field" bind:value={pay.note} maxlength="200" placeholder="SPEI, folio…" />
             </div>
             <button type="submit" class="btn-primary" disabled={payOp.phase === 'loading'}>Registrar</button>
-            {#if payOp.phase === 'error'}<p class="alert sm:col-span-4" role="alert"><Icon name="alert" size={18} />{payOp.message}</p>{/if}
+            <OpError op={payOp} class="sm:col-span-4" />
           </form>
         {/if}
       {:else if tab === 'personas'}
@@ -328,7 +330,7 @@
     <p class="text-sm text-app-muted">Mientras esté suspendido, nadie de <strong class="text-app-ink">{clinic.name}</strong> podrá usar la app. Sus datos no se borran.</p>
     <label class="label mt-4" for="susp-reason">Motivo <span class="font-normal text-app-muted">(lo verán ellos)</span></label>
     <input id="susp-reason" class="field" bind:value={reason} maxlength="200" placeholder="Pago pendiente" />
-    {#if suspendOp.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{suspendOp.message}</p>{/if}
+    <OpError op={suspendOp} class="mt-4" />
     {#snippet footer()}
       <button type="button" class="btn-secondary" onclick={() => (suspendOpen = false)}>Cancelar</button>
       <button type="button" class="btn-danger" disabled={suspendOp.phase === 'loading'} onclick={suspend}>Suspender</button>

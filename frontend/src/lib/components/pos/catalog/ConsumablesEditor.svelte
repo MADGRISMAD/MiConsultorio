@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
@@ -85,7 +87,7 @@
   {:else if loading}
     <p class="mt-3 text-sm text-app-muted" role="status">Cargando…</p>
   {:else if loadError}
-    <p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="mt-3">{loadError}</Alert>
   {:else}
     {#if rows.length}
       <ul class="mt-3 space-y-2">
@@ -127,7 +129,7 @@
     {:else}
       <p class="hint mt-3">Aún no tienes productos con control de existencias.</p>
     {/if}
-    {#if op.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-3" />
     <div class="mt-3 flex justify-end">
       <button type="button" class="btn-secondary min-h-9" disabled={!dirty || invalid || op.phase === 'loading'} onclick={save}>
         {#if op.phase === 'loading'}<span class="spin"></span>{/if}Guardar consumibles

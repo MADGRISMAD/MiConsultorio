@@ -20,10 +20,11 @@ test('una cita de otro día no se puede marcar como llegada ni terminar', async 
   // the screen does not offer it either
   await page.goto('/admin/admin-citas');
   await page.getByRole('button', { name: 'Lista' }).click();
+  await page.waitForLoadState('networkidle'); // the list must have loaded before looking for the row (otherwise «Siguiente» skips past it)
   const row = page.getByRole('button', { name: new RegExp(`Ver detalles de la cita de Anticipada${id}`) });
   for (let i = 0; i < 3 && !(await row.isVisible()); i++) {
     await page.getByRole('button', { name: 'Siguiente' }).click();
-    await page.waitForTimeout(400);
+    await page.waitForLoadState('networkidle');
   }
   await row.click();
   const dialog = page.locator(ui.dialog);

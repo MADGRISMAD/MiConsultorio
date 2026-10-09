@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { specialtyApi } from '$lib/api/specialty';
@@ -163,7 +164,7 @@
       <p class="text-sm">Total: <strong class="text-base">{moneyCents(total)}</strong></p>
     </div>
     {#if !canCatalog}<p class="hint">Sin acceso al catálogo de cobros: escribe la descripción y el precio a mano.</p>{/if}
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </div>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

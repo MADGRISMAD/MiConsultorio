@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -74,14 +76,14 @@
   {#if providers.sandbox}<p class="mt-2 text-xs text-app-warning">Modo de pruebas: los cobros no son reales.</p>{/if}
 
   {#if !providers.point_available}
-    <p class="mt-4 flex items-start gap-2.5 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm text-app-warning">
+    <p class="mt-4 flex items-start gap-2.5 note">
       <Icon name="info" size={18} />
       <span>Esta función aún no está activada en el servidor. Quien administra la instalación debe configurar <code class="font-mono text-[13px]">MP_CLIENT_ID</code>, <code class="font-mono text-[13px]">MP_CLIENT_SECRET</code> y <code class="font-mono text-[13px]">API_PUBLIC_URL</code>.</span>
     </p>
   {:else if !providers.point_connected}
     <div class="mt-4">
       <p class="text-sm">Conecta tu cuenta para autorizar a Caresia a crear cobros en tu nombre. Te llevaremos a Mercado Pago y regresarás aquí.</p>
-      {#if connectOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{connectOp.message}</p>{/if}
+      <OpError op={connectOp} class="mt-3" />
       <button type="button" class="btn-primary mt-4" disabled={connectOp.phase === 'loading'} onclick={connect}>
         {#if connectOp.phase === 'loading'}<span class="spin"></span>{/if}Conectar mi cuenta de Mercado Pago
       </button>
@@ -106,7 +108,7 @@
       {#if loading && !terminals.length}
         <div class="mt-2 h-12 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
       {:else if loadError}
-        <p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+        <Alert class="mt-2">{loadError}</Alert>
       {:else if !terminals.length}
         <p class="mt-2 text-sm text-app-muted">No encontramos terminales vinculadas a tu cuenta. Vincula tu Point desde la app de Mercado Pago y actualiza.</p>
       {:else}
@@ -129,7 +131,7 @@
             </li>
           {/each}
         </ul>
-        {#if registerOp.phase === 'error'}<p class="alert mt-2" role="alert"><Icon name="alert" size={18} />{registerOp.message}</p>{/if}
+        <OpError op={registerOp} class="mt-2" />
         <p class="hint">Al elegirla, la terminal pasa a modo PDV: recibe el monto desde Caresia y solo falta que el paciente pase su tarjeta. Cancelar una venta pagada con la terminal devuelve el dinero en Mercado Pago.</p>
       {/if}
     </div>

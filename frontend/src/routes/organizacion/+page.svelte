@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { enterBranch, orgApi } from '$lib/api/org';
   import { Op } from '$lib/op.svelte';
@@ -64,7 +66,7 @@
   </PageHeader>
 
   {#if load.phase === 'error'}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{load.message}</p>
+    <Alert>{load.message}</Alert>
   {:else if !ov}
     <div class="card"><LoadingRows /></div>
   {:else if !ov.organization}
@@ -86,7 +88,7 @@
       <h2 class="display text-2xl">{ov.organization.name}</h2>
       <p class="text-sm text-app-muted" role="status">{ov.active_branches} de {ov.branch_limit} sucursales en servicio · plan {ov.plan_name}</p>
     </div>
-    {#if act.phase === 'error'}<p class="alert mb-3" role="alert"><Icon name="alert" size={18} />{act.message}</p>{/if}
+    <OpError op={act} class="mb-3" />
     <ul class="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Sucursales">
       {#each ov.branches as b (b.id)}
         <li class="card flex flex-col gap-3 p-4 {b.suspended ? 'opacity-70' : ''}">

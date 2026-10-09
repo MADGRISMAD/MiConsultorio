@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { dateShort as dt } from '$lib/format';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
@@ -110,14 +112,14 @@
 {#if loading}
   <div class="card h-48 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else}
   <section class="card p-5 sm:p-6" aria-labelledby="ps-scales">
     <h2 id="ps-scales" class="display text-2xl">Escalas de evaluación</h2>
     <p class="mt-1 text-sm text-app-muted">Cuestionarios breves con calificación automática. Orientan al profesional; no sustituyen el juicio clínico ni dan un diagnóstico.</p>
 
     {#if lastResult?.flag === 'self_harm'}
-      <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />La pregunta 9 (pensamientos de estar mejor muerto o de lastimarse) tuvo una respuesta positiva: valora el riesgo con el paciente.</p>
+      <Alert class="mt-4">La pregunta 9 (pensamientos de estar mejor muerto o de lastimarse) tuvo una respuesta positiva: valora el riesgo con el paciente.</Alert>
     {/if}
 
     {#if canWrite}
@@ -143,7 +145,7 @@
           </li>
         {/each}
       </ol>
-      {#if scaleOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{scaleOp.message}</p>{/if}
+      <OpError op={scaleOp} class="mt-3" />
       <div class="mt-4 flex flex-wrap items-center gap-3">
         <button type="button" class="btn-primary" disabled={scaleOp.phase === 'loading'} onclick={saveScale}>{#if scaleOp.phase === 'loading'}<span class="spin"></span>{/if}<Icon name="check" size={18} />Calcular y guardar</button>
         <span class="text-sm text-app-muted">{answered} de {scale.items.length} respondidas</span>
@@ -204,7 +206,7 @@
     <textarea id="ps-notes" class="field min-h-20" rows="3" maxlength="2000" readonly={!canWrite} bind:value={plan.notes}></textarea>
 
     {#if canWrite}
-      {#if planOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{planOp.message}</p>{/if}
+      <OpError op={planOp} class="mt-3" />
       <button type="button" class="btn-primary mt-4" disabled={planOp.phase === 'loading' || !dirty} onclick={savePlan}>{#if planOp.phase === 'loading'}<span class="spin"></span>{/if}<Icon name="check" size={18} />Guardar objetivos y tareas</button>
     {/if}
     {#if planHistory.length > 1}<p class="hint mt-3">{planHistory.length} versiones guardadas · la última: {dt(planHistory[0].created_at)} por {planHistory[0].created_by_name}.</p>{/if}

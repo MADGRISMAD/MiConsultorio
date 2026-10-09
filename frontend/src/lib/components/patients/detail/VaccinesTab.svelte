@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
@@ -140,7 +142,7 @@
 {#if loading}
   <div class="card h-48 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <p class="max-w-xl text-sm text-app-muted">
@@ -258,7 +260,7 @@
         <input id="v-notes" class="field" bind:value={form.notes} maxlength="500" />
       </div>
     </div>
-    {#if addOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{addOp.message}</p>{/if}
+    <OpError op={addOp} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (adding = false)}>Cancelar</button>

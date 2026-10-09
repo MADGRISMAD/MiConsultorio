@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
@@ -78,7 +79,7 @@
         <label class="label" for="acc-phone">Celular <span class="font-normal text-app-muted">(opcional)</span></label>
         <input id="acc-phone" class="field" type="tel" bind:value={phone} autocomplete="tel" />
       </div>
-      {#if profileOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{profileOp.message}</p>{/if}
+      <OpError op={profileOp} />
       <div><button type="submit" class="btn-primary" disabled={profileOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
   </section>
@@ -104,7 +105,7 @@
           <label class="label" for="pro-spec">Cédula de especialidad <span class="font-normal text-app-muted">(si tienes)</span></label>
           <input id="pro-spec" class="field" bind:value={specialty} />
         </div>
-        {#if proOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{proOp.message}</p>{/if}
+        <OpError op={proOp} class="sm:col-span-2" />
         <div class="sm:col-span-2"><button type="submit" class="btn-primary" disabled={proOp.phase === 'loading'}>Guardar datos profesionales</button></div>
       </form>
     </section>
@@ -127,7 +128,7 @@
         <label class="label" for="pw-n2">Repite la contraseña nueva</label>
         <input id="pw-n2" class="field" type="password" bind:value={again} required autocomplete="new-password" />
       </div>
-      {#if pwOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{pwOp.message}</p>{/if}
+      <OpError op={pwOp} />
       <div><button type="submit" class="btn-primary" disabled={pwOp.phase === 'loading'}>Cambiar contraseña</button></div>
     </form>
   </section>

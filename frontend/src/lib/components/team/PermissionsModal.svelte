@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -74,7 +75,7 @@
       {/each}
     </ul>
     <p class="hint">Para administrar algo hace falta poder verlo, así que se activan juntos. Administrar el equipo solo lo tiene el rol Administrador.</p>
-    {#if op.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-3" />
   {/if}
   {#snippet footer()}
     {#if custom}<button type="button" class="btn-ghost mr-auto" onclick={reset}>Volver a los del rol</button>{/if}

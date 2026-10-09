@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { ago, dateShort, money, moneyCents } from '$lib/format';
@@ -30,7 +31,7 @@
 <PageHeader title="Resumen" subtitle="{greeting}, {session.user?.name?.split(' ')[0]}. {today}." />
 
 {#if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if !data}
   <div class="card"><LoadingRows /></div>
 {:else}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
   import type { PortalPatient, PortalVaccination } from '$lib/types/portal';
@@ -35,11 +37,11 @@
 {#if !loaded && !error}
   <LoadingRows />
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if groups.length === 0}
-  <div class="card px-5 py-8 text-center text-sm text-app-muted">{t('portal.vac.none')}</div>
+  <div class="card-empty">{t('portal.vac.none')}</div>
 {:else}
-  {#if printOp.phase === 'error'}<p class="alert mb-3" role="alert"><Icon name="alert" size={18} />{printOp.message}</p>{/if}
+  <OpError op={printOp} class="mb-3" />
   <div class="grid gap-6">
     {#each groups as g (g.patient.id)}
       <section class="card overflow-hidden" aria-labelledby="vc-{g.patient.id}">

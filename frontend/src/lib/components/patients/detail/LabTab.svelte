@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { filesApi } from '$lib/api/files';
   import { labApi } from '$lib/api/lab';
@@ -163,7 +165,7 @@
 {#if loading}
   <div class="card h-48 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <div role="group" aria-label="Vista de laboratorio" class="inline-flex rounded-full bg-app-ink/6 p-1">
@@ -257,7 +259,7 @@
   {:else}
     <div class="card p-4 sm:p-5">
       {#if trendError}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{trendError}</p>
+        <Alert>{trendError}</Alert>
       {:else if !trends}
         <div class="h-48 animate-pulse"></div>
       {:else if trends.analytes.length === 0}
@@ -307,7 +309,7 @@
       <label class="label" for="le-notes">Notas</label>
       <input id="le-notes" class="field" bind:value={form.notes} maxlength="1000" autocomplete="off" />
     </div>
-    {#if editOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{editOp.message}</p>{/if}
+    <OpError op={editOp} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (editing = null)}>Cancelar</button>

@@ -1,11 +1,13 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { CatalogItem } from '$lib/types';
-  import type { CommissionRule, Professional } from '$lib/types/pos2';
+  import type { CommissionRule, Professional as PosProfessional } from '$lib/types/pos2';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -15,7 +17,7 @@
 
   const uid = $props.id();
   let rules = $state<CommissionRule[]>([]);
-  let pros = $state<Professional[]>([]);
+  let pros = $state<PosProfessional[]>([]);
   let items = $state<CatalogItem[]>([]);
   let categories = $state<string[]>([]);
   let loading = $state(true);
@@ -127,7 +129,7 @@
     {#if loading}
       <LoadingRows />
     {:else if error}
-      <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+      <Alert>{error}</Alert>
     {:else if !rules.length}
       <EmptyState icon="tag" title="Sin reglas de comisión" text="Crea una regla general (por ejemplo 30 % para todos) y afínala por profesional, categoría o artículo.">
         <button type="button" class="btn-primary" onclick={() => openForm(null)}>Nueva regla</button>
@@ -191,8 +193,8 @@
       </div>
     </div>
     <label class="flex cursor-pointer items-center gap-3 text-sm"><input type="checkbox" class="h-4 w-4" bind:checked={active} />Regla activa</label>
-    {#if formError}<p class="alert" role="alert"><Icon name="alert" size={18} />{formError}</p>{/if}
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    {#if formError}<Alert>{formError}</Alert>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (formOpen = false)}>Cancelar</button>

@@ -38,7 +38,7 @@
 
 <ArcoShell>
   {#if view === 'loading'}
-    <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
+    <div class="card-empty" role="status">{t('common.loading')}</div>
   {:else if view === 'ready' && req}
     <section class="card px-6 py-8 sm:px-9">
       <p class="section-title">{req.clinic}</p>

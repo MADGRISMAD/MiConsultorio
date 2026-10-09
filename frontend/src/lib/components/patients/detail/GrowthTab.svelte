@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { growthApi } from '$lib/api/lab';
   import type { Patient, PatientSchema } from '$lib/types';
@@ -64,7 +65,7 @@
 {#if loading}
   <div class="card h-48 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if data}
   {#if data.measurements.length === 0}
     <div class="card"><EmptyState icon="activity" title="Sin mediciones todavía" text="Las gráficas se arman con el peso, la talla y el perímetro cefálico que captures en las consultas de la bitácora." /></div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -40,7 +41,7 @@
   <form class="grid gap-2 rounded-xl border border-app-ink/10 p-3 text-left" onsubmit={send}>
     <label class="label" for="{uid}-mail">Correo del paciente</label>
     <input id="{uid}-mail" class="field" type="email" inputmode="email" autocomplete="off" bind:value={address} placeholder="paciente@correo.com" required />
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
     <div class="flex justify-end gap-2">
       <button type="button" class="btn-ghost" onclick={() => (open = false)}>Cancelar</button>
       <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}Enviar ticket</button>

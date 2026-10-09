@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
@@ -150,7 +151,7 @@
   {#if loading && !rows.length}
     <LoadingRows />
   {:else if error}
-    <p class="alert m-4" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert class="m-4">{error}</Alert>
   {:else if !rows.length}
     <EmptyState icon="receipt" title="Sin solicitudes" text={TABS.find((t) => t.id === tab)?.empty}>
       {#if tab === 'pending'}<button type="button" class="btn-primary" onclick={openNew}>Nueva solicitud</button>{/if}

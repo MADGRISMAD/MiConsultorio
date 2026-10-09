@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy, onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
   import { Op } from '$lib/op.svelte';
@@ -81,7 +82,7 @@
 <Guard title="En proceso" permissions={['navAppointments', 'adminAppointments']}>
   <PageHeader title="En proceso" subtitle="Quién está en el consultorio ahora: en espera y en consulta. Se actualiza solo." />
 
-  {#if error}<p class="alert mb-4" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
+  {#if error}<Alert class="mb-4">{error}</Alert>{/if}
 
   {#if loading}
     <div class="card"><LoadingRows /></div>

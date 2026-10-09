@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import QRCode from 'qrcode';
   import { securityApi } from '$lib/api/security';
   import { Op } from '$lib/op.svelte';
@@ -77,13 +79,13 @@
     Además de tu contraseña, se pide un código de 6 dígitos de una app de autenticación (Google Authenticator, Microsoft Authenticator, Authy, 1Password…). Protege tu cuenta aunque alguien conozca tu contraseña.
   </p>
   {#if required && !enabled}
-    <p class="alert mt-4" role="alert"><Icon name="alert" size={18} />Tu consultorio exige verificación en dos pasos. Actívala para volver a ver expedientes, recetas y archivos.</p>
+    <Alert class="mt-4">Tu consultorio exige verificación en dos pasos. Actívala para volver a ver expedientes, recetas y archivos.</Alert>
   {/if}
 
   {#if codes}
     <RecoveryCodes {codes} onclose={() => (codes = null)} />
   {:else if mode === 'idle'}
-    {#if op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-4" />
     <div class="mt-4 flex flex-wrap gap-2">
       {#if enabled}
         <button type="button" class="btn-secondary" onclick={() => (mode = 'regenerate')}>Códigos de recuperación nuevos</button>
@@ -114,7 +116,7 @@
             <label class="label" for="tfa-code">2. Escribe el código de 6 dígitos que muestra la app</label>
             <input id="tfa-code" class="field max-w-[12rem] text-center font-mono text-lg tracking-[0.3em]" inputmode="numeric" autocomplete="one-time-code" maxlength="7" bind:value={code} required />
           </div>
-          {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+          <OpError op={op} />
           <div class="flex flex-wrap gap-2">
             <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>Confirmar y activar</button>
             <button type="button" class="btn-secondary" onclick={close}>Cancelar</button>
@@ -135,7 +137,7 @@
         <label class="label" for="tfa-code2">Código de la app <span class="font-normal text-app-muted">(o un código de recuperación)</span></label>
         <input id="tfa-code2" class="field font-mono" inputmode="text" autocomplete="one-time-code" bind:value={code} required />
       </div>
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
       <div class="flex flex-wrap gap-2">
         <button type="submit" class={mode === 'disable' ? 'btn-danger' : 'btn-primary'} disabled={op.phase === 'loading'}>
           {mode === 'disable' ? 'Desactivar' : 'Generar códigos nuevos'}

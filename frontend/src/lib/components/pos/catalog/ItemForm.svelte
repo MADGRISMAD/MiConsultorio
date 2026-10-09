@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
@@ -294,7 +295,7 @@
     {/if}
 
     <div aria-live="polite">
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
     </div>
   </form>
   {#snippet footer()}

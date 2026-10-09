@@ -334,6 +334,12 @@ html.lenis body {
   .alert {
     @apply flex items-start gap-2.5 rounded-xl bg-app-danger/10 px-3.5 py-3 text-sm font-medium text-app-danger;
   }
+  .card-empty {
+    @apply card px-6 py-9 text-center text-sm text-app-muted;
+  }
+  .note {
+    @apply rounded-xl bg-app-warning/12 px-3.5 py-3 text-sm text-app-warning;
+  }
   .section-title {
     @apply font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-app-muted;
   }

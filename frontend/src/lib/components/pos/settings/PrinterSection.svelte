@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { printer, printTest, supports, type Transport } from '$lib/printer/connection.svelte';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -60,11 +62,11 @@
 
   {#if thermal}
     {#if isIos}
-      <p class="mt-4 flex items-start gap-2.5 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm text-app-warning">
+      <p class="mt-4 flex items-start gap-2.5 note">
         <Icon name="alert" size={18} /><span>Safari en iPhone y iPad no permite conectar impresoras térmicas. Usa la opción “Impresora normal (navegador)” con AirPrint, o abre Caresia desde una computadora o Android con Chrome.</span>
       </p>
     {:else if !supported}
-      <p class="mt-4 flex items-start gap-2.5 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm text-app-warning">
+      <p class="mt-4 flex items-start gap-2.5 note">
         <Icon name="alert" size={18} /><span>Este navegador no admite {transport === 'usb' ? 'WebUSB' : transport === 'bluetooth' ? 'Web Bluetooth' : 'Web Serial'}. Abre Caresia con Chrome o Edge (en una página https o localhost), o elige “Impresora normal (navegador)”.</span>
       </p>
     {/if}
@@ -91,7 +93,7 @@
         </button>
       </div>
       {#if printer.error || pairOp.phase === 'error' || testOp.phase === 'error'}
-        <p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{printer.error || pairOp.message || testOp.message}</p>
+        <Alert class="mt-3">{printer.error || pairOp.message || testOp.message}</Alert>
       {/if}
     </div>
 
@@ -107,7 +109,7 @@
       <button type="button" class="btn-secondary" disabled={testOp.phase === 'loading'} onclick={test}>
         {#if testOp.phase === 'loading'}<span class="spin"></span>{/if}Imprimir prueba
       </button>
-      {#if testOp.phase === 'error'}<p class="alert flex-1" role="alert"><Icon name="alert" size={18} />{testOp.message}</p>{/if}
+      <OpError op={testOp} class="flex-1" />
     </div>
   {/if}
 </section>

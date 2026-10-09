@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as dt } from '$lib/format';
   import { untrack } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
@@ -87,7 +89,7 @@
   {#if loading}
     <div class="card h-20 animate-pulse"></div>
   {:else if error}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+    <Alert>{error}</Alert>
   {:else if consents.length === 0}
     <div class="card"><EmptyState icon="shield" title="Sin consentimientos" text="Los consentimientos firmados en pantalla se conservan con el texto exacto y la firma." /></div>
   {:else}
@@ -117,7 +119,7 @@
       <p class="hint">Queda guardado tal cual lo ves aquí. Revísalo con quien firma antes de continuar.</p>
     </div>
     <SignBlock bind:sig {animal} {patientName} />
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </div>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (open = false)}>Cancelar</button>

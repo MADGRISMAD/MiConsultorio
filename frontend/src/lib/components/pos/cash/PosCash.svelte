@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { moneyCents } from '$lib/format';
@@ -100,7 +102,7 @@
 
 {#if loadError}
   <div class="card p-6">
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert>{loadError}</Alert>
     <button type="button" class="btn-primary mt-4" onclick={load}><Icon name="refresh" size={16} />Reintentar</button>
   </div>
 {:else if loading}
@@ -130,7 +132,7 @@
       <p class="mt-1 text-sm text-app-muted">Cuenta el efectivo con el que empieza el turno (fondo para dar cambio). Si no hay fondo, déjalo vacío.</p>
       <form onsubmit={open} class="mt-5 space-y-4">
         <MoneyInput id="opening" label="Fondo inicial" bind:cents={opening} autofocus />
-        {#if openOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{openOp.message}</p>{/if}
+        <OpError op={openOp} />
         <button type="submit" class="btn-primary btn-lg min-h-12" disabled={openOp.phase === 'loading'}>
           {#if openOp.phase === 'loading'}<span class="spin"></span>{/if}Abrir caja
         </button>

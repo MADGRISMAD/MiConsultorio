@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { emailOk } from '$lib/format';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
@@ -166,7 +167,7 @@
       <input id="inv-mail" type="email" class="field" bind:value={email} autocomplete="email" aria-invalid={touched && !emailOk} />
       {#if touched && !mailOk}<p class="mt-1 text-xs text-app-danger">Revisa el correo.</p>{:else}<p class="hint">Donde se enviará la factura.</p>{/if}
     </div>
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

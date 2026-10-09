@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -113,7 +114,7 @@
         {#if rows.length > 200}<p class="hint">Mostrando las primeras 200 filas de {rows.length}.</p>{/if}
       {/if}
 
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
     </div>
   {/if}
   {#snippet footer()}

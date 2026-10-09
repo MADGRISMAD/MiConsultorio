@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { dateTime as fmtDate } from '$lib/format';
   import { onMount } from 'svelte';
   import { growthApi } from '$lib/api/lab';
@@ -94,7 +96,7 @@
           <input id="gr-source" class="field" bind:value={source} maxlength="200" placeholder="Ej. OMS, Patrones de crecimiento infantil 2006 (who.int/tools/child-growth-standards)" autocomplete="off" oninput={() => (preview = null)} />
         </div>
       </div>
-      {#if previewOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{previewOp.message}</p>{/if}
+      <OpError op={previewOp} />
       <div><button class="btn-secondary" disabled={previewOp.phase === 'loading'}>{#if previewOp.phase === 'loading'}<span class="spin"></span>{/if}Revisar archivo</button></div>
     </form>
 
@@ -117,13 +119,13 @@
             <summary class="cursor-pointer text-app-muted">Ver las primeras filas</summary>
             <pre class="mt-2 overflow-x-auto rounded-xl bg-app-ink/5 p-3 text-xs">{preview.sample.map((r) => JSON.stringify(r)).join('\n')}</pre>
           </details>
-          {#if saveOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+          <OpError op={saveOp} class="mt-3" />
           <div class="mt-4 flex flex-wrap gap-2">
             <button type="button" class="btn-primary" disabled={saveOp.phase === 'loading'} onclick={confirm}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Confirmar y cargar</button>
             <button type="button" class="btn-ghost" onclick={() => (preview = null)}>Descartar</button>
           </div>
         {:else}
-          <p class="alert" role="alert"><Icon name="alert" size={18} />El archivo tiene {preview.error_count} {preview.error_count === 1 ? 'error' : 'errores'}: corrígelos y vuelve a revisarlo. No se guardó nada.</p>
+          <Alert>El archivo tiene {preview.error_count} {preview.error_count === 1 ? 'error' : 'errores'}: corrígelos y vuelve a revisarlo. No se guardó nada.</Alert>
           <ul class="mt-3 grid gap-1 text-sm">
             {#each preview.errors as er}<li><span class="font-mono text-xs text-app-muted">{er.line ? `Línea ${er.line}` : 'Archivo'}</span> · {er.message}</li>{/each}
           </ul>
@@ -135,7 +137,7 @@
     <div>
       <h4 class="section-title mb-2">Cargas anteriores</h4>
       {#if loadError}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+        <Alert>{loadError}</Alert>
       {:else if !imports}
         <LoadingRows />
       {:else if imports.length === 0}

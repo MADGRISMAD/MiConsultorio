@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { ownersApi } from '$lib/api/owners';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -77,7 +78,7 @@
         <input id="own-email" class="field" type="email" bind:value={email} maxlength="160" autocomplete="off" />
       </div>
     </div>
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
 
   <div class="mt-6 border-t border-app-ink/10 pt-4">
@@ -87,7 +88,7 @@
       <div class="grid gap-3 rounded-xl bg-app-elevated p-4">
         <p class="text-sm">Elige el registro con el que se queda. Todas las mascotas de <strong>{owner?.name}</strong> pasarán a ese propietario y este registro desaparece.</p>
         <OwnerPicker selected={target} onpick={(o) => (target = o)} onclear={() => (target = null)} id="own-merge-search" />
-        {#if mergeOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{mergeOp.message}</p>{/if}
+        <OpError op={mergeOp} />
         <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="btn-secondary" onclick={() => (merging = false)}>No unir</button>
           <button type="button" class="btn-danger" disabled={!target || target.id === owner?.id || mergeOp.phase === 'loading'} onclick={merge}>Unir propietarios</button>

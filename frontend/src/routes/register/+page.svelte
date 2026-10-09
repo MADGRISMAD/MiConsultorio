@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
   import { Op } from '$lib/op.svelte';
@@ -73,7 +74,7 @@
 
     <form class="grid gap-3.5" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}
-        <p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>
+        <Alert>{op.message}</Alert>
       {/if}
 
       <div class="grid gap-3.5 sm:grid-cols-2">

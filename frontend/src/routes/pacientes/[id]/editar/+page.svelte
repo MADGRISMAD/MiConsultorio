@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { page } from '$app/state';
   import { api, ApiError } from '$lib/api';
   import Guard from '$lib/components/Guard.svelte';
@@ -44,7 +45,7 @@
   {:else if status === 'notFound'}
     <div class="card"><EmptyState icon="search" title="No encontramos este expediente" text="Puede que el enlace sea incorrecto."><a href="/pacientes" class="btn-secondary">Ver pacientes</a></EmptyState></div>
   {:else if status === 'error'}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{message}</p>
+    <Alert>{message}</Alert>
   {:else if patient}
     <PageHeader title="Editar expediente" subtitle="{fullName(patient)} · #{patient.file_number}" />
     {#key patient.id}<PatientForm {patient} />{/key}

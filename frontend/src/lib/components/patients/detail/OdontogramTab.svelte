@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { dateTime as dt } from '$lib/format';
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { specialtyApi } from '$lib/api/specialty';
   import { Op } from '$lib/op.svelte';
@@ -21,6 +22,8 @@
     toothSummary
   } from '../../specialty/odontoGeometry';
   import EmptyState from '../../ui/EmptyState.svelte';
+  import VersionHistory from '../../specialty/VersionHistory.svelte';
+  import ViewedVersionBanner from '../../specialty/ViewedVersionBanner.svelte';
   import Icon from '../../ui/Icon.svelte';
 
   let { patient, canWrite }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean } = $props();
@@ -169,7 +172,7 @@
 {#if loading}
   <div class="card h-64 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else}
   <div class="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
     <p class="min-w-0 max-w-xl flex-1 basis-64 text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
@@ -203,10 +206,7 @@
   {/if}
 
   {#if viewed}
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-app-warning/12 px-4 py-3 text-sm" role="status">
-      <span>Versión del {dt(viewed.created_at)} por {viewed.created_by_name}{viewed.note ? `: ${viewed.note}` : ''}. Solo lectura.</span>
-      <button type="button" class="btn-secondary" onclick={() => view(null)}>Volver al borrador actual</button>
-    </div>
+    <ViewedVersionBanner {viewed} back={() => view(null)} />
   {/if}
 
   {#if !readonly}
@@ -279,7 +279,7 @@
       {#if canWrite && !viewed}
         <label class="label mt-4" for="chart-note">Nota de esta versión (opcional)</label>
         <input id="chart-note" class="field" maxlength="500" bind:value={note} placeholder="Ej. Revisión de los 6 meses" />
-        {#if saveOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{saveOp.message}</p>{/if}
+        <OpError op={saveOp} class="mt-3" />
         <button type="button" class="btn-primary mt-3" disabled={saveOp.phase === 'loading' || (!dirty && history.length > 0)} onclick={save}>
           {#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}<Icon name="check" size={18} />Guardar versión
         </button>
@@ -288,25 +288,6 @@
   </div>
 
   <section class="mt-6" aria-labelledby="odo-history">
-    <h3 id="odo-history" class="display mb-2 text-xl">Historial de versiones</h3>
-    {#if history.length === 0}
-      <div class="card"><EmptyState icon="tooth" title="Sin versiones" text="Cuando guardes el primer odontograma aparecerá aquí." /></div>
-    {:else}
-      <ul class="space-y-2">
-        {#each history as h, i (h.id)}
-          <li class="card flex flex-wrap items-center justify-between gap-2 p-3 sm:px-5 {viewing === h.id ? 'ring-2 ring-app-primary' : ''}">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">{dt(h.created_at)}{#if i === 0}<span class="badge ml-2">Vigente</span>{/if}</p>
-              <p class="truncate text-xs text-app-muted">{h.created_by_name}{h.note ? ` · ${h.note}` : ''}</p>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <button type="button" class="btn-ghost" onclick={() => view(h)}><Icon name="eye" size={16} />Ver</button>
-              <button type="button" class="btn-ghost" onclick={() => view(h, true)}><Icon name="rotate" size={16} />Comparar con la anterior</button>
-              {#if canWrite && i > 0}<button type="button" class="btn-ghost" onclick={() => useAsBase(h)}>Usar como base</button>{/if}
-            </div>
-          </li>
-        {/each}
-      </ul>
-    {/if}
+    <VersionHistory id="odo-history" title="Historial de versiones" {history} {viewing} {canWrite} icon="tooth" emptyText="Cuando guardes el primer odontograma aparecerá aquí." summary={(h) => ''} onview={view} onbase={useAsBase} compare />
   </section>
 {/if}

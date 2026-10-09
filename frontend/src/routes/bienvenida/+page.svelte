@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { goto } from '$app/navigation';
   import { api } from '$lib/api';
   import { summarizeHours } from '$lib/clinic';
@@ -154,7 +155,7 @@
               <select id="w-role" class="field" bind:value={member.role}>{#each CLINIC_ROLES as r}<option value={r}>{ROLES[r].label}</option>{/each}</select>
             </div>
             <p class="text-xs text-app-muted sm:col-span-2">{ROLES[member.role].about}</p>
-            {#if addOp.phase === 'error'}<p class="alert sm:col-span-2" role="alert"><Icon name="alert" size={18} />{addOp.message}</p>{/if}
+            <OpError op={addOp} class="sm:col-span-2" />
             <div class="sm:col-span-2"><button type="submit" class="btn-secondary" disabled={addOp.phase === 'loading'}>{#if addOp.phase === 'loading'}<span class="spin"></span>{:else}<Icon name="user-plus" size={17} />{/if}Agregar a la lista</button></div>
           </form>
         {:else}
@@ -176,7 +177,7 @@
           </ul>
         {/if}
 
-        {#if op.phase === 'error'}<p class="alert mt-6" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+        <OpError op={op} class="mt-6" />
       </main>
 
       <footer class="mt-5 flex items-center gap-3 pb-2">

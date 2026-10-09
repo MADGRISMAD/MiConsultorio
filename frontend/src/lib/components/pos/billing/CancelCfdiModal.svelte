@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { untrack } from 'svelte';
   import { pos2 } from '$lib/api/pos2';
   import { Op } from '$lib/op.svelte';
@@ -71,8 +73,8 @@
           <input id="{uid}-u" class="field font-mono text-[13px] uppercase" bind:value={replacement} maxlength="36" autocomplete="off" aria-invalid={!!error} />
         </div>
       {/if}
-      {#if error}<p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>{/if}
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      {#if error}<Alert>{error}</Alert>{/if}
+      <OpError op={op} />
     </form>
   {/if}
   {#snippet footer()}

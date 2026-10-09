@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api, ApiError } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { theme } from '$lib/theme.svelte';
@@ -74,7 +75,7 @@
     {:else}
       <p class="mt-3 text-[15px] text-app-muted">Escribe tu correo o tu usuario y te enviamos un enlace para elegir una contraseña nueva.</p>
       <form class="mt-6 grid gap-4" novalidate onsubmit={submit}>
-        {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+        <OpError op={op} />
         <div>
           <label class="label" for="fg-id">Correo o usuario</label>
           <input id="fg-id" class="field" type="text" bind:value={identifier} placeholder="tu@correo.com o tu_usuario" autocomplete="username" autocapitalize="none" spellcheck="false" />

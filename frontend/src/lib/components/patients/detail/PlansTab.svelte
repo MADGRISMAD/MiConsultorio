@@ -1,4 +1,6 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
@@ -161,7 +163,7 @@
 {#if loading}
   <div class="card h-32 animate-pulse"></div>
 {:else if error}
-  <p class="alert" role="alert"><Icon name="alert" size={18} />{error}</p>
+  <Alert>{error}</Alert>
 {:else if plans.length === 0}
   <div class="card"><EmptyState icon="clock-plus" title="Sin planes de tratamiento" text="Arma un plan por fases para {patient.names}, preséntalo y regístralo con firma.">
     {#if canWrite}<button type="button" class="btn-primary" onclick={() => (editor = { mode: 'create', plan: null })}><Icon name="plus" size={18} />Nuevo plan</button>{/if}
@@ -280,7 +282,7 @@
       </div>
       <p class="text-sm text-app-muted">Quien firma acepta el plan, sus costos y fases, y que puede modificarse con su autorización. Se guarda este resumen exacto junto con la firma.</p>
       <SignBlock bind:sig {animal} {patientName} />
-      {#if acceptOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{acceptOp.message}</p>{/if}
+      <OpError op={acceptOp} />
     </div>
   {/if}
   {#snippet footer()}
@@ -297,7 +299,7 @@
       <option value="">Sin vincular</option>
       {#each encounters.slice(0, 40) as e (e.id)}<option value={e.id}>{new Date(e.occurred_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} · {e.reason || e.kind}</option>{/each}
     </select>
-    {#if doneOp.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{doneOp.message}</p>{/if}
+    <OpError op={doneOp} class="mt-3" />
   {/if}
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={() => (doing = null)}>Cancelar</button>

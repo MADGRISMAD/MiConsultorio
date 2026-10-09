@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { labApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
   import type { LabOrder, LabResult } from '$lib/types/lab';
@@ -89,7 +90,7 @@
         <label class="label" for="cr-reason">Motivo de la corrección</label>
         <input id="cr-reason" class="field" bind:value={reason} maxlength="500" placeholder="Ej. Error de captura; el reporte dice 105" autocomplete="off" />
       </div>
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
     </form>
   {/if}
   {#snippet footer()}

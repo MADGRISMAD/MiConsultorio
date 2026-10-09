@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import AddToCalendar from '$lib/components/ui/AddToCalendar.svelte';
   import { page } from '$app/state';
   import { bookingApi } from '$lib/api/booking';
@@ -74,7 +75,7 @@
 </script>
 
 {#if load.phase === 'loading' || (load.phase === 'idle' && !appt && !missing)}
-  <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('appt.loading')}</div>
+  <div class="card-empty" role="status">{t('appt.loading')}</div>
 {:else if missing}
   <section class="card px-6 py-9">
     <div class="grid h-12 w-12 place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name="calendar" size={24} /></div>
@@ -97,7 +98,7 @@
 
     <div class="mt-4 space-y-3" aria-live="polite">
       {#if notice}<p class="flex items-start gap-2 rounded-xl bg-app-accent/10 px-3.5 py-3 text-sm font-medium text-app-accent" role="status"><Icon name="check" size={18} class="mt-px flex-none" />{notice}</p>{/if}
-      {#if act.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{act.message}</p>{/if}
+      <OpError op={act} />
     </div>
 
     <dl class="mt-4 grid gap-3 rounded-xl bg-app-elevated p-4 text-sm">

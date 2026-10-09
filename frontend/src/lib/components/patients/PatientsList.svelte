@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -188,7 +189,7 @@
   {#if loading && items.length === 0 && groups.length === 0}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else if empty}
     <EmptyState icon={search.trim() ? 'search' : 'folder'} title={search.trim() ? 'Sin resultados' : tab === 'pendientes' ? 'Nada pendiente' : tab === 'archivados' ? 'No hay expedientes archivados' : 'Aún no hay pacientes'} text={emptyText}>
       {#if canCreate && tab === 'activos' && !search.trim()}<a href="/pacientes/nuevo" class="btn-primary"><Icon name="plus" size={18} stroke={2.2} />Nuevo paciente</a>{/if}

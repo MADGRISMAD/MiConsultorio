@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { agendaApi } from '$lib/api/agenda';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -133,7 +134,7 @@
       <button type="submit" class="btn-primary" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>{/if}{ownOnly ? 'Marcar no disponible' : 'Crear bloqueo'}</button>
     </div>
   </form>
-  {#if op.phase === 'error'}<p class="alert mt-3" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+  <OpError op={op} class="mt-3" />
 
   {#if affected}
     <div class="mt-4 rounded-xl bg-app-warning/12 px-3.5 py-3 text-sm" role="status">

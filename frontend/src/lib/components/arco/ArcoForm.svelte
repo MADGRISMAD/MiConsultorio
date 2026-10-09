@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { arcoApi } from '$lib/api/arco';
   import { Op } from '$lib/op.svelte';
   import type { ArcoPublicInfo, ArcoPublicInput } from '$lib/types/arco';
@@ -116,7 +117,7 @@
       {#if errors.acknowledged}<p class="mt-1.5 text-sm text-app-danger" role="alert">{errors.acknowledged}</p>{/if}
     </div>
 
-    {#if op.phase === 'error'}<p class="alert mt-5" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} class="mt-5" />
     <button type="submit" class="btn-primary btn-lg mt-6" disabled={op.phase === 'loading'}>
       {#if op.phase === 'loading'}<span class="spin"></span>{/if}{t('arco.form.submit')}
     </button>

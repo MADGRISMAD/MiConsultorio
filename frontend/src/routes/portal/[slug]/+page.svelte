@@ -42,7 +42,7 @@
 
 <PublicShell wide="xl">
   {#if view === 'loading'}
-    <div class="card px-6 py-10 text-center text-sm text-app-muted" role="status">{t('common.loading')}</div>
+    <div class="card-empty" role="status">{t('common.loading')}</div>
   {:else if view === 'login' && info}
     {#if expired}<p class="mb-4 rounded-xl bg-app-warning/14 px-3.5 py-3 text-sm font-medium text-app-warning" role="status">{t('portal.sessionEnded')}</p>{/if}
     <PortalLogin {slug} {info} onsignedin={() => { expired = false; view = 'app'; }} />

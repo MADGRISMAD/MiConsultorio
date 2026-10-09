@@ -1,3 +1,4 @@
+import { publicOrigin } from '$lib/site';
 import type { Issuer, Patient } from '$lib/types';
 import { doc, e, fmtDate, fullName, issuerBlock } from './base';
 
@@ -7,7 +8,7 @@ function responsable(c: Issuer) {
   const address = l.privacy_address || c.address;
   const contact = [l.privacy_email && `correo ${l.privacy_email}`, (l.privacy_phone || c.phone) && `teléfono ${l.privacy_phone || c.phone}`].filter(Boolean).join(', ');
   // Public ARCO form of the clinic (absolute so it works on paper and in PDFs).
-  const arcoUrl = c.arco_slug && typeof location !== 'undefined' ? `${location.origin}/arco/${c.arco_slug}` : '';
+  const arcoUrl = c.arco_slug ? `${publicOrigin()}/arco/${c.arco_slug}` : '';
   return { name, address, contact, arcoUrl };
 }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
@@ -30,7 +31,7 @@
 
 <Modal {open} title="Lotes caducados" {onclose}>
   <form id="{uid}-f" class="space-y-4" onsubmit={submit} novalidate>
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{message}</p>
+    <Alert>{message}</Alert>
     <p class="text-sm text-app-muted">Como administrador puedes venderlos de todos modos. Queda registrado en la bitácora de actividad con tu motivo.</p>
     <div>
       <label class="label" for="{uid}-r">Motivo</label>

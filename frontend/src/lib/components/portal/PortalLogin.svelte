@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { portalApi } from '$lib/api/portal';
   import { Op } from '$lib/op.svelte';
   import type { PortalInfo } from '$lib/types/portal';
@@ -44,7 +45,7 @@
         <input id="pl-email" class="field" type="email" inputmode="email" autocomplete="email" required maxlength="200" bind:value={email} aria-describedby="pl-email-hint" />
         <p id="pl-email-hint" class="hint">{t('portal.login.emailHint')}</p>
       </div>
-      {#if sendOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{sendOp.message}</p>{/if}
+      <OpError op={sendOp} />
       <button class="btn-primary btn-lg" disabled={sendOp.phase === 'loading'}>
         {sendOp.phase === 'loading' ? t('portal.login.sending') : t('portal.login.sendCode')}
       </button>
@@ -58,7 +59,7 @@
         <label class="label" for="pl-code">{t('portal.login.code')}</label>
         <input id="pl-code" class="field text-center font-mono text-2xl tracking-[0.4em]" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required bind:value={code} />
       </div>
-      {#if loginOp.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{loginOp.message}</p>{/if}
+      <OpError op={loginOp} />
       {#if sendOp.phase === 'success'}<p class="text-sm text-app-accent" role="status">{sendOp.message}</p>{/if}
       <button class="btn-primary btn-lg" disabled={loginOp.phase === 'loading' || code.replace(/\s/g, '').length !== 6}>
         {loginOp.phase === 'loading' ? t('portal.login.entering') : t('portal.login.enter')}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { Op } from '$lib/op.svelte';
@@ -41,7 +42,7 @@
   <form id="open-cash" onsubmit={submit} class="space-y-4">
     <p class="text-sm text-app-muted">Cuenta el efectivo con el que inicia el turno (fondo para dar cambio). Si empiezas sin fondo, déjalo en cero.</p>
     <MoneyInput id="open-cash-amount" label="Fondo inicial" bind:cents={amount} autofocus />
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

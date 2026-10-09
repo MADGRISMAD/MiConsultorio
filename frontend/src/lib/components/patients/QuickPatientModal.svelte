@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -91,7 +92,7 @@
     Crea un expediente <strong class="font-semibold text-app-ink">incompleto</strong> con lo mínimo para agendar. El personal clínico lo completará después.
   </p>
   {#if schemaError}
-    <p class="alert" role="alert"><Icon name="alert" size={18} />{schemaError}</p>
+    <Alert>{schemaError}</Alert>
   {:else if !schema}
     <div class="h-24 animate-pulse rounded-xl bg-app-ink/8" role="status" aria-label="Cargando"></div>
   {:else}
@@ -150,7 +151,7 @@
       </label>
     </form>
     <div aria-live="polite">
-      {#if error || op.phase === 'error'}<p class="alert mt-4" role="alert"><Icon name="alert" size={18} />{error || op.message}</p>{/if}
+      {#if error || op.phase === 'error'}<Alert class="mt-4">{error || op.message}</Alert>{/if}
     </div>
   {/if}
   {#snippet footer()}

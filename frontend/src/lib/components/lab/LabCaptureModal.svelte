@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { labApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
   import type { Attachment } from '$lib/types/files';
@@ -259,7 +260,7 @@
       Con esto la orden queda completa
     </label>
 
-    {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+    <OpError op={op} />
   </form>
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { api } from '$lib/api';
   import { moneyCents } from '$lib/format';
@@ -257,7 +258,7 @@
   {#if loading}
     <LoadingRows />
   {:else if loadError}
-    <p class="alert m-5" role="alert"><Icon name="alert" size={18} />{loadError}</p>
+    <Alert class="m-5">{loadError}</Alert>
   {:else if !items.length}
     <EmptyState icon="tag" title="Tu catálogo está vacío" text={canManage ? 'Agrega tus servicios y productos para poder cobrarlos. Puedes capturarlos uno por uno, importarlos de una hoja de cálculo o dejar que la magia los arme por ti.' : 'Todavía no hay servicios ni productos. Pide a un administrador que los agregue.'}>
       {#if canManage}

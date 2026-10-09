@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
   import type { StockLot } from '$lib/types/pos2';
@@ -151,7 +152,7 @@
         <label class="label" for="{uid}-n">Nota (opcional)</label>
         <input id="{uid}-n" class="field" bind:value={note} maxlength="200" autocomplete="off" placeholder={mode === 'in' ? 'Ej. Factura 1234, proveedor X' : mode === 'out' ? 'Ej. Caducado' : 'Ej. Conteo mensual'} />
       </div>
-      {#if op.phase === 'error'}<p class="alert" role="alert"><Icon name="alert" size={18} />{op.message}</p>{/if}
+      <OpError op={op} />
     </form>
   {/if}
   {#snippet footer()}
