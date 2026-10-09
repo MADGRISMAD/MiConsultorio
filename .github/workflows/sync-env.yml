@@ -1,0 +1,55 @@
+# Copia al .env del servidor (VPS) los datos de correo y de IA que ya tienes guardados en GitHub
+# (Settings → Secrets and variables → Actions). Se ejecuta SOLO a mano: Actions → «Sincronizar .env del servidor» → Run workflow.
+#
+# - Solo toca las variables de la lista de abajo; el resto del .env se queda como está.
+# - Antes de cambiar nada guarda una copia en el servidor: ~/miconsultorio/.env.bak-FECHA.
+# - Si una variable no existe en GitHub (o está vacía), se omite y la que ya tenga el servidor no se toca.
+# - Nunca imprime los valores, solo los nombres.
+name: Sincronizar .env del servidor
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  sync-env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HOST: ubuntu@15.235.62.27
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Llave SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Preparar las variables
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST || vars.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || vars.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE || vars.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER || vars.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS || vars.SMTP_PASS }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM || vars.MAIL_FROM }}
+          APP_URL: ${{ secrets.APP_URL || vars.APP_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || vars.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL || vars.GEMINI_MODEL }}
+        run: bash .github/scripts/build-env-update.sh new.env
+
+      - name: Actualizar el .env del servidor y reiniciar
+        run: |
+          scp new.env "$HOST:/tmp/caresia-new.env"
+          ssh "$HOST" 'bash -s' < .github/scripts/apply-env-update.sh
+
+      - name: Comprobar que responde
+        run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors https://miconsultorio.15-235-62-27.sslip.io/api/health
