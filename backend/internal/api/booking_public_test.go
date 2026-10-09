@@ -118,3 +118,24 @@ func TestBookingRegisteredByPhoneAndPets(t *testing.T) {
 	// a people-only visit to a veterinary is refused
 	a.expect(400, "POST", url, req(map[string]any{"animal": false, "start": "11:00", "names": "Pepe", "last_names": "Gómez", "phone": "5577777777"}))
 }
+
+func TestBookingMailsTheSpecialist(t *testing.T) {
+	b := newBookingEnv(t, false)
+	post := func(start string) {
+		t.Helper()
+		b.anon().expect(201, "POST", "/api/public/booking/"+b.slugA+"/appointments", map[string]any{"professional_id": b.pro, "date": b.date, "start": start,
+			"names": "Ana", "last_names": "López", "phone": "5512345678", "reason": "Dolor privado", "accept_privacy": true})
+	}
+	// no e-mail on the specialist's account: the booking still works and nothing is sent
+	b.exec(`UPDATE users SET email = NULL WHERE id = $1`, b.pro)
+	post("10:00")
+	if n := b.mail.count(); n != 0 {
+		t.Fatalf("no address, no mail: %d", n)
+	}
+	b.exec(`UPDATE users SET email = 'doc@clinica.mx' WHERE id = $1`, b.pro)
+	post("10:30")
+	m := b.mail.wait(t, 1)
+	if m.To[0] != "doc@clinica.mx" || !strings.Contains(m.Text, "Ana López") || !strings.Contains(m.Text, "10:30") || strings.Contains(m.Text+m.HTML, "Dolor privado") {
+		t.Fatalf("specialist mail (the reason must not travel by e-mail): %+v", m)
+	}
+}

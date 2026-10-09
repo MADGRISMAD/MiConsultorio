@@ -553,6 +553,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		subject, text, html := b.bookingMail(info, c.RequiresConfirmation)
 		b.sendMail(mail.Message{To: []string{req.Email}, Subject: subject, Text: text, HTML: html})
 	}
+	b.mailSpecialist(ctx, c, pro, req, end)
 	writeJSON(w, http.StatusCreated, map[string]any{"appointment": map[string]any{
 		"token":                token,
 		"date":                 req.Date,
@@ -796,3 +797,31 @@ func (b *bookingAPI) bookingHold(w http.ResponseWriter, r *http.Request) {
 const bookingHoldTTL = 10 * time.Minute
 
 var holderShape = regexp.MustCompile(`^[A-Za-z0-9_-]{16,64}$`)
+
+// mailSpecialist tells the professional by e-mail, besides the bell, that a patient booked with them. The reason of the
+// visit stays out of the message: it is read in the agenda.
+func (b *bookingAPI) mailSpecialist(ctx context.Context, c *bookingClinic, pro bookable, req bookRequest, end string) {
+	if !b.mailEnabled() {
+		return
+	}
+	var to string
+	if b.db.QueryRow(ctx, `SELECT coalesce(email, '') FROM users WHERE id = $1 AND clinic_id = $2 AND NOT disabled`, pro.ID, c.ID).Scan(&to) != nil || to == "" {
+		return
+	}
+	day, err := localTime(c.Loc, req.Date, req.Start)
+	if err != nil {
+		return
+	}
+	who := bookingWho(req)
+	link := b.appLink("/admin/navegar-citas")
+	title := "Nueva cita agendada en línea"
+	lead := who + " agendó una cita contigo desde el enlace de " + c.Name + "."
+	when := longDateES(day) + " a las " + clockES(day) + " (hasta las " + end + ")"
+	if c.RequiresConfirmation {
+		lead += " Está pendiente de que el consultorio la confirme."
+	}
+	text := "Hola " + firstName(pro.Name) + ",\n\n" + lead + "\n\nCuándo: " + when + "\n\nVer la agenda: " + link + "\n"
+	body := `<p style="margin:0 0 8px">Hola ` + esc(firstName(pro.Name)) + `,</p><p style="margin:0 0 8px">` + esc(lead) + `</p>` +
+		`<p style="margin:0 0 8px"><strong>Cuándo:</strong> ` + esc(when) + `</p>` + button(link, "Ver la agenda")
+	b.sendMail(mail.Message{To: []string{to}, Subject: title + " · " + req.Date + " " + req.Start, Text: text, HTML: layout(title, body)})
+}
