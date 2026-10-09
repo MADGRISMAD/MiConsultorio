@@ -239,6 +239,7 @@
   }
 
   let blockOpen = $state(false);
+  let busyPreset = $state<{ date: string; start: string } | null>(null);
   function onChanged(a: Appt) {
     appts = appts.map((x) => (x.id === a.id ? a : x));
     if (viewing?.id === a.id) viewing = a;
@@ -255,7 +256,7 @@
 <PageHeader title={admin ? 'Administrar citas' : 'Citas'} subtitle={admin ? 'Crea, reprograma y cancela citas. Arrastra una cita para moverla.' : 'Consulta la agenda del consultorio.'}>
   {#snippet actions()}
     {#if canEdit || ownProId}
-      <button type="button" class="btn-secondary" onclick={() => (blockOpen = true)}><Icon name="ban" size={18} />{ownProId ? 'Marcar no disponible' : 'Bloquear horario'}</button>
+      <button type="button" class="btn-secondary" onclick={() => { busyPreset = null; blockOpen = true; }}><Icon name="ban" size={18} />{ownProId ? 'Marcar no disponible' : 'Bloquear horario'}</button>
     {/if}
     {#if canEdit}
       <button type="button" class="btn-primary" onclick={() => openCreate()}><Icon name="plus" size={18} stroke={2.2} />Nueva cita</button>
@@ -313,7 +314,7 @@
     <TimeGrid
       {days} {appts} {blocks} {pros} {slot} range={gridRange} {isClosed} canEdit={canEdit}
       oncreate={(d, t) => openCreate(d, t)} onopen={(a) => (viewing = a)} onmove={(a, d, t) => moveTo(a, d, t)}
-      onblock={() => (blockOpen = true)} onday={view === 'week' ? goDay : undefined}
+      onblock={() => (blockOpen = true)} onbusy={ownProId ? (d, t) => { busyPreset = { date: d, start: t }; blockOpen = true; } : undefined} onday={view === 'week' ? goDay : undefined}
     />
   {:else if view === 'month'}
     <MonthGrid {cursor} {appts} {blocks} {pros} load={monthLoad} onday={goDay} onopen={(a) => (viewing = a)} />
@@ -397,4 +398,4 @@
   <p>Se eliminará la cita de <strong class="text-app-ink">{deleting ? fullName(deleting) : ''}</strong> del {deleting ? fmtShort(deleting.date) : ''}. Si solo no vendrá, mejor cancélala para conservar el historial.</p>
 </ConfirmModal>
 
-<BlockModal open={blockOpen} {blocks} {pros} ownOnly={ownProId} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />
+<BlockModal open={blockOpen} {blocks} {pros} ownOnly={ownProId} preset={busyPreset} date={cursor} onclose={() => (blockOpen = false)} onchanged={() => load(true)} />

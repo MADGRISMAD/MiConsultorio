@@ -16,9 +16,11 @@
     onopen: (a: Appt) => void;
     onmove: (a: Appt, date: string, start: string) => void;
     onblock: (b: TimeBlock) => void;
+    /** a specialist without agenda-admin rights: clicking an empty time marks it as busy */
+    onbusy?: (date: string, start: string) => void;
     onday?: (day: string) => void;
   }
-  let { days, appts, blocks, pros, range, slot, canEdit, isClosed, oncreate, onopen, onmove, onblock, onday }: Props = $props();
+  let { days, appts, blocks, pros, range, slot, canEdit, isClosed, oncreate, onopen, onmove, onblock, onbusy, onday }: Props = $props();
 
   const PPM = 1.4; // pixels per minute
   const lo = $derived(range[0]);
@@ -66,10 +68,12 @@
 
   // ----- click on an empty slot -----
   function onColClick(e: MouseEvent, d: string) {
-    if (!canEdit || justDragged || e.target !== e.currentTarget) return;
+    if ((!canEdit && !onbusy) || justDragged || e.target !== e.currentTarget) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const min = lo + Math.floor((e.clientY - rect.top) / PPM / slot) * slot;
-    oncreate(d, fromMin(Math.min(Math.max(min, lo), hi - slot)));
+    const at = fromMin(Math.min(Math.max(min, lo), hi - slot));
+    if (canEdit) oncreate(d, at);
+    else onbusy?.(d, at);
   }
 
   // ----- drag to reschedule: mouse drags after a few pixels, touch after a long press -----
@@ -178,12 +182,12 @@
       <div
         bind:this={cols[i]}
         data-day={d}
-        class="relative border-l border-app-ink/10 {isClosed(d) ? 'bg-app-ink/[0.035]' : ''} {canEdit ? 'cursor-cell' : ''}"
+        class="relative border-l border-app-ink/10 {isClosed(d) ? 'bg-app-ink/[0.035]' : ''} {canEdit || onbusy ? 'cursor-cell' : ''}"
         style="height:{height}px;background-image:linear-gradient(to bottom, transparent calc(100% - 1px), rgb(var(--app-ink) / 0.09) 0);background-size:100% {60 * PPM}px"
         onclick={(e) => onColClick(e, d)}
       >
         {#each blocksOf(d) as b (b.id)}
-          {#if canEdit}
+          {#if canEdit || onbusy}
             <button type="button" class="block-stripes absolute inset-x-0 z-[1] overflow-hidden px-1.5 py-1 text-left text-[11px] font-medium text-app-muted" style={blockStyle(b, d)} onclick={() => onblock(b)} title="Bloqueo: {b.reason || 'sin motivo'}">
               {b.reason || 'Bloqueado'}
             </button>

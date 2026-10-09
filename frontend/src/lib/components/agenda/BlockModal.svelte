@@ -13,12 +13,14 @@
     pros: Professional[];
     /** a specialist without agenda-admin rights: the only professional they may block (themselves) */
     ownOnly?: string | null;
+    /** a time picked on the calendar: the form opens on it */
+    preset?: { date: string; start: string } | null;
     /** date to prefill */
     date: string;
     onclose: () => void;
     onchanged: () => void;
   }
-  let { open, blocks: allBlocks, pros, ownOnly = null, date, onclose, onchanged }: Props = $props();
+  let { open, blocks: allBlocks, pros, ownOnly = null, preset = null, date, onclose, onchanged }: Props = $props();
   const blocks = $derived(ownOnly ? allBlocks.filter((b) => b.professional_id === ownOnly) : allBlocks);
 
   let professional = $state('');
@@ -34,9 +36,15 @@
 
   $effect(() => {
     if (open) {
-      from = to = date;
+      from = to = preset?.date ?? date;
       professional = ownOnly ?? '';
-      allDay = true;
+      allDay = !preset;
+      if (preset) {
+        const [h, m] = preset.start.split(':').map(Number);
+        const e = Math.min(h * 60 + m + 60, 24 * 60 - 1);
+        start = preset.start;
+        end = `${String(Math.floor(e / 60)).padStart(2, '0')}:${String(e % 60).padStart(2, '0')}`;
+      }
       reason = '';
       affected = null;
       op.reset();
@@ -57,6 +65,23 @@
     });
     if (ok) onchanged();
   }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  /** an urgency: busy from now for a while (or the rest of the day), no form to fill in */
+  async function busyNow(minutes: number | 'day') {
+    const now = new Date();
+    const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const from = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const until = minutes === 'day' ? 24 * 60 - 1 : Math.min(now.getHours() * 60 + now.getMinutes() + minutes, 24 * 60 - 1);
+    const ok = await op.run(async () => {
+      const r = await agendaApi.createBlock({
+        professional_id: ownOnly ?? (professional || null), date_from: day, date_to: day,
+        startHour: from, endHour: `${pad(Math.floor(until / 60))}:${pad(until % 60)}`, reason: 'Ocupado'
+      });
+      affected = r.affected;
+      toast.show('Listo: no te asignarán citas en ese lapso');
+    });
+    if (ok) onchanged();
+  }
   async function remove(b: TimeBlock) {
     if (await delOp.run(() => agendaApi.deleteBlock(b.id))) {
       toast.show('Bloqueo quitado');
@@ -68,6 +93,15 @@
 <Modal {open} title={ownOnly ? "Marcar no disponible" : "Bloquear horarios"} wide {onclose}>
   <form id="block-form" class="grid gap-3 text-left sm:grid-cols-2" onsubmit={create}>
     {#if ownOnly}
+      <div class="sm:col-span-2">
+        <p class="label">¿Se te presentó algo ahora?</p>
+        <div class="flex flex-wrap gap-2">
+          {#each [[30, '30 min'], [60, '1 hora'], [120, '2 horas'], ['day', 'Resto del día']] as [m, label]}
+            <button type="button" class="btn-secondary !min-h-9" disabled={op.phase === 'loading'} onclick={() => busyNow(m as number | 'day')}>{label}</button>
+          {/each}
+        </div>
+        <p class="hint">Quedas ocupado desde este momento: nadie podrá agendarte en ese lapso, sin pedir permiso. Lo quitas abajo cuando regreses.</p>
+      </div>
       <p class="rounded-xl bg-app-primary/8 px-3.5 py-2.5 text-sm sm:col-span-2">Los pacientes no podrán agendar contigo en las fechas y horas que marques (por ejemplo, vacaciones). Las citas que ya tengas no se cancelan.</p>
     {:else}
     <label class="block sm:col-span-2">
