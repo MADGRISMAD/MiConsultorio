@@ -332,7 +332,7 @@
 
   <!-- phones and tablets in portrait: the total and Cobrar stay within reach -->
   {#if !cart.empty}
-    <div class="sticky bottom-0 z-30 -mx-4 mt-4 flex items-center gap-3 border-t border-app-ink/10 bg-app-panel/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
+    <div class="sticky bottom-0 z-10 -mx-4 mt-4 flex items-center gap-3 border-t border-app-ink/10 bg-app-panel/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden">
       <a href="#cuenta" class="min-w-0 flex-1" aria-label="Ver la cuenta">
         <span class="block text-xs text-app-muted">{cart.count} {cart.count === 1 ? 'concepto' : 'conceptos'} · ver cuenta</span>
         <span class="display block text-2xl tabular-nums" aria-live="polite">{moneyCents(cart.total)}</span>

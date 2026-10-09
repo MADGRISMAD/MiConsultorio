@@ -149,7 +149,7 @@
 
 <svelte:window onpointermove={move} onpointerup={up} onpointercancel={up} onkeydown={cancelDrag} />
 
-<div bind:this={scroller} class="max-h-[calc(100dvh-17rem)] min-h-[24rem] overflow-auto overscroll-x-contain rounded-[inherit]" role="presentation">
+<div bind:this={scroller} class="isolate max-h-[calc(100dvh-17rem)] min-h-[24rem] overflow-auto overscroll-x-contain rounded-[inherit]" role="presentation">
   <div class="grid" style={colTemplate}>
     <!-- header -->
     <div class="sticky left-0 top-0 z-30 border-b border-app-ink/10 bg-app-panel"></div>
