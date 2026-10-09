@@ -90,6 +90,7 @@ var personByKind = map[string][]Field{
 		f("abortos", "Abortos", "number", "Ginecología"),
 		f("contraception", "Método anticonceptivo", "text", "Ginecología"),
 		f("last_pap", "Último Papanicolaou", "date", "Ginecología"),
+		f("contraception_renewal", "Próxima aplicación o renovación del método", "date", "Ginecología", hint("Inyección, implante, DIU o receta de pastillas: se le avisa por correo unos días antes.")),
 	},
 	"DENTAL": {
 		f("dental_anesthesia_allergy", "Alergia a anestésicos locales o látex", "select", "Odontología", options("No", "Sí", "No sabe")),
