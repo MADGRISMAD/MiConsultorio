@@ -59,6 +59,23 @@
       busy = '';
     }
   }
+  // semblanza de cada profesional para su ficha pública (formación, experiencia)
+  let bios = $state<Record<string, string>>({});
+  $effect(() => {
+    if (ov) for (const p of ov.professionals) if (bios[p.id] === undefined) bios[p.id] = p.bio ?? '';
+  });
+  async function saveBio(id: string, hidden: boolean) {
+    busy = id;
+    try {
+      await mediaApi.setHidden(id, hidden, bios[id] ?? '');
+      await load();
+      toast.show('Semblanza guardada');
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'No se pudo guardar.';
+    } finally {
+      busy = '';
+    }
+  }
   const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 </script>
 
@@ -132,6 +149,11 @@
               {#if p.photo}<button type="button" class="btn-ghost !min-h-9 text-app-danger" onclick={() => drop(p.photo!)}>Quitar foto</button>{/if}
               <label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" checked={!p.hidden} disabled={busy === p.id} onchange={(e) => hide(p.id, !e.currentTarget.checked)} />Mostrar</label>
             </span>
+            <div class="grid w-full gap-2">
+              <label class="label !mb-0" for="bio-{p.id}">Semblanza (formación y experiencia)</label>
+              <textarea id="bio-{p.id}" class="field" rows="2" maxlength="600" placeholder="Ej. Cirujano dentista por la UABC, 10 años de experiencia en ortodoncia." bind:value={bios[p.id]}></textarea>
+              <div><button type="button" class="btn-secondary !min-h-9 text-sm" disabled={busy === p.id} onclick={() => saveBio(p.id, p.hidden)}>Guardar semblanza</button></div>
+            </div>
           </li>
         {/each}
       </ul>

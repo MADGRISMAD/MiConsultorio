@@ -3,7 +3,17 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://miconsultorio.15-235-62-27.sslip.io/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://miconsultorio.15-235-62-27.sslip.io/api/public/sitemap.xml"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://miconsultorio.15-235-62-27.sslip.io/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -36,6 +37,16 @@ type clinicProfile struct {
 	SurveyEnabled    bool   `json:"survey_enabled"`
 	SurveyDelayHours int    `json:"survey_delay_hours"`
 	MapsMinRating    int    `json:"maps_min_rating"`
+	// Directorio
+	Listed         bool     `json:"listed"`
+	City           string   `json:"city"`
+	State          string   `json:"state"`
+	Neighborhood   string   `json:"neighborhood"`
+	Insurances     []string `json:"insurances"`
+	Languages      []string `json:"languages"`
+	PaymentMethods []string `json:"payment_methods"`
+	// PublicServices son los servicios del catálogo que se muestran con su precio (nil = no cambiar).
+	PublicServices []string `json:"public_services,omitempty"`
 }
 
 func (c clinicProfile) reviewURL() string {
@@ -46,17 +57,19 @@ func (c clinicProfile) reviewURL() string {
 }
 
 func defaultProfile() clinicProfile {
-	return clinicProfile{ShowReviews: true, SurveyDelayHours: 3, MapsMinRating: 4}
+	return clinicProfile{ShowReviews: true, SurveyDelayHours: 3, MapsMinRating: 4, Insurances: []string{}, Languages: []string{"Español"}, PaymentMethods: []string{}}
 }
 
-const profileCols = `enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating`
+const profileCols = `enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating,
+	listed, city, state, neighborhood, insurances, languages, payment_methods`
 
 func (s *Server) loadProfile(ctx context.Context, clinicID string) (clinicProfile, error) {
 	c := defaultProfile()
 	var mr int16
 	var delay int32
 	err := s.db.QueryRow(ctx, `SELECT `+profileCols+` FROM clinic_profile WHERE clinic_id = $1`, clinicID).
-		Scan(&c.Enabled, &c.Tagline, &c.About, &c.HoursText, &c.WhatsApp, &c.ContactEmail, &c.Website, &c.MapsURL, &c.GooglePlaceID, &c.ShowReviews, &c.SurveyEnabled, &delay, &mr)
+		Scan(&c.Enabled, &c.Tagline, &c.About, &c.HoursText, &c.WhatsApp, &c.ContactEmail, &c.Website, &c.MapsURL, &c.GooglePlaceID, &c.ShowReviews, &c.SurveyEnabled, &delay, &mr,
+			&c.Listed, &c.City, &c.State, &c.Neighborhood, &c.Insurances, &c.Languages, &c.PaymentMethods)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return defaultProfile(), nil
 	}
@@ -78,7 +91,26 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slug := s.bookingSlugOf(r.Context(), p.ClinicID)
-	writeJSON(w, http.StatusOK, map[string]any{"profile": c, "slug": slug, "public_url": publicProfilePath(slug), "review_url": c.reviewURL()})
+	services := []map[string]any{}
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, price_cents, public FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 200`, p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	for rows.Next() {
+		var id, name string
+		var price int
+		var pub bool
+		if err := rows.Scan(&id, &name, &price, &pub); err != nil {
+			rows.Close()
+			serverError(w, r, err)
+			return
+		}
+		services = append(services, map[string]any{"id": id, "name": name, "price_cents": price, "public": pub})
+	}
+	rows.Close()
+	writeJSON(w, http.StatusOK, map[string]any{"profile": c, "slug": slug, "public_url": publicProfilePath(slug), "review_url": c.reviewURL(),
+		"services": services, "states": mxStates, "payment_methods": paymentMethods})
 }
 
 func publicProfilePath(slug string) string {
@@ -137,19 +169,60 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Revisa el tiempo de envío y la calificación mínima.")
 		return
 	}
+	in.City, in.Neighborhood = strings.TrimSpace(in.City), strings.TrimSpace(in.Neighborhood)
+	if utf8.RuneCountInString(in.City) > 80 || utf8.RuneCountInString(in.Neighborhood) > 80 {
+		writeError(w, http.StatusBadRequest, "La ciudad o la colonia son demasiado largas.")
+		return
+	}
+	if in.State != "" && !slices.Contains(mxStates, in.State) {
+		writeError(w, http.StatusBadRequest, "Elige un estado de la lista.")
+		return
+	}
+	var msg string
+	if in.Insurances, msg = profileList(in.Insurances, 20, 60, nil); msg != "" {
+		writeError(w, http.StatusBadRequest, "Aseguradoras: "+msg)
+		return
+	}
+	if in.Languages, msg = profileList(in.Languages, 10, 30, nil); msg != "" {
+		writeError(w, http.StatusBadRequest, "Idiomas: "+msg)
+		return
+	}
+	if in.PaymentMethods, msg = profileList(in.PaymentMethods, len(paymentMethods), 30, paymentMethods); msg != "" {
+		writeError(w, http.StatusBadRequest, "Formas de pago: "+msg)
+		return
+	}
+	if in.Listed && (!in.Enabled || in.City == "" || in.State == "") {
+		writeError(w, http.StatusBadRequest, "Para aparecer en el directorio, publica tu página e indica ciudad y estado.")
+		return
+	}
 	if (in.Enabled) && s.bookingSlugOf(r.Context(), p.ClinicID) == "" {
 		writeError(w, http.StatusBadRequest, "Primero define el enlace de tu página en Ajustes › Agenda (enlace de citas en línea).")
 		return
 	}
 	_, err := s.db.Exec(r.Context(), `
-		INSERT INTO clinic_profile (clinic_id, enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $14, $7, $8, $9, $10, $11, $12, $13, now())
+		INSERT INTO clinic_profile (clinic_id, enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating,
+			listed, city, state, neighborhood, insurances, languages, payment_methods, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $14, $7, $8, $9, $10, $11, $12, $13, $15, $16, $17, $18, $19, $20, $21, now())
 		ON CONFLICT (clinic_id) DO UPDATE SET enabled = $2, tagline = $3, about = $4, hours_text = $5, whatsapp = $6, contact_email = $14, website = $7, maps_url = $8,
-			google_place_id = $9, show_reviews = $10, survey_enabled = $11, survey_delay_hours = $12, maps_min_rating = $13, updated_at = now()`,
-		p.ClinicID, in.Enabled, in.Tagline, in.About, in.HoursText, in.WhatsApp, in.Website, in.MapsURL, in.GooglePlaceID, in.ShowReviews, in.SurveyEnabled, in.SurveyDelayHours, in.MapsMinRating, in.ContactEmail)
+			google_place_id = $9, show_reviews = $10, survey_enabled = $11, survey_delay_hours = $12, maps_min_rating = $13,
+			listed = $15, city = $16, state = $17, neighborhood = $18, insurances = $19, languages = $20, payment_methods = $21, updated_at = now()`,
+		p.ClinicID, in.Enabled, in.Tagline, in.About, in.HoursText, in.WhatsApp, in.Website, in.MapsURL, in.GooglePlaceID, in.ShowReviews, in.SurveyEnabled, in.SurveyDelayHours, in.MapsMinRating, in.ContactEmail,
+		in.Listed, in.City, in.State, in.Neighborhood, in.Insurances, in.Languages, in.PaymentMethods)
 	if err != nil {
 		serverError(w, r, err)
 		return
+	}
+	if in.PublicServices != nil {
+		ids := make([]string, 0, len(in.PublicServices))
+		for _, id := range in.PublicServices {
+			if validUUID(id) {
+				ids = append(ids, id)
+			}
+		}
+		if _, err := s.db.Exec(r.Context(), `UPDATE catalog_items SET public = (id::text = ANY($2)) WHERE clinic_id = $1 AND kind = 'service'`, p.ClinicID, ids); err != nil {
+			serverError(w, r, err)
+			return
+		}
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "clinic_profile", "Actualizó el perfil público y la encuesta de satisfacción", nil)
 	s.getProfile(w, r)
@@ -239,7 +312,8 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	// the team shown: people who work there now, see patients, are not hidden and work in a giro the clinic still has
 	pros := []map[string]any{}
 	rows, err := s.db.Query(ctx, `
-		SELECT u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro')
+		SELECT u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'),
+		       u.cedula, u.cedula_specialty, u.public_bio
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		WHERE u.clinic_id = $1 AND u.role IN ('admin', 'doctor') AND u.linked_owner_id IS NULL AND NOT u.disabled AND NOT u.public_hidden
 		  AND coalesce(ps.consults, true) AND (cardinality(u.areas) = 0 OR u.areas && $2::text[])
@@ -249,14 +323,14 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for rows.Next() {
-		var n, t string
+		var n, t, ced, cedSpec, bio string
 		var photo *string
-		if err := rows.Scan(&n, &t, &photo); err != nil {
+		if err := rows.Scan(&n, &t, &photo, &ced, &cedSpec, &bio); err != nil {
 			rows.Close()
 			serverError(w, r, err)
 			return
 		}
-		pr := map[string]any{"name": n, "title": t, "photo_url": ""}
+		pr := map[string]any{"name": n, "title": t, "photo_url": "", "cedula": ced, "cedula_specialty": cedSpec, "bio": bio}
 		if photo != nil {
 			pr["photo_url"] = mediaURL(slug, *photo)
 		}
@@ -284,7 +358,29 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		"tagline": prof.Tagline, "about": prof.About, "hours_text": prof.HoursText, "whatsapp": prof.WhatsApp, "website": prof.Website,
 		"maps_url": prof.MapsURL, "review_url": prof.reviewURL(), "booking_url": "", "slug": slug,
 		"email": prof.ContactEmail, "kinds": kinds, "profile_url": profileURL, "cover_url": coverURL, "gallery": galleryURLs,
+		"city": prof.City, "state": prof.State, "neighborhood": prof.Neighborhood, "listed": prof.Listed,
+		"insurances": prof.Insurances, "languages": prof.Languages, "payment_methods": prof.PaymentMethods,
 	}
+	// servicios publicados con su precio
+	svcs := []map[string]any{}
+	sr, err := s.db.Query(ctx, `SELECT name, price_cents, duration_minutes FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND public AND active ORDER BY price_cents, name LIMIT 40`, id)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	for sr.Next() {
+		var n string
+		var price int
+		var dur *int
+		if err := sr.Scan(&n, &price, &dur); err != nil {
+			sr.Close()
+			serverError(w, r, err)
+			return
+		}
+		svcs = append(svcs, map[string]any{"name": n, "price_cents": price, "duration_minutes": dur})
+	}
+	sr.Close()
+	out["services"] = svcs
 	if bookingOn {
 		out["booking_url"] = "/" + slug + "/reservar"
 	}
@@ -297,22 +393,22 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		reviews := []map[string]any{}
 		if st.Count > 0 {
 			rr, err := s.db.Query(ctx, `
-				SELECT rating, comment, answered_at FROM satisfaction_surveys
-				WHERE clinic_id = $1 AND answered_at IS NOT NULL AND public_ok AND comment <> '' ORDER BY answered_at DESC LIMIT 6`, id)
+				SELECT rating, comment, answered_at, reply FROM satisfaction_surveys
+				WHERE clinic_id = $1 AND answered_at IS NOT NULL AND public_ok AND comment <> '' ORDER BY answered_at DESC LIMIT 20`, id)
 			if err != nil {
 				serverError(w, r, err)
 				return
 			}
 			for rr.Next() {
 				var rating int
-				var c string
+				var c, reply string
 				var at time.Time
-				if err := rr.Scan(&rating, &c, &at); err != nil {
+				if err := rr.Scan(&rating, &c, &at, &reply); err != nil {
 					rr.Close()
 					serverError(w, r, err)
 					return
 				}
-				reviews = append(reviews, map[string]any{"rating": rating, "comment": c, "date": at.Format("2006-01-02")})
+				reviews = append(reviews, map[string]any{"rating": rating, "comment": c, "date": at.Format("2006-01-02"), "reply": reply, "verified": true})
 			}
 			rr.Close()
 		}
@@ -323,3 +419,25 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 }
 
 func mediaURL(slug, id string) string { return "/api/public/clinic/" + slug + "/media/" + id }
+
+// profileList recorta, quita repetidos y vacíos, y valida una lista de textos del perfil. allowed (si no es nil) limita los valores.
+func profileList(in []string, maxItems, maxLen int, allowed []string) ([]string, string) {
+	out := []string{}
+	for _, v := range in {
+		v = strings.TrimSpace(v)
+		if v == "" || slices.Contains(out, v) {
+			continue
+		}
+		if utf8.RuneCountInString(v) > maxLen {
+			return nil, "uno de los valores es demasiado largo."
+		}
+		if allowed != nil && !slices.Contains(allowed, v) {
+			return nil, "hay un valor que no es de la lista."
+		}
+		out = append(out, v)
+	}
+	if len(out) > maxItems {
+		return nil, "son demasiados."
+	}
+	return out, ""
+}

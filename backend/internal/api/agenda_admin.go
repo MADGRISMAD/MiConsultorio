@@ -555,7 +555,7 @@ var reservedSlugs = func() map[string]bool {
 	m := map[string]bool{}
 	for _, s := range strings.Fields(`api admin agenda ajustes arco arco-solicitudes avisos baja bienvenida cita clinica configuracion cuenta en-proceso
 		encuesta equipo espera forgot indicadores login offline organizacion pacientes plataforma portal pos privacidad recetas register reportes
-		reservar restablecer suscripcion terminos verificar assets static app www mail ayuda soporte caresia`) {
+		reservar restablecer suscripcion terminos verificar assets static app www mail ayuda soporte caresia directorio`) {
 		m[s] = true
 	}
 	return m

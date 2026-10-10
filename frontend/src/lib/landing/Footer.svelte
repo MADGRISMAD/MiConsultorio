@@ -6,6 +6,7 @@
 
   const cols: [string, [string, string][]][] = [
     ['Producto', [['#funciones', 'Funciones'], ['#incluye', 'Todo incluido'], ['#especialidades', 'Especialidades'], ['#precios', 'Precios']]],
+    ['Pacientes', [['/directorio', 'Buscar especialista'], ['/directorio/dentistas', 'Dentistas'], ['/directorio/psicologos', 'Psicólogos'], ['/directorio/nutriologos', 'Nutriólogos']]],
     ['Soporte', [['#preguntas', 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
   ];
@@ -21,7 +22,7 @@
 </script>
 
 <footer bind:this={footer} class="l-deep relative mt-3 overflow-hidden bg-ink text-paper">
-  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
     <div>
       <Wordmark light />
       <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software de gestión para clínicas, consultorios, nutriólogos, veterinarias y más.</p>

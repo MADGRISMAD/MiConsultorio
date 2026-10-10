@@ -148,6 +148,9 @@ type surveyPublic struct {
 func (s *Server) mountPublicSurvey(r chi.Router) {
 	p := &surveyPublic{Server: s, reads: newRateLimiter(300, 10*time.Minute), badTok: newRateLimiter(15, 15*time.Minute), writes: newRateLimiter(30, 10*time.Minute)}
 	r.Get("/public/clinic/{slug}", p.profile)
+	r.Get("/public/directory", p.directory)
+	r.Get("/public/directory/options", p.directoryOptions)
+	r.Get("/public/sitemap.xml", p.sitemap)
 	r.Get("/public/clinic/{slug}/media/{id}", p.mediaPublic)
 	r.Get("/public/survey/{token}", p.view)
 	r.Post("/public/survey/{token}", p.answer)
@@ -272,7 +275,7 @@ func (s *Server) surveySummary(w http.ResponseWriter, r *http.Request) {
 	var sent, answered int
 	_ = s.db.QueryRow(r.Context(), `SELECT count(*) FILTER (WHERE sent_at IS NOT NULL), count(*) FILTER (WHERE answered_at IS NOT NULL) FROM satisfaction_surveys WHERE clinic_id = $1`, p.ClinicID).Scan(&sent, &answered)
 	rows, err := s.db.Query(r.Context(), `
-		SELECT x.rating, x.comment, x.public_ok, x.answered_at, coalesce(u.name, '')
+		SELECT x.id::text, x.rating, x.comment, x.public_ok, x.answered_at, coalesce(u.name, ''), x.reply
 		FROM satisfaction_surveys x LEFT JOIN users u ON u.id = x.professional_id
 		WHERE x.clinic_id = $1 AND x.answered_at IS NOT NULL ORDER BY x.answered_at DESC LIMIT 30`, p.ClinicID)
 	if err != nil {
@@ -283,14 +286,14 @@ func (s *Server) surveySummary(w http.ResponseWriter, r *http.Request) {
 	recent := []map[string]any{}
 	for rows.Next() {
 		var rating int
-		var comment, pro string
+		var id, comment, pro, reply string
 		var pub bool
 		var at time.Time
-		if err := rows.Scan(&rating, &comment, &pub, &at, &pro); err != nil {
+		if err := rows.Scan(&id, &rating, &comment, &pub, &at, &pro, &reply); err != nil {
 			serverError(w, r, err)
 			return
 		}
-		recent = append(recent, map[string]any{"rating": rating, "comment": comment, "public": pub, "date": at, "professional": pro})
+		recent = append(recent, map[string]any{"id": id, "rating": rating, "comment": comment, "public": pub, "date": at, "professional": pro, "reply": reply})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"stats": st, "sent": sent, "answered": answered, "recent": recent})
 }
@@ -305,9 +308,44 @@ func (s *Server) mountProfile(r chi.Router) {
 	r.With(admin).Get("/clinic/profile", s.getProfile)
 	r.With(admin).Put("/clinic/profile", s.updateClinicProfile)
 	r.With(admin).Get("/clinic/surveys", s.surveySummary)
+	r.With(admin).Put("/clinic/surveys/{id}/reply", s.replySurvey)
 	r.With(admin).Get("/clinic/media", s.mediaOverview)
 	r.With(admin).Post("/clinic/media", s.mediaUpload)
 	r.With(admin).Get("/clinic/media/{id}", s.mediaOwn)
 	r.With(admin).Delete("/clinic/media/{id}", s.mediaDelete)
 	r.With(admin).Put("/clinic/profile/professionals/{id}", s.setProHidden)
+}
+
+// replySurvey es la respuesta pública del consultorio a una opinión (vacía la quita).
+func (s *Server) replySurvey(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !validUUID(id) {
+		writeError(w, http.StatusNotFound, "Opinión no encontrada.")
+		return
+	}
+	var in struct {
+		Reply string `json:"reply"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	in.Reply = strings.TrimSpace(in.Reply)
+	if utf8.RuneCountInString(in.Reply) > 600 {
+		writeError(w, http.StatusBadRequest, "La respuesta es demasiado larga (máximo 600 caracteres).")
+		return
+	}
+	p := principalFrom(r.Context())
+	tag, err := s.db.Exec(r.Context(), `
+		UPDATE satisfaction_surveys SET reply = $3, replied_at = CASE WHEN $3 = '' THEN NULL ELSE now() END
+		WHERE id = $1 AND clinic_id = $2 AND answered_at IS NOT NULL`, id, p.ClinicID, in.Reply)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		writeError(w, http.StatusNotFound, "Opinión no encontrada.")
+		return
+	}
+	audit(r.Context(), s.db, p.ClinicID, p, "survey_reply", "Respondió una opinión del perfil público", map[string]any{"survey": id})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

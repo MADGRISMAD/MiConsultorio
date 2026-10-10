@@ -63,7 +63,7 @@
       title: 'Citas y pacientes',
       items: [
         { id: 'agenda', label: 'Agenda y reservas', desc: 'Horario de cada profesional, salas, enlace para que agenden en línea, recordatorios por correo y portal del paciente', icon: 'calendar', show: admin },
-        { id: 'perfil', label: 'Página pública y encuesta', desc: 'Perfil del consultorio para tus pacientes, encuesta de satisfacción y reseñas en Google Maps', icon: 'heart', show: admin },
+        { id: 'perfil', label: 'Página pública y directorio', desc: 'Perfil del consultorio, aparecer en el directorio de Caresia, precios, opiniones y encuesta de satisfacción', icon: 'heart', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu lista de medicamentos para hacer recetas más rápido', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
         { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños y mascotas (tablas de la OMS o el CDC)', icon: 'baby', show: admin }
       ]
