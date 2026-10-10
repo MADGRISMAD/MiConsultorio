@@ -129,7 +129,7 @@
     <h2 class="display text-2xl">Plan {seats.plan_name}</h2>
     <p class="text-sm text-app-muted">{seats.used_users} {seats.used_users === 1 ? 'persona entra' : 'personas entran'} a la app. Las cuentas de administración no cuentan para el límite.{#if !session.cobros} Las cuentas de caja se usan en la sección de Cobros, que viene con el plan Crecimiento.{/if}</p>
     <div class="mt-4 grid gap-4 sm:grid-cols-3">
-      {#each [{ label: 'Especialistas', used: seats.used_doctors, max: seats.max_doctors }, { label: 'Recepción', used: seats.used_reception, max: seats.max_reception }, { label: 'Caja', used: seats.used_cashiers, max: seats.max_cashiers }] as r}
+      {#each [{ label: 'Especialistas', used: seats.used_doctors, max: seats.max_doctors }, { label: 'Recepcionistas', used: seats.used_reception, max: seats.max_reception }, { label: 'Cajeros', used: seats.used_cashiers, max: seats.max_cashiers }] as r}
         <div>
           <p class="flex items-baseline justify-between text-sm"><span class="font-medium">{r.label}</span><strong class="font-mono">{r.max === null ? `${r.used} · sin límite` : `${r.used} de ${r.max}`}</strong></p>
           {#if r.max !== null}

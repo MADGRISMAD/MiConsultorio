@@ -18,7 +18,9 @@ import (
 
 func orgSetup(t *testing.T) *env {
 	t.Helper()
-	return setupWith(t, func(c *config.Config) { c.UploadsDir = t.TempDir(); c.MaxUploadBytes = 64 << 10 })
+	e := setupWith(t, func(c *config.Config) { c.UploadsDir = t.TempDir(); c.MaxUploadBytes = 64 << 10 })
+	e.exec(`UPDATE clinics SET plan = 'pro'`) // branches come with Pro (10); Crecimiento runs one clinic
+	return e
 }
 
 func orgNewBranch(t *testing.T, c *client, name string) string {
@@ -64,7 +66,7 @@ func TestOrgBranchCreationAndLimits(t *testing.T) {
 
 	// before any branch: nothing to show, but the first administrator may start one
 	ov := owner.expect(200, "GET", "/api/org", nil)
-	if ov["organization"] != nil || ov["can_create"] != true || ov["is_owner"] != false || ov["branch_limit"].(float64) != 3 {
+	if ov["organization"] != nil || ov["can_create"] != true || ov["is_owner"] != false || ov["branch_limit"].(float64) != 10 {
 		t.Fatalf("overview: %v", ov)
 	}
 	if e.login("doc_a").expect(200, "GET", "/api/org", nil)["can_create"] != false {
@@ -107,23 +109,23 @@ func TestOrgBranchCreationAndLimits(t *testing.T) {
 	if err := e.pool.QueryRow(context.Background(), `SELECT plan, billing_status, setup_completed_at IS NOT NULL FROM clinics WHERE id = $1`, north).Scan(&plan, &status, &setup); err != nil {
 		t.Fatal(err)
 	}
-	if plan != "crecimiento" || status != "active" || !setup {
+	if plan != "pro" || status != "active" || !setup {
 		t.Fatalf("branch: %s %s %v", plan, status, setup)
 	}
 
-	// plan limit: Crecimiento = 3 (matrix included), error code BRANCH_LIMIT
-	orgNewBranch(t, owner, "Sucursal Sur")
-	if code, out := owner.do("POST", "/api/org/branches", map[string]any{"name": "Sucursal Este"}); code != 409 || out["code"] != "BRANCH_LIMIT" {
-		t.Fatalf("limit: %d %v", code, out)
+	// Crecimiento runs a single clinic; Pro allows 10 and the plan follows the matrix to every branch
+	e.exec(`UPDATE clinics SET plan = 'crecimiento' WHERE id = $1`, e.clinicB)
+	if code, out := e.login("admin_b").do("POST", "/api/org/branches", map[string]any{"name": "Otra"}); code != 409 || out["code"] != "BRANCH_LIMIT" {
+		t.Fatalf("crecimiento: %d %v", code, out)
 	}
-	// Pro allows 10, and the plan follows the matrix to every branch
-	e.exec(`UPDATE clinics SET plan = 'pro' WHERE id = $1`, e.clinicA)
+	e.exec(`UPDATE clinics SET plan = 'pro' WHERE id = $1`, e.clinicB)
 	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, north) // a branch cannot hold another plan
 	_ = e.pool.QueryRow(context.Background(), `SELECT plan FROM clinics WHERE id = $1`, north).Scan(&plan)
 	if plan != "pro" {
 		t.Fatalf("branch plan must follow the matrix, got %s", plan)
 	}
-	for i := 0; i < 7; i++ {
+	orgNewBranch(t, owner, "Sucursal Sur")
+	for i := 0; i < 7; i++ { // matrix + north + south + 7 = 10
 		orgNewBranch(t, owner, "Extra "+string(rune('A'+i)))
 	}
 	if code, out := owner.do("POST", "/api/org/branches", map[string]any{"name": "Once"}); code != 409 || out["code"] != "BRANCH_LIMIT" {
@@ -466,11 +468,14 @@ func TestOrgSuspendBranch(t *testing.T) {
 		t.Fatal("suspending a branch must never delete clinical data")
 	}
 	// the freed slot can be used, and then reactivation is limited by the plan
-	orgNewBranch(t, owner, "Sucursal Este")
+	var extra string
+	for i := 0; i < 8; i++ { // fill Pro's 10 branches (matrix + south + 8)
+		extra = orgNewBranch(t, owner, "Extra "+string(rune('A'+i)))
+	}
 	if code, out := owner.do("POST", "/api/org/branches/"+north+"/reactivate", nil); code != 409 || out["code"] != "BRANCH_LIMIT" {
 		t.Fatalf("reactivate over limit: %d %v", code, out)
 	}
-	e.exec(`UPDATE clinics SET plan = 'pro' WHERE id = $1`, e.clinicA)
+	e.exec(`UPDATE clinics SET branch_suspended_at = now() WHERE id = $1`, extra)
 	owner.expect(200, "POST", "/api/org/branches/"+north+"/reactivate", nil)
 	localDoc.expect(200, "GET", "/api/patients/", nil)
 	orgSwitch(t, owner, north)
@@ -481,6 +486,7 @@ func TestOrgSubscriptionSharedAndBilling(t *testing.T) {
 		c.MPAccessToken, c.MPAPIBase = "tok", "http://127.0.0.1:1"
 		c.PlanPriceMonth["basico"], c.PlanPriceMonth["crecimiento"] = 500, 1200
 	})
+	e.exec(`UPDATE clinics SET plan = 'pro'`) // branches come with Pro
 	owner := e.login("admin_a")
 	north := orgNewBranch(t, owner, "Sucursal Norte")
 	orgNewBranch(t, owner, "Sucursal Sur")

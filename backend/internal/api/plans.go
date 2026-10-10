@@ -13,11 +13,11 @@ const (
 
 // Plan limits. nil means unlimited. They mirror the landing page:
 // Básico = 2 specialists, 1 front desk, 1 cash account, no AI (agenda and records); Crecimiento = 5 specialists,
-// 2 front desk, 2 cash accounts, collections (cobros) and AI; Pro = unlimited accounts for now, 500 AI uses.
+// 2 front desk, 2 cash accounts, collections (cobros) and 500 AI uses; Pro = unlimited accounts, 10 branches, 1500 AI uses.
 type Plan struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
-	PriceMonth int    `json:"price_month"` // MXN, 0 = custom
+	PriceMonth int    `json:"price_month"` // MXN, 0 = custom (quoted, not payable online)
 	// Seats per kind of account (nil: no limit). Administrators are not counted.
 	MaxDoctors   *int   `json:"max_doctors"`   // specialists
 	MaxReception *int   `json:"max_reception"` // front desk
@@ -47,11 +47,11 @@ func (p Plan) StorageBytes() int64 { return int64(p.StorageGB) << 30 }
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxDoctors: ptr(2), MaxReception: ptr(1), MaxCashiers: ptr(1), Description: "Agenda y expedientes: 2 especialistas, 1 recepción y 1 caja, sin asistente de IA", Cobros: false, MagicUses: 0, MaxBranches: 1,
-		MaxKinds: ptr(1), StorageGB: 2, WhatsApp: false, Permissions: false, Support: "correo"},
-	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxDoctors: ptr(5), MaxReception: ptr(2), MaxCashiers: ptr(2), Description: "5 especialistas, 2 recepciones, 2 cajas, cobros y asistente de IA", Cobros: true, MagicUses: 250, MaxBranches: 3,
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxDoctors: ptr(2), MaxReception: ptr(1), MaxCashiers: ptr(1), Description: "Agenda y expedientes: 2 especialistas, 1 recepcionista y 1 cajero, sin asistente de IA", Cobros: false, MagicUses: 0, MaxBranches: 1,
+		MaxKinds: ptr(2), StorageGB: 2, WhatsApp: false, Permissions: false, Support: "correo"},
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 999, MaxDoctors: ptr(5), MaxReception: ptr(2), MaxCashiers: ptr(2), Description: "5 especialistas, 2 recepcionistas, 2 cajeros, cobros y asistente de IA", Cobros: true, MagicUses: 500, MaxBranches: 1,
 		MaxKinds: ptr(3), StorageGB: 20, WhatsApp: true, Permissions: true, Support: "prioritario"},
-	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxDoctors: nil, MaxReception: nil, MaxCashiers: nil, Description: "Cuentas sin límite por ahora, cobros incluidos y 500 usos de IA, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10,
+	{ID: "pro", Name: "Pro", PriceMonth: 1899, MaxDoctors: nil, MaxReception: nil, MaxCashiers: nil, Description: "Cuentas sin límite, cobros incluidos y 1,500 usos de IA, a medida", Cobros: true, MagicUses: 1500, MaxBranches: 10,
 		MaxKinds: nil, StorageGB: 100, WhatsApp: true, Permissions: true, Support: "dedicado"},
 }
 

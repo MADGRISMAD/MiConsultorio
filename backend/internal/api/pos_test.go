@@ -414,7 +414,7 @@ func TestBillingCheckoutAndWebhook(t *testing.T) {
 	fake, srv := newFakeMP(t)
 	e := setupWith(t, func(c *config.Config) {
 		c.MPAccessToken, c.MPAPIBase = "platform-token", srv.URL
-		c.PlanPriceMonth["crecimiento"] = 600
+		c.PlanPriceMonth["crecimiento"], c.PlanPriceMonth["pro"] = 600, 0 // Pro quoted by hand in this scenario
 	})
 	e.exec(`UPDATE clinics SET plan = 'basico', billing_status = 'trialing', trial_ends_at = now() - interval '1 day' WHERE id = $1`, e.clinicA)
 	admin := e.login("admin_a")
@@ -828,11 +828,11 @@ func TestMagicInventoryAndPrices(t *testing.T) {
 		t.Fatalf("base price must hold: %v", sug[1])
 	}
 	st := admin.expect(200, "GET", "/api/pos/magic", nil)
-	if num(st, "used") != 2 || num(st, "limit") != 250 {
+	if num(st, "used") != 2 || num(st, "limit") != 500 {
 		t.Fatalf("usage: %v", st)
 	}
 	// allowance exhausted
-	e.exec(`UPDATE magic_usage SET used = 250`)
+	e.exec(`UPDATE magic_usage SET used = 500`)
 	if code, o := admin.do("POST", "/api/pos/magic/inventory", map[string]any{"text": "x"}); code != 402 || o["code"] != "MAGIC_LIMIT" {
 		t.Fatalf("limit: %d %v", code, o)
 	}

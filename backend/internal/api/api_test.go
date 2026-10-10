@@ -568,7 +568,7 @@ func TestPlatformPanel(t *testing.T) {
 
 	// money is for administrators only; support can't change anything
 	ov := root.expect(200, "GET", "/api/platform/overview", nil)
-	if ov["mrr"].(float64) != 2*1199 {
+	if ov["mrr"].(float64) != 2*999 {
 		t.Fatalf("mrr: %v", ov["mrr"])
 	}
 	if _, has := help.expect(200, "GET", "/api/platform/overview", nil)["mrr"]; has {
@@ -828,7 +828,7 @@ func TestSetupWizard(t *testing.T) {
 	}
 
 	// Básico works in one giro: more need Crecimiento
-	if got, o := anon.do("PUT", "/api/clinic", map[string]any{"kind": "PEDIATRICS", "specialties": []string{"NUTRITION"}}); got != 403 || o["code"] != "PLAN_REQUIRED" {
+	if got, o := anon.do("PUT", "/api/clinic", map[string]any{"kind": "PEDIATRICS", "specialties": []string{"NUTRITION", "PSYCHOLOGY"}}); got != 403 || o["code"] != "PLAN_REQUIRED" {
 		t.Fatalf("giros of the plan: %d %v", got, o)
 	}
 	e.exec(`UPDATE clinics SET plan = 'crecimiento' WHERE name = 'Nueva'`)

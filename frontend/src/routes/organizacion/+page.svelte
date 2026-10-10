@@ -76,7 +76,7 @@
           {#if ov.branch_limit > 1}
             <button type="button" class="btn-primary" onclick={() => (newOpen = true)}><Icon name="plus" size={18} />Crear mi primera sucursal</button>
           {:else}
-            <p class="text-sm text-app-muted">Cambia a un plan Crecimiento o Pro para agregar sucursales.</p>
+            <p class="text-sm text-app-muted">Las sucursales vienen con el plan Pro.</p>
           {/if}
         </EmptyState>
       {:else}
