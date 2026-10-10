@@ -7,6 +7,10 @@
   import Stars from '$lib/components/ui/Stars.svelte';
   import { dateShort } from '$lib/format';
   import { theme } from '$lib/theme.svelte';
+  import ButtonLabel from '$lib/landing/ButtonLabel.svelte';
+  import Ecg from '$lib/landing/Ecg.svelte';
+  import LandingIcon from '$lib/landing/Icon.svelte';
+  import { btn as ctaBtn } from '$lib/landing/motion';
   import { CLINIC_KINDS, type ClinicKind } from '$lib/types';
 
   const slug = $derived(page.params.slug ?? '');
@@ -61,7 +65,7 @@
         <nav class="ml-auto hidden items-center gap-6 text-sm text-ink-soft md:flex" aria-label="Secciones">
           {#if giros.length}<a href="#servicios" class="hover:text-ink">Especialidades</a>{/if}
           {#if c.professionals.length}<a href="#equipo" class="hover:text-ink">Equipo</a>{/if}
-          <a href="#contacto" class="hover:text-ink">Contacto</a>
+          {#if c.address || c.phone || c.email || wa || c.hours_text || c.website}<a href="#contacto" class="hover:text-ink">Contacto</a>{/if}
         </nav>
         {#if c.booking_url}<a href={c.booking_url} class="{btn} ml-auto h-10 bg-ink px-5 text-sm text-paper hover:bg-signal md:ml-0">Agendar cita</a>{/if}
       </div>
@@ -161,6 +165,7 @@
     {/if}
 
     <!-- contact -->
+    {#if c.address || c.phone || c.email || wa || c.hours_text || c.website}
     <section id="contacto" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
       <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Visítanos</h2>
       <dl class="mt-8 grid gap-4 rounded-[28px] bg-panel p-6 ring-1 ring-ink/10 sm:grid-cols-2 sm:p-8 lg:grid-cols-3">
@@ -172,13 +177,22 @@
         {#if c.website}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Sitio web</dt><dd class="mt-1 break-all"><a class="text-signal underline" href={c.website} target="_blank" rel="noopener noreferrer">{c.website.replace(/^https:\/\//, '')}</a></dd></div>{/if}
       </dl>
     </section>
+    {/if}
 
     {#if c.booking_url}
-      <section class="l-deep mx-auto mt-20 max-w-6xl px-5 sm:px-8">
-        <div class="rounded-[32px] bg-ink px-6 py-14 text-center text-paper sm:px-12">
-          <h2 class="font-display text-[clamp(2.2rem,5vw,3.6rem)] leading-[1]">¿Listo para tu cita?</h2>
-          <p class="mx-auto mt-3 max-w-md text-paper/70">Elige a tu especialista y el horario que mejor te acomode, en menos de un minuto.</p>
-          <a href={c.booking_url} class="{btn} mt-7 bg-signal text-white hover:bg-paper hover:text-ink"><Icon name="calendar" size={18} />Agendar cita</a>
+      <section class="mt-20 px-3 sm:px-5" aria-labelledby="cta-h">
+        <div class="l-deep relative isolate overflow-hidden rounded-[36px] bg-signal px-6 py-20 text-center text-white sm:py-28">
+          <Ecg class="absolute inset-x-0 top-1/2 -z-10 h-40 w-full -translate-y-1/2" base="stroke-white/15" sweep="stroke-white/70" beats={5} />
+          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-white/75">Agenda en línea · menos de 1 minuto</p>
+          <h2 id="cta-h" class="mx-auto mt-6 max-w-5xl font-display text-[clamp(2.8rem,8vw,7rem)] leading-[0.92] tracking-[-0.035em]">¿Listo para <em>tu cita</em>?</h2>
+          <p class="mx-auto mt-5 max-w-md text-[17px] text-white/80">Elige a tu especialista y el horario que mejor te acomode en {c.name}.</p>
+          <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
+            <a href={c.booking_url} class="{ctaBtn} h-16 bg-ink pl-8 pr-2 text-[17px] text-paper hover:bg-paper hover:text-ink focus-visible:ring-offset-signal">
+              <ButtonLabel>Agendar mi cita</ButtonLabel>
+              <span class="ml-2 grid h-12 w-12 place-items-center rounded-full bg-signal text-white transition-transform duration-500 ease-out group-hover:rotate-[-45deg]"><LandingIcon name="arrow" class="h-5 w-5" /></span>
+            </a>
+            {#if c.phone}<a href="tel:{c.phone.replace(/[^\d+]/g, '')}" class="px-4 py-2 text-[16px] font-medium text-white/90 underline decoration-white/40 underline-offset-4 hover:decoration-white">Prefiero llamar</a>{:else if wa}<a href={wa} target="_blank" rel="noopener noreferrer" class="px-4 py-2 text-[16px] font-medium text-white/90 underline decoration-white/40 underline-offset-4 hover:decoration-white">Prefiero escribir por WhatsApp</a>{/if}
+          </div>
         </div>
       </section>
     {/if}

@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 export const loginPath = '/login';
-export const contactEmail = 'contacto@caresia.com';
+export const contactEmail = 'caresia-info@caresia.mx';
 export const demoHref = `mailto:${contactEmail}?subject=${encodeURIComponent('Quiero una demo de Caresia')}`;
 
 export const plans = [
