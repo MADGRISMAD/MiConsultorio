@@ -10,7 +10,7 @@
     { id: 'reservas', title: 'Reservas', what: 'Tu dirección y que los pacientes agenden solos' },
     { id: 'pagina', title: 'Página', what: 'Tu página con servicios, equipo y fotos' },
     { id: 'directorio', title: 'Directorio', what: 'Aparecer en el buscador de Caresia' },
-    { id: 'portal', title: 'Portal', what: 'Citas y recetas de tus pacientes' },
+    { id: 'portal', title: 'Paciente', what: 'Citas y recetas de tus pacientes' },
     { id: 'opiniones', title: 'Opiniones', what: 'Encuesta, Google y respuestas' }
   ];
 
