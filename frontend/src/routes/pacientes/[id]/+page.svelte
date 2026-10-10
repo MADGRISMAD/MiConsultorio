@@ -28,6 +28,7 @@
   import PlansTab from '$lib/components/patients/detail/PlansTab.svelte';
   import ArcoTab from '$lib/components/patients/detail/ArcoTab.svelte';
   import { arcoDone } from '$lib/components/arco/labels';
+  import { ageFrom } from '$lib/components/patients/util';
   import { arcoApi } from '$lib/api/arco';
   import type { ArcoRequest } from '$lib/types/arco';
   import CertificatesTab from '$lib/components/patients/detail/CertificatesTab.svelte';
@@ -203,8 +204,9 @@
   const inMyAreas = (...k: string[]) => isAdmin || myAreas.length === 0 || k.some((x) => myAreas.includes(x));
   const labGiro = $derived(hasKind(...LAB_KINDS));
   const planGiro = $derived(hasKind(...PLAN_KINDS) || hasPlanData);
-  const hasMeasures = $derived(encounters.some((e) => ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')));
-  const showGrowth = $derived(hasKind('PEDIATRICS') || patient?.subject === 'animal' || hasMeasures);
+  // Crecimiento: consultorios con Pediatría, animales (en cualquier consultorio veterinario) y, en Nutrición, solo menores de 18 años
+  const isMinor = $derived((ageFrom(patient?.birth_date?.slice(0, 10) ?? '') ?? 99) < 18);
+  const showGrowth = $derived(hasKind('PEDIATRICS') || patient?.subject === 'animal' || (hasKind('NUTRITION') && isMinor));
   const tabs = $derived<{ key: Tab; label: string; count?: number }[]>([
     { key: 'resumen', label: 'Resumen' },
     { key: 'bitacora', label: 'Bitácora', count: encounters.filter((e) => !e.addendum_of).length },

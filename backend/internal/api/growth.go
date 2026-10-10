@@ -51,12 +51,14 @@ type growthImportRow struct {
 	RowCount   int       `json:"row_count"`
 	CreatedBy  string    `json:"created_by_name"`
 	CreatedAt  time.Time `json:"created_at"`
+	// Platform is true for the tables that come with Caresia (not loaded by the clinic).
+	Platform bool `json:"platform"`
 }
 
 func (s *Server) listGrowthImports(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
-	rows, err := s.db.Query(r.Context(), `SELECT id::text, standard, version, source_name, file_name, sha256, row_count, created_by_name, created_at
-		FROM growth_imports WHERE clinic_id=$1 ORDER BY created_at DESC LIMIT 200`, p.ClinicID)
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, standard, version, source_name, file_name, sha256, row_count, created_by_name, created_at, clinic_id IS NULL
+		FROM growth_imports WHERE clinic_id=$1 OR clinic_id IS NULL ORDER BY (clinic_id IS NULL), created_at DESC LIMIT 200`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -65,7 +67,7 @@ func (s *Server) listGrowthImports(w http.ResponseWriter, r *http.Request) {
 	out := []growthImportRow{}
 	for rows.Next() {
 		var x growthImportRow
-		if err := rows.Scan(&x.ID, &x.Standard, &x.Version, &x.SourceName, &x.FileName, &x.SHA256, &x.RowCount, &x.CreatedBy, &x.CreatedAt); err != nil {
+		if err := rows.Scan(&x.ID, &x.Standard, &x.Version, &x.SourceName, &x.FileName, &x.SHA256, &x.RowCount, &x.CreatedBy, &x.CreatedAt, &x.Platform); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -375,8 +377,8 @@ func (s *Server) patientGrowth(w http.ResponseWriter, r *http.Request) {
 // the score of each measurement.
 func (s *Server) growthAttachReferences(r *http.Request, clinicID, sex, wanted string, meas []growthMeasurement, resp map[string]any) error {
 	rows, err := s.db.Query(r.Context(), `SELECT DISTINCT ON (i.standard) i.standard, i.version, i.source_name, i.created_at
-		FROM growth_imports i WHERE i.clinic_id=$1 AND EXISTS (SELECT 1 FROM growth_references g WHERE g.import_id = i.id AND g.sex=$2)
-		ORDER BY i.standard, i.version DESC`, clinicID, sex)
+		FROM growth_imports i WHERE (i.clinic_id=$1 OR i.clinic_id IS NULL) AND EXISTS (SELECT 1 FROM growth_references g WHERE g.import_id = i.id AND g.sex=$2)
+		ORDER BY i.standard, (i.clinic_id IS NULL), i.version DESC`, clinicID, sex)
 	if err != nil {
 		return err
 	}
@@ -419,10 +421,10 @@ func (s *Server) growthAttachReferences(r *http.Request, clinicID, sex, wanted s
 // growthLoadRefs loads the rows of the latest import of the standard that has this indicator and sex.
 func (s *Server) growthLoadRefs(r *http.Request, clinicID, standard, indicator, sex string) ([]growthRef, error) {
 	rows, err := s.db.Query(r.Context(), `SELECT g.age_months::float8, g.l::float8, g.m::float8, g.s::float8, g.pcts::text FROM growth_references g
-		WHERE g.clinic_id=$1 AND g.indicator=$3 AND g.sex=$4 AND g.import_id = (
-			SELECT i.id FROM growth_imports i WHERE i.clinic_id=$1 AND i.standard=$2
+		WHERE g.indicator=$3 AND g.sex=$4 AND g.import_id = (
+			SELECT i.id FROM growth_imports i WHERE (i.clinic_id=$1 OR i.clinic_id IS NULL) AND i.standard=$2
 			AND EXISTS (SELECT 1 FROM growth_references x WHERE x.import_id = i.id AND x.indicator=$3 AND x.sex=$4)
-			ORDER BY i.version DESC LIMIT 1) ORDER BY g.age_months`, clinicID, standard, indicator, sex)
+			ORDER BY (i.clinic_id IS NULL), i.version DESC LIMIT 1) ORDER BY g.age_months`, clinicID, standard, indicator, sex)
 	if err != nil {
 		return nil, err
 	}

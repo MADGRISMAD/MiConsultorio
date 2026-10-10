@@ -44,6 +44,11 @@
 
   const unlocked = () => !session.locked;
   const admin = () => unlocked() && session.has(PERMISSIONS.adminUsers);
+  // las curvas de crecimiento se usan en Pediatría y en Nutrición (menores de 18 años)
+  $effect(() => {
+    if (session.status === 'authenticated') void session.loadClinic();
+  });
+  const growthGiro = () => [session.clinic?.kind, ...(session.clinic?.specialties ?? [])].some((k) => k === 'PEDIATRICS' || k === 'NUTRITION');
   const cobros = () => unlocked() && session.cobros && session.has(PERMISSIONS.posManage);
 
   const LAST_GROUP = 'Mi cuenta y esta app';
@@ -64,7 +69,7 @@
         { id: 'agenda', label: 'Agenda', desc: 'Horario de cada profesional, salas, duración de los servicios y recordatorios por correo', icon: 'calendar', show: admin },
         { id: 'enlinea', label: 'Reservas y página pública', desc: 'Tu dirección en línea, reservas, página del consultorio, directorio de Caresia, portal del paciente y opiniones', icon: 'heart', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu lista de medicamentos para hacer recetas más rápido', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
-        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños y mascotas (tablas de la OMS o el CDC)', icon: 'baby', show: admin }
+        { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños (tablas de la OMS y el CDC, ya incluidas; carga las tuyas solo para actualizarlas)', icon: 'baby', show: () => admin() && growthGiro() }
       ]
     },
     {

@@ -71,7 +71,7 @@
     <div class="card"><EmptyState icon="activity" title="Sin mediciones todavía" text="Las gráficas se arman con el peso, la talla y el perímetro cefálico que captures en las consultas de la bitácora." /></div>
   {:else}
     {#if data.reference_status === 'no_references'}
-      <p class="mb-4 flex items-start gap-2 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm"><Icon name="info" size={18} />Carga las tablas oficiales de la OMS/CDC en Ajustes para ver percentiles. Mientras tanto se muestran solo las mediciones del paciente.</p>
+      <p class="mb-4 flex items-start gap-2 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm"><Icon name="info" size={18} />Aún no hay tablas de referencia para este paciente. Un administrador puede cargarlas en Ajustes. Mientras tanto se muestran solo las mediciones del paciente.</p>
     {:else if data.reference_status === 'no_birth_date'}
       <p class="mb-4 flex items-start gap-2 rounded-xl bg-app-warning/10 px-3.5 py-3 text-sm"><Icon name="info" size={18} />Falta la fecha de nacimiento: sin ella no se puede calcular la edad ni ubicar las mediciones en las curvas.</p>
     {:else if data.reference_status === 'no_sex'}

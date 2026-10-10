@@ -2,7 +2,16 @@
 
 La pestaña **Crecimiento** del expediente dibuja la evolución de peso, talla, IMC y perímetro cefálico del paciente a partir de las consultas de la bitácora (`weight_kg`, `height_cm` y `head_circumference`; el IMC se calcula cuando una misma consulta trae peso y talla). La edad se calcula con la fecha de nacimiento.
 
-**El producto no trae percentiles incluidos.** Las curvas y los valores percentil / Z solo aparecen cuando un administrador carga las tablas oficiales en **Ajustes > Tablas de crecimiento**. Sin ellas, la pestaña muestra únicamente las mediciones del paciente con el aviso «Carga las tablas oficiales de la OMS/CDC en Ajustes para ver percentiles».
+**Las tablas de la OMS y del CDC ya vienen cargadas.** Caresia las instala sola (estándares `OMS` y `CDC`, marcados «Incluida con Caresia» en **Ajustes > Tablas de crecimiento**), así que las curvas y los valores percentil / Z aparecen sin que nadie suba nada. Un administrador solo carga un archivo si quiere **actualizar o reemplazar** una tabla: su carga es una versión nueva de ese estándar y tiene prioridad sobre la incluida en los indicadores que cubra (lo que no cubra sigue saliendo de la incluida).
+
+Qué trae cada una (L, M y S por edad, para niños y niñas):
+
+- **OMS, 0 a 5 años** (0 a 60 meses): peso, talla/longitud (acostado hasta los 23 meses, de pie desde los 24), IMC y perímetro cefálico.
+- **CDC, 0 a 20 años** (0 a 240 meses): peso, talla/longitud (archivos infantiles hasta los 23.5 meses, de 2 a 20 años desde los 24), IMC (desde los 24 meses) y perímetro cefálico (0 a 36 meses).
+
+Los archivos se copian tal cual de los datos publicados por la OMS y el CDC y se ordenan al formato CSV de abajo con `backend/internal/api/growthdata/build.py` (ahí están las fuentes exactas). No están incluidos los de 5 a 19 años de la OMS; de 5 a 20 años se usa el CDC. Si cambian las tablas incluidas, el servidor las carga como una versión nueva al arrancar.
+
+**Quién ve la pestaña Crecimiento.** En consultorios con el giro Pediatría; en pacientes animales de cualquier consultorio veterinario; y en Nutrición solo para menores de 18 años. El apartado de Ajustes para cargar tablas aparece en consultorios con Pediatría o Nutrición.
 
 Las tablas son de personas. Para animales solo se muestra la evolución del peso (no hay curvas por especie o raza).
 

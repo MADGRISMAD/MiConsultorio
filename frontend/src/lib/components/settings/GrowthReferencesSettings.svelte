@@ -77,7 +77,7 @@
   <h3 id="gr-set" class="section-title mb-3">Tablas de crecimiento (OMS / CDC)</h3>
   <div class="grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-4">
     <p class="text-sm text-app-muted">
-      Para ver percentiles y valores Z en la pestaña Crecimiento del expediente, carga aquí las tablas oficiales en CSV. El sistema no trae tablas incluidas: descárgalas de la OMS o del CDC y súbelas. Cada carga se guarda como una versión nueva (no se sobrescribe nada) y queda en la bitácora con su fuente. El formato y los enlaces de descarga están en <code>docs/CRECIMIENTO.md</code>.
+      Caresia ya trae cargadas las tablas de la <strong>OMS</strong> (0 a 5 años) y del <strong>CDC</strong> (0 a 20 años), así que no necesitas subir nada para ver percentiles y valores Z en la pestaña Crecimiento. Carga un archivo solo si quieres actualizar o reemplazar una tabla: se guarda como una versión nueva de ese estándar (no se sobrescribe nada), tiene prioridad sobre la que viene incluida en lo que cubra, y queda en la bitácora con su fuente. El formato y los enlaces de descarga están en <code>docs/CRECIMIENTO.md</code>.
     </p>
 
     <form onsubmit={check} class="grid gap-3 rounded-2xl border border-app-ink/10 p-4">
@@ -134,17 +134,17 @@
     {/if}
 
     <div>
-      <h4 class="section-title mb-2">Cargas anteriores</h4>
+      <h4 class="section-title mb-2">Tablas disponibles</h4>
       {#if ld.error}
         <Alert>{ld.error}</Alert>
       {:else if !imports}
         <LoadingRows />
       {:else if imports.length === 0}
-        <p class="text-sm text-app-muted">Aún no se ha cargado ninguna tabla.</p>
+        <p class="text-sm text-app-muted">Aún no hay tablas disponibles.</p>
       {:else}
         <div class="overflow-x-auto">
           <table class="w-full min-w-[34rem] text-left text-sm">
-            <thead><tr><th class="th !px-2">Estándar</th><th class="th !px-2">Versión</th><th class="th !px-2">Filas</th><th class="th !px-2">Fuente</th><th class="th !px-2">Cargada</th></tr></thead>
+            <thead><tr><th class="th !px-2">Estándar</th><th class="th !px-2">Versión</th><th class="th !px-2">Filas</th><th class="th !px-2">Fuente</th><th class="th !px-2">Origen</th></tr></thead>
             <tbody>
               {#each imports as i (i.id)}
                 <tr class="border-t border-app-ink/10">
@@ -152,7 +152,7 @@
                   <td class="td !px-2 !py-2">{i.version}</td>
                   <td class="td !px-2 !py-2">{i.row_count}</td>
                   <td class="td !px-2 !py-2 break-words">{i.source_name}{#if i.file_name}<span class="block text-xs text-app-muted">{i.file_name}</span>{/if}</td>
-                  <td class="td !px-2 !py-2">{fmtDate(i.created_at)}<span class="block text-xs text-app-muted">{i.created_by_name}</span></td>
+                  <td class="td !px-2 !py-2">{#if i.platform}<span class="badge">Incluida con Caresia</span>{:else}{fmtDate(i.created_at)}<span class="block text-xs text-app-muted">{i.created_by_name}</span>{/if}</td>
                 </tr>
               {/each}
             </tbody>

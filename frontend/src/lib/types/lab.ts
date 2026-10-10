@@ -189,6 +189,8 @@ export interface GrowthImportRecord {
   row_count: number;
   created_by_name: string;
   created_at: string;
+  /** viene incluida con Caresia (no la cargó el consultorio) */
+  platform?: boolean;
 }
 
 export interface GrowthImportPreview {

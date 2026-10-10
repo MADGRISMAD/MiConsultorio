@@ -57,6 +57,10 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	if err := api.SeedGrowthDefaults(ctx, pool); err != nil {
+		log.Fatalf("growth tables: %v", err)
+	}
+
 	if cfg.PlatformEmail != "" && cfg.PlatformPassword != "" {
 		created, err := db.EnsureFirstPlatformAdmin(ctx, pool, db.UserParams{
 			Name: cfg.PlatformName, Email: cfg.PlatformEmail, Username: cfg.PlatformUsername, Password: cfg.PlatformPassword,
