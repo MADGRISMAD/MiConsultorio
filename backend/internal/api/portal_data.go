@@ -254,6 +254,7 @@ type portalRx struct {
 	AuthorInstitution string    `json:"author_institution"`
 	Voided            bool      `json:"voided"`
 	VoidedAt          *string   `json:"voided_at"`
+	Superseded        bool      `json:"superseded"`
 	Area              string    `json:"area"`
 	AreaLabel         string    `json:"area_label"`
 	Complementary     bool      `json:"complementary"`
@@ -272,7 +273,7 @@ func (s *Server) portalPrescriptions(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := s.db.Query(r.Context(), `
 		SELECT id::text, patient_id::text, folio, mode, issued_at, to_char(valid_until, 'YYYY-MM-DD'), items, instructions,
-		       to_char(next_visit, 'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, to_char(voided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), area, complementary
+		       to_char(next_visit, 'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, to_char(voided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), area, complementary, superseded_at IS NOT NULL
 		FROM prescriptions WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[]) AND `+areaShown("area", 3)+` ORDER BY issued_at DESC LIMIT 200`, sess.ClinicID, patientIDs(pts), activeKinds)
 	if err != nil {
 		serverError(w, r, err)
@@ -284,7 +285,7 @@ func (s *Server) portalPrescriptions(w http.ResponseWriter, r *http.Request) {
 		var x portalRx
 		var raw []byte
 		if err := rows.Scan(&x.ID, &x.PatientID, &x.Folio, &x.Mode, &x.IssuedAt, &x.ValidUntil, &raw, &x.Instructions, &x.NextVisit,
-			&x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.VoidedAt, &x.Area, &x.Complementary); err != nil {
+			&x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.VoidedAt, &x.Area, &x.Complementary, &x.Superseded); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -502,7 +503,7 @@ func (s *Server) portalHistory(w http.ResponseWriter, r *http.Request) {
 			UNION ALL
 			SELECT id::text, patient_id::text, issued_at, 'receta',
 			       CASE WHEN mode = 'instructions' THEN 'Hoja de indicaciones' ELSE 'Receta' END || ' n.º ' || lpad(folio::text, 6, '0')
-			       || CASE WHEN voided_at IS NOT NULL THEN ' (cancelada)' WHEN complementary THEN ' (complementaria)' ELSE '' END, author_name, area
+			       || CASE WHEN voided_at IS NOT NULL THEN ' (cancelada)' WHEN superseded_at IS NOT NULL THEN ' (vencida)' WHEN complementary THEN ' (complementaria)' ELSE '' END, author_name, area
 			FROM prescriptions WHERE clinic_id = $1 AND patient_id = ANY($2::uuid[])
 			UNION ALL
 			SELECT id::text, patient_id::text, created_at, 'plan', 'Plan nutricional', created_by_name, 'NUTRITION'

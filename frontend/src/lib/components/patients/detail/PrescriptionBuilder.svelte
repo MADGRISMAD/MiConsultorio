@@ -76,7 +76,7 @@
   const myAreas = $derived(session.user?.role === 'admin' ? [] : (session.user?.areas ?? []));
   const areaPool = $derived(myAreas.length ? clinicKinds.filter((k) => myAreas.includes(k)) : clinicKinds);
   const effectiveArea = $derived(area || areaPool[0] || '');
-  const sameArea = $derived(earlier.filter((r) => !r.voided_at && (r.area ?? '') === effectiveArea));
+  const sameArea = $derived(earlier.filter((r) => !r.voided_at && !r.superseded_at && (r.area ?? '') === effectiveArea));
   const kindLabel = (k: string) => CLINIC_KINDS[k as keyof typeof CLINIC_KINDS]?.label ?? k;
   async function loadEarlier() {
     try {

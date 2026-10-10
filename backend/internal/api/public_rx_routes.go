@@ -86,7 +86,7 @@ func (s *Server) verifyPrescription(w http.ResponseWriter, r *http.Request) {
 	)
 	err := s.db.QueryRow(r.Context(), `
 		SELECT x.folio, x.issued_at, to_char(x.valid_until,'YYYY-MM-DD'), x.voided_at IS NOT NULL,
-			COALESCE(x.valid_until < current_date, false), c.name, x.author_name, x.author_title, x.author_license, pt.names, pt.last_names,
+			COALESCE(x.valid_until < current_date, false) OR x.superseded_at IS NOT NULL, c.name, x.author_name, x.author_title, x.author_license, pt.names, pt.last_names,
 			EXISTS (SELECT 1 FROM jsonb_array_elements(x.items) i WHERE i->>'control' IN ('Antibiótico','Fracción III'))
 		FROM prescriptions x
 		JOIN clinics c ON c.id = x.clinic_id

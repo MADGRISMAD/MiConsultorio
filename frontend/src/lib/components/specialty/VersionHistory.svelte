@@ -19,8 +19,10 @@
     onbase: (h: PatientChart) => void;
     /** offer «Comparar con la anterior» */
     compare?: boolean;
+    /** when set, every version but the newest carries this label (a plan is replaced by the next one: «Vencido») */
+    olderLabel?: string;
   }
-  let { id, title, history, viewing, canWrite, icon, emptyText, summary, onview, onbase, compare = false }: Props = $props();
+  let { id, title, history, viewing, canWrite, icon, emptyText, summary, onview, onbase, compare = false, olderLabel = '' }: Props = $props();
 </script>
 
 <h3 {id} class="display mb-2 text-xl">{title}</h3>
@@ -31,7 +33,7 @@
     {#each history as h, i (h.id)}
       <li class="card flex flex-wrap items-center justify-between gap-2 p-3 sm:px-5 {viewing === h.id ? 'ring-2 ring-app-primary' : ''}">
         <div class="min-w-0">
-          <p class="text-sm font-medium">{dateTime(h.created_at)}{#if i === 0}<span class="badge ml-2">Vigente</span>{/if}</p>
+          <p class="text-sm font-medium">{dateTime(h.created_at)}{#if i === 0}<span class="badge ml-2">Vigente</span>{:else if olderLabel}<span class="badge ml-2 !bg-app-warning/15 !text-app-warning">{olderLabel}</span>{/if}</p>
           <p class="truncate text-xs text-app-muted">{h.created_by_name}{summary(h) ? ` · ${summary(h)}` : ''}{h.note ? ` · ${h.note}` : ''}</p>
         </div>
         <div class="flex flex-wrap gap-1">

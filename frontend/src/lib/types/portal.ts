@@ -61,6 +61,8 @@ export interface PortalPrescription {
   author_license: string;
   author_institution: string;
   voided: boolean;
+  /** la reemplazó una receta nueva (vencida, no cancelada) */
+  superseded?: boolean;
   voided_at: string | null;
   /** giro that issued it, and its name */
   area?: string;

@@ -15,6 +15,7 @@ export function recetaHtml(rx: Prescription, patient: Patient, clinic: Issuer, v
   const instr = rx.mode === 'instructions';
   const animal = patient.subject === 'animal';
   const voided = !!rx.voided_at;
+  const superseded = !voided && !!rx.superseded_at;
   const title = instr ? 'Hoja de indicaciones' : 'Receta';
   const items = rx.items ?? [];
   const retained = !instr && items.some((i) => i.control === 'Antibiótico' || i.control === 'Fracción III');
@@ -49,6 +50,7 @@ ${instr ? `<h2>Indicaciones</h2><p style="font-size:13px">${multiline(rx.instruc
 ${rx.instructions ? `<h2>Indicaciones generales</h2><p>${multiline(rx.instructions)}</p>` : ''}`}
 ${retained ? '<p class="small"><strong>Receta retenida por la farmacia</strong> para los medicamentos señalados.</p>' : ''}
 ${rx.next_visit ? `<p><span class="k">Próxima cita</span>${e(fmtDate(rx.next_visit))}</p>` : ''}
+${superseded ? `<div class="box"><strong>Receta vencida</strong>: la reemplazó ${rx.superseded_by_folio ? `la receta folio ${e(String(rx.superseded_by_folio).padStart(6, '0'))}` : 'una receta más reciente'}.</div>` : ''}
 ${voided ? `<div class="box"><strong>Receta cancelada</strong> el ${e(fmtDateTime(rx.voided_at))}${rx.voided_by ? ` por ${e(rx.voided_by)}` : ''}.${rx.void_reason ? ` Motivo: ${e(rx.void_reason)}` : ''}</div>` : ''}
 
 ${verify && !patientCopy ? `<div class="verify nobreak"><img src="${e(verify.qr)}" alt="Código QR de verificación" width="84" height="84"><div class="small"><strong>Verifica esta receta en ${e(verifyHost(verify.url))}</strong><br>Escanea el código o abre la dirección: confirma que el folio, el profesional y la vigencia son auténticos. No muestra medicamentos ni diagnóstico.<br>${e(verify.url)}</div></div>` : ''}

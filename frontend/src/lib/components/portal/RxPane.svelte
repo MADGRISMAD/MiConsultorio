@@ -74,7 +74,7 @@
           <div class="flex flex-wrap items-center gap-2">
             {#if r.complementary}<span class="pill">Complementaria</span>{/if}
             {#if r.voided}<span class="pill pill-bad">{t('portal.rx.voided')}</span>
-            {:else if expired(r)}<span class="pill pill-warn">{t('portal.rx.expired')}</span>
+            {:else if r.superseded || expired(r)}<span class="pill pill-warn">{t('portal.rx.expired')}</span>
             {:else}<span class="pill pill-ok">{r.valid_until ? t('portal.rx.validUntil', { date: fmt(r.valid_until) }) : t('portal.rx.valid')}</span>{/if}
           </div>
         </div>

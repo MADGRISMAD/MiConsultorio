@@ -43,25 +43,28 @@ type rxItem struct {
 }
 
 type prescription struct {
-	ID                        string     `json:"id"`
-	PatientID                 string     `json:"patient_id"`
-	EncounterID               *string    `json:"encounter_id"`
-	Folio                     int        `json:"folio"`
-	Mode                      string     `json:"mode"`
-	IssuedAt                  time.Time  `json:"issued_at"`
-	ValidUntil                *string    `json:"valid_until"`
-	Diagnosis                 string     `json:"diagnosis"`
-	Items                     []rxItem   `json:"items"`
-	Instructions              string     `json:"instructions"`
-	NextVisit                 *string    `json:"next_visit"`
-	AuthorName                string     `json:"author_name"`
-	AuthorTitle               string     `json:"author_title"`
-	AuthorLicense             string     `json:"author_license"`
-	AuthorInstitution         string     `json:"author_institution"`
-	AuthorSpecialtyLicense    string     `json:"author_specialty_license"`
-	VoidedAt                  *time.Time `json:"voided_at"`
-	VoidedBy                  string     `json:"voided_by"`
-	VoidReason                string     `json:"void_reason"`
+	ID                     string     `json:"id"`
+	PatientID              string     `json:"patient_id"`
+	EncounterID            *string    `json:"encounter_id"`
+	Folio                  int        `json:"folio"`
+	Mode                   string     `json:"mode"`
+	IssuedAt               time.Time  `json:"issued_at"`
+	ValidUntil             *string    `json:"valid_until"`
+	Diagnosis              string     `json:"diagnosis"`
+	Items                  []rxItem   `json:"items"`
+	Instructions           string     `json:"instructions"`
+	NextVisit              *string    `json:"next_visit"`
+	AuthorName             string     `json:"author_name"`
+	AuthorTitle            string     `json:"author_title"`
+	AuthorLicense          string     `json:"author_license"`
+	AuthorInstitution      string     `json:"author_institution"`
+	AuthorSpecialtyLicense string     `json:"author_specialty_license"`
+	VoidedAt               *time.Time `json:"voided_at"`
+	VoidedBy               string     `json:"voided_by"`
+	VoidReason             string     `json:"void_reason"`
+	// SupersededAt is set when a newer receta replaced this one (it is then "vencida", not "cancelada").
+	SupersededAt              *time.Time `json:"superseded_at"`
+	SupersededByFolio         *int       `json:"superseded_by_folio"`
 	WeightKg                  *float64   `json:"weight_kg"`
 	Area                      string     `json:"area"`
 	Complementary             bool       `json:"complementary"`
@@ -72,14 +75,14 @@ type prescription struct {
 
 const rxCols = `id, patient_id::text, encounter_id::text, folio, mode, issued_at, to_char(valid_until,'YYYY-MM-DD'), diagnosis, items, instructions,
 	to_char(next_visit,'YYYY-MM-DD'), author_name, author_title, author_license, author_institution, author_specialty_license, voided_at, voided_by, void_reason,
-	weight_kg::float8, allergy_override_reason, dose_override_reason, area, complementary, interaction_override_reason`
+	weight_kg::float8, allergy_override_reason, dose_override_reason, area, complementary, interaction_override_reason, superseded_at, superseded_by_folio`
 
 func scanRx(row pgx.Row) (prescription, error) {
 	var x prescription
 	var raw []byte
 	err := row.Scan(&x.ID, &x.PatientID, &x.EncounterID, &x.Folio, &x.Mode, &x.IssuedAt, &x.ValidUntil, &x.Diagnosis, &raw, &x.Instructions,
 		&x.NextVisit, &x.AuthorName, &x.AuthorTitle, &x.AuthorLicense, &x.AuthorInstitution, &x.AuthorSpecialtyLicense, &x.VoidedAt, &x.VoidedBy, &x.VoidReason,
-		&x.WeightKg, &x.AllergyOverrideReason, &x.DoseOverrideReason, &x.Area, &x.Complementary, &x.InteractionOverrideReason)
+		&x.WeightKg, &x.AllergyOverrideReason, &x.DoseOverrideReason, &x.Area, &x.Complementary, &x.InteractionOverrideReason, &x.SupersededAt, &x.SupersededByFolio)
 	if err != nil {
 		return x, err
 	}
@@ -362,13 +365,14 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		if out, err = scanRx(row); err != nil {
 			return err
 		}
-		// The new receta replaces the patient's earlier ones of the same area; a complement keeps them, and
-		// another area's recetas are not affected. The records stay, marked as replaced.
+		// A new receta makes the patient's earlier ones of the same area "vencidas" (the complementary ones too); a complement
+		// keeps them, and another area's recetas are not affected. Nothing is cancelled: a receta is "cancelada" only when someone
+		// cancels it. The records stay.
 		if !in.Complementary {
 			tag, err := tx.Exec(r.Context(), `
-				UPDATE prescriptions SET voided_at = now(), voided_by = 'Sistema', void_reason = $4
-				WHERE clinic_id = $1 AND patient_id = $2 AND area = $3 AND voided_at IS NULL AND id <> $5::uuid`,
-				p.ClinicID, id, area, "Reemplazada por la receta #"+itoa(folio), rxID)
+				UPDATE prescriptions SET superseded_at = now(), superseded_by_folio = $4
+				WHERE clinic_id = $1 AND patient_id = $2 AND area = $3 AND voided_at IS NULL AND superseded_at IS NULL AND id <> $5::uuid`,
+				p.ClinicID, id, area, folio, rxID)
 			if err != nil {
 				return err
 			}

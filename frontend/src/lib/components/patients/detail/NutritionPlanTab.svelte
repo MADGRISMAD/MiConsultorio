@@ -617,7 +617,7 @@
 
   {#if history.length}
     <section class="mt-6" aria-labelledby="np-history">
-      <VersionHistory id="np-history" title="Historial de planes" {history} {viewing} {canWrite} icon="leaf" emptyText="Cuando guardes el primer plan aparecerá aquí."
+      <VersionHistory id="np-history" title="Historial de planes" olderLabel="Vencido" {history} {viewing} {canWrite} icon="leaf" emptyText="Cuando guardes el primer plan aparecerá aquí."
         summary={(h) => { const d = asData(h); return `${d.goal || 'Sin objetivo'}${d.kcal ? ` · ${d.kcal} kcal` : ''}${d.days.length > 1 ? ` · ${d.days.length} días` : ''}`; }}
         onview={(h) => { viewing = h.id; editing = false; gOpen = false; }} onbase={useAsBase} />
     </section>

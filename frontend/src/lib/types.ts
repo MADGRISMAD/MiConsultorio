@@ -816,6 +816,9 @@ export interface Prescription {
   author_institution: string;
   author_specialty_license: string;
   voided_at: string | null;
+  /** la reemplazó una receta nueva: queda «vencida», no «cancelada» */
+  superseded_at?: string | null;
+  superseded_by_folio?: number | null;
   voided_by: string;
   void_reason: string;
   area?: string;

@@ -70,7 +70,7 @@ func (s *Server) otherDrugs(ctx context.Context, q rowsQuerier, clinicID, patien
 			out = append(out, drugRef{m.Name, "medicación crónica"})
 		}
 	}
-	rows, err := q.Query(ctx, `SELECT folio, items FROM prescriptions WHERE clinic_id = $1 AND patient_id = $2 AND voided_at IS NULL
+	rows, err := q.Query(ctx, `SELECT folio, items FROM prescriptions WHERE clinic_id = $1 AND patient_id = $2 AND voided_at IS NULL AND superseded_at IS NULL
 		AND (valid_until IS NULL OR valid_until >= current_date) AND mode = 'medication' ORDER BY issued_at DESC LIMIT 20`, clinicID, patientID)
 	if err != nil {
 		return nil, nil, err

@@ -276,6 +276,15 @@ func TestRxReplacesPreviousOfSameArea(t *testing.T) {
 		}
 		return n
 	}
+	superseded := func() int {
+		n := 0
+		for _, x := range doc.expect(200, "GET", url, nil)["prescriptions"].([]any) {
+			if x.(map[string]any)["superseded_at"] != nil {
+				n++
+			}
+		}
+		return n
+	}
 	body := func(extra map[string]any) map[string]any {
 		b := rxBody(rxItem("Paracetamol", nil))
 		for k, v := range extra {
@@ -300,8 +309,29 @@ func TestRxReplacesPreviousOfSameArea(t *testing.T) {
 	}
 	// a plain new one replaces the earlier ones of its area (the general ones), not the nutrition one
 	out := doc.expect(201, "POST", url, body(nil))
-	if out["replaced"].(float64) != 2 || voided() != 2 {
-		t.Fatalf("replaced: %v voided: %d", out["replaced"], voided())
+	if out["replaced"].(float64) != 2 || superseded() != 2 {
+		t.Fatalf("replaced: %v superseded: %d", out["replaced"], superseded())
+	}
+	// replaced ones are "vencidas", not "canceladas": nobody cancelled them
+	if voided() != 0 {
+		t.Fatalf("a replaced receta is not cancelled: %d", voided())
+	}
+	var oldFolio float64
+	for _, x := range doc.expect(200, "GET", url, nil)["prescriptions"].([]any) {
+		if m := x.(map[string]any); m["id"] == first["id"] {
+			if m["superseded_by_folio"] == nil || m["voided_at"] != nil || m["void_reason"] != "" {
+				t.Fatalf("the replaced one says which receta replaced it: %v", m)
+			}
+			oldFolio = m["superseded_by_folio"].(float64)
+		}
+	}
+	if oldFolio != float64(sub(out, "prescription")["folio"].(float64)) {
+		t.Fatalf("replaced by folio %v", oldFolio)
+	}
+	// cancelling is a different act: only then does it say "cancelada"
+	doc.expect(200, "POST", "/api/prescriptions/"+sub(out, "prescription")["id"].(string)+"/void", map[string]any{"reason": "Error de captura"})
+	if voided() != 1 {
+		t.Fatalf("a receta someone cancels is cancelled: %d", voided())
 	}
 	// dropping a giro hides its recetas without deleting them
 	before := len(doc.expect(200, "GET", url, nil)["prescriptions"].([]any))

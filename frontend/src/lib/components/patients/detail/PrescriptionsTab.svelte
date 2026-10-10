@@ -63,7 +63,7 @@
 </script>
 
 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-  <p class="max-w-xl text-sm text-app-muted">{instr ? 'Hojas de indicaciones emitidas.' : 'Recetas emitidas, con vigencia máxima de 30 días.'} Las canceladas se conservan en la lista.</p>
+  <p class="max-w-xl text-sm text-app-muted">{instr ? 'Hojas de indicaciones emitidas.' : 'Recetas emitidas, con vigencia máxima de 30 días.'} Una receta nueva deja vencidas las anteriores (las complementarias no); solo se cancelan las que tú canceles. Todas se conservan en la lista.</p>
   {#if canWrite}<button type="button" class="btn-primary" onclick={onnew}><Icon name="plus" size={18} />{instr ? 'Nueva hoja' : 'Nueva receta'}</button>{/if}
 </div>
 
@@ -77,13 +77,14 @@
       <li class="card p-4 sm:p-5 {r.voided_at ? 'opacity-80' : ''}">
         <div class="flex flex-wrap items-center gap-2">
           <span class="font-mono text-sm font-semibold">Folio {String(r.folio).padStart(6, '0')}</span>
-          {#if r.voided_at}<Pill tone="bad">Cancelada</Pill>{:else if expired(r)}<Pill tone="warn">Vencida</Pill>{:else}<Pill tone="ok">Vigente</Pill>{/if}
+          {#if r.voided_at}<Pill tone="bad">Cancelada</Pill>{:else if r.superseded_at || expired(r)}<Pill tone="warn">Vencida</Pill>{:else}<Pill tone="ok">Vigente</Pill>{/if}
           <span class="text-sm text-app-muted">{d(r.issued_at)}{r.valid_until ? ` · vigente hasta ${d(r.valid_until)}` : ''}</span>
         </div>
         <p class="mt-2 break-words text-sm {r.voided_at ? 'line-through' : ''}">
           {r.diagnosis || 'Sin diagnóstico'}
           <span class="text-app-muted">· {r.mode === 'instructions' ? 'Indicaciones' : `${r.items.length} ${r.items.length === 1 ? 'medicamento' : 'medicamentos'}`}</span>
         </p>
+        {#if r.superseded_at && !r.voided_at}<p class="mt-1 text-xs text-app-muted">Vencida el {d(r.superseded_at)}: la reemplazó la receta {r.superseded_by_folio ? `folio ${String(r.superseded_by_folio).padStart(6, '0')}` : 'más reciente'}.</p>{/if}
         {#if r.voided_at}<p class="mt-1 text-xs text-app-danger">Cancelada el {d(r.voided_at)}{r.voided_by ? ` por ${r.voided_by}` : ''}{r.void_reason ? `: ${r.void_reason}` : ''}</p>{/if}
         <div class="mt-3 flex flex-wrap gap-1 border-t border-app-ink/8 pt-3">
           <button type="button" class="btn-ghost" onclick={() => (viewing = r)}><Icon name="eye" size={16} />Ver</button>
