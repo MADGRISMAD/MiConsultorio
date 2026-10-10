@@ -136,7 +136,7 @@ jobs:
         run: rsync -az --delete --exclude .env --exclude .git --exclude node_modules --exclude .claude ./ "$HOST:~/miconsultorio/"
 
       - name: Reconstruir y arrancar
-        run: ssh "$HOST" 'cd ~/miconsultorio && docker compose up -d --build && docker image prune -f'
+        run: ssh "$HOST" 'cd ~/miconsultorio && docker compose up -d --build && docker image prune -f && docker builder prune -f --filter until=24h'
 
       - name: Comprobar que responde
         run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors https://miconsultorio.15-235-62-27.sslip.io/api/health
