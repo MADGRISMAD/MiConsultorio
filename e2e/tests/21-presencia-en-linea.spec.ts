@@ -12,7 +12,7 @@ test('de la dirección a la página publicada, sin salir de «Reservas y página
   const tab = (name: string) => page.getByRole('tab', { name: new RegExp(`^0\\d\\s.*${name}`) });
 
   // los cinco pasos, con su estado
-  for (const n of ['Reservas', 'Página', 'Directorio', 'Portal', 'Opiniones']) await expect(tab(n)).toBeVisible();
+  for (const n of ['Reservas', 'Página', 'Directorio', 'Paciente', 'Opiniones']) await expect(tab(n)).toBeVisible();
 
   // 1. sin dirección no se puede encender nada, y el aviso lleva de vuelta a «Reservas»
   await tab('Página').click();
@@ -40,13 +40,13 @@ test('de la dirección a la página publicada, sin salir de «Reservas y página
   // 4. el directorio y el portal también
   await tab('Directorio').click();
   await expect(page.getByRole('checkbox', { name: /Aparecer en el directorio/ })).toBeEnabled();
-  await tab('Portal').click();
+  await tab('Paciente').click();
   await expect(page.getByRole('checkbox', { name: /Activar el portal/ })).toBeEnabled();
 
   // el paso elegido queda en la dirección: se puede compartir o recargar
   await expect(page).toHaveURL(/t=portal/);
   await page.reload();
-  await expect(tab('Portal')).toHaveAttribute('aria-selected', 'true');
+  await expect(tab('Paciente')).toHaveAttribute('aria-selected', 'true');
 });
 
 test('«Agenda» ya no mezcla lo público: avisa dónde están las reservas', async ({ page }) => {
