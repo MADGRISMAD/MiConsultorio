@@ -39,6 +39,9 @@ func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.requireCedula(w, r, "generar planes de alimentación") {
+		return
+	}
 	var in nutritionFragmentReq
 	if !decode(w, r, &in) {
 		return

@@ -367,6 +367,7 @@ func TestNutritionPlanChart(t *testing.T) {
 	e := setup(t)
 	e.exec(`UPDATE clinics SET specialties = '{DENTAL,NUTRITION,PSYCHOLOGY,GYNECOLOGY,PEDIATRICS,PHYSIOTHERAPY}' WHERE id = $1`, e.clinicA) // the records of a giro show while the clinic works in it
 	doc := e.login("doc_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/charts"
 	plan := func(m map[string]any) map[string]any { return map[string]any{"kind": "nutrition_plan", "data": m} }
@@ -419,6 +420,7 @@ func TestNutritionPlanAI(t *testing.T) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
 	doc, recep := e.login("doc_a"), e.login("recep_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/nutrition-plan/ai"
 
@@ -529,6 +531,7 @@ func TestNutritionPlanAIVariesFromPreviousPlans(t *testing.T) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
 	doc := e.login("doc_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/nutrition-plan/ai"
 	req := map[string]any{"goal": "Mantener", "weight_kg": 70, "height_cm": 170, "activity_factor": 1.375, "snacks": false}
@@ -648,6 +651,7 @@ func TestNutritionFragmentAI(t *testing.T) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
 	doc := e.login("doc_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/nutrition-plan/ai/fragment"
 	meal := func(n, items string) map[string]any { return map[string]any{"name": n, "items": items, "kcal": 500} }
@@ -669,4 +673,23 @@ func TestNutritionFragmentAI(t *testing.T) {
 	}
 	doc.expect(400, "POST", url, map[string]any{"days": days, "day": 5, "meal": 0})
 	doc.expect(400, "POST", url, map[string]any{"days": days, "day": 0, "meal": 9})
+}
+
+func TestNutritionPlanNeedsCedula(t *testing.T) {
+	e := setup(t)
+	e.exec(`UPDATE clinics SET specialties = '{NUTRITION}' WHERE id = $1`, e.clinicA)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	save := map[string]any{"kind": "nutrition_plan", "data": map[string]any{"goal": "Bajar de peso", "kcal": 1800}}
+	for _, path := range []string{"/charts", "/nutrition-plan/ai", "/nutrition-plan/ai/fragment"} {
+		body := save
+		if path != "/charts" {
+			body = map[string]any{"goal": "Bajar de peso"}
+		}
+		if code, o := doc.do("POST", "/api/patients/"+pid+path, body); code != 409 || o["code"] != "CEDULA_REQUIRED" {
+			t.Fatalf("%s without cédula: %d %v", path, code, o)
+		}
+	}
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a"))
+	doc.expect(201, "POST", "/api/patients/"+pid+"/charts", save)
 }

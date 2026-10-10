@@ -240,6 +240,9 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.requireCedula(w, r, "generar planes de alimentación") {
+		return
+	}
 	var in nutritionAIReq
 	if !decode(w, r, &in) {
 		return

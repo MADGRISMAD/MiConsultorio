@@ -339,6 +339,9 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "La nota es demasiado larga.")
 		return
 	}
+	if in.Kind == "nutrition_plan" && !s.requireCedula(w, r, "guardar planes de alimentación") {
+		return
+	}
 	var msg string
 	valid := false
 	switch in.Kind {
