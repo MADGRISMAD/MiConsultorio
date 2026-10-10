@@ -14,7 +14,7 @@ import (
 const areaOfProfessional = `coalesce(nullif(u.areas, '{}'), ARRAY[c.kind])`
 
 // openInSameArea returns an error when the patient (by id, or by e-mail or phone for someone not yet registered) already has an
-// upcoming appointment in a giro of the professional. excludeID is the appointment being moved.
+// upcoming appointment in a giro of the professional (unless they are being attended today). excludeID is the appointment being moved.
 func (s *Server) openInSameArea(ctx context.Context, q queryRower, clinicID, patientID string, email, phone string, proID *string, excludeID string) error {
 	if proID == nil || *proID == "" || (patientID == "" && email == "" && phone == "") {
 		return nil
@@ -22,6 +22,14 @@ func (s *Server) openInSameArea(ctx context.Context, q queryRower, clinicID, pat
 	var date, start, who string
 	var found bool
 	loc := clinicLocation(ctx, q, clinicID)
+	// someone being attended right now (in the waiting room or in the consultation) can be given the next visit
+	if patientID != "" {
+		var attending bool
+		if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM appointments WHERE clinic_id = $1 AND patient_id = $2::uuid AND status IN ('arrived', 'in_progress') AND date = (now() AT TIME ZONE $3)::date)`,
+			clinicID, patientID, loc.String()).Scan(&attending); err == nil && attending {
+			return nil
+		}
+	}
 	err := q.QueryRow(ctx, `
 		SELECT true, to_char(ap.date, 'YYYY-MM-DD'), to_char(ap.start_hour, 'HH24:MI'), u.name
 		FROM appointments ap
@@ -37,7 +45,7 @@ func (s *Server) openInSameArea(ctx context.Context, q queryRower, clinicID, pat
 	if err != nil || !found {
 		return nil // no match (or no way to tell): never block on a failed lookup
 	}
-	e := fail(http.StatusConflict, "Ya hay una cita pendiente en este giro: "+date+" a las "+start+" con "+who+". Para agendar otra con la misma especialidad, primero reprograma o cancela esa. En otras especialidades sí se puede.")
+	e := fail(http.StatusConflict, "Este paciente tiene una cita pendiente en este giro: "+date+" a las "+start+" con "+who+". Para agendar otra en la misma especialidad, primero reprograma o cancela esa; si ya lo están atendiendo, sí se puede. En otras especialidades también.")
 	e.Code = "ALREADY_BOOKED_AREA"
 	return e
 }

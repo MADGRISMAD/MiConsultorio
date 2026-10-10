@@ -90,3 +90,29 @@ func TestOneOpenAppointmentPerGiro(t *testing.T) {
 	// moving the first one is not blocked by itself
 	admin.do("GET", "/api/appointments/"+first["id"].(string), nil)
 }
+
+// Someone being attended can be given the next visit even with another one pending in the giro; free slots come from the calendar.
+func TestFollowUpWhileAttendedAndFreeSlots(t *testing.T) {
+	e := setup(t)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	day := time.Now().AddDate(0, 0, 8)
+	for day.Weekday() == time.Saturday || day.Weekday() == time.Sunday {
+		day = day.AddDate(0, 0, 1)
+	}
+	date := day.Format("2006-01-02")
+	url := "/api/patients/" + pid + "/follow-up"
+	doc.expect(201, "POST", url, map[string]any{"date": date})
+	if code, _ := doc.do("POST", url, map[string]any{"date": date}); code != 409 {
+		t.Fatalf("pending in the giro: %d", code)
+	}
+	e.exec(`INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, patient_id, professional_id, status)
+		VALUES ($1, 'X', 'A', 'B', (now() AT TIME ZONE 'America/Mexico_City')::date, '00:00', '00:30', $2, $3, 'in_progress')`, e.clinicA, pid, e.userID("doc_a"))
+	doc.expect(201, "POST", url, map[string]any{"date": date}) // now being attended: allowed
+
+	out := doc.expect(200, "GET", "/api/agenda/free-slots?date="+date, nil)
+	if _, ok := out["slots"].([]any); !ok {
+		t.Fatalf("slots: %v", out)
+	}
+	doc.expect(400, "GET", "/api/agenda/free-slots?date=nope", nil)
+}

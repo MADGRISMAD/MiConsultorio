@@ -19,6 +19,9 @@ export const agendaApi = {
   professionals: () => request<{ professionals: Professional[] }>('GET', '/agenda/professionals').then((r) => r.professionals),
   saveProfessional: (id: string, input: ProfessionalInput) =>
     request<{ professional: Professional }>('PUT', `/agenda/professionals/${seg(id)}`, input).then((r) => r.professional),
+  /** free start times of a professional on a day (the calendar view of a follow-up) */
+  freeSlots: (date: string, professional = '') =>
+    request<{ slots: { start: string; end: string }[] }>('GET', `/agenda/free-slots${qs({ date, professional })}`).then((r) => r.slots),
   services: () => request<{ services: ServiceOption[] }>('GET', '/agenda/services').then((r) => r.services),
 
   blocks: (from?: string, to?: string) => request<{ blocks: TimeBlock[] }>('GET', `/agenda/blocks${qs({ from, to })}`).then((r) => r.blocks),
