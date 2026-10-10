@@ -14,6 +14,14 @@
   const DAYS: [DayKey, string][] = [['mon', 'Lunes'], ['tue', 'Martes'], ['wed', 'Miércoles'], ['thu', 'Jueves'], ['fri', 'Viernes'], ['sat', 'Sábado'], ['sun', 'Domingo']];
   const SLOTS = [10, 15, 20, 30, 45, 60];
 
+  interface Props {
+    /** 'agenda': cómo trabaja el consultorio por dentro. 'online': lo que ve el paciente al reservar. */
+    part?: 'agenda' | 'online';
+    /** Avisa la dirección y si la reserva está activa (para el resumen de «Reservas y página pública»). */
+    onstate?: (v: { slug: string; enabled: boolean }) => void;
+  }
+  let { part = 'agenda', onstate }: Props = $props();
+
   let s = $state<AgendaSettings | null>(null);
   let pros = $state<Professional[]>([]);
   let loadError = $state('');
@@ -32,7 +40,21 @@
     }
   });
 
+  $effect(() => {
+    if (s) onstate?.({ slug: s.booking_slug.trim().toLowerCase(), enabled: s.booking_enabled });
+  });
+
   const origin = publicOrigin();
+  let copied = $state(false);
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${origin}/${slugPreview}/reservar`);
+      copied = true;
+      setTimeout(() => (copied = false), 1800);
+    } catch {
+      /* sin portapapeles: el enlace sigue visible para copiarlo a mano */
+    }
+  }
   const slugPreview = $derived((s?.booking_slug ?? '').trim().toLowerCase());
   const slugOk = $derived(/^[a-z0-9][a-z0-9-]{1,62}$/.test(slugPreview));
 
@@ -54,7 +76,7 @@
     if (await saveOp.run(async () => {
       s = await agendaApi.saveSettings(body);
       hoursText = s.remind_hours.join(', ');
-    })) toast.show('Ajustes de agenda guardados');
+    })) toast.show(part === 'online' ? 'Reservas en línea guardadas' : 'Ajustes de agenda guardados');
   }
 
   // ----- professionals -----
@@ -83,7 +105,14 @@
 {:else if !s}
   <LoadingRows />
 {:else}
+  {#if part === 'agenda'}
+    <p class="mb-8 flex items-start gap-2.5 rounded-xl bg-app-primary/8 px-3.5 py-3 text-sm text-app-muted">
+      <Icon name="info" size={18} class="mt-0.5 flex-none text-app-primary" />
+      <span>Aquí va lo de adentro: horarios, salas y recordatorios. Para que los pacientes reserven desde internet, usa <a class="font-medium text-app-primary underline" href="/ajustes?s=enlinea">Reservas y página pública</a>.</span>
+    </p>
+  {/if}
   <form onsubmit={save} class="grid gap-10">
+    {#if part === 'agenda'}
     <section aria-labelledby="ag-general">
       <h3 id="ag-general" class="section-title mb-3">Citas y salas</h3>
       <div class="grid gap-4">
@@ -113,49 +142,6 @@
       </div>
     </section>
 
-    <section aria-labelledby="ag-book">
-      <h3 id="ag-book" class="section-title mb-3">Reserva en línea</h3>
-      <label class="mb-4 flex cursor-pointer items-center gap-3 text-sm font-medium">
-        <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_enabled} />
-        Permitir que los pacientes reserven su cita desde una página pública
-      </label>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="sm:col-span-2">
-          <label class="label" for="ag-slug">Dirección de tu página de reservas</label>
-          <input id="ag-slug" type="text" class="field" bind:value={s.booking_slug} maxlength="63" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
-          <p class="hint">
-            {#if slugPreview && slugOk}Tus pacientes entrarán a <strong class="break-all text-app-ink">{origin}/{slugPreview}/reservar</strong>
-            {:else}Letras minúsculas, números y guiones (2 a 63 caracteres).{/if}
-          </p>
-        </div>
-        <label class="block">
-          <span class="label">Anticipación mínima (horas)</span>
-          <input type="number" min="0" max="720" class="field" bind:value={s.booking_lead_hours} />
-        </label>
-        <label class="block">
-          <span class="label">Reservas hasta dentro de (días)</span>
-          <input type="number" min="1" max="365" class="field" bind:value={s.booking_horizon_days} />
-        </label>
-        <label class="block sm:col-span-2">
-          <span class="label">Mensaje para quien reserva</span>
-          <textarea class="field min-h-20" maxlength="500" bind:value={s.booking_message} placeholder="Llega 10 minutos antes. Si necesitas cancelar, avísanos con tiempo."></textarea>
-        </label>
-        <label class="flex cursor-pointer items-start gap-3 text-sm sm:col-span-2">
-          <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_show_prices} />
-          <span><span class="font-medium">Mostrar precios de los servicios</span><span class="block text-app-muted">Los precios del catálogo aparecen en la página pública.</span></span>
-        </label>
-        <label class="block">
-          <span class="label">Cancelar hasta (horas antes)</span>
-          <input type="number" min="0" max="720" class="field" bind:value={s.cancel_min_hours} />
-          <p class="hint">El paciente puede cancelar desde su enlace hasta esta anticipación.</p>
-        </label>
-        <label class="flex cursor-pointer items-start gap-3 text-sm sm:col-span-2">
-          <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_requires_confirmation} />
-          <span><span class="font-medium">Confirmar manualmente cada reserva</span><span class="block text-app-muted">La cita queda como programada hasta que recepción la confirme.</span></span>
-        </label>
-      </div>
-    </section>
-
     <section aria-labelledby="ag-remind">
       <h3 id="ag-remind" class="section-title mb-3">Recordatorios</h3>
       <p class="hint mb-3 !mt-0">Solo se envían a pacientes que aceptaron recibir recordatorios y que tienen correo o teléfono.</p>
@@ -172,13 +158,109 @@
         </label>
       </div>
     </section>
+    {/if}
+
+    {#if part === 'online'}
+    <section aria-labelledby="ag-book" class="grid gap-6">
+      <h3 id="ag-book" class="sr-only">Reserva en línea</h3>
+
+      <!-- 1. La dirección va primero: todo lo demás (reservas, página, portal) cuelga de ella -->
+      <div class="rounded-2xl bg-app-primary/6 p-4 sm:p-5">
+        <label class="label" for="ag-slug">Tu dirección en línea</label>
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
+          <span class="text-sm text-app-muted">{origin.replace(/^https?:\/\//, '')}/</span>
+          <input id="ag-slug" type="text" class="field !w-auto min-w-0 flex-1 sm:max-w-xs" bind:value={s.booking_slug} maxlength="63" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
+        </div>
+        {#if slugPreview && slugOk}
+          <p class="mt-2 text-sm text-app-muted">Reservas: <strong class="break-all text-app-ink">{origin}/{slugPreview}/reservar</strong></p>
+          {#if s.booking_enabled}
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button type="button" class="btn-secondary !min-h-9" onclick={copyLink}><Icon name={copied ? 'check' : 'file'} size={16} />{copied ? 'Copiado' : 'Copiar enlace'}</button>
+              <a class="btn-secondary !min-h-9" href="{origin}/{slugPreview}/reservar" target="_blank" rel="noopener"><Icon name="arrow-right" size={16} />Abrir</a>
+            </div>
+          {/if}
+        {:else}
+          <p class="hint">Letras minúsculas, números y guiones (2 a 63 caracteres). Es la misma dirección para las reservas, la página del consultorio y el portal del paciente.</p>
+        {/if}
+      </div>
+
+      <!-- 2. Encender o apagar -->
+      <label class="flex cursor-pointer items-start gap-3 rounded-2xl p-4 ring-1 ring-app-ink/12 {s.booking_enabled ? 'bg-app-accent/8' : ''}">
+        <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_enabled} disabled={!slugOk} />
+        <span>
+          <span class="font-medium">Permitir que los pacientes reserven en línea</span>
+          <span class="block text-sm text-app-muted">{#if !slugOk}Primero escribe tu dirección arriba.{:else if s.booking_enabled}Activas: cualquiera con el enlace puede elegir un horario libre.{:else}Apagadas: nadie puede reservar desde internet.{/if}</span>
+        </span>
+      </label>
+
+      <!-- 3. Reglas, solo si está encendida -->
+      {#if s.booking_enabled}
+        <div>
+          <h4 class="section-title mb-3">Quién y cuándo</h4>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+              <span class="label">Anticipación mínima (horas)</span>
+              <input type="number" min="0" max="720" class="field" bind:value={s.booking_lead_hours} />
+              <span class="hint">Cuánto antes tiene que reservar el paciente.</span>
+            </label>
+            <label class="block">
+              <span class="label">Se puede reservar hasta dentro de (días)</span>
+              <input type="number" min="1" max="365" class="field" bind:value={s.booking_horizon_days} />
+            </label>
+            <label class="block">
+              <span class="label">Cancelar hasta (horas antes)</span>
+              <input type="number" min="0" max="720" class="field" bind:value={s.cancel_min_hours} />
+              <span class="hint">El paciente puede cancelar desde su enlace hasta esta anticipación.</span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 text-sm sm:pt-7">
+              <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_requires_confirmation} />
+              <span><span class="font-medium">Confirmar manualmente cada reserva</span><span class="block text-app-muted">Queda como programada hasta que recepción la confirme.</span></span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="section-title mb-3">Lo que ve el paciente</h4>
+          <div class="grid gap-4">
+            <label class="block">
+              <span class="label">Mensaje para quien reserva</span>
+              <textarea class="field min-h-20" maxlength="500" bind:value={s.booking_message} placeholder="Llega 10 minutos antes. Si necesitas cancelar, avísanos con tiempo."></textarea>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 text-sm">
+              <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_show_prices} />
+              <span><span class="font-medium">Mostrar precios de los servicios</span><span class="block text-app-muted">Los precios del catálogo aparecen al reservar.</span></span>
+            </label>
+          </div>
+        </div>
+      {/if}
+    </section>
+    {/if}
 
     <OpError op={saveOp} />
     <div class="save-sticky flex justify-end">
-      <button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar ajustes</button>
+      <button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}{part === 'online' ? 'Guardar reservas' : 'Guardar ajustes'}</button>
     </div>
   </form>
 
+  {#if part === 'online'}
+    {#if s.booking_enabled && pros.some((p) => p.consults)}
+      <section aria-labelledby="ag-who" class="mt-10">
+        <h3 id="ag-who" class="section-title mb-1">Quién aparece al reservar</h3>
+        <p class="hint mb-3 !mt-0">Se guarda al marcar. El horario de cada uno se define en «Agenda».</p>
+        <ul class="grid gap-2 sm:grid-cols-2">
+          {#each pros.filter((p) => p.consults) as p, i (p.id)}
+            <li>
+              <label class="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm ring-1 ring-app-ink/12">
+                <span class="h-3 w-3 flex-none rounded-full" style="background:{colorOf(p, i)}"></span>
+                <span class="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+                <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.bookable} disabled={savingPro === p.id} onchange={() => savePro(p)} aria-label="{p.name} aparece al reservar" />
+              </label>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+  {:else}
   <section aria-labelledby="ag-pros">
     <h3 id="ag-pros" class="section-title mb-1">Agenda de cada profesional</h3>
     <p class="hint mb-4 !mt-0">Si dejas los horarios vacíos se usa el horario del consultorio.</p>
@@ -254,4 +336,5 @@
       {/each}
     </div>
   </section>
+  {/if}
 {/if}

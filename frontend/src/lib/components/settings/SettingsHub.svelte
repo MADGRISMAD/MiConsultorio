@@ -24,9 +24,8 @@
   import ServiceDurations from './ServiceDurations.svelte';
   import ComplianceSection from './ComplianceSection.svelte';
   import GrowthReferencesSettings from './GrowthReferencesSettings.svelte';
-  import PortalSettings from './PortalSettings.svelte';
-  import CalendarFeed from './CalendarFeed.svelte';
-  import ProfileSettings from './ProfileSettings.svelte';
+    import CalendarFeed from './CalendarFeed.svelte';
+  import OnlineHub from './OnlineHub.svelte';
   import SecuritySettings from './SecuritySettings.svelte';
 
   interface Item {
@@ -62,8 +61,8 @@
     {
       title: 'Citas y pacientes',
       items: [
-        { id: 'agenda', label: 'Agenda y reservas', desc: 'Horario de cada profesional, salas, enlace para que agenden en línea, recordatorios por correo y portal del paciente', icon: 'calendar', show: admin },
-        { id: 'perfil', label: 'Página pública y directorio', desc: 'Perfil del consultorio, aparecer en el directorio de Caresia, precios, opiniones y encuesta de satisfacción', icon: 'heart', show: admin },
+        { id: 'agenda', label: 'Agenda', desc: 'Horario de cada profesional, salas, duración de los servicios y recordatorios por correo', icon: 'calendar', show: admin },
+        { id: 'enlinea', label: 'Reservas y página pública', desc: 'Tu dirección en línea, reservas, página del consultorio, directorio de Caresia, portal del paciente y opiniones', icon: 'heart', show: admin },
         { id: 'medicamentos', to: '/recetas/medicamentos', label: 'Medicamentos de la clínica', desc: 'Tu lista de medicamentos para hacer recetas más rápido', icon: 'stethoscope', show: () => unlocked() && session.has(PERMISSIONS.adminHistorials) },
         { id: 'crecimiento', label: 'Tablas de crecimiento', desc: 'Curvas de peso y talla de niños y mascotas (tablas de la OMS o el CDC)', icon: 'baby', show: admin }
       ]
@@ -97,7 +96,11 @@
 
   const groups = $derived(GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.show()) })).filter((g) => g.items.length));
   const sections = $derived(groups.flatMap((g) => g.items).filter((i) => !i.to));
-  const requested = $derived(page.url.searchParams.get('s') ?? '');
+  // Enlaces viejos: «perfil» ahora vive en «Reservas y página pública»
+  const requested = $derived.by(() => {
+    const r = page.url.searchParams.get('s') ?? '';
+    return r === 'perfil' ? 'enlinea' : r;
+  });
 
   // Wide screens always show one section; on a phone the list comes first.
   let wide = $state(true);
@@ -293,12 +296,11 @@
         <ClinicSettings />
       {:else if section.id === 'agenda'}
         <div class="grid gap-10">
-          <AgendaSettings />
-          <PortalSettings />
+          <AgendaSettings part="agenda" />
           <ServiceDurations />
         </div>
-      {:else if section.id === 'perfil'}
-        <ProfileSettings />
+      {:else if section.id === 'enlinea'}
+        <OnlineHub />
       {:else if section.id === 'crecimiento'}
         <GrowthReferencesSettings />
       {:else if section.id === 'seguridad'}
