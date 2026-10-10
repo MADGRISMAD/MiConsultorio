@@ -303,7 +303,7 @@
                 </table>
               </div>
             {:else}
-              {#if o.status !== 'cancelado'}<p class="mt-3 rounded-xl bg-app-ink/4 px-3.5 py-2.5 text-sm text-app-muted">Esperando los resultados del paciente. Cuando los traiga, usa «Capturar resultados» o «Escanear resultados».</p>{/if}
+              {#if o.status !== 'cancelado'}<p class="mt-3 rounded-xl bg-app-ink/4 px-3.5 py-2.5 text-sm text-app-muted">Esperando los resultados del paciente. Cuando los traiga, usa {session.magic ? '«Escanear resultados»' : '«Capturar resultados»'}.</p>{/if}
             {/each}
 
             {#if canWrite && o.status !== 'cancelado' && !patient.archived_at}
