@@ -51,34 +51,61 @@
     return `transform: translate(${x}px, ${y}px) rotate(${rot}deg) scale(${scale}); opacity: ${op}; z-index: ${n - s}; ${jump === i || (s === 0 && dragging) ? 'transition: none;' : ''}`;
   }
 
-  function down(e: PointerEvent) {
+  let startY = 0;
+  let locked: 'x' | 'y' | '' = '';
+
+  function begin(x: number, y: number) {
     if (n < 2) return;
     dragging = true;
-    startX = e.clientX;
+    startX = x;
+    startY = y;
+    locked = '';
+  }
+  function track(x: number, y: number) {
+    if (!dragging) return;
+    const dx = x - startX;
+    if (!locked && (Math.abs(dx) > 8 || Math.abs(y - startY) > 8)) locked = Math.abs(dx) > Math.abs(y - startY) ? 'x' : 'y';
+    if (locked === 'x') drag = dx;
+  }
+  function finish() {
+    if (!dragging) return;
+    dragging = false;
+    const d = locked === 'x' ? drag : 0;
+    drag = 0;
+    locked = '';
+    if (d < -40) next();
+    else if (d > 40) prev();
+  }
+
+  // mouse (touch is handled below so swiping works on phones)
+  function down(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') return;
+    begin(e.clientX, e.clientY);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function move(e: PointerEvent) {
-    if (dragging) drag = e.clientX - startX;
+    if (e.pointerType === 'mouse') track(e.clientX, e.clientY);
   }
-  function up() {
-    if (!dragging) return;
-    dragging = false;
-    const d = drag;
-    drag = 0;
-    if (d < -50) next();
-    else if (d > 50) prev();
+  function up(e: PointerEvent) {
+    if (e.pointerType === 'mouse') finish();
+  }
+  function tstart(e: TouchEvent) {
+    begin(e.touches[0].clientX, e.touches[0].clientY);
+  }
+  function tmove(e: TouchEvent) {
+    track(e.touches[0].clientX, e.touches[0].clientY);
   }
 </script>
 
-<div class="grid items-center gap-10 md:grid-cols-[1fr_auto]" role="region" aria-roledescription="carrusel" aria-label="Nuestro equipo">
+<div class="grid items-center gap-6 md:max-w-3xl md:grid-cols-[1fr_auto] md:gap-10 md:mx-auto" role="region" aria-roledescription="carrusel" aria-label="Nuestro equipo">
   <div class="order-2 md:order-1">
-    <p class="font-display text-[clamp(1.6rem,3vw,2.2rem)] leading-tight text-ink-soft">
+    <p class="font-display text-[clamp(1.4rem,2.4vw,1.8rem)] leading-tight text-ink-soft">
       {#if n > 1}Pasa las fotos para <em class="text-ink">conocer</em> a quienes te atenderán.{:else}Quien te <em class="text-ink">atenderá</em>.{/if}
     </p>
     {#if n > 1}
-      <div class="mt-6 flex items-center gap-3">
-        <button type="button" class="grid h-12 w-12 place-items-center rounded-full bg-panel text-ink ring-1 ring-ink/15 transition hover:bg-ink hover:text-paper" aria-label="Anterior" onclick={prev}><Icon name="arrow-left" size={20} /></button>
-        <button type="button" class="grid h-12 w-12 place-items-center rounded-full bg-ink text-paper transition hover:bg-signal" aria-label="Siguiente" onclick={next}><Icon name="arrow-right" size={20} /></button>
+      <div class="mt-5 flex items-center gap-3">
+        <button type="button" class="grid h-11 w-11 place-items-center rounded-full bg-panel text-ink ring-1 ring-ink/15 transition hover:bg-ink hover:text-paper" aria-label="Anterior" onclick={prev}><Icon name="arrow-left" size={20} /></button>
+        <button type="button" class="grid h-11 w-11 place-items-center rounded-full bg-ink text-paper transition hover:bg-signal" aria-label="Siguiente" onclick={next}><Icon name="arrow-right" size={20} /></button>
         <span class="ml-2 font-mono text-xs tracking-[0.14em] text-ink-faint" aria-live="polite">{index + 1} / {n}</span>
       </div>
     {/if}
@@ -86,12 +113,16 @@
 
   <div class="order-1 mx-auto md:order-2">
     <ul
-      class="pile relative mx-auto h-[26rem] w-[17.5rem] touch-pan-y select-none sm:h-[28rem] sm:w-[19rem]"
+      class="pile relative mx-auto h-[24rem] w-[16rem] touch-pan-y select-none md:h-[19rem] md:w-[13.5rem]"
       class:cursor-grab={n > 1}
       onpointerdown={down}
       onpointermove={move}
       onpointerup={up}
       onpointercancel={up}
+      ontouchstart={tstart}
+      ontouchmove={tmove}
+      ontouchend={finish}
+      ontouchcancel={finish}
     >
       {#each people as p, i (p.name + i)}
         <li class="polaroid absolute inset-0 flex flex-col rounded-[6px] bg-white p-3 pb-0 shadow-[0_22px_40px_-14px_rgba(11,37,64,0.45),0_2px_6px_rgba(11,37,64,0.18)]" style={style(i)} aria-hidden={slot(i) !== 0} aria-label={p.name}>
@@ -99,8 +130,8 @@
           <div class="min-h-0 flex-1 overflow-hidden rounded-[2px] bg-signal-soft">
             {#if p.photo_url}<img src={p.photo_url} alt={slot(i) === 0 ? `Foto de ${p.name}` : ''} class="h-full w-full object-cover" draggable="false" loading="lazy" />{:else}<span class="grid h-full place-items-center font-display text-7xl text-signal">{initials(p.name)}</span>{/if}
           </div>
-          <div class="flex h-[5.2rem] flex-col justify-center px-1 text-center">
-            <p class="font-display text-[1.7rem] italic leading-none text-ink">{p.name}</p>
+          <div class="flex h-[4.6rem] md:h-[3.8rem] flex-col justify-center px-1 text-center">
+            <p class="font-display text-[1.5rem] italic md:text-[1.2rem] leading-none text-ink">{p.name}</p>
             {#if p.title}<p class="mt-1.5 truncate font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-soft">{p.title}</p>{/if}
           </div>
         </li>
