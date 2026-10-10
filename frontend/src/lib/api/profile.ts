@@ -58,3 +58,14 @@ export const profileApi = {
   answer: (token: string, body: { rating: number; comment: string; public_ok: boolean }) =>
     request<{ ok: boolean; review_url: string }>('POST', `/public/survey/${seg(token)}`, body)
 };
+
+export interface CalendarFeed {
+  enabled: boolean;
+  show_names: boolean;
+  path: string;
+}
+
+export const calendarApi = {
+  get: () => request<CalendarFeed>('GET', '/me/calendar'),
+  set: (action: 'enable' | 'rotate' | 'disable', show_names: boolean) => request<CalendarFeed>('POST', '/me/calendar', { action, show_names })
+};

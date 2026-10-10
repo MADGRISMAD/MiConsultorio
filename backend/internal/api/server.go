@@ -77,6 +77,7 @@ func (s *Server) router() http.Handler {
 			r.Get("/session", s.session)
 			r.Put("/me", s.updateProfile)
 			r.Put("/me/password", s.changeOwnPassword)
+			s.mountCalendarFeed(r.With(requireClinic))
 			s.mountSecurity(r) // two-step verification endpoints
 
 			// ---- Clinic accounts: data is blocked while the subscription is not active ----

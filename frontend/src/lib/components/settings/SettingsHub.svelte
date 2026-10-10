@@ -25,6 +25,7 @@
   import ComplianceSection from './ComplianceSection.svelte';
   import GrowthReferencesSettings from './GrowthReferencesSettings.svelte';
   import PortalSettings from './PortalSettings.svelte';
+  import CalendarFeed from './CalendarFeed.svelte';
   import ProfileSettings from './ProfileSettings.svelte';
   import SecuritySettings from './SecuritySettings.svelte';
 
@@ -307,6 +308,7 @@
         <InstallPrompt />
       {:else if section.id === 'cuenta'}
         <AccountPanel embedded />
+        <CalendarFeed />
       {:else if loadError}
         <Alert>{loadError} <button type="button" class="ml-2 underline" onclick={loadPos}>Reintentar</button></Alert>
       {:else if !s || !providers}
