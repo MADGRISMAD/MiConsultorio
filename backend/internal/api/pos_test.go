@@ -828,11 +828,11 @@ func TestMagicInventoryAndPrices(t *testing.T) {
 		t.Fatalf("base price must hold: %v", sug[1])
 	}
 	st := admin.expect(200, "GET", "/api/pos/magic", nil)
-	if num(st, "used") != 2 || num(st, "limit") != 150 {
+	if num(st, "used") != 2 || num(st, "limit") != 250 {
 		t.Fatalf("usage: %v", st)
 	}
 	// allowance exhausted
-	e.exec(`UPDATE magic_usage SET used = 150`)
+	e.exec(`UPDATE magic_usage SET used = 250`)
 	if code, o := admin.do("POST", "/api/pos/magic/inventory", map[string]any{"text": "x"}); code != 402 || o["code"] != "MAGIC_LIMIT" {
 		t.Fatalf("limit: %d %v", code, o)
 	}

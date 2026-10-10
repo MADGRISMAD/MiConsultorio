@@ -166,6 +166,7 @@ func (s *Server) updateOwnClinic(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		before := 1 + len(c.Specialties)
 		if req.Name != nil {
 			n := strings.TrimSpace(*req.Name)
 			if l := utf8.RuneCountInString(n); l < 2 || l > 120 {
@@ -218,6 +219,12 @@ func (s *Server) updateOwnClinic(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		c.Specialties = kept
+		// a plan limits the giros; a clinic that already has more (an older plan) may keep them but not add any
+		if now := 1 + len(c.Specialties); now > before {
+			if msg := planOf(r.Context(), tx, p.ClinicID).kindsError(now); msg != "" {
+				return planRequired(msg + " Cambia de plan para agregar más giros.")
+			}
+		}
 		if req.Settings != nil {
 			ns := req.Settings.normalized()
 			if msg := ns.validate(); msg != "" {

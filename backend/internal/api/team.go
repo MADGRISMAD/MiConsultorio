@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -299,6 +300,11 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 			if m.Role == RoleAdmin {
 				return fail(http.StatusBadRequest, "Los administradores siempre tienen todos los permisos.")
 			}
+			// per-person permissions come with Crecimiento and Pro; taking some away (or resetting) is always allowed
+			if !planOf(r.Context(), tx, p.ClinicID).Permissions &&
+				((req.PermissionsExtra != nil && addsNew(*req.PermissionsExtra, m.Extra)) || (req.PermissionsDenied != nil && addsNew(*req.PermissionsDenied, m.Denied))) {
+				return planRequired("Los permisos por persona vienen con los planes Crecimiento y Pro. Con tu plan cada quien tiene los permisos de su rol.")
+			}
 			extra, denied := m.Extra, m.Denied
 			if req.PermissionsExtra != nil {
 				extra = *req.PermissionsExtra
@@ -488,4 +494,14 @@ func (s *Server) reactivateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// addsNew reports whether next holds an entry that cur lacks.
+func addsNew(next, cur []string) bool {
+	for _, x := range next {
+		if !slices.Contains(cur, x) {
+			return true
+		}
+	}
+	return false
 }

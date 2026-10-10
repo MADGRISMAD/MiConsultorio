@@ -821,6 +821,12 @@ func TestSetupWizard(t *testing.T) {
 		}
 	}
 
+	// Básico works in one giro: more need Crecimiento
+	if got, o := anon.do("PUT", "/api/clinic", map[string]any{"kind": "PEDIATRICS", "specialties": []string{"NUTRITION"}}); got != 403 || o["code"] != "PLAN_REQUIRED" {
+		t.Fatalf("giros of the plan: %d %v", got, o)
+	}
+	e.exec(`UPDATE clinics SET plan = 'crecimiento' WHERE name = 'Nueva'`)
+
 	// step by step: main kind + extra specialties (deduplicated, the main kind is not repeated)
 	c = sub(anon.expect(200, "PUT", "/api/clinic", map[string]any{"kind": "PEDIATRICS", "specialties": []string{"PEDIATRICS", "NUTRITION", "NUTRITION", "PSYCHOLOGY"}}), "clinic")
 	if c["kind"] != "PEDIATRICS" || fmt.Sprint(c["specialties"]) != "[NUTRITION PSYCHOLOGY]" {

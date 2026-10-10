@@ -1,6 +1,10 @@
 package api
 
-import "time"
+import (
+	"context"
+	"net/http"
+	"time"
+)
 
 const (
 	TrialDays        = 14
@@ -23,14 +27,30 @@ type Plan struct {
 	MagicUses int `json:"magic_uses"`
 	// MaxBranches is how many active branches (clinics, the matrix included) one organization may run under the plan.
 	MaxBranches int `json:"max_branches"`
+	// MaxKinds is how many giros (main one plus extra specialties) a clinic may work in; nil is all of them.
+	MaxKinds *int `json:"max_kinds"`
+	// StorageGB is the space for attachments (studies, photos, documents).
+	StorageGB int `json:"storage_gb"`
+	// WhatsApp: appointment reminders by WhatsApp.
+	WhatsApp bool `json:"whatsapp"`
+	// Permissions: allow or deny single permissions per person, on top of the role.
+	Permissions bool `json:"permissions"`
+	// Support is the level of attention: "correo", "prioritario" or "dedicado".
+	Support string `json:"support"`
 }
+
+// StorageBytes is the attachment space of the plan.
+func (p Plan) StorageBytes() int64 { return int64(p.StorageGB) << 30 }
 
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 0, MaxBranches: 1},
-	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 150, MaxBranches: 3},
-	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10},
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 150, MaxBranches: 1,
+		MaxKinds: ptr(1), StorageGB: 2, WhatsApp: false, Permissions: false, Support: "correo"},
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 250, MaxBranches: 3,
+		MaxKinds: ptr(3), StorageGB: 20, WhatsApp: true, Permissions: true, Support: "prioritario"},
+	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10,
+		MaxKinds: nil, StorageGB: 100, WhatsApp: true, Permissions: true, Support: "dedicado"},
 }
 
 func planByID(id string) (Plan, bool) {
@@ -110,4 +130,28 @@ func (b Billing) info(now time.Time) billingInfo {
 		TrialEndsAt: b.TrialEndsAt, TrialDaysLeft: b.TrialDaysLeft(now),
 		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros,
 	}
+}
+
+// kindsError explains that a clinic works in more giros than a plan allows (empty when it fits).
+func (p Plan) kindsError(n int) string {
+	if p.MaxKinds != nil && n > *p.MaxKinds {
+		return "El plan " + p.Name + " permite " + itoa(*p.MaxKinds) + " giro" + map[bool]string{true: "", false: "s"}[*p.MaxKinds == 1] + " y tu consultorio trabaja en " + itoa(n) + "."
+	}
+	return ""
+}
+
+func planRequired(msg string) *httpError {
+	e := fail(http.StatusForbidden, msg)
+	e.Code = "PLAN_REQUIRED"
+	return e
+}
+
+// planOf returns the plan of a clinic (the smallest one if it cannot be read).
+func planOf(ctx context.Context, q queryRower, clinicID string) Plan {
+	var id string
+	_ = q.QueryRow(ctx, `SELECT plan FROM clinics WHERE id = $1`, clinicID).Scan(&id)
+	if pl, ok := planByID(id); ok {
+		return pl
+	}
+	return planCatalog[0]
 }

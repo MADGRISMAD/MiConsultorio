@@ -36,14 +36,17 @@
           ></span>
           <div class="relative flex items-center justify-between">
             <h3 class="font-display text-4xl">{p.name}</h3>
-            {#if p.featured}<span class="rounded-full bg-signal px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">Más elegido</span>{/if}
+            {#if p.featured}<span class="rounded-full bg-signal px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">Recomendado</span>{/if}
           </div>
-          <p class="relative mt-3 text-[15px] leading-relaxed {dark ? 'text-paper/60' : 'text-ink-soft'}">{p.blurb}</p>
-          <p class="relative mt-8 flex items-baseline gap-2 border-t pt-6 {dark ? 'border-paper/10' : 'border-ink/10'}">
+          <p class="relative mt-1 font-mono text-[11px] uppercase tracking-[0.12em] {dark ? 'text-paper/50' : 'text-ink-faint'}">{p.tagline}</p>
+          <p class="relative mt-6 flex items-baseline gap-2">
             <span class="font-display text-6xl leading-none tracking-[-0.02em] tabular-nums">{p.price}</span>
             {#if p.period}<span class="font-mono text-[11px] uppercase tracking-[0.1em] {dark ? 'text-paper/50' : 'text-ink-faint'}">{p.period}</span>{/if}
           </p>
-          <ul class="relative mt-8 flex-1 space-y-3 text-[15px]">
+          <p class="relative mt-5 rounded-2xl px-4 py-3 text-[14px] {dark ? 'bg-paper/8 text-paper/85' : 'bg-ink/5 text-ink'}"><span class="font-semibold">{p.magic} usos de magia</span> al mes: plan nutricional, resumen de consulta con IA, inventario y precios.</p>
+          <p class="relative mt-5 text-[15px] leading-relaxed {dark ? 'text-paper/60' : 'text-ink-soft'}">{p.blurb}</p>
+          {#if p.includes}<p class="relative mt-6 text-[13px] font-semibold {dark ? 'text-paper' : 'text-ink'}">{p.includes}</p>{/if}
+          <ul class="relative mt-4 flex-1 space-y-3 text-[15px]">
             {#each p.features as f}
               <li class="flex gap-3">
                 <Icon name="check" class="mt-0.5 h-4 w-4 flex-none {dark ? 'text-signal' : 'text-mint'}" strokeWidth={2.4} />

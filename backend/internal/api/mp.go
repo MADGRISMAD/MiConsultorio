@@ -363,6 +363,16 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var kinds int
+	if err := s.db.QueryRow(r.Context(), `SELECT 1 + cardinality(specialties) FROM clinics WHERE id = $1`, p.ClinicID).Scan(&kinds); err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if msg := offer.kindsError(kinds); msg != "" {
+		writeError(w, http.StatusConflict, msg+" Quita giros en Ajustes › Datos del consultorio primero.")
+		return
+	}
+
 	var id string
 	if err := s.db.QueryRow(r.Context(), `
 		INSERT INTO billing_checkouts (clinic_id, plan, period, amount_cents, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id`,

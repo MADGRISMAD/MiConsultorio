@@ -47,9 +47,6 @@ const (
 
 var fileKinds = []string{"xray", "lab", "ultrasound", "consent", "photo", "document", "other"}
 
-// storageQuota is the space each plan includes for attachments.
-var storageQuota = map[string]int64{"basico": 1 << 30, "crecimiento": 5 << 30, "pro": 20 << 30}
-
 // uploadLimiter bounds uploads per user so a stolen session cannot be used to flood the disk.
 var uploadLimiter = newRateLimiter(60, 10*time.Minute)
 
@@ -290,14 +287,12 @@ func (s *Server) removeBlob(key string) {
 // ---- quota ------------------------------------------------------------------------------------------------------
 
 func quotaFor(p *Principal) int64 {
-	plan := "basico"
 	if p.Billing != nil {
-		plan = p.Billing.Plan
+		if pl, ok := planByID(p.Billing.Plan); ok {
+			return pl.StorageBytes()
+		}
 	}
-	if q, ok := storageQuota[plan]; ok {
-		return q
-	}
-	return storageQuota["basico"]
+	return planCatalog[0].StorageBytes()
 }
 
 type queryer interface {

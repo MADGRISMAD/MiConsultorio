@@ -226,7 +226,12 @@
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'profesional', 'profesionales')}</li>
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_users, 'usuario', 'usuarios')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja e inventario' : 'Sin sección de cobros'}</li>
-            <li class="flex gap-2 {o.magic_uses ? '' : 'text-app-muted'}"><Icon name={o.magic_uses ? 'sparkles' : 'x'} size={16} />{o.magic_uses ? `${o.magic_uses} usos de asistente IA al mes` : 'Sin asistente IA'}</li>
+            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_kinds, 'giro', 'giros')} · {limit(o.max_branches, 'sucursal', 'sucursales')}</li>
+            <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja, inventario y facturación' : 'Sin sección de cobros'}</li>
+            <li class="flex gap-2 {o.whatsapp ? '' : 'text-app-muted'}"><Icon name={o.whatsapp ? 'check' : 'x'} size={16} />{o.whatsapp ? 'Recordatorios por WhatsApp' : 'Recordatorios solo por correo'}</li>
+            <li class="flex gap-2 {o.permissions ? '' : 'text-app-muted'}"><Icon name={o.permissions ? 'check' : 'x'} size={16} />{o.permissions ? 'Permisos por persona' : 'Permisos por rol'}</li>
+            <li class="flex gap-2"><Icon name="sparkles" size={16} />{o.magic_uses} usos de magia (IA) al mes</li>
+            <li class="flex gap-2"><Icon name="check" size={16} />{o.storage_gb} GB de archivos · soporte {o.support === 'correo' ? 'por correo' : o.support}</li>
           </ul>
           <div class="mt-6">
             {#if !o.online || o.month_cents <= 0}

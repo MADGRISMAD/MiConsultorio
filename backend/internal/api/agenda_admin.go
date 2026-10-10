@@ -509,6 +509,14 @@ func (s *Server) updateAgendaSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if in.RemindWhatsapp && !planOf(r.Context(), s.db, p.ClinicID).WhatsApp {
+		var was bool
+		_ = s.db.QueryRow(r.Context(), `SELECT coalesce(remind_whatsapp, false) FROM agenda_settings WHERE clinic_id = $1`, p.ClinicID).Scan(&was)
+		if !was {
+			writeFailure(w, r, planRequired("Los recordatorios por WhatsApp vienen con los planes Crecimiento y Pro."))
+			return
+		}
+	}
 	var slug any
 	if in.BookingSlug != "" {
 		slug = in.BookingSlug

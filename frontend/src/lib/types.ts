@@ -120,6 +120,12 @@ export interface Plan {
   description: string;
   cobros: boolean;
   magic_uses: number;
+  max_branches: number;
+  max_kinds: number | null;
+  storage_gb: number;
+  whatsapp: boolean;
+  permissions: boolean;
+  support: 'correo' | 'prioritario' | 'dedicado';
 }
 
 export interface ClinicRow {

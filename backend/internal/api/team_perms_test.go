@@ -51,3 +51,31 @@ func containsAny(list []any, want string) bool {
 	}
 	return false
 }
+
+// Per-person permissions and WhatsApp reminders come with Crecimiento and Pro.
+func TestPlanGates(t *testing.T) {
+	e := setup(t)
+	admin := e.login("admin_a")
+	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, e.clinicA)
+	var rid string
+	for _, p := range admin.expect(200, "GET", "/api/team", nil)["people"].([]any) {
+		if m := p.(map[string]any); m["username"] == "recep_a" {
+			rid = m["id"].(string)
+		}
+	}
+	if code, o := admin.do("PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{"adminHistorials"}}); code != 403 || o["code"] != "PLAN_REQUIRED" {
+		t.Fatalf("permissions on Básico: %d %v", code, o)
+	}
+	wa := map[string]any{"slot_minutes": 20, "rooms": []string{}, "booking_enabled": false, "booking_lead_hours": 4, "booking_horizon_days": 60,
+		"remind_email": true, "remind_whatsapp": true, "remind_hours": []int{24}}
+	if code, o := admin.do("PUT", "/api/agenda/settings", wa); code != 403 || o["code"] != "PLAN_REQUIRED" {
+		t.Fatalf("whatsapp on Básico: %d %v", code, o)
+	}
+	e.exec(`UPDATE clinics SET plan = 'crecimiento' WHERE id = $1`, e.clinicA)
+	admin.expect(200, "PUT", "/api/agenda/settings", wa)
+	admin.expect(200, "PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{"adminHistorials"}})
+	// going back to Básico keeps what exists but allows no new overrides
+	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, e.clinicA)
+	admin.expect(200, "PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{"adminHistorials"}})
+	admin.expect(200, "PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{}})
+}

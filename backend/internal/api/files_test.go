@@ -222,7 +222,7 @@ func TestFilesValidationLimitsAndQuota(t *testing.T) {
 	// quota: pretend the plan's space is used
 	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, e.clinicA)
 	e.exec(`INSERT INTO attachments (clinic_id, patient_id, kind, mime, size_bytes, sha256, storage_key) VALUES ($1,$2,'other','application/pdf',$3,'x',$4)`,
-		e.clinicA, pid, int64(1<<30), e.clinicA+"/aa/"+strings.Repeat("a", 32))
+		e.clinicA, pid, int64(2<<30), e.clinicA+"/aa/"+strings.Repeat("a", 32))
 	if st, out := doc.upload(pid, upload{name: "x.jpg", data: jpegBytes}); st != 413 || out["code"] != "QUOTA_EXCEEDED" {
 		t.Errorf("quota: %d %v", st, out)
 	}
