@@ -182,7 +182,7 @@
     const results = buildResults();
     if (typeof results === 'string') return op.fail(results);
     if (!order && !title.trim()) return op.fail('Escribe el nombre del estudio.');
-    if (order && results.length === 0) return op.fail('Captura al menos un resultado.');
+    if (results.length === 0) return op.fail('Captura al menos un resultado: para solicitar estudios usa «Nueva orden».');
     // what this order asks for: its panels and the single analytes added by hand (the printed sheet lists them)
     const requested = [...new Set(rows.filter((r) => !seed).map((r) => (r.panel ? r.panelName : r.name)))];
     let saved: LabOrder | undefined;
@@ -195,7 +195,7 @@
   }
 </script>
 
-<Modal {open} title={order ? `Capturar resultados · ${order.title}` : 'Nueva orden o captura de resultados'} {onclose} wide>
+<Modal {open} title={order ? `Capturar resultados · ${order.title}` : 'Registrar resultados del paciente'} {onclose} wide>
   <form id="lab-capture" onsubmit={(e) => { e.preventDefault(); save(); }} class="grid gap-4">
     {#if seed}
       <p class="flex items-start gap-2 rounded-xl bg-app-primary/10 px-3.5 py-2.5 text-sm" role="status"><Icon name="sparkles" size={18} class="mt-0.5 shrink-0 text-app-primary" /><span>La IA leyó {seed.results.length} resultados del reporte. <strong>Revisa cada valor contra el documento</strong>, corrige lo que haga falta y guarda.</span></p>
@@ -308,7 +308,7 @@
   {#snippet footer()}
     <button type="button" class="btn-secondary" onclick={onclose}>Cancelar</button>
     <button type="submit" form="lab-capture" class="btn-primary" disabled={op.phase === 'loading'}>
-      {#if op.phase === 'loading'}<span class="spin"></span>{/if}{order ? 'Guardar resultados' : filled.length ? 'Guardar orden y resultados' : 'Guardar orden'}
+      {#if op.phase === 'loading'}<span class="spin"></span>{/if}{order ? 'Guardar resultados' : 'Guardar resultados'}
     </button>
   {/snippet}
 </Modal>

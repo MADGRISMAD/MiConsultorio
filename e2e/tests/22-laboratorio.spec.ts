@@ -32,3 +32,28 @@ test('las órdenes de laboratorio se contraen y se pueden escanear o imprimir', 
   await expect(page.getByRole('heading', { name: 'Escanear resultados con IA' })).toBeVisible();
   await expect(page.getByText('Revisa siempre cada valor')).toBeVisible();
 });
+
+test('«Nueva orden» solo solicita los estudios y detalla qué se pide', async ({ page }) => {
+  const api = await apiAsClinic();
+  const id = await createPersonApi(api, `Orden${uid()}`);
+  await api.dispose();
+  await page.goto(`/pacientes/${id}`);
+  await page.getByRole('tab', { name: /Laboratorio/ }).click();
+  await page.getByRole('button', { name: 'Nueva orden', exact: true }).first().click();
+  const dlg = page.getByRole('dialog', { name: 'Nueva orden de laboratorio' });
+  await expect(dlg).toBeVisible();
+  // no result fields: this window only asks for studies
+  await expect(dlg.getByText('Fecha del resultado')).toHaveCount(0);
+  await expect(dlg.getByText('Con esto la orden queda completa')).toHaveCount(0);
+  await expect(dlg.getByRole('button', { name: 'Guardar orden' })).toBeDisabled();
+  await dlg.getByLabel('Estudios que solicitas').selectOption({ label: 'Química sanguínea de 12 elementos' });
+  await expect(dlg.getByText(/Incluye \d+ análisis/)).toBeVisible();
+  await expect(dlg.getByText('Glucosa en ayuno')).toBeVisible();
+  await dlg.getByLabel('Otro estudio (si no está en la lista)').fill('Perfil tiroideo');
+  await dlg.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await dlg.getByLabel('Indicaciones para el paciente (opcional)').fill('Ayuno de 8 horas');
+  await dlg.getByRole('button', { name: 'Guardar orden' }).click();
+  await expect(page.getByText('Orden guardada')).toBeVisible();
+  await expect(page.getByText('Estudios solicitados: Química sanguínea de 12 elementos · Perfil tiroideo')).toBeVisible();
+  await expect(page.getByText('Esperando los resultados del paciente')).toBeVisible();
+});

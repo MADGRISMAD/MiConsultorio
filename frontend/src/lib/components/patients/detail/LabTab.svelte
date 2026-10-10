@@ -15,6 +15,7 @@
   import ConfirmModal from '../../ConfirmModal.svelte';
   import LabCaptureModal from '../../lab/LabCaptureModal.svelte';
   import LabCorrectModal from '../../lab/LabCorrectModal.svelte';
+  import LabRequestModal from '../../lab/LabRequestModal.svelte';
   import LabScanModal from '../../lab/LabScanModal.svelte';
   import LabTrendChart from '../../lab/LabTrendChart.svelte';
   import { dateFmt, FLAG_LABEL, FLAG_MARK, FLAG_TONE, rangeText } from '../../lab/labUtil';
@@ -66,6 +67,15 @@
 
   // ---- capture ----
   let capture = $state<{ order: LabOrder | null; seed?: LabScan | null } | null>(null);
+  // ---- request studies: the order the patient takes to a laboratory ----
+  let requesting = $state(false);
+  async function requested(o: LabOrder, print: boolean) {
+    requesting = false;
+    replace(o);
+    openOrders[o.id] = true;
+    toast.show('Orden guardada');
+    if (print) await printOrder(o);
+  }
   // ---- scan a report with AI: the reading opens the capture window to review it ----
   let scanning = $state<{ order: LabOrder | null } | null>(null);
   function scanned(sc: LabScan) {
@@ -197,15 +207,16 @@
       <button type="button" class="btn-secondary" disabled={printing || orders.length === 0} onclick={print}><Icon name="receipt" size={18} />Imprimir resultados</button>
       {#if canWrite && !patient.archived_at}
         {#if session.magic}<button type="button" class="btn-secondary" onclick={() => (scanning = { order: null })}><Icon name="sparkles" size={18} />Escanear resultados</button>{/if}
-        <button type="button" class="btn-primary" onclick={() => (capture = { order: null })}><Icon name="plus" size={18} />Nueva orden o captura</button>
+        <button type="button" class="btn-secondary" onclick={() => (capture = { order: null })}><Icon name="edit" size={18} />Registrar resultados</button>
+        <button type="button" class="btn-primary" onclick={() => (requesting = true)}><Icon name="plus" size={18} />Nueva orden</button>
       {/if}
     </div>
   </div>
 
   {#if view === 'ordenes'}
     {#if orders.length === 0}
-      <div class="card"><EmptyState icon="droplet" title="Sin estudios de laboratorio" text="Registra una orden y captura sus resultados por panel: el sistema marca los valores fuera de rango y arma las tendencias.">
-        {#if canWrite && !patient.archived_at}<button type="button" class="btn-primary" onclick={() => (capture = { order: null })}><Icon name="plus" size={18} />Nueva orden o captura</button>{/if}
+      <div class="card"><EmptyState icon="droplet" title="Sin estudios de laboratorio" text="Solicita los estudios y entrega la orden impresa al paciente. Cuando traiga sus resultados, captúralos o escanéalos: el sistema marca los valores fuera de rango y arma las tendencias.">
+        {#if canWrite && !patient.archived_at}<button type="button" class="btn-primary" onclick={() => (requesting = true)}><Icon name="plus" size={18} />Nueva orden</button>{/if}
       </EmptyState></div>
     {:else}
       {#if historyCount > 0}
@@ -281,7 +292,7 @@
                 </table>
               </div>
             {:else}
-              {#if o.status !== 'cancelado'}<p class="mt-3 text-sm text-app-muted">Aún no hay resultados capturados.</p>{/if}
+              {#if o.status !== 'cancelado'}<p class="mt-3 rounded-xl bg-app-ink/4 px-3.5 py-2.5 text-sm text-app-muted">Esperando los resultados del paciente. Cuando los traiga, usa «Capturar resultados» o «Escanear resultados».</p>{/if}
             {/each}
 
             {#if canWrite && o.status !== 'cancelado' && !patient.archived_at}
@@ -327,6 +338,7 @@
 {/if}
 
 <LabCaptureModal open={!!capture} {patient} {catalog} {files} order={capture?.order ?? null} seed={capture?.seed ?? null} onclose={() => (capture = null)} onsaved={saved} />
+<LabRequestModal open={requesting} {patient} {catalog} onclose={() => (requesting = false)} onsaved={requested} />
 <LabScanModal open={!!scanning} {patient} onclose={() => (scanning = null)} onread={scanned} />
 <LabCorrectModal target={correcting} onclose={() => (correcting = null)} onsaved={corrected} />
 
