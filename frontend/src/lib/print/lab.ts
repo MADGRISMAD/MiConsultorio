@@ -20,7 +20,7 @@ function orderHtml(o: LabOrder): string {
         const range = rangeText(r.ref_low, r.ref_high);
         const src = range ? (r.ref_source === 'catalogo' ? ' (general)' : r.ref_source === 'laboratorio' ? ' (del laboratorio)' : '') : '';
         const corr = r.supersedes_id ? '<div class="small">Corrección de un resultado anterior</div>' : '';
-        return `<tr class="nobreak"><td>${e(r.analyte)}${corr}</td><td><strong>${e(valueText(r))}</strong></td><td>${e(range)}${e(src)}</td><td>${r.flag === 'normal' || r.flag === 'na' ? '' : `<strong>${e(FLAG_MARK[r.flag])} ${e(FLAG_LABEL[r.flag])}</strong>`}</td></tr>`;
+        return `<tr class="nobreak"><td>${e(r.analyte)}${corr}</td><td><strong>${e(valueText(r))}</strong></td><td>${e(range)}${e(src)}</td><td>${r.flag === 'na' ? '—' : r.flag === 'normal' ? e(FLAG_LABEL.normal) : `<strong>${e(FLAG_MARK[r.flag])} ${e(FLAG_LABEL[r.flag])}</strong>`}</td></tr>`;
       })
       .join('')}</tbody></table>`;
   const body = [...panels.entries()].map(([name, rows]) => `<h3 style="margin:10px 0 3px">${e(name)}</h3>${table(rows)}`).join('') || '<p class="small">Sin resultados capturados.</p>';
@@ -37,7 +37,7 @@ export function labReportHtml(patient: Patient, orders: LabOrder[], clinic: Issu
   const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Resultados de laboratorio</h1><div class="small">Impreso: ${e(fmtDateTime(new Date().toISOString()))}</div></div></div>
 <div class="box nobreak">${patientBlock(patient)}</div>
 ${list.length ? list.map(orderHtml).join('') : '<p>Sin órdenes de laboratorio.</p>'}
-<p class="small" style="margin-top:12px">Indicadores: ↑ alto, ↓ bajo, ‼ crítico, ! alterado. ${e(notice)}</p>
+<p class="small" style="margin-top:12px">Indicadores: Normal dentro del rango de referencia, ↑ alto, ↓ bajo, ‼ crítico, ! alterado, — sin rango para comparar. ${e(notice)}</p>
 <div class="sig nobreak">Sello y firma del profesional</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
   return doc('Resultados de laboratorio', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
