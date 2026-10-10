@@ -29,7 +29,7 @@
     </div>
     {#each cols as [title, links]}
       <div>
-        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-paper/45">{title}</p>
+        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-paper/60">{title}</p>
         <ul class="mt-5 space-y-3 text-[15px]">
           {#each links as [href, label]}
             <li><a {href} class="text-paper/80 transition-colors hover:text-signal">{label}</a></li>
@@ -39,7 +39,7 @@
     {/each}
   </div>
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
-    <div class="flex justify-between border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/45">
+    <div class="flex justify-between border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
       <span>© {new Date().getFullYear()} Caresia</span>
       <span>Todos los derechos reservados</span>
     </div>

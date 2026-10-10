@@ -1,7 +1,7 @@
 <script lang="ts">
   import { api } from '$lib/api';
   import { goto } from '$app/navigation';
-  import { session } from '$lib/session.svelte';
+  import { session, maybeSignedIn } from '$lib/session.svelte';
   import { POS_LINKS } from '$lib/pos';
   import { CLINIC_KINDS, PERMISSIONS, type Appointment } from '$lib/types';
   import Guard from '$lib/components/Guard.svelte';
@@ -52,7 +52,7 @@
   <title>{session.status === 'authenticated' ? 'Inicio · Caresia' : 'Caresia · Software para clínicas dentales y consultorios médicos'}</title>
 </svelte:head>
 
-{#if session.status === 'loading'}
+{#if session.status === 'loading' && maybeSignedIn()}
   <Spinner />
 {:else if session.status === 'authenticated'}
   <Guard title="Inicio">
