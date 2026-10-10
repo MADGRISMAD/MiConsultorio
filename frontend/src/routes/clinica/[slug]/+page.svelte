@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { profileApi, type PublicClinic } from '$lib/api/profile';
+  import TeamPolaroids from '$lib/components/clinic/TeamPolaroids.svelte';
   import PhotoCarousel from '$lib/components/clinic/PhotoCarousel.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Stars from '$lib/components/ui/Stars.svelte';
@@ -134,19 +135,7 @@
     {#if c.professionals.length}
       <section id="equipo" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Nuestro equipo</h2>
-        <ul class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {#each c.professionals as p (p.name)}
-            <li class="overflow-hidden rounded-3xl bg-panel ring-1 ring-ink/10">
-              <div class="aspect-[4/5] w-full bg-signal-soft">
-                {#if p.photo_url}<img src={p.photo_url} alt="Foto de {p.name}" class="h-full w-full object-cover" loading="lazy" />{:else}<span class="grid h-full place-items-center font-display text-6xl text-signal">{initials(p.name)}</span>{/if}
-              </div>
-              <div class="p-5">
-                <p class="font-display text-2xl leading-tight">{p.name}</p>
-                {#if p.title}<p class="mt-1 text-sm text-ink-soft">{p.title}</p>{/if}
-              </div>
-            </li>
-          {/each}
-        </ul>
+        <div class="mt-10"><TeamPolaroids people={c.professionals} /></div>
       </section>
     {/if}
 
