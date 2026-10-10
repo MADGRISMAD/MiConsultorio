@@ -109,9 +109,9 @@
     {/if}
 
     {#if c.about}
-      <section class="mx-auto mt-20 grid max-w-6xl gap-8 px-5 sm:px-8 md:grid-cols-[1fr_1.6fr]">
+      <section class="mx-auto mt-20 max-w-6xl px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Conócenos</h2>
-        <p class="whitespace-pre-line text-lg leading-relaxed text-ink-soft">{c.about}</p>
+        <p class="mt-6 max-w-3xl whitespace-pre-line text-lg leading-relaxed text-ink-soft">{c.about}</p>
       </section>
     {/if}
 
