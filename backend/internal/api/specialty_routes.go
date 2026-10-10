@@ -17,6 +17,7 @@ func (s *Server) mountSpecialty(r chi.Router) {
 	r.With(write).Post("/patients/{id}/chronic-meds", s.createChronicMed)
 	r.With(write).Patch("/patients/{id}/chronic-meds/{mid}", s.updateChronicMed)
 	r.With(clinical).Post("/patients/{id}/rx-check", s.rxCheck)
+	s.mountCertificates(r)
 	r.With(clinical).Post("/patients/{id}/ai-summary", s.consultSummaryAI)
 
 	r.With(clinical).Get("/patients/{id}/charts", s.listCharts)

@@ -39,7 +39,13 @@
   };
 
   const day = (iso: string) => fmtDate(iso.length === 10 ? `${iso}T12:00:00` : iso, { day: 'numeric', month: 'long', year: 'numeric' });
-  const look = $derived(data ? LOOK[data.status] : null);
+  const cert = $derived(!!data?.document?.startsWith('certificate_'));
+  const CERT_KEYS: Record<VerifyStatus, { title: string; text: string }> = {
+    vigente: { title: 'verify.certValidTitle', text: 'verify.certValidText' },
+    vencida: { title: 'verify.certExpiredTitle', text: 'verify.certExpiredText' },
+    anulada: { title: 'verify.certVoidedTitle', text: 'verify.certVoidedText' }
+  };
+  const look = $derived(data ? { ...LOOK[data.status], ...(cert ? CERT_KEYS[data.status] : {}) } : null);
 </script>
 
 <svelte:head>
@@ -67,6 +73,7 @@
           <p class="mt-2 max-w-sm text-sm text-app-muted">{t(look.text)}</p>
         </div>
         <dl class="mt-6 divide-y divide-app-ink/10 text-sm">
+          {#if cert}<div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.document')}</dt><dd class="text-right font-medium">{t(data.document === 'certificate_veterinary' ? 'verify.docVeterinary' : 'verify.docMedical')}</dd></div>{/if}
           <div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.folio')}</dt><dd class="font-medium">{String(data.folio).padStart(6, '0')}</dd></div>
           <div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.issued')}</dt><dd class="text-right font-medium">{day(data.issued_at)}</dd></div>
           {#if data.valid_until}
@@ -79,10 +86,10 @@
           </div>
           <div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.license')}</dt><dd class="font-medium">{data.professional_license}</dd></div>
           <div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.initials')}</dt><dd class="font-medium">{data.patient_initials}</dd></div>
-          <div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.retained')}</dt><dd class="font-medium">{data.retained ? t('verify.retainedYes') : t('verify.retainedNo')}</dd></div>
+          {#if !cert}<div class="flex justify-between gap-4 py-2.5"><dt class="text-app-muted">{t('verify.retained')}</dt><dd class="font-medium">{data.retained ? t('verify.retainedYes') : t('verify.retainedNo')}</dd></div>{/if}
         </dl>
         <p class="mt-5 rounded-xl bg-app-elevated px-4 py-3 text-xs text-app-muted">
-          {t('verify.note')}
+          {cert ? t('verify.certNote') : t('verify.note')}
         </p>
       {:else if phase === 'missing'}
         <div class="flex flex-col items-center py-4 text-center">

@@ -9,6 +9,8 @@ import type { LabOrder } from '$lib/types/lab';
 import { consentHtml, privacyNoticeHtml } from './avisos';
 import { expedienteHtml } from './expediente';
 import { recetaHtml } from './receta';
+import { certificateHtml } from './certificate';
+import { certificatesApi } from '$lib/api/certificates';
 import { labReportHtml } from './lab';
 import { carnetHtml, chartHtml, nutritionPlanHtml, planHtml, signedConsentHtml } from './specialty';
 
@@ -20,6 +22,12 @@ export async function printReceta(prescriptionId: string): Promise<void> {
   // The QR is drawn in the browser; the receta still prints if it cannot be generated.
   const qr = r.verify_url ? await QRCode.toDataURL(r.verify_url, { margin: 1, width: 252, errorCorrectionLevel: 'M' }).catch(() => '') : '';
   await printHtml(recetaHtml(r.prescription, r.patient, r.clinic, qr ? { url: r.verify_url, qr } : undefined));
+}
+
+export async function printCertificate(certificateId: string): Promise<void> {
+  const r = await certificatesApi.printData(certificateId);
+  const qr = r.verify_url ? await QRCode.toDataURL(r.verify_url, { margin: 1, width: 252, errorCorrectionLevel: 'M' }).catch(() => '') : '';
+  await printHtml(certificateHtml(r.certificate, r.patient, r.clinic, qr ? { url: r.verify_url, qr } : undefined));
 }
 
 export async function printExpediente(patientId: string): Promise<void> {

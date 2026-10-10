@@ -3,6 +3,7 @@
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { rxApi } from '$lib/api/rx';
+  import { certificatesApi } from '$lib/api/certificates';
   import { labApi } from '$lib/api/lab';
   import { filesApi } from '$lib/api/files';
   import { specialtyApi } from '$lib/api/specialty';
@@ -25,6 +26,7 @@
   import PsychologyTab from '$lib/components/patients/detail/PsychologyTab.svelte';
   import BodyMapTab from '$lib/components/patients/detail/BodyMapTab.svelte';
   import PlansTab from '$lib/components/patients/detail/PlansTab.svelte';
+  import CertificatesTab from '$lib/components/patients/detail/CertificatesTab.svelte';
   import ChronicMedsTab from '$lib/components/patients/detail/ChronicMedsTab.svelte';
   import SummaryTab from '$lib/components/patients/detail/SummaryTab.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
@@ -39,7 +41,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
 
-  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'cronicos' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'nutricion' | 'psico' | 'planes' | 'accesos';
+  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'cronicos' | 'certificados' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'nutricion' | 'psico' | 'planes' | 'accesos';
 
   const id = $derived(page.params.id ?? '');
   let patient = $state<Patient | null>(null);
@@ -105,6 +107,7 @@
     const k = schema?.kinds ?? [];
     await Promise.all([
       ...(isPerson ? [set('cronicos', rxApi.chronic.list(id).then((l) => l.filter((m) => m.active).length))] : []),
+      set('certificados', certificatesApi.list(id).then((r) => r.certificates.filter((c) => !c.voided_at).length)),
       set('archivos', filesApi.list(id).then((r) => r.files.length)),
       set('vacunas', specialtyApi.vaccinations(id).then((r) => r.vaccinations.filter((v) => !v.voided_at).length)),
       set('laboratorio', labApi.orders(id).then((o) => o.length)),
@@ -208,6 +211,7 @@
     ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento', count: counts.planes }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
     ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio', count: counts.laboratorio }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento', count: encounters.filter((e) => !e.hidden && ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')).length }] : []),
+    { key: 'certificados', label: 'Certificados', count: counts.certificados },
     { key: 'archivos', label: 'Archivos', count: counts.archivos },
     ...(isAdmin ? [{ key: 'accesos' as Tab, label: 'Accesos', count: access.length }] : [])
   ]);
@@ -312,6 +316,8 @@
         <EncountersTab {patient} {schema} {encounters} {canWrite} onnew={openForm} onaddendum={(e) => (addendumFor = e)} />
       {:else if tab === 'recetas'}
         <PrescriptionsTab {patient} {schema} {prescriptions} {canWrite} {isAdmin} userName={session.user?.name ?? ''} onnew={newRx} onchange={refreshRx} />
+      {:else if patient && tab === 'certificados'}
+        <CertificatesTab {patient} {canWrite} />
       {:else if patient && tab === 'cronicos'}
         <ChronicMedsTab {patient} {canWrite} />
       {:else if patient && tab === 'archivos'}

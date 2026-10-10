@@ -47,6 +47,11 @@ func (s *Server) exportPatient(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	certs, err := s.certificatesOf(r.Context(), p.ClinicID, id)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	iss, err := s.issuerInfo(r.Context(), p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
@@ -70,7 +75,7 @@ func (s *Server) exportPatient(w http.ResponseWriter, r *http.Request) {
 	}
 	out := map[string]any{
 		"format": "caresia-patient-export", "version": 1, "generated_at": time.Now().UTC(), "generated_by": p.actorName(),
-		"clinic": iss, "patient": pat, "encounters": encs, "encounters_withheld": withheld, "prescriptions": rxs,
+		"clinic": iss, "patient": pat, "encounters": encs, "encounters_withheld": withheld, "prescriptions": rxs, "certificates": certs,
 	}
 	for _, sec := range sections {
 		list, err := s.jsonRows(r.Context(), sec.sql, p.ClinicID, id)

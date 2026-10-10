@@ -93,7 +93,7 @@ func (s *Server) verifyPrescription(w http.ResponseWriter, r *http.Request) {
 		JOIN patients pt ON pt.id = x.patient_id
 		WHERE x.verify_token = $1`, token).Scan(&folio, &issued, &validUntil, &voided, &expired, &clinic, &author, &title, &license, &names, &lastNames, &retained)
 	if errors.Is(err, pgx.ErrNoRows) {
-		notFound()
+		s.verifyCertificate(w, r, token, notFound)
 		return
 	}
 	if err != nil {
@@ -111,5 +111,43 @@ func (s *Server) verifyPrescription(w http.ResponseWriter, r *http.Request) {
 		"status": status, "folio": folio, "issued_at": issued, "valid_until": validUntil,
 		"clinic_name": clinic, "professional_name": author, "professional_title": title, "professional_license": license,
 		"patient_initials": initials(names, lastNames), "retained": retained,
+	})
+}
+
+// verifyCertificate answers the same QR check for a certificate: that it exists, who issued it and whether it still stands.
+func (s *Server) verifyCertificate(w http.ResponseWriter, r *http.Request, token string, notFound func()) {
+	var (
+		folio                          int
+		issued                         time.Time
+		validUntil                     *string
+		voided, expired                bool
+		kind                           string
+		clinic, author, title, license string
+		names, lastNames               string
+	)
+	err := s.db.QueryRow(r.Context(), `
+		SELECT x.folio, x.issued_at, to_char(x.valid_until,'YYYY-MM-DD'), x.voided_at IS NOT NULL, COALESCE(x.valid_until < current_date, false), x.kind,
+			c.name, x.author_name, x.author_title, x.author_license, pt.names, pt.last_names
+		FROM certificates x JOIN clinics c ON c.id = x.clinic_id JOIN patients pt ON pt.id = x.patient_id
+		WHERE x.verify_token = $1`, token).Scan(&folio, &issued, &validUntil, &voided, &expired, &kind, &clinic, &author, &title, &license, &names, &lastNames)
+	if errors.Is(err, pgx.ErrNoRows) {
+		notFound()
+		return
+	}
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	status := "vigente"
+	switch {
+	case voided:
+		status = "anulada"
+	case expired:
+		status = "vencida"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": status, "folio": folio, "issued_at": issued, "valid_until": validUntil, "document": "certificate_" + kind,
+		"clinic_name": clinic, "professional_name": author, "professional_title": title, "professional_license": license,
+		"patient_initials": initials(names, lastNames), "retained": false,
 	})
 }

@@ -40,6 +40,11 @@
     if (!transport) return;
     if (await pairOp.run(() => printer.pair(transport, baud))) toast.show('Impresora conectada');
   }
+  const baudOp = new Op();
+  const baudDirty = $derived(baud !== printer.baud);
+  async function saveBaud() {
+    if (await baudOp.run(() => printer.setBaud(baud))) toast.show('Velocidad guardada');
+  }
   async function test() {
     if (await testOp.run(() => printTest($state.snapshot(s) as PosSettings))) toast.show('Prueba enviada');
   }
@@ -81,6 +86,13 @@
         <div class="mt-3 max-w-xs">
           <label class="label" for="pr-baud">Velocidad (baudios)</label>
           <select id="pr-baud" class="field" bind:value={baud}>{#each BAUDS as b}<option value={b}>{b}</option>{/each}</select>
+          {#if baudDirty || baudOp.phase === 'error'}
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <button type="button" class="btn-primary" disabled={printer.busy || baudOp.phase === 'loading'} onclick={saveBaud}>{#if baudOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar velocidad</button>
+              {#if baudDirty}<button type="button" class="btn-ghost" onclick={() => (baud = printer.baud)}>Descartar</button>{/if}
+            </div>
+            <OpError op={baudOp} class="mt-2" />
+          {/if}
           <p class="hint">Usa 115200 si tu impresora lo admite: manda el ticket unas 12 veces más rápido que 9600. Si imprime símbolos raros, baja la velocidad (suele ser 9600 en impresoras antiguas).</p>
         </div>
       {/if}

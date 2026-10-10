@@ -144,6 +144,8 @@ export interface RxVerification {
   professional_license: string;
   patient_initials: string;
   retained: boolean;
+  /** present for certificates: certificate_medical | certificate_veterinary */
+  document?: string;
 }
 
 /** What the dose calculator hands back once the prescriber confirms it. */

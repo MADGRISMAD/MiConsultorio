@@ -100,6 +100,25 @@ class PrinterConnection {
     }
   }
 
+  /** Changes the serial speed: saved for next time, and the open port is reopened at it. */
+  async setBaud(baud: number): Promise<void> {
+    this.error = '';
+    this.baud = baud;
+    this.#remember();
+    if (!this.#port) return;
+    this.busy = true;
+    try {
+      await this.#port.close().catch(() => {});
+      await this.#port.open({ baudRate: baud });
+    } catch (e) {
+      this.connected = false;
+      this.error = explain(e);
+      throw new Error(this.error);
+    } finally {
+      this.busy = false;
+    }
+  }
+
   /** Reconnects to the printer the browser already has permission for, without asking. */
   async reconnect(): Promise<boolean> {
     if (this.connected) return true;
