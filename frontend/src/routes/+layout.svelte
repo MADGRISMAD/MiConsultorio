@@ -2,7 +2,7 @@
   import '../app.css';
   // Fuentes propias (sin Google Fonts): se sirven desde el mismo dominio.
   import '@fontsource-variable/instrument-sans/wght.css';
-  import '@fontsource-variable/jetbrains-mono/wght.css';
+  import '@fontsource/jetbrains-mono/400.css';
   import '@fontsource/instrument-serif/400.css';
   import '@fontsource/instrument-serif/400-italic.css';
   import '@fontsource/caveat/400.css';
