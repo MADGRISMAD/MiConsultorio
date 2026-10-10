@@ -623,3 +623,26 @@ func TestStaffBookingMailsThePatientRightAway(t *testing.T) {
 		t.Fatalf("only the consenting patient with an e-mail is mailed: %d", n)
 	}
 }
+
+func TestBookingCheckPointsToWhatIsMissing(t *testing.T) {
+	b := newBookingEnv(t, false)
+	admin := b.login("admin_a")
+	problem := func(slug string) map[string]any {
+		return admin.expect(200, "GET", "/api/agenda/booking-check?slug="+slug, nil)
+	}
+	if p := problem(b.slugA)["problem"]; p != "" {
+		t.Fatalf("everything is set: %v", p)
+	}
+	if r := problem("clinica-aa"); r["problem"] != "slug_mismatch" || r["to"] != "/reservar/"+b.slugA {
+		t.Fatalf("mismatch: %v", r)
+	}
+	b.exec(`UPDATE professional_settings SET bookable = false WHERE clinic_id = $1`, b.clinicA)
+	if r := problem(b.slugA); r["problem"] != "no_bookable" || r["to"] != "/ajustes?s=agenda" {
+		t.Fatalf("no bookable: %v", r)
+	}
+	b.exec(`UPDATE agenda_settings SET booking_enabled = false WHERE clinic_id = $1`, b.clinicA)
+	if r := problem(b.slugA); r["problem"] != "disabled" || r["to"] != "/ajustes?s=agenda" {
+		t.Fatalf("disabled: %v", r)
+	}
+	b.anon().expect(401, "GET", "/api/agenda/booking-check?slug=x", nil)
+}

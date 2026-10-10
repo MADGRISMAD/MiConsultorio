@@ -6,6 +6,7 @@
   import type { BookingInfo } from '$lib/types/booking';
   import BookingWizard from '$lib/components/booking/BookingWizard.svelte';
   import PublicShell from '$lib/components/booking/PublicShell.svelte';
+  import BookingFix from '$lib/components/booking/BookingFix.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
   const slug = $derived(page.params.slug ?? '');
@@ -43,10 +44,12 @@
       <h1 class="display mt-4 text-3xl leading-tight">{t('booking.missingTitle')}</h1>
       <p class="mt-3 text-app-muted">{t('booking.missingText')}</p>
     </section>
+    <BookingFix {slug} />
   {:else}
     <section class="card px-6 py-9" role="alert">
       <p class="alert"><Icon name="alert" size={18} />{t('booking.loadError')}</p>
       <button class="btn-secondary mt-5" onclick={() => location.reload()}>{t('common.retry')}</button>
     </section>
+    <BookingFix {slug} />
   {/if}
 </PublicShell>

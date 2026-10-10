@@ -8,6 +8,7 @@
   import { fmtDay, fmtMoneyCents, t } from '$lib/i18n/index.svelte';
   import { CLINIC_KINDS } from '$lib/types';
   import type { BookingInfo, BookingResult, BookingSlot } from '$lib/types/booking';
+  import BookingFix from './BookingFix.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import PrivacyModal from './PrivacyModal.svelte';
   let privacyOpen = $state(false);
@@ -251,6 +252,7 @@
     <p class="font-medium">{t('booking.noSlots')}</p>
     {#if info.clinic.phone}<p class="mt-2 text-sm text-app-muted">{t('booking.callUs')} <a class="text-app-primary underline" href="tel:{info.clinic.phone}">{info.clinic.phone}</a>.</p>{/if}
   </section>
+  <BookingFix {slug} />
 {:else}
   <form class="grid gap-5" novalidate onsubmit={submit}>
     <section class="card px-5 py-5 sm:px-6" aria-labelledby="bk-s1">

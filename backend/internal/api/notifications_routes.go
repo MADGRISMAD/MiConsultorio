@@ -9,5 +9,6 @@ func (s *Server) mountNotifications(r chi.Router) {
 
 	// Agenda extras that belong to this package (the agenda's own router is mounted elsewhere).
 	r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/agenda/month-load", s.agendaMonthLoad)
+	r.With(require(PermAdminUsers)).Get("/agenda/booking-check", s.bookingCheck)
 	r.With(require(PermAdminUsers)).Put("/agenda/services/{id}/duration", s.setServiceDuration)
 }

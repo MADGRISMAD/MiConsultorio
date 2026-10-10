@@ -25,6 +25,9 @@ export const agendaApi = {
   /** an open appointment of the patient in the same giro (what saving would refuse), or null */
   pendingCheck: (q: { patient?: string; professional?: string; exclude?: string; email?: string; phone?: string }) =>
     request<{ pending: { date: string; start: string; with: string; message: string } | null }>('GET', `/agenda/pending-check${qs(q)}`).then((r) => r.pending),
+  /** why the public booking page of the clinic does not open, for the signed-in team (problem '' = nothing wrong) */
+  bookingCheck: (slug: string) =>
+    request<{ problem: string; title: string; text: string; to: string; action: string }>('GET', `/agenda/booking-check${qs({ slug })}`),
   services: () => request<{ services: ServiceOption[] }>('GET', '/agenda/services').then((r) => r.services),
 
   blocks: (from?: string, to?: string) => request<{ blocks: TimeBlock[] }>('GET', `/agenda/blocks${qs({ from, to })}`).then((r) => r.blocks),
