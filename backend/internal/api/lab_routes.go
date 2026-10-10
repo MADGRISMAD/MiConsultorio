@@ -15,6 +15,7 @@ func (s *Server) mountLab(r chi.Router) {
 	r.With(write).Put("/lab/orders/{id}", s.updateLabOrder)
 	r.With(write).Post("/lab/orders/{id}/status", s.setLabOrderStatus)
 	r.With(write).Post("/lab/orders/{id}/results", s.addLabResults)
+	r.With(write).Post("/patients/{id}/lab/scan", s.scanLabResults)
 
 	r.With(clinical).Get("/patients/{id}/growth", s.patientGrowth)
 	// Reference tables are loaded by the administrator only.

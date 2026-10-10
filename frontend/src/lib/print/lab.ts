@@ -1,6 +1,6 @@
 import { FLAG_LABEL, FLAG_MARK, rangeText } from '$lib/components/lab/labUtil';
 import type { Issuer, Patient } from '$lib/types';
-import type { LabOrder, LabResult } from '$lib/types/lab';
+import type { LabCatalog, LabOrder, LabResult } from '$lib/types/lab';
 import { doc, e, fmtDate, fmtDateTime, FOOTER_CONF, issuerBlock, patientBlock } from './base';
 
 const STATUS: Record<string, string> = { solicitado: 'Solicitado', parcial: 'Parcial', completo: 'Completo', cancelado: 'Cancelado' };
@@ -41,4 +41,38 @@ ${list.length ? list.map(orderHtml).join('') : '<p>Sin órdenes de laboratorio.<
 <div class="sig nobreak">Sello y firma del profesional</div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
   return doc('Resultados de laboratorio', body, '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}');
+}
+
+export interface LabProfessional {
+  name: string;
+  title: string;
+  cedula: string;
+  institution: string;
+}
+
+/**
+ * The sheet the patient takes to a laboratory: the studies asked for (with what each panel includes), the indications and the
+ * professional who requests them. It has no results; those are captured when the patient comes back.
+ */
+export function labOrderSheetHtml(patient: Patient, order: LabOrder, clinic: Issuer, catalog: LabCatalog | null, pro: LabProfessional): string {
+  const asked = order.requested.length ? order.requested : [order.title];
+  const items = asked
+    .map((name) => {
+      const panel = catalog?.panels.find((p) => p.name === name);
+      const detail = panel ? `<div class="small" style="margin-left:18px">Incluye: ${e(panel.analytes.map((a) => a.name).join(', '))}.</div>` : '';
+      return `<li class="nobreak" style="margin:5px 0"><strong>${e(name)}</strong>${detail}</li>`;
+    })
+    .join('');
+  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Orden de laboratorio</h1><div class="small">Fecha: ${e(fmtDate(order.ordered_at))}</div></div></div>
+<div class="box nobreak">${patientBlock(patient)}</div>
+<h2>Estudios solicitados</h2>
+<ul style="margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.5">${items}</ul>
+${order.lab_name ? `<p><span class="k">Laboratorio sugerido</span>${e(order.lab_name)}</p>` : ''}
+${order.notes ? `<p><span class="k">Indicaciones para el paciente</span>${e(order.notes)}</p>` : ''}
+<p class="small" style="margin-top:12px">Entrega esta orden en el laboratorio y, cuando tengas tus resultados, preséntalos en tu consulta. Si el laboratorio pide ayuno u otra preparación, sigue sus indicaciones.</p>
+<div class="box nobreak" style="margin-top:14px"><span class="k">Profesional que solicita</span><strong>${e(pro.name)}</strong>${pro.title ? `<div>${e(pro.title)}</div>` : ''}
+${pro.cedula ? `<div class="small">Cédula profesional: <strong>${e(pro.cedula)}</strong>${pro.institution ? ` · Título expedido por ${e(pro.institution)}` : ''}</div>` : ''}</div>
+<div class="sig nobreak">Firma y sello del profesional<br>${e(pro.name)}</div>
+<div class="footer">${e(FOOTER_CONF)}</div>`;
+  return doc('Orden de laboratorio', body, '');
 }

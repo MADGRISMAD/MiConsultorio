@@ -5,13 +5,13 @@ import { rxApi } from '$lib/api/rx';
 import QRCode from 'qrcode';
 import { printHtml } from '$lib/printer/ticket';
 import type { Issuer, Patient } from '$lib/types';
-import type { LabOrder } from '$lib/types/lab';
+import type { LabCatalog, LabOrder } from '$lib/types/lab';
 import { consentHtml, privacyNoticeHtml } from './avisos';
 import { expedienteHtml } from './expediente';
 import { recetaHtml } from './receta';
 import { certificateHtml } from './certificate';
 import { certificatesApi } from '$lib/api/certificates';
-import { labReportHtml } from './lab';
+import { labOrderSheetHtml, labReportHtml } from './lab';
 import { carnetHtml, chartHtml, nutritionPlanHtml, planHtml, signedConsentHtml } from './specialty';
 
 export { escapeHtml } from './base';
@@ -52,6 +52,11 @@ export async function printConsent(patient: Patient | null, issuer?: Issuer, pro
 /** Prints the lab results of a patient (all orders, or just the given ones). */
 export async function printLabReport(patient: Patient, orders: LabOrder[], notice: string): Promise<void> {
   await printHtml(labReportHtml(patient, orders, await loadIssuer(), notice));
+}
+
+/** Prints the order sheet the patient takes to a laboratory. */
+export async function printLabOrder(patient: Patient, order: LabOrder, catalog: LabCatalog | null, pro: { name: string; title: string; cedula: string; institution: string }): Promise<void> {
+  await printHtml(labOrderSheetHtml(patient, order, await loadIssuer(), catalog, pro));
 }
 
 // ---- specialty record: carnet, charts, plans and signed consents ----

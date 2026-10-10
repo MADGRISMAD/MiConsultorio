@@ -6,14 +6,16 @@
   import { filesApi } from '$lib/api/files';
   import { labApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
-  import { printLabReport } from '$lib/print';
+  import { printLabOrder, printLabReport } from '$lib/print';
+  import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { Patient, PatientSchema } from '$lib/types';
   import type { Attachment } from '$lib/types/files';
-  import type { LabCatalog, LabOrder, LabResult, LabStatus, LabTrends } from '$lib/types/lab';
+  import type { LabCatalog, LabOrder, LabResult, LabScan, LabStatus, LabTrends } from '$lib/types/lab';
   import ConfirmModal from '../../ConfirmModal.svelte';
   import LabCaptureModal from '../../lab/LabCaptureModal.svelte';
   import LabCorrectModal from '../../lab/LabCorrectModal.svelte';
+  import LabScanModal from '../../lab/LabScanModal.svelte';
   import LabTrendChart from '../../lab/LabTrendChart.svelte';
   import { dateFmt, FLAG_LABEL, FLAG_MARK, FLAG_TONE, rangeText } from '../../lab/labUtil';
   import Modal from '../../Modal.svelte';
@@ -29,6 +31,13 @@
   const ld = new Loader('No se pudo cargar el laboratorio.');
   let view = $state<'ordenes' | 'tendencias'>('ordenes');
   let showHistory = $state(false);
+  // each order opens and closes: the newest starts open, the rest closed (a record is not always needed on screen)
+  let openOrders = $state<Record<string, boolean>>({});
+  const isOpen = (o: LabOrder, i: number) => openOrders[o.id] ?? i === 0;
+  const toggle = (o: LabOrder, i: number) => (openOrders[o.id] = !isOpen(o, i));
+  const setAll = (v: boolean) => (openOrders = Object.fromEntries(orders.map((o) => [o.id, v])));
+  const current = (o: LabOrder) => o.results.filter((r) => !r.superseded_by);
+  const outOfRange = (o: LabOrder) => current(o).filter((r) => r.flag !== 'normal' && r.flag !== 'na').length;
 
   const STATUS: Record<LabStatus, { label: string; tone: 'info' | 'ok' | 'warn' | 'bad' | 'muted' }> = {
     solicitado: { label: 'Solicitado', tone: 'info' },
@@ -56,7 +65,14 @@
   const historyCount = $derived(orders.reduce((n, o) => n + o.results.filter((r) => r.superseded_by).length, 0));
 
   // ---- capture ----
-  let capture = $state<{ order: LabOrder | null } | null>(null);
+  let capture = $state<{ order: LabOrder | null; seed?: LabScan | null } | null>(null);
+  // ---- scan a report with AI: the reading opens the capture window to review it ----
+  let scanning = $state<{ order: LabOrder | null } | null>(null);
+  function scanned(sc: LabScan) {
+    const order = scanning?.order ?? null;
+    scanning = null;
+    capture = { order, seed: sc };
+  }
   function saved(o: LabOrder) {
     capture = null;
     replace(o);
@@ -146,6 +162,15 @@
     }
   }
 
+  async function printOrder(o: LabOrder) {
+    const pro = session.user?.professional;
+    try {
+      await printLabOrder(patient, o, catalog, { name: session.user?.name ?? '', title: pro?.title ?? '', cedula: pro?.cedula ?? '', institution: pro?.institution ?? '' });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'No se pudo imprimir.', 'error');
+    }
+  }
+
   function groups(o: LabOrder): [string, LabResult[]][] {
     const m = new Map<string, LabResult[]>();
     for (const r of o.results) {
@@ -170,7 +195,10 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <button type="button" class="btn-secondary" disabled={printing || orders.length === 0} onclick={print}><Icon name="receipt" size={18} />Imprimir resultados</button>
-      {#if canWrite && !patient.archived_at}<button type="button" class="btn-primary" onclick={() => (capture = { order: null })}><Icon name="plus" size={18} />Nueva orden o captura</button>{/if}
+      {#if canWrite && !patient.archived_at}
+        {#if session.magic}<button type="button" class="btn-secondary" onclick={() => (scanning = { order: null })}><Icon name="sparkles" size={18} />Escanear resultados</button>{/if}
+        <button type="button" class="btn-primary" onclick={() => (capture = { order: null })}><Icon name="plus" size={18} />Nueva orden o captura</button>
+      {/if}
     </div>
   </div>
 
@@ -186,27 +214,45 @@
           Mostrar historial de correcciones ({historyCount})
         </label>
       {/if}
+      {#if orders.length > 1}
+        <div class="mb-3 flex gap-3 text-sm">
+          <button type="button" class="font-medium text-app-primary underline underline-offset-4" onclick={() => setAll(true)}>Expandir todo</button>
+          <button type="button" class="font-medium text-app-primary underline underline-offset-4" onclick={() => setAll(false)}>Contraer todo</button>
+        </div>
+      {/if}
       <ul class="grid grid-cols-[minmax(0,1fr)] gap-4">
-        {#each orders as o (o.id)}
+        {#each orders as o, i (o.id)}
+          {@const open = isOpen(o, i)}
           {@const att = fileOf(o.attachment_id)}
           <li class="card p-4 sm:p-5 {o.status === 'cancelado' ? 'opacity-80' : ''}">
             <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="min-w-0">
-                <h3 class="break-words text-lg font-medium">{o.title}</h3>
-                <p class="mt-0.5 text-sm text-app-muted">
-                  {dateFmt(o.ordered_at)}{o.lab_name ? ` · ${o.lab_name}` : ''}{o.ordered_by_name ? ` · ${o.ordered_by_name}` : ''}
-                </p>
-                {#if o.notes}<p class="mt-1 text-sm">{o.notes}</p>{/if}
-                {#if o.attachment_id}
-                  <p class="mt-1 text-sm">
-                    <a class="inline-flex items-center gap-1.5 font-medium text-app-primary underline" href={filesApi.url(o.attachment_id)} target="_blank" rel="noopener"><Icon name="file" size={14} />{att ? att.title || att.original_name : 'Ver archivo del resultado'}</a>
-                  </p>
-                {/if}
-                {#if o.status === 'cancelado'}<p class="mt-1 text-sm text-app-muted">Cancelada el {o.cancelled_at ? dateFmt(o.cancelled_at) : ''} por {o.cancelled_by}: {o.cancel_reason}</p>{/if}
-              </div>
+              <button type="button" class="flex min-w-0 flex-1 items-start gap-2 rounded-lg text-left" aria-expanded={open} aria-controls="lab-o-{o.id}" onclick={() => toggle(o, i)}>
+                <Icon name="chevron-down" size={18} class="mt-1.5 shrink-0 text-app-muted transition {open ? '' : '-rotate-90'}" />
+                <span class="min-w-0">
+                  <span class="block break-words text-lg font-medium">{o.title}</span>
+                  <span class="mt-0.5 block text-sm text-app-muted">
+                    {dateFmt(o.ordered_at)}{o.lab_name ? ` · ${o.lab_name}` : ''}{o.ordered_by_name ? ` · ${o.ordered_by_name}` : ''}
+                  </span>
+                  {#if !open}
+                    <span class="mt-1 block text-sm text-app-muted">
+                      {#if current(o).length}{current(o).length} resultado{current(o).length === 1 ? '' : 's'}{#if outOfRange(o)} · <strong class="font-semibold text-app-warning">{outOfRange(o)} fuera de rango</strong>{/if}{:else if o.requested.length}{o.requested.length} estudio{o.requested.length === 1 ? '' : 's'} solicitado{o.requested.length === 1 ? '' : 's'}{:else}Sin resultados{/if}
+                    </span>
+                  {/if}
+                </span>
+              </button>
               <Pill tone={STATUS[o.status].tone}>{STATUS[o.status].label}</Pill>
             </div>
 
+            {#if open}
+            <div id="lab-o-{o.id}">
+              {#if o.notes}<p class="mt-2 text-sm">{o.notes}</p>{/if}
+              {#if o.requested.length}<p class="mt-2 text-sm text-app-muted"><span class="font-medium text-app-ink">Estudios solicitados:</span> {o.requested.join(' · ')}</p>{/if}
+              {#if o.attachment_id}
+                <p class="mt-1 text-sm">
+                  <a class="inline-flex items-center gap-1.5 font-medium text-app-primary underline" href={filesApi.url(o.attachment_id)} target="_blank" rel="noopener"><Icon name="file" size={14} />{att ? att.title || att.original_name : 'Ver archivo del resultado'}</a>
+                </p>
+              {/if}
+              {#if o.status === 'cancelado'}<p class="mt-1 text-sm text-app-muted">Cancelada el {o.cancelled_at ? dateFmt(o.cancelled_at) : ''} por {o.cancelled_by}: {o.cancel_reason}</p>{/if}
             {#each groups(o) as [panel, rows] (panel)}
               <div class="mt-4 overflow-x-auto">
                 <table class="w-full min-w-[30rem] text-left text-sm">
@@ -241,10 +287,16 @@
             {#if canWrite && o.status !== 'cancelado' && !patient.archived_at}
               <div class="mt-4 flex flex-wrap gap-2">
                 <button type="button" class="btn-secondary" onclick={() => (capture = { order: o })}><Icon name="plus" size={16} />Capturar resultados</button>
+                {#if session.magic}<button type="button" class="btn-secondary" onclick={() => (scanning = { order: o })}><Icon name="sparkles" size={16} />Escanear resultados</button>{/if}
                 {#if o.status !== 'completo' && o.results.length > 0}<button type="button" class="btn-secondary" disabled={statusOp.phase === 'loading'} onclick={() => markComplete(o)}><Icon name="check" size={16} />Marcar completa</button>{/if}
                 <button type="button" class="btn-ghost" onclick={() => openEdit(o)}><Icon name="edit" size={16} />Editar datos</button>
                 <button type="button" class="btn-ghost" onclick={() => { cancelReason = ''; cancelOp.reset(); cancelling = o; }}><Icon name="ban" size={16} />Cancelar orden</button>
               </div>
+            {/if}
+            <div class="mt-3 flex flex-wrap gap-2 border-t border-app-ink/8 pt-3">
+              <button type="button" class="btn-ghost" onclick={() => printOrder(o)}><Icon name="receipt" size={16} />Imprimir orden para el laboratorio</button>
+            </div>
+            </div>
             {/if}
           </li>
         {/each}
@@ -274,7 +326,8 @@
   {/if}
 {/if}
 
-<LabCaptureModal open={!!capture} {patient} {catalog} {files} order={capture?.order ?? null} onclose={() => (capture = null)} onsaved={saved} />
+<LabCaptureModal open={!!capture} {patient} {catalog} {files} order={capture?.order ?? null} seed={capture?.seed ?? null} onclose={() => (capture = null)} onsaved={saved} />
+<LabScanModal open={!!scanning} {patient} onclose={() => (scanning = null)} onread={scanned} />
 <LabCorrectModal target={correcting} onclose={() => (correcting = null)} onsaved={corrected} />
 
 <ConfirmModal open={!!cancelling} title="Cancelar orden de laboratorio" op={cancelOp} onconfirm={confirmCancel} onclose={() => (cancelling = null)} confirmLabel="Cancelar orden">

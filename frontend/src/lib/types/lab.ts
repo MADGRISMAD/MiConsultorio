@@ -67,6 +67,8 @@ export interface LabOrder {
   cancelled_at: string | null;
   cancelled_by: string;
   created_at: string;
+  /** estudios solicitados en la orden (lo que lista la hoja impresa) */
+  requested: string[];
   results: LabResult[];
 }
 
@@ -91,6 +93,7 @@ export interface LabOrderInput {
   notes?: string;
   attachment_id?: string;
   ordered_at?: string;
+  requested?: string[];
   results?: LabResultInput[];
   complete?: boolean;
 }
@@ -222,4 +225,24 @@ export interface GrowthImportInput {
   file_name: string;
   csv: string;
   confirm: boolean;
+}
+
+/** Lo que la IA leyó de un reporte de laboratorio (nada se guarda hasta que el profesional lo revisa). */
+export interface LabScanRow {
+  section: string;
+  analyte: string;
+  value_num: number | null;
+  value_text: string;
+  unit: string;
+  ref_low: number | null;
+  ref_high: number | null;
+  flag: string;
+}
+
+export interface LabScan {
+  study: string;
+  lab_name: string;
+  /** AAAA-MM-DD, vacío si el documento no la trae */
+  date: string;
+  results: LabScanRow[];
 }

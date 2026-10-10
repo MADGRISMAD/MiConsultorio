@@ -1,5 +1,5 @@
 import { patientPath, request, seg } from '$lib/api';
-import type { GrowthCoverage, GrowthImportInput, GrowthImportPreview, GrowthImportRecord, LabCatalog, LabOrder, LabOrderInput, LabResultInput, LabTrends, PatientGrowth } from '$lib/types/lab';
+import type { GrowthCoverage, LabScan, GrowthImportInput, GrowthImportPreview, GrowthImportRecord, LabCatalog, LabOrder, LabOrderInput, LabResultInput, LabTrends, PatientGrowth } from '$lib/types/lab';
 
 const p = patientPath;
 
@@ -13,6 +13,9 @@ export const labApi = {
     request<{ order: LabOrder }>('POST', `/lab/orders/${seg(id)}/status`, { status, reason }).then((r) => r.order),
   addResults: (id: string, results: LabResultInput[], complete = false) =>
     request<{ order: LabOrder }>('POST', `/lab/orders/${seg(id)}/results`, { results, complete }).then((r) => r.order),
+  /** Reads a photo or PDF of a laboratory report with AI; costs one magic use and saves nothing. */
+  scan: (patientId: string, imageBase64: string, mime: string) =>
+    request<LabScan>('POST', `${p(patientId)}/lab/scan`, { image_base64: imageBase64, mime }),
   trends: (patientId: string, analyte = '') => request<LabTrends>('GET', `${p(patientId)}/lab-trends?analyte=${seg(analyte)}`)
 };
 

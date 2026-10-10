@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { labApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
   import type { Attachment } from '$lib/types/files';
   import type { Patient } from '$lib/types';
-  import type { LabCatalog, LabFlag, LabOrder, LabResultInput } from '$lib/types/lab';
+  import type { LabCatalog, LabFlag, LabOrder, LabResultInput, LabScan } from '$lib/types/lab';
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
   import { catalogBound, computeFlag, FLAG_LABEL, FLAG_MARK, FLAG_TONE, parseNum, rangeText } from './labUtil';
@@ -16,10 +17,12 @@
     files: Attachment[];
     /** Adds results to this order; without it a new order is created. */
     order: LabOrder | null;
+    /** what the AI read from a report: fills the rows to review */
+    seed?: LabScan | null;
     onclose: () => void;
     onsaved: (o: LabOrder) => void;
   }
-  let { open, patient, catalog, files, order, onclose, onsaved }: Props = $props();
+  let { open, patient, catalog, files, order, seed = null, onclose, onsaved }: Props = $props();
 
   interface Row {
     key: number;
@@ -73,7 +76,42 @@
     rows = [];
     panelPick = '';
     customName = '';
+    const sc = seed;
+    if (sc) untrack(() => applySeed(sc));
   });
+
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+  /** The rows the AI read: an analyte the catalog knows goes in its panel (with its unit and range if the report has none); the rest as manual rows. */
+  function applySeed(sc: LabScan) {
+    if (!order && sc.study) title = sc.study;
+    if (!order && sc.lab_name) labName = sc.lab_name;
+    if (sc.date) resultedOn = sc.date;
+    const known = new Map<string, { p: LabCatalog['panels'][number]; a: LabCatalog['panels'][number]['analytes'][number] }>();
+    for (const p of panels) for (const a of p.analytes) if (!known.has(norm(a.name))) known.set(norm(a.name), { p, a });
+    for (const x of sc.results) {
+      const hit = known.get(norm(x.analyte));
+      const isNum = x.value_num != null;
+      const hasRange = x.ref_low != null || x.ref_high != null;
+      const b = hit && hit.a.kind === 'num' ? catalogBound(hit.a, patient.sex) : null;
+      const textual = !isNum || hit?.a.kind === 'text';
+      rows.push({
+        key: ++seq,
+        panel: hit ? hit.p.id : '',
+        panelName: hit ? hit.p.name : x.section || 'Otros análisis',
+        name: hit ? hit.a.name : x.analyte,
+        unit: x.unit || hit?.a.unit || '',
+        kind: textual ? 'text' : 'num',
+        value: isNum ? String(x.value_num) : x.value_text,
+        low: hasRange ? (x.ref_low != null ? String(x.ref_low) : '') : b?.low != null ? String(b.low) : '',
+        high: hasRange ? (x.ref_high != null ? String(x.ref_high) : '') : b?.high != null ? String(b.high) : '',
+        edited: hasRange,
+        hasCatalog: !!b && (b.low != null || b.high != null),
+        expected: hit?.a.expected ?? '',
+        textFlag: textual ? (x.flag === 'anormal' ? 'anormal' : 'na') : 'na',
+        custom: !hit
+      });
+    }
+  }
 
   function addPanel(id: string) {
     const p = catalog?.panels.find((x) => x.id === id);
@@ -145,11 +183,13 @@
     if (typeof results === 'string') return op.fail(results);
     if (!order && !title.trim()) return op.fail('Escribe el nombre del estudio.');
     if (order && results.length === 0) return op.fail('Captura al menos un resultado.');
+    // what this order asks for: its panels and the single analytes added by hand (the printed sheet lists them)
+    const requested = [...new Set(rows.filter((r) => !seed).map((r) => (r.panel ? r.panelName : r.name)))];
     let saved: LabOrder | undefined;
     const ok = await op.run(async () => {
       saved = order
         ? await labApi.addResults(order.id, results, complete)
-        : await labApi.createOrder(patient.id, { title: title.trim(), lab_name: labName.trim(), notes: notes.trim(), attachment_id: attachment, results, complete });
+        : await labApi.createOrder(patient.id, { title: title.trim(), lab_name: labName.trim(), notes: notes.trim(), attachment_id: attachment, requested, results, complete });
     });
     if (ok && saved) onsaved(saved);
   }
@@ -157,6 +197,9 @@
 
 <Modal {open} title={order ? `Capturar resultados · ${order.title}` : 'Nueva orden o captura de resultados'} {onclose} wide>
   <form id="lab-capture" onsubmit={(e) => { e.preventDefault(); save(); }} class="grid gap-4">
+    {#if seed}
+      <p class="flex items-start gap-2 rounded-xl bg-app-primary/10 px-3.5 py-2.5 text-sm" role="status"><Icon name="sparkles" size={18} class="mt-0.5 shrink-0 text-app-primary" /><span>La IA leyó {seed.results.length} resultados del reporte. <strong>Revisa cada valor contra el documento</strong>, corrige lo que haga falta y guarda.</span></p>
+    {/if}
     {#if catalog}
       <p class="rounded-xl bg-app-warning/10 px-3.5 py-2.5 text-xs text-app-ink">{catalog.notice} Si tu laboratorio imprime su propio rango, escríbelo en la fila: ese rango siempre prevalece.</p>
     {/if}

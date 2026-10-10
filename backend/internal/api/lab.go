@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,25 +40,27 @@ type labResult struct {
 }
 
 type labOrder struct {
-	ID            string      `json:"id"`
-	PatientID     string      `json:"patient_id"`
-	EncounterID   *string     `json:"encounter_id"`
-	Title         string      `json:"title"`
-	Status        string      `json:"status"`
-	OrderedAt     time.Time   `json:"ordered_at"`
-	OrderedByName string      `json:"ordered_by_name"`
-	LabName       string      `json:"lab_name"`
-	Notes         string      `json:"notes"`
-	AttachmentID  *string     `json:"attachment_id"`
-	CancelReason  string      `json:"cancel_reason"`
-	CancelledAt   *time.Time  `json:"cancelled_at"`
-	CancelledBy   string      `json:"cancelled_by"`
-	CreatedAt     time.Time   `json:"created_at"`
-	Results       []labResult `json:"results"`
+	ID            string     `json:"id"`
+	PatientID     string     `json:"patient_id"`
+	EncounterID   *string    `json:"encounter_id"`
+	Title         string     `json:"title"`
+	Status        string     `json:"status"`
+	OrderedAt     time.Time  `json:"ordered_at"`
+	OrderedByName string     `json:"ordered_by_name"`
+	LabName       string     `json:"lab_name"`
+	Notes         string     `json:"notes"`
+	AttachmentID  *string    `json:"attachment_id"`
+	CancelReason  string     `json:"cancel_reason"`
+	CancelledAt   *time.Time `json:"cancelled_at"`
+	CancelledBy   string     `json:"cancelled_by"`
+	CreatedAt     time.Time  `json:"created_at"`
+	// Requested are the studies asked for on this order (what the printed sheet lists).
+	Requested []string    `json:"requested"`
+	Results   []labResult `json:"results"`
 }
 
 const labOrderCols = `id::text, patient_id::text, encounter_id::text, title, status, ordered_at, ordered_by_name, lab_name, notes,
-	attachment_id::text, cancel_reason, cancelled_at, cancelled_by, created_at`
+	attachment_id::text, cancel_reason, cancelled_at, cancelled_by, created_at, requested`
 
 const labResultCols = `r.id::text, r.order_id::text, r.panel, r.analyte, r.value_num::float8, r.value_text, r.unit, r.ref_low::float8, r.ref_high::float8,
 	r.ref_source, r.flag, r.resulted_at, r.notes, r.supersedes_id::text, (SELECT s.id::text FROM lab_results s WHERE s.supersedes_id = r.id),
@@ -66,12 +69,15 @@ const labResultCols = `r.id::text, r.order_id::text, r.panel, r.analyte, r.value
 func scanLabOrder(row pgx.Row) (labOrder, error) {
 	var o labOrder
 	err := row.Scan(&o.ID, &o.PatientID, &o.EncounterID, &o.Title, &o.Status, &o.OrderedAt, &o.OrderedByName, &o.LabName, &o.Notes,
-		&o.AttachmentID, &o.CancelReason, &o.CancelledAt, &o.CancelledBy, &o.CreatedAt)
+		&o.AttachmentID, &o.CancelReason, &o.CancelledAt, &o.CancelledBy, &o.CreatedAt, &o.Requested)
 	if err != nil {
 		return o, err
 	}
 	if o.Notes, err = decField("lab_orders", "notes", o.ID, o.Notes); err != nil {
 		return o, err
+	}
+	if o.Requested == nil {
+		o.Requested = []string{}
 	}
 	o.Results = []labResult{}
 	return o, nil
@@ -123,6 +129,7 @@ type labOrderIn struct {
 	LabName      string        `json:"lab_name"`
 	Notes        string        `json:"notes"`
 	AttachmentID string        `json:"attachment_id"`
+	Requested    *[]string     `json:"requested"`
 	Results      []labResultIn `json:"results"`
 	Complete     bool          `json:"complete"`
 }
@@ -286,6 +293,23 @@ func labCleanOrder(in *labOrderIn) string {
 	case labTooLong(in.Notes, 1000):
 		return "Las notas son demasiado largas."
 	}
+	if in.Requested != nil {
+		clean := []string{}
+		for _, x := range *in.Requested {
+			x = strings.TrimSpace(x)
+			if x == "" || slices.Contains(clean, x) {
+				continue
+			}
+			if labTooLong(x, 160) {
+				return "El nombre de un estudio solicitado es demasiado largo."
+			}
+			clean = append(clean, x)
+		}
+		if len(clean) > 60 {
+			return "Máximo 60 estudios solicitados por orden."
+		}
+		in.Requested = &clean
+	}
 	return ""
 }
 
@@ -332,8 +356,12 @@ func (s *Server) createLabOrder(w http.ResponseWriter, r *http.Request) {
 		if in.AttachmentID != "" {
 			att = in.AttachmentID
 		}
-		if _, err := tx.Exec(r.Context(), `INSERT INTO lab_orders (id, clinic_id, patient_id, encounter_id, title, ordered_at, ordered_by_name, lab_name, notes, attachment_id)
-			VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, orderID, p.ClinicID, id, enc, in.Title, ordered, p.actorName(), in.LabName, notes, att); err != nil {
+		requested := []string{}
+		if in.Requested != nil {
+			requested = *in.Requested
+		}
+		if _, err := tx.Exec(r.Context(), `INSERT INTO lab_orders (id, clinic_id, patient_id, encounter_id, title, ordered_at, ordered_by_name, lab_name, notes, attachment_id, requested)
+			VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, orderID, p.ClinicID, id, enc, in.Title, ordered, p.actorName(), in.LabName, notes, att, requested); err != nil {
 			return err
 		}
 		if len(in.Results) > 0 {
@@ -419,8 +447,8 @@ func (s *Server) updateLabOrder(w http.ResponseWriter, r *http.Request) {
 	if in.AttachmentID != "" {
 		att = in.AttachmentID
 	}
-	if _, err := s.db.Exec(r.Context(), `UPDATE lab_orders SET title=$3, lab_name=$4, notes=$5, attachment_id=$6, updated_at=now() WHERE clinic_id=$1 AND id=$2`,
-		p.ClinicID, o.ID, in.Title, in.LabName, notes, att); err != nil {
+	if _, err := s.db.Exec(r.Context(), `UPDATE lab_orders SET title=$3, lab_name=$4, notes=$5, attachment_id=$6, requested=coalesce($7, requested), updated_at=now() WHERE clinic_id=$1 AND id=$2`,
+		p.ClinicID, o.ID, in.Title, in.LabName, notes, att, in.Requested); err != nil {
 		serverError(w, r, err)
 		return
 	}
