@@ -23,8 +23,8 @@ var growthOMS string
 var growthCDC string
 
 var growthDefaults = []struct{ standard, source, csv string }{
-	{"OMS", "OMS · Patrones de crecimiento infantil, 0 a 5 años (tablas LMS mensuales de peso, talla, IMC y perímetro cefálico). https://www.who.int/tools/child-growth-standards", growthOMS},
-	{"CDC", "CDC · Gráficas de crecimiento, 0 a 20 años (archivos de datos LMS de peso, talla, IMC y perímetro cefálico). https://www.cdc.gov/growthcharts/cdc-data-files.htm", growthCDC},
+	{"OMS", "OMS · Patrones de crecimiento infantil, 0 a 5 años (tablas LMS mensuales de peso, talla, IMC y perímetro cefálico)", growthOMS},
+	{"CDC", "CDC · Gráficas de crecimiento, 0 a 20 años (archivos de datos LMS de peso, talla, IMC y perímetro cefálico)", growthCDC},
 }
 
 // SeedGrowthDefaults loads the shipped tables the first time, and again as a new version when they change. It is safe to call at every start.

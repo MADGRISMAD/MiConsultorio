@@ -504,3 +504,50 @@ func growthBuildIndicator(indicator string, refs []growthRef, meas []growthMeasu
 	}
 	return out
 }
+
+// growthImportDetail is what one table covers: for each indicator and sex, how many rows and from which age to which.
+// Tables that come with Caresia are visible to every clinic; a clinic's own are visible only to it.
+func (s *Server) growthImportDetail(w http.ResponseWriter, r *http.Request) {
+	p := principalFrom(r.Context())
+	id := chi.URLParam(r, "id")
+	if !validUUID(id) {
+		writeError(w, http.StatusNotFound, "No encontramos esa tabla.")
+		return
+	}
+	var out growthImportRow
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, standard, version, source_name, file_name, sha256, row_count, created_by_name, created_at, clinic_id IS NULL
+		FROM growth_imports WHERE id = $1 AND (clinic_id = $2 OR clinic_id IS NULL)`, id, p.ClinicID).
+		Scan(&out.ID, &out.Standard, &out.Version, &out.SourceName, &out.FileName, &out.SHA256, &out.RowCount, &out.CreatedBy, &out.CreatedAt, &out.Platform)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "No encontramos esa tabla.")
+		return
+	}
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	rows, err := s.db.Query(r.Context(), `SELECT indicator, sex, count(*), min(age_months)::float8, max(age_months)::float8, bool_or(l IS NOT NULL)
+		FROM growth_references WHERE import_id = $1 GROUP BY indicator, sex ORDER BY indicator, sex`, id)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	defer rows.Close()
+	groups := []map[string]any{}
+	for rows.Next() {
+		var ind, sex string
+		var n int
+		var lo, hi float64
+		var lms bool
+		if err := rows.Scan(&ind, &sex, &n, &lo, &hi, &lms); err != nil {
+			serverError(w, r, err)
+			return
+		}
+		groups = append(groups, map[string]any{"indicator": ind, "sex": sex, "rows": n, "min_age_months": lo, "max_age_months": hi, "has_lms": lms})
+	}
+	if rows.Err() != nil {
+		serverError(w, r, rows.Err())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"import": out, "groups": groups})
+}

@@ -1,5 +1,5 @@
 import { patientPath, request, seg } from '$lib/api';
-import type { GrowthImportInput, GrowthImportPreview, GrowthImportRecord, LabCatalog, LabOrder, LabOrderInput, LabResultInput, LabTrends, PatientGrowth } from '$lib/types/lab';
+import type { GrowthCoverage, GrowthImportInput, GrowthImportPreview, GrowthImportRecord, LabCatalog, LabOrder, LabOrderInput, LabResultInput, LabTrends, PatientGrowth } from '$lib/types/lab';
 
 const p = patientPath;
 
@@ -19,6 +19,8 @@ export const labApi = {
 export const growthApi = {
   patient: (patientId: string, standard = '') => request<PatientGrowth>('GET', `${p(patientId)}/growth${standard ? `?standard=${seg(standard)}` : ''}`),
   imports: () => request<{ imports: GrowthImportRecord[] }>('GET', '/growth/references').then((r) => r.imports),
+  /** what one table covers: rows and age range per indicator and sex */
+  detail: (id: string) => request<{ import: GrowthImportRecord; groups: GrowthCoverage[] }>('GET', `/growth/references/${encodeURIComponent(id)}`),
   preview: (b: Omit<GrowthImportInput, 'confirm'>) =>
     request<{ preview: GrowthImportPreview }>('POST', '/growth/references/import', { ...b, confirm: false }).then((r) => r.preview),
   confirm: (b: Omit<GrowthImportInput, 'confirm'>) =>

@@ -193,6 +193,15 @@ export interface GrowthImportRecord {
   platform?: boolean;
 }
 
+export interface GrowthCoverage {
+  indicator: string;
+  sex: string;
+  rows: number;
+  min_age_months: number;
+  max_age_months: number;
+  has_lms: boolean;
+}
+
 export interface GrowthImportPreview {
   valid: boolean;
   errors: { line: number; message: string }[];

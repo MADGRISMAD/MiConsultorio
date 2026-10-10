@@ -10,8 +10,11 @@
   import type { GrowthImportPreview, GrowthImportRecord } from '$lib/types/lab';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
+  import GrowthTableDetail from './GrowthTableDetail.svelte';
 
   let imports = $state<GrowthImportRecord[] | null>(null);
+  let viewing = $state<GrowthImportRecord | null>(null);
+  const clean = (s: string) => s.replace(/\s*https?:\/\/\S+/g, '').trim(); // sin direcciones web
   const ld = new Loader('No se pudieron cargar las tablas.');
   let standard = $state('');
   let source = $state('');
@@ -143,16 +146,15 @@
         <p class="text-sm text-app-muted">Aún no hay tablas disponibles.</p>
       {:else}
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[34rem] text-left text-sm">
-            <thead><tr><th class="th !px-2">Estándar</th><th class="th !px-2">Versión</th><th class="th !px-2">Filas</th><th class="th !px-2">Fuente</th><th class="th !px-2">Origen</th></tr></thead>
+          <table class="w-full text-left text-sm">
+            <thead><tr><th class="th !px-2">Estándar</th><th class="th !px-2">Fuente</th><th class="th !px-2 whitespace-nowrap">Origen</th></tr></thead>
             <tbody>
               {#each imports as i (i.id)}
-                <tr class="border-t border-app-ink/10">
-                  <td class="td !px-2 !py-2 font-medium">{i.standard}</td>
-                  <td class="td !px-2 !py-2">{i.version}</td>
-                  <td class="td !px-2 !py-2">{i.row_count}</td>
-                  <td class="td !px-2 !py-2 break-words">{i.source_name}{#if i.file_name}<span class="block text-xs text-app-muted">{i.file_name}</span>{/if}</td>
-                  <td class="td !px-2 !py-2">{#if i.platform}<span class="badge">Incluida con Caresia</span>{:else}{fmtDate(i.created_at)}<span class="block text-xs text-app-muted">{i.created_by_name}</span>{/if}</td>
+                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+                <tr class="cursor-pointer border-t border-app-ink/10 transition hover:bg-app-ink/4" onclick={() => (viewing = i)}>
+                  <td class="td !px-2 !py-2 font-medium"><button type="button" class="text-left underline decoration-app-ink/25 underline-offset-4 hover:decoration-current" aria-label="Ver qué cubre la tabla {i.standard}, versión {i.version}" onclick={(e) => { e.stopPropagation(); viewing = i; }}>{i.standard}</button><span class="block text-xs font-normal text-app-muted">versión {i.version} · {i.row_count} filas</span></td>
+                  <td class="td !px-2 !py-2 break-words">{clean(i.source_name)}{#if i.file_name}<span class="block text-xs text-app-muted">{i.file_name}</span>{/if}</td>
+                  <td class="td !px-2 !py-2">{#if i.platform}<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-app-primary/10 px-2.5 py-1 text-xs font-semibold text-app-primary"><Icon name="check" size={13} stroke={2.4} />De Caresia</span>{:else}{fmtDate(i.created_at)}<span class="block text-xs text-app-muted">{i.created_by_name}</span>{/if}</td>
                 </tr>
               {/each}
             </tbody>
@@ -162,3 +164,5 @@
     </div>
   </div>
 </section>
+
+<GrowthTableDetail table={viewing} onclose={() => (viewing = null)} />

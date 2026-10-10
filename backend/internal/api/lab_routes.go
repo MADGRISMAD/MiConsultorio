@@ -19,5 +19,6 @@ func (s *Server) mountLab(r chi.Router) {
 	r.With(clinical).Get("/patients/{id}/growth", s.patientGrowth)
 	// Reference tables are loaded by the administrator only.
 	r.With(require(PermAdminUsers)).Get("/growth/references", s.listGrowthImports)
+	r.With(require(PermAdminUsers)).Get("/growth/references/{id}", s.growthImportDetail)
 	r.With(require(PermAdminUsers)).Post("/growth/references/import", s.importGrowthReferences)
 }
