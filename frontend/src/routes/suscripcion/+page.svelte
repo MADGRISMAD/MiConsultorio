@@ -257,12 +257,7 @@
           </div>
           <ul class="mt-5 grid flex-1 content-start gap-2 text-sm">
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'especialista', 'especialistas')}</li>
-<<<<<<< Updated upstream
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'recepcionista', 'recepcionistas')} · {limit(o.max_cashiers, 'cajero', 'cajeros')}</li>
-            <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja e inventario' : 'Sin sección de cobros'}</li>
-=======
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'cuenta de recepción', 'cuentas de recepción')} · {limit(o.max_cashiers, 'caja', 'cajas')}</li>
->>>>>>> Stashed changes
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_kinds, 'giro', 'giros')} · {limit(o.max_branches, 'sucursal', 'sucursales')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja, inventario y facturación' : 'Sin sección de cobros'}</li>
             <li class="flex gap-2 {o.whatsapp ? '' : 'text-app-muted'}"><Icon name={o.whatsapp ? 'check' : 'x'} size={16} />{o.whatsapp ? 'Recordatorios por WhatsApp' : 'Recordatorios solo por correo'}</li>
