@@ -27,7 +27,6 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-          cache-dependency-path: backend/go.sum
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       # Cada prueba usa su propia base copiada de una plantilla, así que corren en paralelo (esperan a Postgres,
