@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
+  import { filesApi } from '$lib/api/files';
   import { labApi } from '$lib/api/lab';
   import { Op } from '$lib/op.svelte';
   import type { Attachment } from '$lib/types/files';
@@ -19,10 +20,12 @@
     order: LabOrder | null;
     /** what the AI read from a report: fills the rows to review */
     seed?: LabScan | null;
+    /** the scanned report: it goes to the patient's Archivos when the results are saved */
+    scanFile?: File | null;
     onclose: () => void;
-    onsaved: (o: LabOrder) => void;
+    onsaved: (o: LabOrder, warning?: string) => void;
   }
-  let { open, patient, catalog, files, order, seed = null, onclose, onsaved }: Props = $props();
+  let { open, patient, catalog, files, order, seed = null, scanFile = null, onclose, onsaved }: Props = $props();
 
   interface Row {
     key: number;
@@ -186,12 +189,27 @@
     // what this order asks for: its panels and the single analytes added by hand (the printed sheet lists them)
     const requested = [...new Set(rows.filter((r) => !seed).map((r) => (r.panel ? r.panelName : r.name)))];
     let saved: LabOrder | undefined;
+    let warning = '';
     const ok = await op.run(async () => {
-      saved = order
-        ? await labApi.addResults(order.id, results, complete)
-        : await labApi.createOrder(patient.id, { title: title.trim(), lab_name: labName.trim(), notes: notes.trim(), attachment_id: attachment, requested, results, complete });
+      // the scanned report is an outside document: it is kept in Archivos (as «Laboratorio») and linked to the order
+      let archived = '';
+      if (scanFile) {
+        try {
+          const day = resultedOn ? new Date(`${resultedOn}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+          const f = await filesApi.upload(patient.id, scanFile, { kind: 'lab', title: `Resultados: ${(order?.title || title).trim() || 'laboratorio'}${day ? ` · ${day}` : ''}`, note: 'Reporte del laboratorio escaneado', encounter_id: '' }, () => {});
+          archived = f.id;
+        } catch (e) {
+          warning = `Los resultados se guardaron, pero el documento no se pudo archivar: ${e instanceof Error ? e.message : 'inténtalo de nuevo desde Archivos'}.`;
+        }
+      }
+      if (order) {
+        saved = await labApi.addResults(order.id, results, complete);
+        if (archived && !order.attachment_id) saved = await labApi.updateOrder(order.id, { title: order.title, lab_name: order.lab_name, notes: order.notes, attachment_id: archived });
+      } else {
+        saved = await labApi.createOrder(patient.id, { title: title.trim(), lab_name: labName.trim(), notes: notes.trim(), attachment_id: archived || attachment, requested, results, complete });
+      }
     });
-    if (ok && saved) onsaved(saved);
+    if (ok && saved) onsaved(saved, warning);
   }
 </script>
 

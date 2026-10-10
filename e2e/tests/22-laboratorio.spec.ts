@@ -57,3 +57,38 @@ test('«Nueva orden» solo solicita los estudios y detalla qué se pide', async 
   await expect(page.getByText('Estudios solicitados: Química sanguínea de 12 elementos · Perfil tiroideo')).toBeVisible();
   await expect(page.getByText('Esperando los resultados del paciente')).toBeVisible();
 });
+
+test('un reporte escaneado se revisa, se guarda y queda en Archivos', async ({ page }) => {
+  const api = await apiAsClinic();
+  const id = await createPersonApi(api, `Escaneo${uid()}`);
+  await api.dispose();
+  // the AI is not available in the test server: its answer is simulated
+  await page.route('**/api/patients/*/lab/scan', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        study: 'Química sanguínea', lab_name: 'Laboratorio Azul', date: '2026-10-09',
+        results: [
+          { section: 'Química', analyte: 'Glucosa en ayuno', value_num: 130, value_text: '', unit: 'mg/dL', ref_low: 70, ref_high: 99, flag: '' },
+          { section: 'Otros', analyte: 'Vitamina X', value_num: null, value_text: 'Negativo', unit: '', ref_low: null, ref_high: null, flag: '' }
+        ]
+      })
+    })
+  );
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.goto(`/pacientes/${id}`);
+  await page.getByRole('tab', { name: /Laboratorio/ }).click();
+  await page.getByRole('button', { name: 'Escanear resultados' }).first().click();
+  await page.locator('input[type=file]').last().setInputFiles({ name: 'reporte.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('button', { name: 'Leer resultados' }).click();
+  // the reading opens the capture window to review it
+  await expect(page.getByText(/La IA leyó 2 resultados/)).toBeVisible();
+  await expect(page.getByLabel('Valor de Glucosa en ayuno')).toHaveValue('130');
+  await page.getByRole('button', { name: 'Guardar resultados' }).click();
+  await expect(page.getByText('Resultados guardados')).toBeVisible();
+  await expect(page.getByText('Glucosa en ayuno')).toBeVisible();
+  // the report itself is kept in Archivos, as a lab document
+  await page.getByRole('tab', { name: /Archivos/ }).click();
+  await expect(page.getByText(/Resultados: Química sanguínea/)).toBeVisible();
+});

@@ -66,7 +66,7 @@
   const historyCount = $derived(orders.reduce((n, o) => n + o.results.filter((r) => r.superseded_by).length, 0));
 
   // ---- capture ----
-  let capture = $state<{ order: LabOrder | null; seed?: LabScan | null } | null>(null);
+  let capture = $state<{ order: LabOrder | null; seed?: LabScan | null; file?: File | null } | null>(null);
   // ---- request studies: the order the patient takes to a laboratory ----
   let requesting = $state(false);
   async function requested(o: LabOrder, print: boolean) {
@@ -78,15 +78,18 @@
   }
   // ---- scan a report with AI: the reading opens the capture window to review it ----
   let scanning = $state<{ order: LabOrder | null } | null>(null);
-  function scanned(sc: LabScan) {
+  function scanned(sc: LabScan, file: File) {
     const order = scanning?.order ?? null;
     scanning = null;
-    capture = { order, seed: sc };
+    capture = { order, seed: sc, file };
   }
-  function saved(o: LabOrder) {
+  function saved(o: LabOrder, warning = '') {
     capture = null;
     replace(o);
-    toast.show('Resultados guardados');
+    openOrders[o.id] = true;
+    toast.show(warning || 'Resultados guardados', warning ? 'error' : undefined);
+    // a scanned report may have just been archived: refresh the files so the order links to it by name
+    filesApi.list(patient.id).then((r) => (files = [...r.files].sort((a, b) => Number(b.kind === 'lab') - Number(a.kind === 'lab')))).catch(() => {});
   }
 
   // ---- correction ----
@@ -349,7 +352,7 @@
   {/if}
 {/if}
 
-<LabCaptureModal open={!!capture} {patient} {catalog} {files} order={capture?.order ?? null} seed={capture?.seed ?? null} onclose={() => (capture = null)} onsaved={saved} />
+<LabCaptureModal open={!!capture} {patient} {catalog} {files} order={capture?.order ?? null} seed={capture?.seed ?? null} scanFile={capture?.file ?? null} onclose={() => (capture = null)} onsaved={saved} />
 <LabRequestModal open={requesting} {patient} {catalog} onclose={() => (requesting = false)} onsaved={requested} />
 <LabScanModal open={!!scanning} {patient} onclose={() => (scanning = null)} onread={scanned} />
 <LabCorrectModal target={correcting} onclose={() => (correcting = null)} onsaved={corrected} />

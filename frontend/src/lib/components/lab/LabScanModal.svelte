@@ -12,7 +12,8 @@
     patient: Patient;
     onclose: () => void;
     /** the reading, to review in the capture window */
-    onread: (scan: LabScan) => void;
+    /** the reading, plus the document to keep in the patient's Archivos once the results are saved */
+    onread: (scan: LabScan, file: File) => void;
   }
   let { open, patient, onclose, onread }: Props = $props();
 
@@ -28,10 +29,10 @@
   });
 
   /** Photos are shrunk to what is needed to read text (long side 2200 px, JPEG); PDFs go as they are. */
-  async function encode(f: File): Promise<{ data: string; mime: string }> {
+  async function encode(f: File): Promise<{ data: string; mime: string; keep: File }> {
     if (f.type === 'application/pdf') {
       if (f.size > 8 * 1024 * 1024) throw new Error('El PDF pesa demasiado (máximo 8 MB).');
-      return { data: await toBase64(f), mime: f.type };
+      return { data: await toBase64(f), mime: f.type, keep: f };
     }
     if (!f.type.startsWith('image/')) throw new Error('Elige una foto (JPG, PNG o WebP) o un PDF.');
     const bmp = await createImageBitmap(f).catch(() => {
@@ -46,7 +47,11 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
     bmp.close?.();
-    return { data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1], mime: 'image/jpeg' };
+    const url = canvas.toDataURL('image/jpeg', 0.85);
+    const bin = atob(url.split(',')[1]);
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const name = f.name.replace(/\.[^.]+$/, '') || 'reporte';
+    return { data: url.split(',')[1], mime: 'image/jpeg', keep: new File([bytes], `${name}.jpg`, { type: 'image/jpeg' }) };
   }
   const toBase64 = (f: File) =>
     new Promise<string>((res, rej) => {
@@ -60,12 +65,14 @@
     const f = file;
     if (!f) return op.fail('Elige la foto o el PDF del reporte.');
     let scan: LabScan | undefined;
+    let keep: File = f;
     const ok = await op.run(async () => {
-      const { data, mime } = await encode(f);
+      const { data, mime, keep: k } = await encode(f);
+      keep = k;
       scan = await labApi.scan(patient.id, data, mime);
       if (!scan.results.length) throw new Error('No encontramos resultados en el documento. Prueba con una foto más nítida y completa.');
     });
-    if (ok && scan) onread(scan);
+    if (ok && scan) onread(scan, keep);
   }
 </script>
 
@@ -79,7 +86,7 @@
       <input bind:this={input} type="file" accept="image/*,application/pdf" class="sr-only" onchange={(e) => { file = e.currentTarget.files?.[0] ?? null; op.reset(); }} />
     </label>
     <p class="rounded-xl bg-app-warning/10 px-3.5 py-2.5 text-xs text-app-ink">
-      Revisa siempre cada valor contra el documento antes de guardar: la IA puede equivocarse. El archivo se envía al servicio de IA para leerlo y no se guarda; no se manda el nombre del paciente. Cuenta como un uso de magia de tu plan.
+      Revisa siempre cada valor contra el documento antes de guardar: la IA puede equivocarse. El archivo se envía al servicio de IA para leerlo (sin el nombre del paciente) y, al guardar los resultados, se conserva en los Archivos del paciente como documento externo. Cuenta como un uso de magia de tu plan.
     </p>
     <OpError {op} />
   </div>
