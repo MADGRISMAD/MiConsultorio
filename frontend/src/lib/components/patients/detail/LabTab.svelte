@@ -172,6 +172,14 @@
     }
   }
 
+  // the results of one order on Caresia's own sheet (same format as «Imprimir resultados» of the whole record)
+  async function printResults(o: LabOrder) {
+    try {
+      await printLabReport(patient, [o], catalog?.notice ?? '');
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'No se pudo imprimir.', 'error');
+    }
+  }
   async function printOrder(o: LabOrder) {
     const pro = session.user?.professional;
     try {
@@ -304,9 +312,13 @@
                 <button type="button" class="btn-ghost" onclick={() => { cancelReason = ''; cancelOp.reset(); cancelling = o; }}><Icon name="ban" size={16} />Cancelar orden</button>
               </div>
             {/if}
-            <div class="mt-3 flex flex-wrap gap-2 border-t border-app-ink/8 pt-3">
-              <button type="button" class="btn-ghost" onclick={() => printOrder(o)}><Icon name="receipt" size={16} />Imprimir orden para el laboratorio</button>
-            </div>
+            {#if (o.status === 'solicitado' || o.status === 'parcial') || current(o).length > 0}
+              <div class="mt-3 flex flex-wrap gap-2 border-t border-app-ink/8 pt-3">
+                {#if current(o).length > 0}<button type="button" class="btn-ghost" onclick={() => printResults(o)}><Icon name="receipt" size={16} />Imprimir resultados</button>{/if}
+                <!-- the sheet is for taking to the laboratory: once the order is complete or cancelled it has no use -->
+                {#if o.status === 'solicitado' || o.status === 'parcial'}<button type="button" class="btn-ghost" onclick={() => printOrder(o)}><Icon name="receipt" size={16} />Imprimir orden para el laboratorio</button>{/if}
+              </div>
+            {/if}
             </div>
             {/if}
           </li>
