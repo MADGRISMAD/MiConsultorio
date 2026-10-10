@@ -8,7 +8,7 @@
   import { CLINIC_KINDS } from '$lib/types';
   import { rxApi } from '$lib/api/rx';
   import type { Patient, PatientSchema, Prescription, RxControl } from '$lib/types';
-  import type { CatalogMed, DoseResult, Icd10, RxItemInput } from '$lib/types/rx';
+  import type { CatalogMed, DoseResult, Icd10, RxCheck, RxItemInput } from '$lib/types/rx';
   import { allergyMatches, patientAllergies } from '../../rx/allergy';
   import Autocomplete from '../../rx/Autocomplete.svelte';
   import DoseCalculator from '../../rx/DoseCalculator.svelte';
@@ -42,9 +42,23 @@
   let weight = $state('');
   let weightNote = $state('');
   // confirmations asked by the server: allergy match or dose above the reference maximum
-  let pending = $state<{ kind: 'allergy' | 'dose'; message: string; lines: string[] } | null>(null);
+  let pending = $state<{ kind: 'allergy' | 'dose' | 'interaction'; message: string; lines: string[] } | null>(null);
   let reasonText = $state('');
-  let confirmed = $state<{ allergy?: string; dose?: string }>({});
+  let confirmed = $state<{ allergy?: string; dose?: string; interaction?: string }>({});
+  // alerts while writing: allergies, interactions with what the patient already takes, and that medication itself
+  let live = $state<RxCheck | null>(null);
+  let checkSeq = 0;
+  $effect(() => {
+    const names = items.map((i) => i.medicine.trim()).filter(Boolean);
+    const mine = ++checkSeq;
+    if (!open || instr || patient.subject === 'animal') return void (live = null);
+    const t = setTimeout(() => {
+      rxApi.check(patient.id, items.filter((i) => i.medicine.trim()).map((i) => ({ medicine: i.medicine.trim(), brand: i.brand })))
+        .then((r) => mine === checkSeq && (live = r))
+        .catch(() => mine === checkSeq && (live = null));
+    }, names.length ? 450 : 0);
+    return () => clearTimeout(t);
+  });
   let disclaimer = $state('');
   const subject = $derived(patient.subject === 'animal' ? 'animal' : 'person');
   const species = $derived(typeof patient.profile?.species === 'string' ? (patient.profile.species as string) : '');
@@ -197,7 +211,8 @@
           ...(complementary && sameArea.length ? { complementary: true } : {}),
           ...(!instr && w > 0 ? { weight_kg: w } : {}),
           ...(confirmed.allergy ? { allergy_override_reason: confirmed.allergy } : {}),
-          ...(confirmed.dose ? { dose_override_reason: confirmed.dose } : {})
+          ...(confirmed.dose ? { dose_override_reason: confirmed.dose } : {}),
+          ...(confirmed.interaction ? { interaction_override_reason: confirmed.interaction } : {})
         });
         if (res.kind === 'created') rx = res.prescription;
         else {
@@ -205,7 +220,9 @@
           pending =
             res.kind === 'allergy'
               ? { kind: 'allergy', message: res.message, lines: res.conflicts.map((c) => c.message) }
-              : { kind: 'dose', message: res.message, lines: res.warnings.map((c) => c.message) };
+              : res.kind === 'interaction'
+                ? { kind: 'interaction', message: res.message, lines: res.interactions.map((c) => `${c.drug} + ${c.with} (${c.with_source}): ${c.message}`) }
+                : { kind: 'dose', message: res.message, lines: res.warnings.map((c) => c.message) };
         }
       } catch (e) {
         if (e instanceof ApiError && e.code === 'CEDULA_REQUIRED') needCedula = true;
@@ -392,13 +409,22 @@
         </div>
       </div>
 
+      {#if live && !pending && (live.interactions.length || live.chronic.length || live.allergies.length)}
+        <section class="space-y-2 rounded-xl border border-app-ink/12 bg-app-elevated p-3.5 text-sm" aria-label="Alertas de seguridad de la receta">
+          {#each live.allergies as a}<p class="flex items-start gap-2 text-app-danger"><Icon name="alert" size={16} /><span><strong>Alergia:</strong> {a.message}</span></p>{/each}
+          {#each live.interactions as h}
+            <p class="flex items-start gap-2 {h.severity === 'grave' ? 'text-app-danger' : 'text-app-warning'}"><Icon name="alert" size={16} /><span><strong>{h.severity === 'grave' ? 'Interacción grave' : 'Interacción moderada'}:</strong> {h.drug} + {h.with} ({h.with_source}). {h.message}</span></p>
+          {/each}
+          {#if live.chronic.length}<p class="text-app-muted"><strong class="text-app-ink">Ya toma:</strong> {live.chronic.map((m) => m.name + (m.dose ? ` ${m.dose}` : '')).join(' · ')}</p>{/if}
+        </section>
+      {/if}
       {#if pending}
         <div class="space-y-3 rounded-xl border border-app-danger/40 bg-app-danger/8 p-4" role="alertdialog" aria-labelledby="rx-pend-t">
-          <p id="rx-pend-t" class="flex items-center gap-2 font-medium text-app-danger"><Icon name="alert" size={18} />{pending.kind === 'allergy' ? 'Posible alergia del paciente' : 'Dosis por encima del máximo de referencia'}</p>
+          <p id="rx-pend-t" class="flex items-center gap-2 font-medium text-app-danger"><Icon name="alert" size={18} />{pending.kind === 'allergy' ? 'Posible alergia del paciente' : pending.kind === 'interaction' ? 'Interacción grave entre medicamentos' : 'Dosis por encima del máximo de referencia'}</p>
           <ul class="list-disc space-y-1 pl-5 text-sm">{#each pending.lines as l}<li>{l}</li>{/each}</ul>
           <div>
             <label class="label" for="rx-reason">Motivo para continuar</label>
-            <textarea id="rx-reason" class="field" rows="2" maxlength="300" bind:value={reasonText} placeholder={pending.kind === 'allergy' ? 'Ej. Tolera el medicamento, documentado' : 'Ej. Dosis validada para este paciente'}></textarea>
+            <textarea id="rx-reason" class="field" rows="2" maxlength="300" bind:value={reasonText} placeholder={pending.kind === 'allergy' ? 'Ej. Tolera el medicamento, documentado' : pending.kind === 'interaction' ? 'Ej. INR controlado; beneficio mayor al riesgo' : 'Ej. Dosis validada para este paciente'}></textarea>
             <p class="hint">Se guarda en la receta y en la bitácora de auditoría.</p>
           </div>
           <div class="flex flex-wrap gap-2">

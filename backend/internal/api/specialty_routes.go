@@ -13,6 +13,11 @@ func (s *Server) mountSpecialty(r chi.Router) {
 	r.With(write).Post("/vaccinations/{id}/void", s.voidVaccination)
 	r.With(require(PermNavHistorials, PermAdminHistorials, PermAdminAppointments)).Get("/vaccinations/due", s.dueVaccinations)
 
+	r.With(clinical).Get("/patients/{id}/chronic-meds", s.listChronicMeds)
+	r.With(write).Post("/patients/{id}/chronic-meds", s.createChronicMed)
+	r.With(write).Patch("/patients/{id}/chronic-meds/{mid}", s.updateChronicMed)
+	r.With(clinical).Post("/patients/{id}/rx-check", s.rxCheck)
+
 	r.With(clinical).Get("/patients/{id}/charts", s.listCharts)
 	r.With(write).Post("/patients/{id}/charts", s.createChart)
 	r.With(write).Post("/patients/{id}/nutrition-plan/ai", s.nutritionPlanAI)

@@ -314,3 +314,62 @@ func TestRxReplacesPreviousOfSameArea(t *testing.T) {
 	}
 	_ = admin
 }
+
+// Chronic medication feeds the interaction check of the receta; a severe interaction needs a reason, a moderate one is only shown.
+func TestChronicMedsAndInteractions(t *testing.T) {
+	e := setup(t)
+	doc := rxDoctor(t, e, "doc_a")
+	pid := sub(doc.expect(201, "POST", "/api/patients/", person(map[string]any{"profile": map[string]any{"allergies_text": "Penicilinas"}})), "patient")["id"].(string)
+	chronic := "/api/patients/" + pid + "/chronic-meds"
+	rx := "/api/patients/" + pid + "/prescriptions"
+
+	doc.expect(400, "POST", chronic, map[string]any{"name": "x"})
+	doc.expect(400, "POST", chronic, map[string]any{"name": "Warfarina", "next_renewal": "mañana"})
+	out := doc.expect(201, "POST", chronic, map[string]any{"name": "Warfarina", "dose": "5 mg", "frequency": "Cada 24 horas", "next_renewal": "2030-01-15"})
+	med := sub(out, "medication")
+	if med["active"] != true || med["next_renewal"] != "2030-01-15" {
+		t.Fatalf("medication: %v", med)
+	}
+	// a medicine the patient is allergic to is flagged when it is recorded
+	al := sub(doc.expect(201, "POST", chronic, map[string]any{"name": "Amoxicilina"}), "alerts")
+	if len(al["allergies"].([]any)) != 1 {
+		t.Fatalf("allergy alert: %v", al)
+	}
+
+	// the live check shows the alerts before anything is saved
+	check := doc.expect(200, "POST", "/api/patients/"+pid+"/rx-check", map[string]any{"items": []any{map[string]any{"medicine": "Ibuprofeno"}}})
+	if len(check["interactions"].([]any)) != 1 || len(check["chronic"].([]any)) != 2 {
+		t.Fatalf("rx-check: %v", check)
+	}
+
+	// a severe interaction blocks the receta until the prescriber gives a reason
+	body := rxBody(rxItem("Ibuprofeno", nil))
+	code, res := doc.do("POST", rx, body)
+	if code != 409 || res["code"] != "INTERACTION_CONFLICT" {
+		t.Fatalf("interaction must ask for a reason: %d %v", code, res)
+	}
+	body["interaction_override_reason"] = "INR controlado, beneficio mayor al riesgo"
+	made := doc.expect(201, "POST", rx, body)
+	if sub(made, "prescription")["interaction_override_reason"] == nil || len(made["interactions"].([]any)) != 1 {
+		t.Fatalf("receta after the reason: %v", made)
+	}
+	// the valid receta now counts as «lo que ya toma»: another AINE is flagged against it
+	body2 := rxBody(rxItem("Naproxeno", nil))
+	body2["complementary"] = true
+	code, res = doc.do("POST", rx, body2)
+	if code != 409 || res["code"] != "INTERACTION_CONFLICT" {
+		t.Fatalf("interaction with the valid receta and the warfarin: %d %v", code, res)
+	}
+
+	// stopping keeps the record and needs a reason; a stopped medicine no longer interacts
+	doc.expect(400, "PATCH", chronic+"/"+med["id"].(string), map[string]any{"stop": true})
+	st := sub(doc.expect(200, "PATCH", chronic+"/"+med["id"].(string), map[string]any{"stop": true, "stopped_reason": "Cambió de tratamiento"}), "medication")
+	if st["active"] != false || st["stopped_at"] == nil {
+		t.Fatalf("stopped: %v", st)
+	}
+	list := doc.expect(200, "GET", chronic, nil)["medications"].([]any)
+	if len(list) != 2 {
+		t.Fatalf("history is kept: %v", list)
+	}
+	e.login("recep_a").expect(403, "GET", chronic, nil)
+}

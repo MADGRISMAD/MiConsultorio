@@ -63,6 +63,7 @@ export interface RxInput {
   weight_kg?: number;
   allergy_override_reason?: string;
   dose_override_reason?: string;
+  interaction_override_reason?: string;
   /** giro issuing it (when the person works in several) */
   area?: string;
   /** complements an earlier receta instead of replacing it */
@@ -87,9 +88,41 @@ export interface DoseWarning {
 
 /** The server asks the prescriber to confirm: an allergy match or a dose above the reference maximum. */
 export type RxCreateResult =
-  | { kind: 'created'; prescription: Prescription }
+  | { kind: 'created'; prescription: Prescription; interactions: InteractionHit[] }
   | { kind: 'allergy'; message: string; conflicts: AllergyConflict[] }
+  | { kind: 'interaction'; message: string; interactions: InteractionHit[] }
   | { kind: 'dose'; message: string; warnings: DoseWarning[] };
+
+/** An interaction between two medicines: severe ones need a reason to go on, moderate ones are only shown. */
+export interface InteractionHit {
+  drug: string;
+  with: string;
+  with_source: string;
+  severity: 'grave' | 'moderada';
+  message: string;
+}
+
+export interface ChronicMed {
+  id: string;
+  patient_id: string;
+  name: string;
+  dose: string;
+  frequency: string;
+  indication: string;
+  started_on: string | null;
+  next_renewal: string | null;
+  active: boolean;
+  stopped_at: string | null;
+  stopped_reason: string;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface RxCheck {
+  allergies: AllergyConflict[];
+  interactions: InteractionHit[];
+  chronic: ChronicMed[];
+}
 
 export interface RxPrintData {
   prescription: Prescription;

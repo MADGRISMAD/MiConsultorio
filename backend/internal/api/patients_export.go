@@ -55,6 +55,7 @@ func (s *Server) exportPatient(w http.ResponseWriter, r *http.Request) {
 
 	// Each list is the table row itself as JSON, scoped by clinic and patient.
 	sections := []struct{ key, sql string }{
+		{"chronic_medications", `SELECT to_jsonb(t) FROM chronic_medications t WHERE clinic_id = $1 AND patient_id = $2 ORDER BY active DESC, name`},
 		{"vaccinations", `SELECT to_jsonb(t) FROM vaccinations t WHERE clinic_id = $1 AND patient_id = $2 ORDER BY applied_on DESC, created_at DESC`},
 		{"charts", `SELECT to_jsonb(t) FROM patient_charts t WHERE clinic_id = $1 AND patient_id = $2 ORDER BY created_at DESC`},
 		{"treatment_plans", `SELECT to_jsonb(t) || jsonb_build_object(
