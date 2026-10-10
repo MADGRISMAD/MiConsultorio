@@ -13,7 +13,8 @@
     ['#especialidades', 'Especialidades'],
     ['#seguridad', 'Seguridad'],
     ['#precios', 'Precios'],
-    ['#preguntas', 'Preguntas']
+    ['#preguntas', 'Preguntas'],
+    ['/directorio', 'Buscar especialista']
   ];
   const mobileLinks = [...links, [loginPath, 'Iniciar sesión']];
 

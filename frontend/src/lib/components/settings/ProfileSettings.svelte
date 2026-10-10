@@ -3,10 +3,10 @@
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
-  import { profileApi, type ClinicProfile, type SurveySummary } from '$lib/api/profile';
+  import { profileApi, type ClinicProfile, type ProfileService, type SurveySummary } from '$lib/api/profile';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { dateShort } from '$lib/format';
+  import { dateShort, moneyCents } from '$lib/format';
   import LoadingRows from '../ui/LoadingRows.svelte';
   import Stars from '../ui/Stars.svelte';
   import ProfileMedia from './ProfileMedia.svelte';
@@ -15,16 +15,49 @@
   let slug = $state('');
   let reviewUrl = $state('');
   let results = $state<SurveySummary | null>(null);
+  let services = $state<ProfileService[]>([]);
+  let states = $state<string[]>([]);
+  let payMethods = $state<string[]>([]);
+  // listas que se escriben separadas por comas
+  let insText = $state('');
+  let langText = $state('');
+  const toList = (t: string) => t.split(',').map((x) => x.trim()).filter(Boolean);
+  function take(r: { profile: ClinicProfile; slug: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[] }) {
+    p = r.profile;
+    slug = r.slug;
+    reviewUrl = r.review_url;
+    services = r.services;
+    states = r.states;
+    payMethods = r.payment_methods;
+    insText = r.profile.insurances.join(', ');
+    langText = r.profile.languages.join(', ');
+  }
+  function togglePay(m: string, on: boolean) {
+    if (!p) return;
+    p.payment_methods = on ? [...p.payment_methods.filter((x) => x !== m), m] : p.payment_methods.filter((x) => x !== m);
+  }
+  // respuesta a opiniones
+  let replies = $state<Record<string, string>>({});
+  let replying = $state('');
+  async function sendReply(id: string) {
+    replying = id;
+    try {
+      await profileApi.reply(id, replies[id] ?? '');
+      toast.show((replies[id] ?? '').trim() ? 'Respuesta publicada' : 'Respuesta quitada');
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'No se pudo guardar la respuesta.');
+    }
+    replying = '';
+  }
   let loadError = $state('');
   const saveOp = new Op();
 
   onMount(async () => {
     try {
       const [r, s] = await Promise.all([profileApi.get(), profileApi.surveys()]);
-      p = r.profile;
-      slug = r.slug;
-      reviewUrl = r.review_url;
+      take(r);
       results = s;
+      replies = Object.fromEntries(s.recent.map((x) => [x.id, x.reply]));
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'No se pudieron cargar los ajustes.';
     }
@@ -36,10 +69,8 @@
     e.preventDefault();
     if (!p) return;
     if (await saveOp.run(async () => {
-      const r = await profileApi.save($state.snapshot(p) as ClinicProfile);
-      p = r.profile;
-      slug = r.slug;
-      reviewUrl = r.review_url;
+      const body = { ...($state.snapshot(p) as ClinicProfile), insurances: toList(insText), languages: toList(langText), public_services: services.filter((x) => x.public).map((x) => x.id) };
+      take(await profileApi.save(body));
     })) toast.show('Perfil y encuesta guardados');
   }
 </script>
@@ -92,6 +123,60 @@
             <input id="pf-web" class="field" maxlength="200" bind:value={p.website} placeholder="https://" />
           </div>
         </div>
+      </div>
+
+      <div class="rounded-2xl bg-app-primary/6 p-4">
+        <p class="section-title mb-2">Directorio de Caresia</p>
+        <p class="mb-3 text-sm text-app-muted">Aparece en el buscador de Caresia, donde los pacientes encuentran especialistas por especialidad y ciudad, ven tus precios, tus opiniones verificadas y tu próximo horario libre, y agendan.</p>
+        <label class="flex cursor-pointer items-center gap-3 text-sm font-medium">
+          <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.listed} disabled={!p.enabled} />
+          Aparecer en el directorio{#if !p.enabled}<span class="font-normal text-app-muted">(primero publica tu página)</span>{/if}
+        </label>
+        {#if p.listed}<p class="mt-1 text-sm">Míralo en <a class="font-medium text-app-primary underline" href="{publicOrigin()}/directorio" target="_blank" rel="noopener">{publicOrigin()}/directorio</a></p>{/if}
+        <div class="mt-3 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label class="label" for="pf-state">Estado</label>
+            <select id="pf-state" class="field" bind:value={p.state}><option value="">Elige…</option>{#each states as st (st)}<option value={st}>{st}</option>{/each}</select>
+          </div>
+          <div>
+            <label class="label" for="pf-city">Ciudad</label>
+            <input id="pf-city" class="field" maxlength="80" bind:value={p.city} placeholder="Ej. Tijuana" />
+          </div>
+          <div>
+            <label class="label" for="pf-col">Colonia (opcional)</label>
+            <input id="pf-col" class="field" maxlength="80" bind:value={p.neighborhood} placeholder="Ej. Zona Río" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="label" for="pf-ins">Aseguradoras que aceptas</label>
+            <input id="pf-ins" class="field" bind:value={insText} placeholder="GNP, AXA, MetLife" />
+            <p class="hint">Sepáralas con comas.</p>
+          </div>
+          <div>
+            <label class="label" for="pf-lang">Idiomas</label>
+            <input id="pf-lang" class="field" bind:value={langText} placeholder="Español, Inglés" />
+          </div>
+        </div>
+        <fieldset class="mt-4">
+          <legend class="label">Formas de pago</legend>
+          <div class="flex flex-wrap gap-x-5 gap-y-2">
+            {#each payMethods as m (m)}
+              <label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" checked={p.payment_methods.includes(m)} onchange={(e) => togglePay(m, e.currentTarget.checked)} />{m}</label>
+            {/each}
+          </div>
+        </fieldset>
+        <fieldset class="mt-4">
+          <legend class="label">Servicios que se muestran con su precio</legend>
+          {#if services.length}
+            <div class="grid gap-2 sm:grid-cols-2">
+              {#each services as sv (sv.id)}
+                <label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={sv.public} />{sv.name} · <span class="text-app-muted">{moneyCents(sv.price_cents)}</span></label>
+              {/each}
+            </div>
+            <p class="hint mt-1">El precio sale del catálogo de servicios; el directorio muestra «desde» el más barato.</p>
+          {:else}
+            <p class="hint">Agrega servicios con precio en el catálogo para poder mostrarlos.</p>
+          {/if}
+        </fieldset>
       </div>
 
       <div class="rounded-2xl bg-app-primary/6 p-4">
@@ -153,6 +238,13 @@
               <li class="rounded-xl border border-app-ink/10 p-3">
                 <div class="flex flex-wrap items-center gap-2"><Stars value={r.rating} size={14} /><span class="text-xs text-app-muted">{dateShort(r.date)}{r.professional ? ` · ${r.professional}` : ''}{r.public ? ' · visible en la página' : ''}</span></div>
                 <p class="mt-1 text-sm">{r.comment}</p>
+                {#if r.public}
+                  <div class="mt-2 grid gap-2">
+                    <label class="sr-only" for="rp-{r.id}">Tu respuesta</label>
+                    <textarea id="rp-{r.id}" class="field" rows="2" maxlength="600" placeholder="Responde en público (opcional)" bind:value={replies[r.id]}></textarea>
+                    <div><button type="button" class="btn-secondary" disabled={replying === r.id} onclick={() => sendReply(r.id)}>{#if replying === r.id}<span class="spin"></span>{/if}Guardar respuesta</button></div>
+                  </div>
+                {/if}
               </li>
             {/each}
           </ul>
@@ -163,7 +255,7 @@
     <div class="mt-10 pt-5 save-sticky">
       <OpError op={saveOp} class="mb-3" />
       <button type="submit" form="pf-form" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar cambios</button>
-      <p class="hint mt-2">Guarda los textos, la página, Google Maps y la encuesta. Las fotos se guardan al elegirlas.</p>
+      <p class="hint mt-2">Guarda los textos, la página, el directorio, Google Maps y la encuesta. Las fotos y las respuestas a opiniones se guardan por separado.</p>
     </div>
   {/if}
 </section>

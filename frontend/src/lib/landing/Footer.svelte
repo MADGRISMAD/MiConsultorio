@@ -6,6 +6,7 @@
 
   const cols: [string, [string, string][]][] = [
     ['Producto', [['#funciones', 'Funciones'], ['#incluye', 'Todo incluido'], ['#especialidades', 'Especialidades'], ['#precios', 'Precios']]],
+    ['Pacientes', [['/directorio', 'Buscar especialista'], ['/directorio/dentistas', 'Dentistas'], ['/directorio/psicologos', 'Psicólogos'], ['/directorio/nutriologos', 'Nutriólogos']]],
     ['Soporte', [['#preguntas', 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
   ];
@@ -21,14 +22,14 @@
 </script>
 
 <footer bind:this={footer} class="l-deep relative mt-3 overflow-hidden bg-ink text-paper">
-  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
     <div>
       <Wordmark light />
       <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software de gestión para clínicas, consultorios, nutriólogos, veterinarias y más.</p>
     </div>
     {#each cols as [title, links]}
       <div>
-        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-paper/45">{title}</p>
+        <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-paper/60">{title}</p>
         <ul class="mt-5 space-y-3 text-[15px]">
           {#each links as [href, label]}
             <li><a {href} class="text-paper/80 transition-colors hover:text-signal">{label}</a></li>
@@ -38,7 +39,7 @@
     {/each}
   </div>
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
-    <div class="flex justify-between border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/45">
+    <div class="flex justify-between border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
       <span>© {new Date().getFullYear()} Caresia</span>
       <span>Todos los derechos reservados</span>
     </div>

@@ -34,6 +34,7 @@
 
 <div class="landing grain min-h-screen overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white [-webkit-tap-highlight-color:transparent]" data-theme={theme.mode}>
   <Nav />
+  <main>
   <Hero />
   <Chaos />
   <Features />
@@ -47,5 +48,6 @@
     <Faq />
   </div>
   <Cta />
+  </main>
   <Footer />
 </div>

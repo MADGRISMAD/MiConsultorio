@@ -1,11 +1,13 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Split from './Split.svelte';
+  import Carousel from './Carousel.svelte';
   import { reveal } from './motion';
 
   const panels = [
     {
       key: 'A',
+      tab: 'Dental',
       area: 'Odontología',
       title: 'Clínica *dental*',
       text: 'Para el ritmo de un consultorio dental: citas cortas y seguidas y tratamientos de varias sesiones.',
@@ -15,6 +17,7 @@
     },
     {
       key: 'B',
+      tab: 'Médico',
       area: 'Medicina general e interna',
       title: 'Consultorio *médico*',
       text: 'Un expediente completo para conocer a tu paciente antes de que entre, y su seguimiento consulta tras consulta.',
@@ -24,6 +27,7 @@
     },
     {
       key: 'C',
+      tab: 'Nutrición',
       area: 'Nutrición',
       title: '*Nutrición*',
       text: 'De las medidas al menú de la semana, con el cálculo hecho por ti o con ayuda de IA.',
@@ -33,6 +37,7 @@
     },
     {
       key: 'D',
+      tab: 'Veterinaria',
       area: 'Veterinaria',
       title: '*Veterinaria*',
       text: 'El propietario primero y todas sus mascotas juntas, aunque se llamen igual.',
@@ -42,6 +47,7 @@
     },
     {
       key: 'E',
+      tab: 'Pediatría y más',
       area: 'Pediatría, ginecología y dermatología',
       title: '*Pediatría* y más',
       text: 'Cada especialidad pide sus propios datos; Caresia pregunta solo lo que te sirve.',
@@ -51,6 +57,7 @@
     },
     {
       key: 'F',
+      tab: 'Psicología',
       area: 'Psicología',
       title: '*Psicología*',
       text: 'Sesiones y notas con la reserva que tu práctica necesita.',
@@ -60,6 +67,7 @@
     },
     {
       key: 'G',
+      tab: 'Rehabilitación',
       area: 'Fisioterapia, quiropráctica y ortopedia',
       title: '*Rehabilitación*',
       text: 'Dónde duele, cuánto y cómo evoluciona, a la vista.',
@@ -68,6 +76,7 @@
       accent: 'text-signal'
     }
   ];
+
 </script>
 
 <section id="especialidades" class="mx-auto max-w-6xl px-5 py-28 sm:px-8 lg:py-40">
@@ -75,15 +84,17 @@
     <Split text={'Una plataforma.\n*Cada especialidad*\ncon sus herramientas.'} class="font-display text-[clamp(2.75rem,6.5vw,5.25rem)] leading-[0.95] tracking-[-0.03em]" accent="italic text-signal" />
     <p class="max-w-sm text-lg leading-relaxed text-ink-soft md:justify-self-end">Elige tu giro y Caresia ajusta formularios, secciones y reportes. Si atiendes más de uno, conviven en el mismo consultorio.</p>
   </div>
-  <ul class="mt-10 grid gap-4 md:grid-cols-2">
-    {#each panels as p, i}
-      <li class="flex {i === panels.length - 1 && panels.length % 2 ? 'md:col-span-2' : ''}" use:reveal={{ y: 50, delay: (i % 2) * 0.1, margin: '0px 0px -8% 0px' }}>
-        <article class="flex w-full flex-col justify-between rounded-[28px] p-7 sm:p-9 {p.bg}">
-          <div class="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft"><span>{p.key} — {p.area}</span></div>
-          <div class="mt-8">
-            <Split tag="h3" text={p.title} class="font-display text-[clamp(2.5rem,5vw,4.25rem)] leading-[0.92] tracking-[-0.03em]" accent="italic {p.accent}" />
-            <p class="mt-4 max-w-md text-[16px] leading-relaxed text-ink-soft">{p.text}</p>
-            <ul class="mt-5 max-w-lg space-y-2.5">
+  <div class="mt-10" use:reveal={{ y: 50 }}>
+    <Carousel items={panels} label={(p) => p.tab} name="Especialidades" id="esp">
+      {#snippet panel(p)}
+        <div class="rounded-[28px] p-7 sm:p-9 {p.bg}">
+          <div class="grid gap-8 md:grid-cols-[1fr_1fr] md:items-end">
+            <div>
+              <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">{p.key} — {p.area}</p>
+              <Split tag="h3" text={p.title} class="mt-8 font-display text-[clamp(2.5rem,5vw,4.25rem)] leading-[0.92] tracking-[-0.03em]" accent="italic {p.accent}" />
+              <p class="mt-4 max-w-md text-[16px] leading-relaxed text-ink-soft">{p.text}</p>
+            </div>
+            <ul class="max-w-lg space-y-2.5">
               {#each p.points as t}
                 <li class="flex gap-3 text-[15px] leading-snug">
                   <span class="mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full bg-ink text-paper"><Icon name="check" class="h-3 w-3" strokeWidth={2.6} /></span>
@@ -92,8 +103,8 @@
               {/each}
             </ul>
           </div>
-        </article>
-      </li>
-    {/each}
-  </ul>
+        </div>
+      {/snippet}
+    </Carousel>
+  </div>
 </section>

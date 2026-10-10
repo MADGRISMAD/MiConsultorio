@@ -3,6 +3,25 @@ import type { Clinic, SessionInfo } from './types';
 
 type Status = 'loading' | 'authenticated' | 'anonymous';
 
+// Pista local de "hubo sesión": sin ella, la landing se pinta sin esperar a /api/session.
+const HINT = 'caresia:signed';
+function hint(on: boolean) {
+  try {
+    if (on) localStorage.setItem(HINT, '1');
+    else localStorage.removeItem(HINT);
+  } catch {
+    /* sin almacenamiento: solo se pierde el atajo */
+  }
+}
+
+export function maybeSignedIn(): boolean {
+  try {
+    return localStorage.getItem(HINT) === '1';
+  } catch {
+    return true;
+  }
+}
+
 class SessionStore {
   status = $state<Status>('loading');
   user = $state<SessionInfo | null>(null);
@@ -60,9 +79,11 @@ class SessionStore {
     try {
       this.user = await api.session();
       this.status = 'authenticated';
+      hint(true);
     } catch (e) {
       this.user = null;
       this.status = 'anonymous';
+      if (e instanceof ApiError && e.status === 401) hint(false);
       if (!(e instanceof ApiError) || e.status !== 401) console.error(e);
     }
   }
@@ -85,6 +106,7 @@ class SessionStore {
   setUser(user: SessionInfo) {
     this.user = user;
     this.status = 'authenticated';
+    hint(true);
   }
 
   async register(r: Parameters<typeof api.register>[0]) {
@@ -104,6 +126,7 @@ class SessionStore {
       this.user = null;
       this.clinic = null;
       this.status = 'anonymous';
+      hint(false);
     }
   }
 }

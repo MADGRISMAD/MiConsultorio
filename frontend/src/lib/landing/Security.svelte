@@ -24,7 +24,7 @@
     <div class="mt-16 grid gap-10 lg:grid-cols-[1.05fr_1fr] lg:items-start">
       <!-- Lo que ve el doctor contra lo que queda guardado -->
       <div use:reveal class="rounded-[28px] bg-ink p-6 text-paper sm:p-8">
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-paper/45">Lo que ves en Caresia</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-paper/60">Lo que ves en Caresia</p>
         <div class="mt-3 rounded-2xl bg-paper/[0.06] p-5 ring-1 ring-paper/10">
           <p class="text-[13px] text-paper/50">Nota de consulta · Alergias</p>
           <p class="mt-2 text-[17px] leading-relaxed">Refiere dolor en molar inferior derecho desde hace 3 días. Alérgica a la penicilina.</p>
@@ -34,7 +34,7 @@
           <span class="font-display text-sm italic text-signal">se guarda así</span>
           <span class="h-px flex-1 bg-paper/15"></span>
         </div>
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-paper/45">Lo que queda en la base de datos</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-paper/60">Lo que queda en la base de datos</p>
         <p class="mt-3 break-all rounded-2xl bg-paper/[0.06] p-5 font-mono text-[13px] leading-relaxed text-paper/70 ring-1 ring-paper/10">enc:v1:AV8yQ2nR0kXwYh3Lq9TfZcB7mJp1sUeD4vGa6HtNiKo2WxErF5yCbM0zLjQ8uPdS3gVhAnTk7RwXe9OiYm…</p>
         <p class="mt-5 text-sm leading-relaxed text-paper/55">Ejemplo ilustrativo. Sin la llave, que vive separada de la base de datos, el texto no se puede leer.</p>
       </div>

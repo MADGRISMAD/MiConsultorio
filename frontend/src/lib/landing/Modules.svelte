@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Split from './Split.svelte';
+  import Carousel from './Carousel.svelte';
   import { reveal } from './motion';
 
   interface Group {
@@ -134,26 +135,30 @@
     <Split text={'Todo lo que\n*ya incluye.*'} class="font-display text-[clamp(2.75rem,6.5vw,5.25rem)] leading-[0.95] tracking-[-0.03em]" accent="italic text-signal" />
     <p class="max-w-sm text-lg leading-relaxed text-ink-soft md:justify-self-end">Del primer mensaje de la recepción al reporte del mes: lo que necesita un consultorio, en un solo sistema.</p>
   </div>
-  <ul class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {#each groups as g, i}
-      <li class="flex" use:reveal={{ y: 50, delay: (i % 3) * 0.08, margin: '0px 0px -8% 0px' }}>
-        <article class="flex w-full flex-col rounded-[24px] p-6 sm:p-7 {tones[g.tone]}">
-          <div class="flex items-center justify-between gap-3">
-            <p class="font-mono text-sm text-signal">{g.n}</p>
-            {#if g.badge}<span class="rounded-full bg-ink px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-paper">{g.badge}</span>{/if}
+  <div class="mt-10" use:reveal={{ y: 50 }}>
+    <Carousel items={groups} label={(g) => g.title} name="Lo que incluye" id="incluye">
+      {#snippet panel(g)}
+        <div class="rounded-[28px] p-7 sm:p-9 {tones[g.tone]}">
+          <div class="grid gap-8 md:grid-cols-[1fr_1.4fr]">
+            <div>
+              <div class="flex items-center gap-3">
+                <p class="font-mono text-sm text-signal">{g.n} <span class="text-ink-faint">/ {String(groups.length).padStart(2, '0')}</span></p>
+                {#if g.badge}<span class="rounded-full bg-ink px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-paper">{g.badge}</span>{/if}
+              </div>
+              <h3 class="mt-6 font-display text-[clamp(2.25rem,4.5vw,3.5rem)] leading-[0.95] tracking-[-0.02em]">{g.title}</h3>
+              <p class="mt-4 max-w-md text-[16px] leading-relaxed text-ink-soft">{g.blurb}</p>
+            </div>
+            <ul class="grid content-start gap-x-6 gap-y-2.5 text-[15px] leading-snug sm:grid-cols-2">
+              {#each g.items as t}
+                <li class="flex gap-2.5">
+                  <Icon name="check" class="mt-0.5 h-4 w-4 flex-none text-mint" strokeWidth={2.4} />
+                  <span>{t}</span>
+                </li>
+              {/each}
+            </ul>
           </div>
-          <h3 class="mt-3 font-display text-3xl leading-none tracking-[-0.01em]">{g.title}</h3>
-          <p class="mt-3 text-[15px] leading-relaxed text-ink-soft">{g.blurb}</p>
-          <ul class="mt-5 space-y-2.5 text-[14.5px] leading-snug">
-            {#each g.items as t}
-              <li class="flex gap-2.5">
-                <Icon name="check" class="mt-0.5 h-4 w-4 flex-none text-mint" strokeWidth={2.4} />
-                <span>{t}</span>
-              </li>
-            {/each}
-          </ul>
-        </article>
-      </li>
-    {/each}
-  </ul>
+        </div>
+      {/snippet}
+    </Carousel>
+  </div>
 </section>

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -34,6 +35,7 @@ type mediaPro struct {
 	Photo  *string `json:"photo"` // media id
 	Hidden bool    `json:"hidden"`
 	Active bool    `json:"active"` // shows on the page right now (not disabled, sees patients, works in a giro of the clinic)
+	Bio    string  `json:"bio"`
 }
 
 // mediaOverview is what the editor shows.
@@ -69,7 +71,7 @@ func (s *Server) mediaOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prows, err := s.db.Query(ctx, `
-		SELECT u.id::text, u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'), u.public_hidden,
+		SELECT u.id::text, u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'), u.public_hidden, u.public_bio,
 		       (NOT u.disabled AND coalesce(ps.consults, true) AND (cardinality(u.areas) = 0 OR u.areas && $2::text[]))
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		WHERE u.clinic_id = $1 AND u.role IN ('admin', 'doctor') AND u.linked_owner_id IS NULL AND NOT u.disabled
@@ -82,7 +84,7 @@ func (s *Server) mediaOverview(w http.ResponseWriter, r *http.Request) {
 	pros := []mediaPro{}
 	for prows.Next() {
 		var x mediaPro
-		if err := prows.Scan(&x.ID, &x.Name, &x.Title, &x.Photo, &x.Hidden, &x.Active); err != nil {
+		if err := prows.Scan(&x.ID, &x.Name, &x.Title, &x.Photo, &x.Hidden, &x.Bio, &x.Active); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -258,13 +260,21 @@ func (s *Server) setProHidden(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Hidden bool `json:"hidden"`
+		Hidden bool    `json:"hidden"`
+		Bio    *string `json:"bio"` // formación y experiencia para el perfil público (nil = no cambiar)
 	}
 	if !decode(w, r, &in) {
 		return
 	}
+	if in.Bio != nil {
+		*in.Bio = strings.TrimSpace(*in.Bio)
+		if utf8.RuneCountInString(*in.Bio) > 600 {
+			writeError(w, http.StatusBadRequest, "La semblanza es demasiado larga (máximo 600 caracteres).")
+			return
+		}
+	}
 	p := principalFrom(r.Context())
-	tag, err := s.db.Exec(r.Context(), `UPDATE users SET public_hidden = $3 WHERE id = $1 AND clinic_id = $2 AND role IN ('admin', 'doctor')`, id, p.ClinicID, in.Hidden)
+	tag, err := s.db.Exec(r.Context(), `UPDATE users SET public_hidden = $3, public_bio = coalesce($4, public_bio) WHERE id = $1 AND clinic_id = $2 AND role IN ('admin', 'doctor')`, id, p.ClinicID, in.Hidden, in.Bio)
 	if err != nil {
 		serverError(w, r, err)
 		return

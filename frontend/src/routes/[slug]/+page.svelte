@@ -6,7 +6,7 @@
   import PhotoCarousel from '$lib/components/clinic/PhotoCarousel.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Stars from '$lib/components/ui/Stars.svelte';
-  import { dateShort } from '$lib/format';
+  import { dateShort, moneyCents } from '$lib/format';
   import { theme } from '$lib/theme.svelte';
   import ButtonLabel from '$lib/landing/ButtonLabel.svelte';
   import Ecg from '$lib/landing/Ecg.svelte';
@@ -31,6 +31,9 @@
   const wa = $derived(c?.whatsapp ? `https://wa.me/${c.whatsapp.replace(/\D/g, '')}` : '');
   const mapsHref = $derived(c?.maps_url || (c?.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : ''));
   const giros = $derived((c?.kinds ?? []).map((k) => CLINIC_KINDS[k as ClinicKind]).filter(Boolean));
+  const place = $derived([c?.neighborhood, c?.city, c?.state].filter(Boolean).join(', '));
+  const credentialed = $derived((c?.professionals ?? []).filter((p) => p.cedula || p.bio));
+  const SEP = 'https://www.cedulaprofesional.sep.gob.mx/';
   const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
   const btn = 'inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2';
 </script>
@@ -65,6 +68,8 @@
         </a>
         <nav class="ml-auto hidden items-center gap-6 text-sm text-ink-soft md:flex" aria-label="Secciones">
           {#if giros.length}<a href="#servicios" class="hover:text-ink">Especialidades</a>{/if}
+          {#if c.services.length}<a href="#precios" class="hover:text-ink">Precios</a>{/if}
+          {#if c.reviews?.length}<a href="#opiniones" class="hover:text-ink">Opiniones</a>{/if}
           {#if c.professionals.length}<a href="#equipo" class="hover:text-ink">Equipo</a>{/if}
           {#if c.address || c.phone || c.email || wa || c.hours_text || c.website}<a href="#contacto" class="hover:text-ink">Contacto</a>{/if}
         </nav>
@@ -91,6 +96,7 @@
         <div class="min-w-0 pb-1 sm:mt-[4.5rem]">
           <h1 class="font-display text-[clamp(2.4rem,6vw,4rem)] leading-[0.98] tracking-[-0.02em]">{c.name}</h1>
           {#if c.tagline}<p class="mt-2 max-w-2xl text-lg text-ink-soft">{c.tagline}</p>{/if}
+          {#if place}<p class="mt-2 flex items-center gap-1.5 text-[15px] text-ink-soft"><Icon name="building" size={16} />{place}</p>{/if}
           {#if c.rating && c.rating.count > 0}
             <p class="mt-3 flex items-center gap-2 text-sm"><Stars value={c.rating.average} size={18} /><strong>{c.rating.average.toFixed(1)}</strong><span class="text-ink-soft">({c.rating.count} {c.rating.count === 1 ? 'opinión' : 'opiniones'})</span></p>
           {/if}
@@ -132,20 +138,58 @@
       </section>
     {/if}
 
+    {#if c.services.length}
+      <section id="precios" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
+        <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Servicios y precios</h2>
+        <ul class="mt-8 divide-y divide-ink/10 rounded-[28px] bg-panel ring-1 ring-ink/10">
+          {#each c.services as sv (sv.name)}
+            <li class="flex items-center justify-between gap-4 px-6 py-4">
+              <span><span class="block text-[17px] font-medium">{sv.name}</span>{#if sv.duration_minutes}<span class="text-sm text-ink-faint">{sv.duration_minutes} min</span>{/if}</span>
+              <span class="whitespace-nowrap font-display text-2xl">{sv.price_cents > 0 ? moneyCents(sv.price_cents) : 'Consultar'}</span>
+            </li>
+          {/each}
+        </ul>
+        <p class="mt-3 text-xs text-ink-faint">Precios de referencia; el consultorio confirma el costo final según tu caso.</p>
+      </section>
+    {/if}
+
     {#if c.professionals.length}
       <section id="equipo" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Nuestro equipo</h2>
         <div class="mt-10"><TeamPolaroids people={c.professionals} /></div>
+        {#if credentialed.length}
+          <ul class="mt-10 grid gap-4 md:grid-cols-2">
+            {#each credentialed as p (p.name)}
+              <li class="rounded-3xl bg-panel p-6 ring-1 ring-ink/10">
+                <p class="font-display text-2xl leading-tight">{p.name}</p>
+                {#if p.title}<p class="text-[15px] text-ink-soft">{p.title}</p>{/if}
+                {#if p.cedula}
+                  <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-signal-soft px-2.5 py-1 font-medium text-signal"><Icon name="check" size={14} />Cédula profesional {p.cedula}</span>
+                    {#if p.cedula_specialty}<span class="text-ink-faint">· {p.cedula_specialty}</span>{/if}
+                    <a class="text-signal underline" href={SEP} target="_blank" rel="noopener noreferrer">Verificar en la SEP</a>
+                  </p>
+                {/if}
+                {#if p.bio}<p class="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-ink-soft">{p.bio}</p>{/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </section>
     {/if}
 
     {#if c.rating && c.rating.count > 0}
-      <section class="mx-auto mt-20 max-w-6xl px-5 sm:px-8">
+      <section id="opiniones" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Lo que dicen nuestros pacientes</h2>
+        <p class="mt-3 flex items-center gap-2 text-sm text-ink-soft"><Icon name="check" size={16} />Opiniones verificadas: solo las pueden dejar pacientes que tuvieron su cita.</p>
         {#if c.reviews?.length}
           <ul class="mt-8 grid gap-4 md:grid-cols-2">
             {#each c.reviews as r}
-              <li class="rounded-3xl bg-panel p-6 ring-1 ring-ink/10"><Stars value={r.rating} size={16} /><p class="mt-3 text-[17px] leading-relaxed">«{r.comment}»</p><p class="mt-3 text-xs text-ink-faint">{dateShort(r.date)}</p></li>
+              <li class="rounded-3xl bg-panel p-6 ring-1 ring-ink/10">
+                <Stars value={r.rating} size={16} /><p class="mt-3 text-[17px] leading-relaxed">«{r.comment}»</p>
+                <p class="mt-3 text-xs text-ink-faint">{dateShort(r.date + 'T12:00:00')}{r.verified ? ' · Paciente verificado' : ''}</p>
+                {#if r.reply}<div class="mt-4 rounded-2xl bg-ink/[0.04] p-4"><p class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Respuesta de {c.name}</p><p class="mt-1 text-[15px] text-ink-soft">{r.reply}</p></div>{/if}
+              </li>
             {/each}
           </ul>
         {/if}
@@ -154,7 +198,7 @@
     {/if}
 
     <!-- contact -->
-    {#if c.address || c.phone || c.email || wa || c.hours_text || c.website}
+    {#if c.address || c.phone || c.email || wa || c.hours_text || c.website || c.insurances.length || c.payment_methods.length}
     <section id="contacto" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
       <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Visítanos</h2>
       <dl class="mt-8 grid gap-4 rounded-[28px] bg-panel p-6 ring-1 ring-ink/10 sm:grid-cols-2 sm:p-8 lg:grid-cols-3">
@@ -163,6 +207,9 @@
         {#if c.email}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Correo</dt><dd class="mt-1 break-all"><a class="hover:text-signal" href="mailto:{c.email}">{c.email}</a></dd></div>{/if}
         {#if wa}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">WhatsApp</dt><dd class="mt-1"><a class="hover:text-signal" href={wa} target="_blank" rel="noopener noreferrer">{c.whatsapp}</a></dd></div>{/if}
         {#if c.hours_text}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Horario</dt><dd class="mt-1 whitespace-pre-line">{c.hours_text}</dd></div>{/if}
+        {#if c.insurances.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Aseguradoras</dt><dd class="mt-1">{c.insurances.join(', ')}</dd></div>{/if}
+        {#if c.payment_methods.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Formas de pago</dt><dd class="mt-1">{c.payment_methods.join(', ')}</dd></div>{/if}
+        {#if c.languages.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Idiomas</dt><dd class="mt-1">{c.languages.join(', ')}</dd></div>{/if}
         {#if c.website}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Sitio web</dt><dd class="mt-1 break-all"><a class="text-signal underline" href={c.website} target="_blank" rel="noopener noreferrer">{c.website.replace(/^https:\/\//, '')}</a></dd></div>{/if}
       </dl>
     </section>
@@ -187,6 +234,7 @@
     {/if}
 
     <footer class="mx-auto mt-16 max-w-6xl px-5 pb-10 text-center text-xs text-ink-faint sm:px-8">
+      {#if c.listed}<a href="/directorio" class="mb-3 inline-block font-medium text-ink-soft hover:text-signal">← Buscar más especialistas en el directorio de Caresia</a><br />{/if}
       © {new Date().getFullYear()} {c.name} · Página creada con <a href="/" class="font-medium text-ink-soft hover:text-signal">Caresia</a>
     </footer>
   {/if}
