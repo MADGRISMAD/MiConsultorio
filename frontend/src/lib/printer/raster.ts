@@ -5,8 +5,12 @@ import { toCanvas } from 'html-to-image';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Printable dots across: 58 mm paper is 384 dots, 80 mm is 576. */
-const dotsFor = (widthMm: number) => (widthMm === 58 ? 384 : 576);
+/**
+ * Dots across. The heads print 384 (58 mm) or 576 (80 mm) dots, but many printers only reach about 90 % of that before the
+ * edge clips the right side (the date and the total came out cut), so the ticket is drawn a little narrower and centered.
+ * It is also fewer bytes to send, which makes it print sooner.
+ */
+const dotsFor = (widthMm: number) => (widthMm === 58 ? 352 : 512);
 
 /** Loads the ticket's HTML in a hidden frame and draws it on a canvas exactly `dots` wide. */
 async function renderTicketCanvas(html: string, widthMm: number): Promise<HTMLCanvasElement> {
@@ -27,7 +31,7 @@ async function renderTicketCanvas(html: string, widthMm: number): Promise<HTMLCa
     const el = doc?.querySelector<HTMLElement>('.tk');
     if (!doc || !el) throw new Error('No se pudo leer el ticket.');
     await doc.fonts?.ready;
-    await sleep(120);
+    await sleep(30);
     const width = el.offsetWidth;
     if (!width) throw new Error('El ticket no tiene tamaño.');
     const raw = await toCanvas(el, { pixelRatio: dots / width, backgroundColor: '#ffffff', style: { margin: '0' }, skipFonts: true, cacheBust: false });

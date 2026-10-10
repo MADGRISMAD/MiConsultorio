@@ -81,7 +81,7 @@
         <div class="mt-3 max-w-xs">
           <label class="label" for="pr-baud">Velocidad (baudios)</label>
           <select id="pr-baud" class="field" bind:value={baud}>{#each BAUDS as b}<option value={b}>{b}</option>{/each}</select>
-          <p class="hint">Casi siempre 9600 o 115200; está en el manual de tu impresora.</p>
+          <p class="hint">Usa 115200 si tu impresora lo admite: manda el ticket unas 12 veces más rápido que 9600. Si imprime símbolos raros, baja la velocidad (suele ser 9600 en impresoras antiguas).</p>
         </div>
       {/if}
       <div class="mt-4 flex flex-wrap gap-2">

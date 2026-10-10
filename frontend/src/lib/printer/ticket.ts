@@ -92,18 +92,18 @@ function ticketCss(width: number): string {
 @page { size: ${w}mm auto; margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: #fff; }
-.tk { --pad: ${w === 58 ? '3.5mm' : '4mm'}; width: ${w}mm; padding: 3mm var(--pad) 8mm; color: #000; background: #fff;
+.tk { --pad: ${w === 58 ? '3.5mm' : '4mm'}; width: ${w}mm; padding: 2mm var(--pad) 4mm; color: #000; background: #fff;
   font: ${w === 58 ? '10.5px' : '12px'}/1.35 "Figtree", system-ui, -apple-system, "Segoe UI", Arial, sans-serif; font-variant-numeric: tabular-nums;
   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .tk p { margin: 0; }
 .tk-head { display: grid; justify-items: center; gap: 0.6mm; text-align: center; }
-.tk-pulse { display: block; width: 100%; height: auto; margin-bottom: 2mm; }
+.tk-pulse { display: block; width: 70%; height: auto; margin-bottom: 1mm; }
 .tk-name { font-size: 1.7em; font-weight: 900; line-height: 1.05; letter-spacing: -0.01em; text-transform: uppercase; overflow-wrap: anywhere; }
 .tk-kind { display: flex; align-items: center; gap: 2mm; width: 100%; margin: 0.6mm 0; font-size: 0.76em; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; }
 .tk-kind::before, .tk-kind::after { content: ""; flex: 1; border-top: 1px solid #000; }
 .tk-kind span { white-space: nowrap; }
 .tk-addr { font-size: 0.86em; line-height: 1.3; }
-.tk-stub { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-top: 3mm; border: 1.5px solid #000; border-radius: 1.6mm; }
+.tk-stub { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-top: 2mm; border: 1.5px solid #000; border-radius: 1.6mm; }
 .tk-stub > div { padding: 1.4mm 2.2mm; min-width: 0; }
 .tk-stub > div + div { border-left: 1.5px dashed #000; text-align: right; }
 .tk-stub span { display: block; font-size: 0.7em; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
@@ -111,10 +111,10 @@ html, body { margin: 0; background: #fff; }
 .tk-stub .d { font-size: 1em; font-weight: 800; line-height: 1.25; }
 .tk-meta { margin-top: 1.8mm; font-size: 0.92em; display: grid; gap: 0.4mm; }
 .tk-meta b { font-weight: 800; text-transform: uppercase; font-size: 0.82em; letter-spacing: 0.08em; }
-.tk-sec { display: flex; align-items: center; gap: 2mm; margin: 3.5mm 0 2mm; font-size: 0.76em; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap; }
+.tk-sec { display: flex; align-items: center; gap: 2mm; margin: 2.5mm 0 1.5mm; font-size: 0.76em; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap; }
 .tk-sec::before, .tk-sec::after { content: ""; flex: 1; border-top: 1.5px solid #000; }
 .tk-sec::before { flex: 0 0 3mm; }
-.tk-items { display: grid; gap: 2mm; }
+.tk-items { display: grid; gap: 1.4mm; }
 .tk-item { display: grid; grid-template-columns: 5.4mm minmax(0, 1fr); column-gap: 1.2mm; align-items: start; }
 .tk-n { display: grid; place-items: center; height: 4.2mm; margin-top: 0.2mm; border: 1.2px solid #000; border-radius: 1mm; font-size: 0.72em; font-weight: 800; }
 .tk-iname { font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
@@ -126,7 +126,7 @@ html, body { margin: 0; background: #fff; }
 .tk-item .tk-line { margin-top: 0.4mm; font-size: 0.95em; }
 .tk-line.strong { font-weight: 800; }
 .tk-sum { margin-top: 2.5mm; display: grid; gap: 0.8mm; }
-.tk-total { display: flex; align-items: center; justify-content: space-between; gap: 2mm; margin: 3mm calc(-1 * var(--pad) + 1mm) 0; padding: 2mm 2.5mm; background: #000; color: #fff; border-radius: 1.2mm; }
+.tk-total { display: flex; align-items: center; justify-content: space-between; gap: 2mm; margin: 2.5mm 0 0; padding: 1.6mm 2.5mm; border: 2.5px solid #000; border-radius: 1.4mm; }
 .tk-total span { font-size: 0.95em; font-weight: 900; letter-spacing: 0.22em; text-transform: uppercase; }
 .tk-total strong { font-size: 2em; font-weight: 900; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; }
 .tk-pay { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); margin-top: 1.5mm; border: 1.5px solid #000; border-radius: 1.2mm; }
@@ -137,15 +137,15 @@ html, body { margin: 0; background: #fff; }
 .tk-pay strong { display: block; font-size: 1.05em; font-weight: 800; overflow-wrap: anywhere; }
 .tk-pay .ch strong { font-size: 1.4em; font-weight: 900; line-height: 1.1; }
 .tk-flag { margin-top: 2mm; padding: 1.2mm 2mm; border: 1.5px dashed #000; border-radius: 1.2mm; text-align: center; font-size: 0.92em; font-weight: 800; }
-.tk-stamp-row { display: flex; justify-content: center; margin: 5mm 0 2mm; }
-.tk-stamp { display: grid; justify-items: center; gap: 0.4mm; padding: 1.2mm 4mm 1.4mm; border: 4px double #000; border-radius: 2.2mm; transform: rotate(-5deg); text-align: center; }
+.tk-stamp-row { display: flex; justify-content: center; margin: 3mm 0 1mm; }
+.tk-stamp { display: grid; justify-items: center; gap: 0.4mm; padding: 1.2mm 4mm 1.4mm; border: 2.5px solid #000; border-radius: 2mm; text-align: center; }
 .tk-stamp b { font-size: 1.5em; font-weight: 900; line-height: 1; letter-spacing: 0.2em; margin-right: -0.2em; text-transform: uppercase; }
 .tk-stamp small { font-size: 0.72em; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
-.tk-foot { margin-top: 6mm; text-align: center; font-size: 0.9em; }
-.tk-thanks { margin-top: 2mm; text-align: center; font-weight: 900; font-size: 1.05em; }
+.tk-foot { margin-top: 3mm; text-align: center; font-size: 0.9em; }
+.tk-thanks { margin-top: 1.5mm; text-align: center; font-weight: 900; font-size: 1.05em; }
 .tk-care { display: block; margin: 0 auto 1.5mm; }
 .tk-note { margin-top: 1mm; text-align: center; font-size: 0.82em; }
-.tk-sign { margin-top: 9mm; text-align: center; }
+.tk-sign { margin-top: 7mm; text-align: center; }
 .tk-sign i { display: block; border-top: 1.5px solid #000; margin: 0 6mm 1mm; }
 `;
 }

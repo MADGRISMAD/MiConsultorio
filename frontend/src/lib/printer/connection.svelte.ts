@@ -37,7 +37,7 @@ class PrinterConnection {
   name = $state('');
   connected = $state(false);
   busy = $state(false);
-  baud = $state(9600);
+  baud = $state(115200);
   error = $state('');
 
   #port: any = null;
@@ -67,7 +67,7 @@ class PrinterConnection {
   }
 
   /** Asks the person to pick a printer (must be called from a click). */
-  async pair(t: Transport, baud = 9600): Promise<void> {
+  async pair(t: Transport, baud = 115200): Promise<void> {
     this.error = '';
     this.busy = true;
     try {
