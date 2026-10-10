@@ -77,6 +77,19 @@
     else if (d > 40) prev();
   }
 
+  // Passes the photos by itself every 5 s; any change, manual or not, restarts the countdown.
+  let again = $state(0);
+  $effect(() => {
+    void index;
+    void again;
+    if (n < 2 || dragging || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setTimeout(() => {
+      if (document.hidden) again++;
+      else next();
+    }, 5000);
+    return () => clearTimeout(t);
+  });
+
   // mouse (touch is handled below so swiping works on phones)
   function down(e: PointerEvent) {
     if (e.pointerType !== 'mouse') return;
