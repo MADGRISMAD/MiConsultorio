@@ -20,7 +20,7 @@ import (
 
 // patientTables are the tables that point at a patient.
 var patientTables = []string{"encounters", "prescriptions", "record_access", "appointments", "attachments", "vaccinations", "patient_charts", "treatment_plans",
-	"consent_signatures", "encounter_charges", "waitlist_entries", "lab_orders", "lab_results", "sales", "arco_requests", "chronic_medications"}
+	"consent_signatures", "encounter_charges", "waitlist_entries", "lab_orders", "lab_results", "sales", "arco_requests", "chronic_medications", "satisfaction_surveys"}
 
 // samePerson is the SQL condition that two patient rows ("a" and "b") are the same person.
 const samePerson = `a.clinic_id = b.clinic_id AND a.subject = 'person' AND b.subject = 'person' AND a.email <> '' AND lower(a.email) = lower(b.email)

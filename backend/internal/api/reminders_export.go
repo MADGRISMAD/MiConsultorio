@@ -22,3 +22,8 @@ func SetApptClock(f func() time.Time) (restore func()) {
 	apptNow = f
 	return func() { apptNow = prev }
 }
+
+// RunSurveysOnce sends the satisfaction surveys due at the given time (tests only).
+func RunSurveysOnce(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, mailer mail.Sender, now time.Time) error {
+	return newServer(pool, cfg, mailer).sendSurveys(ctx, now)
+}

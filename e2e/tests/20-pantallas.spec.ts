@@ -19,7 +19,8 @@ const ROUTES = [
   '/ajustes?s=cumplimiento',
   '/ajustes?s=crecimiento',
   '/ajustes?s=agenda',
-  '/ajustes?s=terminal'
+  '/ajustes?s=terminal',
+  '/ajustes?s=perfil'
 ];
 
 for (const route of ROUTES) {

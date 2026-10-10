@@ -155,3 +155,9 @@ export interface DoseResult {
   /** the liquid presentation used in the calculation, when it comes from the catalog */
   presentation?: string;
 }
+
+export interface ConsultSummaryResult {
+  summary: { overview: string; key_facts: string[]; pending: string[]; watch_for: string[] };
+  generated_at: string;
+  based_on: number;
+}

@@ -12,6 +12,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 	go every(ctx, "waitlist", time.Minute, s.waitlistPass, waitlistKick)
 	go every(ctx, "birthdays", 30*time.Minute, s.birthdayPass, nil)
 	go every(ctx, "recalls", 30*time.Minute, s.recallPass, nil)
+	go every(ctx, "surveys", 15*time.Minute, s.surveyPass, nil)
 	go every(ctx, "patient merge", 6*time.Hour, s.mergePass, nil)
 	go every(ctx, "notifications", time.Hour, s.notificationPass, nil)
 }

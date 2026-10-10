@@ -2,8 +2,13 @@ package api_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/madgrismad/miconsultorio/backend/internal/config"
 )
 
 // rxDoctor returns a doctor with a cédula registered, so receta can be issued.
@@ -372,4 +377,47 @@ func TestChronicMedsAndInteractions(t *testing.T) {
 		t.Fatalf("history is kept: %v", list)
 	}
 	e.login("recep_a").expect(403, "GET", chronic, nil)
+}
+
+// The AI summary reads the record without the patient's name, leaves out private notes, and costs one magic use only when it works.
+func TestConsultSummaryAI(t *testing.T) {
+	var prompts []string
+	fail := false
+	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Contents []struct {
+				Parts []map[string]any `json:"parts"`
+			} `json:"contents"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompts = append(prompts, body.Contents[0].Parts[0]["text"].(string))
+		if fail {
+			w.WriteHeader(500)
+			return
+		}
+		out, _ := json.Marshal(map[string]any{"overview": "Hipertensa en control.", "key_facts": []string{"Metformina vigente"}, "pending": []string{}, "watch_for": []string{"Alergia a penicilina"}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
+	}))
+	defer gem.Close()
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
+	})
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/ai-summary"
+	doc.expect(400, "POST", url, map[string]any{}) // nothing to summarize yet
+	doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Control de presión", "assessment": "Hipertensión controlada", "plan": "Continuar enalapril"})
+	doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "SECRETO-PRIVADO", "private": true})
+	doc.expect(201, "POST", "/api/patients/"+pid+"/chronic-meds", map[string]any{"name": "Metformina", "dose": "850 mg"})
+
+	out := doc.expect(200, "POST", url, map[string]any{})
+	sum := out["summary"].(map[string]any)
+	if sum["overview"] != "Hipertensa en control." || len(sum["key_facts"].([]any)) != 1 || len(prompts) != 1 {
+		t.Fatalf("summary: %v", out)
+	}
+	if !strings.Contains(prompts[0], "Control de presión") || !strings.Contains(prompts[0], "Metformina") || strings.Contains(prompts[0], "SECRETO-PRIVADO") {
+		t.Fatalf("what the model sees: %s", prompts[0])
+	}
+	fail = true
+	doc.expect(502, "POST", url, map[string]any{}) // the use is given back
 }

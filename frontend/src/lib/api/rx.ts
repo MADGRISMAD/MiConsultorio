@@ -1,6 +1,6 @@
 import { ApiError, request, seg } from '$lib/api';
 import type { Prescription } from '$lib/types';
-import type { CatalogMed, ChronicMed, ClinicMedInput, Icd10, RxCheck, RxCreateResult, RxInput, RxPrintData, RxVerification } from '$lib/types/rx';
+import type { CatalogMed, ChronicMed, ConsultSummaryResult, ClinicMedInput, Icd10, RxCheck, RxCreateResult, RxInput, RxPrintData, RxVerification } from '$lib/types/rx';
 
 export const rxApi = {
   medications: (q: string, subject: 'person' | 'animal', species = '', limit = 20) =>
@@ -29,6 +29,9 @@ export const rxApi = {
     update: (patientId: string, id: string, m: Partial<ChronicMed> & { stop?: boolean }) =>
       request<{ medication: ChronicMed }>('PATCH', `/patients/${seg(patientId)}/chronic-meds/${seg(id)}`, m).then((r) => r.medication)
   },
+
+  /** An AI summary of the record for the specialist about to see the patient; costs one magic use. */
+  summary: (patientId: string) => request<ConsultSummaryResult>('POST', `/patients/${seg(patientId)}/ai-summary`, {}),
 
   printData: (id: string) => request<RxPrintData>('GET', `/prescriptions/${seg(id)}`),
   verify: (token: string) => request<RxVerification>('GET', `/public/rx/${seg(token)}`),

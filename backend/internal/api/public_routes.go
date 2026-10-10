@@ -9,4 +9,5 @@ func (s *Server) mountPublic(r chi.Router) {
 	s.mountPortalPublic(r)   // patient portal: login and session routes
 	s.mountPublicArco(r)     // ARCO request form
 	s.mountPublicWaitlist(r) // waitlist sign-up and offers
+	s.mountPublicSurvey(r)   // clinic public page and satisfaction survey
 }
