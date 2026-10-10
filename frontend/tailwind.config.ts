@@ -29,7 +29,7 @@ export default {
       fontFamily: {
         display: ['"Instrument Serif"', 'Georgia', 'serif'],
         body: ['"Instrument Sans Variable"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'monospace'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
         hand: ['Caveat', 'cursive']
       },
       transitionTimingFunction: { 'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)' }
