@@ -218,7 +218,8 @@ func (s *Server) router() http.Handler {
 					s.mountArco(r)           // solicitudes ARCO
 					s.mountOrg(r)            // sucursales y reportes consolidados
 					s.mountPortalAdmin(r)
-					s.mountProfile(r) // perfil público y encuesta de satisfacción
+					s.mountProfile(r)    // perfil público y encuesta de satisfacción
+					s.mountIndicators(r) // panel de indicadores
 				})
 			})
 

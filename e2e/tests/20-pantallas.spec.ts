@@ -20,7 +20,8 @@ const ROUTES = [
   '/ajustes?s=crecimiento',
   '/ajustes?s=agenda',
   '/ajustes?s=terminal',
-  '/ajustes?s=perfil'
+  '/ajustes?s=perfil',
+  '/indicadores'
 ];
 
 for (const route of ROUTES) {

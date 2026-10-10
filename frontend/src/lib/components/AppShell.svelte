@@ -43,6 +43,7 @@
         { label: 'Lista de espera', href: '/agenda/espera', icon: 'clock-plus', perms: [PERMISSIONS.navAppointments] },
         { label: 'Avisos', href: '/avisos', icon: 'bell', perms: [PERMISSIONS.navAppointments, PERMISSIONS.pos, PERMISSIONS.posManage] },
         { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] },
+        { label: 'Indicadores', href: '/indicadores', icon: 'activity', perms: [PERMISSIONS.adminUsers] },
         { label: 'Reportes clínicos', href: '/reportes', icon: 'chart', perms: [PERMISSIONS.adminUsers, PERMISSIONS.navHistorials] }
       ]
     },
