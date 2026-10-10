@@ -196,7 +196,7 @@ html.lenis body {
   color-scheme: dark;
 }
 .app {
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: 'Instrument Sans Variable', system-ui, sans-serif;
   background: rgb(var(--app-surface));
   color: rgb(var(--app-ink));
   min-height: 100dvh;

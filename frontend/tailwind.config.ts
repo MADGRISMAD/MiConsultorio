@@ -28,8 +28,8 @@ export default {
       opacity: { 6: '0.06', 8: '0.08', 12: '0.12', 14: '0.14' },
       fontFamily: {
         display: ['"Instrument Serif"', 'Georgia', 'serif'],
-        body: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        body: ['"Instrument Sans Variable"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'monospace'],
         hand: ['Caveat', 'cursive']
       },
       transitionTimingFunction: { 'out-strong': 'cubic-bezier(0.23, 1, 0.32, 1)' }
