@@ -8,7 +8,7 @@
   import { contactEmail } from '$lib/landing/data';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { Billing, CheckoutRow, PlanOffer } from '$lib/types';
+  import type { Billing, CheckoutRow, PlanOffer, Subscription } from '$lib/types';
   import Guard from '$lib/components/Guard.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -20,6 +20,7 @@
   let offers = $state<PlanOffer[]>([]);
   let billing = $state<Billing | null>(null);
   let checkouts = $state<CheckoutRow[]>([]);
+  let subscription = $state<Subscription | null>(null);
   let online = $state(true);
   let sandbox = $state(false);
   let loading = $state(true);
@@ -35,6 +36,7 @@
       offers = r.offers;
       billing = r.billing;
       checkouts = r.checkouts;
+      subscription = r.subscription;
       online = r.online;
       sandbox = r.sandbox;
       error = '';
@@ -51,6 +53,7 @@
   let confirmed = $state(false);
   let polling = $state(false);
   let timer: ReturnType<typeof setInterval> | undefined;
+  let returning = ''; // checkout de la suscripción al volver de Mercado Pago
   const POLL_MS = 3000;
   const POLL_MAX = 20; // ~60 s
 
@@ -65,12 +68,14 @@
     let tries = 0;
     timer = setInterval(async () => {
       tries++;
+      // La de la suscripción le pregunta a Mercado Pago aunque su aviso no haya llegado.
+      if (returning) await api.billing.checkoutStatus(returning).catch(() => null);
       await load(true);
-      if (checkouts[0]?.status === 'paid') {
+      if ((returning ? checkouts.find((c) => c.id === returning) : checkouts[0])?.status === 'paid') {
         stopPolling();
         confirmed = true;
         await session.load();
-        toast.show('¡Pago recibido! Tu plan ya está activo.');
+        toast.show(returning ? '¡Listo! Tu suscripción está activa.' : '¡Pago recibido! Tu plan ya está activo.');
       } else if (tries >= POLL_MAX) stopPolling();
     }, POLL_MS);
   }
@@ -81,6 +86,13 @@
     if (started) return;
     started = true;
     const p = page.url.searchParams.get('pago');
+    returning = page.url.searchParams.get('suscripcion') ?? '';
+    if (returning) {
+      pago = 'ok';
+      void load().then(startPolling);
+      void goto('/suscripcion', { replaceState: true, noScroll: true, keepFocus: true });
+      return;
+    }
     void load().then(() => {
       if (p === 'ok' || p === 'pendiente') {
         pago = p;
@@ -98,8 +110,22 @@
   const saves = (o: PlanOffer) => o.month_cents > 0 && o.year_cents < o.month_cents * 12;
   const anySaves = $derived(offers.some(saves));
   const isCurrent = (o: PlanOffer) => billing?.plan === o.id;
-  /** Paying the current plan is fine unless it is already active and paid. */
-  const canPayCurrent = $derived(!!billing && billing.state !== 'active');
+  /** Suscribirse al plan actual tiene sentido si no está activo, o si se pagó a mano y aún no se cobra solo. */
+  const subscribed = $derived(!!subscription?.active && !subscription.cancel_at_period_end);
+  const canPayCurrent = $derived(!!billing && (billing.state !== 'active' || !subscribed));
+  let cancelling = $state(false);
+  async function cancelSub() {
+    if (!confirm('¿Cancelar la suscripción? Ya no se cobrará, y conservas tu plan hasta el ' + dateShort(billing?.current_period_end ?? null) + '.')) return;
+    cancelling = true;
+    try {
+      await api.billing.cancelSubscription();
+      await load(true);
+      toast.show('Suscripción cancelada. Conservas tu plan hasta el fin del periodo pagado.');
+    } catch (e) {
+      payError = e instanceof Error ? e.message : 'No se pudo cancelar.';
+    }
+    cancelling = false;
+  }
   const quote = (o: PlanOffer) => `mailto:${contactEmail}?subject=${encodeURIComponent(`Cotización del plan ${o.name} de Caresia`)}`;
 
   async function pay(o: PlanOffer) {
@@ -168,6 +194,10 @@
         <p class="mt-1 text-sm text-app-muted">
           {#if billing.state === 'trialing'}
             {trialLeft !== null ? `Te ${trialLeft === 1 ? 'queda 1 día' : `quedan ${trialLeft} días`} de prueba` : 'Estás en prueba'}{billing.trial_ends_at ? ` (termina el ${dateShort(billing.trial_ends_at)})` : ''}.
+          {:else if billing.state === 'active' && subscription?.active && subscription.cancel_at_period_end}
+            Suscripción cancelada: conservas tu plan hasta el {dateShort(billing.current_period_end)}.
+          {:else if billing.state === 'active' && subscription?.active}
+            Se cobra solo cada {subscription.period === 'year' ? 'año' : 'mes'}{subscription.amount_cents ? ` (${moneyCents(subscription.amount_cents)})` : ''} · próximo cobro el {dateShort(billing.current_period_end)}.
           {:else if billing.state === 'active'}
             Pagado hasta el {dateShort(billing.current_period_end)}.
           {:else if billing.state === 'trial_expired'}
@@ -179,7 +209,10 @@
           {/if}
         </p>
       </div>
-      {#if billing.cobros}<span class="badge"><Icon name="cash" size={14} />Incluye cobros</span>{/if}
+      <div class="flex flex-wrap items-center gap-3">
+        {#if billing.cobros}<span class="badge"><Icon name="cash" size={14} />Incluye cobros</span>{/if}
+        {#if subscribed}<button type="button" class="btn-secondary" disabled={cancelling} onclick={cancelSub}>{#if cancelling}<span class="spin"></span>{/if}Cancelar suscripción</button>{/if}
+      </div>
     </section>
 
     {#if !online}
@@ -215,7 +248,7 @@
             {#if o.online && o.month_cents > 0}
               <p class="display text-4xl">{moneyCents(monthly(o))}<span class="font-sans text-sm text-app-muted"> / mes</span></p>
               <p class="mt-0.5 min-h-5 text-xs text-app-muted">
-                {#if period === 'year'}{moneyCents(o.year_cents)} al año{#if saves(o)} · <span class="font-medium text-app-accent">Ahorras 2 meses</span>{/if}{:else}Se cobra cada mes de uso{/if} · IVA incluido
+                {#if period === 'year'}{moneyCents(o.year_cents)} al año{#if saves(o)} · <span class="font-medium text-app-accent">Ahorras 2 meses</span>{/if}{:else}Se cobra solo cada mes{/if} · IVA incluido
               </p>
             {:else}
               <p class="display text-4xl">A tu medida</p>
@@ -224,8 +257,12 @@
           </div>
           <ul class="mt-5 grid flex-1 content-start gap-2 text-sm">
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'especialista', 'especialistas')}</li>
+<<<<<<< Updated upstream
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'recepcionista', 'recepcionistas')} · {limit(o.max_cashiers, 'cajero', 'cajeros')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja e inventario' : 'Sin sección de cobros'}</li>
+=======
+            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'cuenta de recepción', 'cuentas de recepción')} · {limit(o.max_cashiers, 'caja', 'cajas')}</li>
+>>>>>>> Stashed changes
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_kinds, 'giro', 'giros')} · {limit(o.max_branches, 'sucursal', 'sucursales')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja, inventario y facturación' : 'Sin sección de cobros'}</li>
             <li class="flex gap-2 {o.whatsapp ? '' : 'text-app-muted'}"><Icon name={o.whatsapp ? 'check' : 'x'} size={16} />{o.whatsapp ? 'Recordatorios por WhatsApp' : 'Recordatorios solo por correo'}</li>
@@ -240,14 +277,15 @@
               <button type="button" class="btn-secondary w-full" disabled>Plan actual</button>
             {:else}
               <button type="button" class="{featured ? 'btn-primary' : 'btn-secondary'} w-full" disabled={!online || !!paying} onclick={() => pay(o)}>
-                {#if paying === o.id}<span class="spin"></span>{/if}{current ? 'Renovar con' : 'Pagar con'} Mercado Pago
+                {#if paying === o.id}<span class="spin"></span>{/if}{current ? 'Activar cobro automático' : 'Suscribirme con Mercado Pago'}
               </button>
             {/if}
           </div>
         </article>
       {/each}
     </div>
-    <p class="mt-3 text-xs text-app-muted">Si tu consultorio ya tiene más personas de las que permite un plan, no se podrá cambiar a él y te lo indicaremos al intentar pagar.</p>
+    <p class="mt-3 text-xs text-app-muted">La suscripción se cobra sola a tu tarjeta en cada periodo; si estás en prueba, el primer cobro llega al terminar. Puedes cancelarla aquí cuando quieras y conservas tu plan hasta el fin del periodo pagado. Al cambiar de plan, la suscripción anterior se cancela sola.</p>
+    <p class="mt-1 text-xs text-app-muted">Si tu consultorio ya tiene más personas de las que permite un plan, no se podrá cambiar a él y te lo indicaremos al intentar pagar.</p>
 
     <!-- History -->
     <section class="mt-8" aria-labelledby="hist-h">
@@ -264,11 +302,11 @@
                   <tr>
                     <td class="td whitespace-nowrap">{dateShort(c.paid_at ?? c.created_at)}</td>
                     <td class="td font-medium">{planName(c.plan)}</td>
-                    <td class="td text-app-muted">{c.period === 'year' ? 'Anual' : 'Mensual'}</td>
+                    <td class="td text-app-muted">{c.period === 'year' ? 'Anual' : 'Mensual'}{c.kind === 'subscription' ? ' · automático' : ''}</td>
                     <td class="td text-right font-medium">{moneyCents(c.amount_cents)}</td>
                     <td class="td">
-                      <span class="flex flex-wrap items-center gap-2"><Pill tone={CK[c.status].tone}>{CK[c.status].label}</Pill>
-                        {#if c.status === 'pending' && c.init_point}<a class="text-xs font-medium text-app-primary hover:underline" href={c.init_point}>Completar pago</a>{/if}</span>
+                      <span class="flex flex-wrap items-center gap-2"><Pill tone={CK[c.status].tone}>{c.kind === 'subscription' && c.status === 'paid' ? 'Suscrito' : CK[c.status].label}</Pill>
+                        {#if c.status === 'pending' && c.init_point}<a class="text-xs font-medium text-app-primary hover:underline" href={c.init_point}>{c.kind === 'subscription' ? 'Completar suscripción' : 'Completar pago'}</a>{/if}</span>
                     </td>
                   </tr>
                 {/each}

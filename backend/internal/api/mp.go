@@ -286,12 +286,13 @@ type checkoutRow struct {
 	InitPoint   string     `json:"init_point"`
 	CreatedAt   time.Time  `json:"created_at"`
 	PaidAt      *time.Time `json:"paid_at"`
+	Kind        string     `json:"kind"` // payment | subscription
 }
 
 func (s *Server) billingOverview(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
 	rows, err := s.db.Query(r.Context(), `
-		SELECT id, plan, period, amount_cents, status, init_point, created_at, paid_at
+		SELECT id, plan, period, amount_cents, status, init_point, created_at, paid_at, kind
 		FROM billing_checkouts WHERE clinic_id = $1 ORDER BY created_at DESC LIMIT 20`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
@@ -301,14 +302,14 @@ func (s *Server) billingOverview(w http.ResponseWriter, r *http.Request) {
 	list := []checkoutRow{}
 	for rows.Next() {
 		var c checkoutRow
-		if err := rows.Scan(&c.ID, &c.Plan, &c.Period, &c.AmountCents, &c.Status, &c.InitPoint, &c.CreatedAt, &c.PaidAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Plan, &c.Period, &c.AmountCents, &c.Status, &c.InitPoint, &c.CreatedAt, &c.PaidAt, &c.Kind); err != nil {
 			serverError(w, r, err)
 			return
 		}
 		list = append(list, c)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"offers": s.offers(), "billing": p.Billing.info(time.Now()), "checkouts": list,
+		"offers": s.offers(), "billing": p.Billing.info(time.Now()), "checkouts": list, "subscription": s.subscriptionFor(r.Context(), p.ClinicID),
 		"online": s.cfg.MPAccessToken != "", "sandbox": s.cfg.MPSandbox, "currency": s.cfg.MPCurrency,
 	})
 }
@@ -368,47 +369,12 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var id string
-	if err := s.db.QueryRow(r.Context(), `
-		INSERT INTO billing_checkouts (clinic_id, plan, period, amount_cents, created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-		p.ClinicID, req.Plan, req.Period, amount, p.UserID).Scan(&id); err != nil {
-		serverError(w, r, err)
+	// Ya suscrito a este mismo plan y periodo: no se crea otra suscripción.
+	if si := s.subscriptionFor(r.Context(), p.ClinicID); si.Active && !si.CancelAtPeriodEnd && p.Billing.Plan == offer.ID && si.Period == req.Period {
+		writeError(w, http.StatusConflict, "Ya tienes esta suscripción activa: se cobra sola en cada periodo.")
 		return
 	}
-	periodLabel := map[string]string{"month": "1 mes", "year": "12 meses"}[req.Period]
-	pref := map[string]any{
-		"items": []map[string]any{{
-			"id": id, "title": "Caresia · Plan " + offer.Name + " (" + periodLabel + ")", "quantity": 1,
-			"currency_id": s.cfg.MPCurrency, "unit_price": float64(amount) / 100,
-		}},
-		"external_reference":   "caresia:" + id,
-		"back_urls":            s.returnURLs("/suscripcion?pago="),
-		"auto_return":          "approved",
-		"statement_descriptor": "CARESIA",
-	}
-	if s.cfg.APIPublicURL != "" {
-		pref["notification_url"] = s.cfg.APIPublicURL + "/api/webhooks/mercadopago"
-	}
-	var raw struct {
-		ID               string `json:"id"`
-		InitPoint        string `json:"init_point"`
-		SandboxInitPoint string `json:"sandbox_init_point"`
-	}
-	if err := s.mpCall(r.Context(), s.cfg.MPAccessToken, http.MethodPost, "/checkout/preferences", pref, &raw); err != nil {
-		_, _ = s.db.Exec(r.Context(), `UPDATE billing_checkouts SET status='failed' WHERE id=$1`, id)
-		providerFailure(w, r, err)
-		return
-	}
-	pay := raw.InitPoint
-	if s.cfg.MPSandbox && raw.SandboxInitPoint != "" {
-		pay = raw.SandboxInitPoint
-	}
-	if _, err := s.db.Exec(r.Context(), `UPDATE billing_checkouts SET preference_id=$2, init_point=$3 WHERE id=$1`, id, raw.ID, pay); err != nil {
-		serverError(w, r, err)
-		return
-	}
-	audit(r.Context(), s.db, p.ClinicID, p, "checkout_started", "Inició el pago del plan "+offer.Name+" ("+periodLabel+")", map[string]any{"checkout": id})
-	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "init_point": pay})
+	s.startSubscription(w, r, p, offer, req.Period, amount)
 }
 
 // returnURLs are the pages Mercado Pago sends the buyer back to.
@@ -432,8 +398,8 @@ func (s *Server) billingCheckoutStatus(w http.ResponseWriter, r *http.Request) {
 	read := func() (checkoutRow, error) {
 		var c checkoutRow
 		err := s.db.QueryRow(r.Context(), `
-			SELECT id, plan, period, amount_cents, status, init_point, created_at, paid_at FROM billing_checkouts WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id).
-			Scan(&c.ID, &c.Plan, &c.Period, &c.AmountCents, &c.Status, &c.InitPoint, &c.CreatedAt, &c.PaidAt)
+			SELECT id, plan, period, amount_cents, status, init_point, created_at, paid_at, kind FROM billing_checkouts WHERE clinic_id=$1 AND id=$2`, p.ClinicID, id).
+			Scan(&c.ID, &c.Plan, &c.Period, &c.AmountCents, &c.Status, &c.InitPoint, &c.CreatedAt, &c.PaidAt, &c.Kind)
 		return c, err
 	}
 	c, err := read()
@@ -445,7 +411,10 @@ func (s *Server) billingCheckoutStatus(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	if c.Status == "pending" && s.cfg.MPAccessToken != "" {
+	if c.Status == "pending" && s.cfg.MPAccessToken != "" && c.Kind == "subscription" {
+		s.syncCheckoutSubscription(r.Context(), id)
+		c, _ = read()
+	} else if c.Status == "pending" && s.cfg.MPAccessToken != "" {
 		var found struct {
 			Results []struct {
 				ID     int64  `json:"id"`
@@ -494,6 +463,21 @@ func (s *Server) mpWebhook(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(topic, "order") || topic == "point_integration_wh" {
 		if id != "" {
 			s.syncOrderFromWebhook(r.Context(), id)
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if id != "" && s.cfg.MPAccessToken != "" && (strings.Contains(topic, "preapproval") || strings.Contains(topic, "subscription")) {
+		var err error
+		if strings.Contains(topic, "authorized_payment") {
+			err = s.syncFromAuthorizedPayment(r.Context(), id)
+		} else {
+			err = s.syncSubscription(r.Context(), id)
+		}
+		if err != nil {
+			logf(r, "webhook suscripción: %v", err)
+			writeError(w, http.StatusInternalServerError, "No se pudo procesar.") // MP reintenta
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 		return

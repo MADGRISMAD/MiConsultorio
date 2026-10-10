@@ -602,6 +602,16 @@ export interface CheckoutRow {
   init_point: string;
   created_at: string;
   paid_at: string | null;
+  kind: 'payment' | 'subscription';
+}
+
+/** La suscripción recurrente de Mercado Pago del consultorio. */
+export interface Subscription {
+  active: boolean;
+  status: string; // pending | authorized | paused | cancelled
+  period: 'month' | 'year' | '';
+  amount_cents: number;
+  cancel_at_period_end: boolean;
 }
 
 // ---------------------------------------------------------------------------

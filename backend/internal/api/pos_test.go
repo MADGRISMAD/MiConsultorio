@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/madgrismad/miconsultorio/backend/internal/config"
 )
@@ -252,12 +253,30 @@ type fakeMP struct {
 	mode             string
 	setups           int
 	busy, refundFail bool
-	refundBodies     []map[string]any // bodies sent with order refunds (partial ones carry the amount)
-	orderFailure     string           // when set, POST /v1/orders answers with this Orders-API error code
+	refundBodies     []map[string]any          // bodies sent with order refunds (partial ones carry the amount)
+	orderFailure     string                    // when set, POST /v1/orders answers with this Orders-API error code
+	preapprovals     map[string]map[string]any // suscripciones (preapproval) por id
+	preBodies        []map[string]any          // cuerpos con que se crearon
+	charges          map[string]map[string]any // cobros de suscripción (authorized_payments) por id
+}
+
+// setPre cambia el estado (y la fecha del siguiente cobro) de una suscripción simulada.
+func (f *fakeMP) setPre(id, status string, next time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.preapprovals[id]["status"] = status
+	f.preapprovals[id]["next_payment_date"] = next.Format("2006-01-02T15:04:05.000-07:00")
+}
+
+// addCharge simula un cobro ya hecho de una suscripción.
+func (f *fakeMP) addCharge(id, preID string, amount float64, status string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.charges[id] = map[string]any{"id": json.Number(id), "preapproval_id": preID, "status": status, "transaction_amount": amount, "payment": map[string]any{"status": "approved"}}
 }
 
 func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
-	f := &fakeMP{payments: map[string]map[string]any{}, intents: map[string]map[string]any{}}
+	f := &fakeMP{payments: map[string]map[string]any{}, intents: map[string]map[string]any{}, preapprovals: map[string]map[string]any{}, charges: map[string]map[string]any{}}
 	mux := http.NewServeMux()
 	reply := func(w http.ResponseWriter, v any) {
 		w.Header().Set("Content-Type", "application/json")
@@ -271,6 +290,65 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		reply(w, map[string]any{"id": fmt.Sprintf("pref-%d", n), "init_point": fmt.Sprintf("https://mp.test/pay/%d", n), "sandbox_init_point": "https://sandbox.mp.test/pay"})
+	})
+	mux.HandleFunc("/preapproval", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.preBodies = append(f.preBodies, body)
+		id := fmt.Sprintf("pre-%d", len(f.preBodies))
+		f.preapprovals[id] = map[string]any{"id": id, "status": "pending", "external_reference": body["external_reference"], "init_point": "https://mp.test/sub/" + id}
+		reply(w, f.preapprovals[id])
+	})
+	mux.HandleFunc("/preapproval/", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if r.URL.Path == "/preapproval/search" {
+			res := []any{}
+			for _, p := range f.preapprovals {
+				if p["external_reference"] == r.URL.Query().Get("external_reference") {
+					res = append(res, p)
+				}
+			}
+			reply(w, map[string]any{"results": res})
+			return
+		}
+		p, ok := f.preapprovals[strings.TrimPrefix(r.URL.Path, "/preapproval/")]
+		if !ok {
+			w.WriteHeader(404)
+			reply(w, map[string]any{"message": "not found"})
+			return
+		}
+		if r.Method == http.MethodPut {
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if st, ok := body["status"].(string); ok {
+				p["status"] = st
+			}
+		}
+		reply(w, p)
+	})
+	mux.HandleFunc("/authorized_payments/", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if r.URL.Path == "/authorized_payments/search" {
+			res := []any{}
+			for _, c := range f.charges {
+				if c["preapproval_id"] == r.URL.Query().Get("preapproval_id") {
+					res = append(res, c)
+				}
+			}
+			reply(w, map[string]any{"results": res})
+			return
+		}
+		c, ok := f.charges[strings.TrimPrefix(r.URL.Path, "/authorized_payments/")]
+		if !ok {
+			w.WriteHeader(404)
+			reply(w, map[string]any{"message": "not found"})
+			return
+		}
+		reply(w, c)
 	})
 	mux.HandleFunc("/v1/payments/search", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
@@ -431,11 +509,15 @@ func TestBillingCheckoutAndWebhook(t *testing.T) {
 		t.Fatalf("only admins manage billing, got %d", code)
 	}
 
-	co := admin.expect(201, "POST", "/api/billing/checkout", map[string]any{"plan": "crecimiento", "period": "year"})
-	id := co["id"].(string)
-	if !strings.HasPrefix(co["init_point"].(string), "https://mp.test/pay/") {
-		t.Fatalf("checkout: %v", co)
+	// Pagos únicos de antes (los nuevos son suscripciones): se siguen acreditando si llegan.
+	legacy := func(period string, amount int) string {
+		var id string
+		if err := e.pool.QueryRow(t.Context(), `INSERT INTO billing_checkouts (clinic_id, plan, period, amount_cents) VALUES ($1,'crecimiento',$2,$3) RETURNING id`, e.clinicA, period, amount).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
 	}
+	id := legacy("year", 600000)
 	// still locked until paid
 	if code := status(admin, "GET", "/api/appointments"); code != 403 {
 		t.Fatalf("unpaid clinic must stay locked, got %d", code)
@@ -484,9 +566,9 @@ func TestBillingCheckoutAndWebhook(t *testing.T) {
 	}
 
 	// the return page can settle by itself if the webhook was lost
-	co2 := admin.expect(201, "POST", "/api/billing/checkout", map[string]any{"plan": "crecimiento", "period": "month"})
-	fake.addPayment("9005", "caresia:"+co2["id"].(string), 600, "approved")
-	if st := sub(admin.expect(200, "GET", "/api/billing/checkouts/"+co2["id"].(string), nil), "checkout")["status"]; st != "paid" {
+	co2 := legacy("month", 60000)
+	fake.addPayment("9005", "caresia:"+co2, 600, "approved")
+	if st := sub(admin.expect(200, "GET", "/api/billing/checkouts/"+co2, nil), "checkout")["status"]; st != "paid" {
 		t.Fatalf("status poll must settle a paid checkout, got %v", st)
 	}
 	// another clinic cannot read it

@@ -91,6 +91,7 @@ func (s *Server) router() http.Handler {
 					r.Get("/", s.billingOverview)
 					r.Post("/checkout", s.billingCheckout)
 					r.Get("/checkouts/{id}", s.billingCheckoutStatus)
+					r.Post("/subscription/cancel", s.cancelSubscription)
 				})
 
 				r.Group(func(r chi.Router) {

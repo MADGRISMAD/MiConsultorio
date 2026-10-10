@@ -42,7 +42,8 @@ import type {
   Seats,
   SessionInfo,
   StockMovement,
-  Billing
+  Billing,
+  Subscription
 } from './types';
 
 export class ApiError extends Error {
@@ -166,9 +167,10 @@ export const api = {
   // billing: paying for the plan online
   billing: {
     overview: () =>
-      request<{ offers: PlanOffer[]; billing: Billing; checkouts: CheckoutRow[]; online: boolean; sandbox: boolean; currency: string }>('GET', '/billing/'),
+      request<{ offers: PlanOffer[]; billing: Billing; checkouts: CheckoutRow[]; subscription: Subscription; online: boolean; sandbox: boolean; currency: string }>('GET', '/billing/'),
     checkout: (plan: string, period: 'month' | 'year') => request<{ id: string; init_point: string }>('POST', '/billing/checkout', { plan, period }),
-    checkoutStatus: (id: string) => request<{ checkout: CheckoutRow }>('GET', `/billing/checkouts/${seg(id)}`).then((r) => r.checkout)
+    checkoutStatus: (id: string) => request<{ checkout: CheckoutRow }>('GET', `/billing/checkouts/${seg(id)}`).then((r) => r.checkout),
+    cancelSubscription: () => request<{ ok: boolean }>('POST', '/billing/subscription/cancel')
   },
 
   // cobros (point of sale)

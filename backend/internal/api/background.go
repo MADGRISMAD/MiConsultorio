@@ -15,6 +15,7 @@ func (s *Server) StartBackground(ctx context.Context) {
 	go every(ctx, "surveys", 15*time.Minute, s.surveyPass, nil)
 	go every(ctx, "patient merge", 6*time.Hour, s.mergePass, nil)
 	go every(ctx, "notifications", time.Hour, s.notificationPass, nil)
+	go every(ctx, "subscriptions", 6*time.Hour, s.subscriptionPass, nil)
 }
 
 // every runs pass now and then each interval until ctx ends. A panic in one pass is logged and never ends the loop.
