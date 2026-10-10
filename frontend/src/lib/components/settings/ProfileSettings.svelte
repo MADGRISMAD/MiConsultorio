@@ -51,7 +51,7 @@
   {:else if !p}
     <LoadingRows />
   {:else}
-    <form onsubmit={save} class="grid gap-5">
+    <form id="pf-form" onsubmit={save} class="grid gap-5">
       <p class="text-sm text-app-muted">
         Una página para que tus pacientes te encuentren: qué ofreces, tu equipo, dónde estás y la opinión de quienes ya se atendieron. Comparte el enlace en Instagram, WhatsApp o Google.
       </p>
@@ -134,8 +134,6 @@
         </label>
       </div>
 
-      <OpError op={saveOp} />
-      <div><button class="btn-primary" disabled={saveOp.phase === 'loading'}>Guardar</button></div>
     </form>
 
     <ProfileMedia />
@@ -161,5 +159,11 @@
         {/if}
       </div>
     {/if}
+
+    <div class="mt-10 border-t border-app-ink/10 pt-5">
+      <OpError op={saveOp} class="mb-3" />
+      <button type="submit" form="pf-form" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar cambios</button>
+      <p class="hint mt-2">Guarda los textos, la página, Google Maps y la encuesta. Las fotos se guardan al elegirlas.</p>
+    </div>
   {/if}
 </section>
