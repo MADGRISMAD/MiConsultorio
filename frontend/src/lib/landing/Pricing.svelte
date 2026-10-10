@@ -43,7 +43,7 @@
             <span class="font-display text-6xl leading-none tracking-[-0.02em] tabular-nums">{p.price}</span>
             {#if p.period}<span class="font-mono text-[11px] uppercase tracking-[0.1em] {dark ? 'text-paper/50' : 'text-ink-faint'}">{p.period}</span>{/if}
           </p>
-          <p class="relative mt-5 rounded-2xl px-4 py-3 text-[14px] {dark ? 'bg-paper/8 text-paper/85' : 'bg-ink/5 text-ink'}"><span class="font-semibold">{p.magic} usos de magia</span> al mes: plan nutricional, resumen de consulta con IA, inventario y precios.</p>
+          <p class="relative mt-5 rounded-2xl px-4 py-3 text-[14px] {dark ? 'bg-paper/8 text-paper/85' : 'bg-ink/5 text-ink'}">{#if p.magic}<span class="font-semibold">{p.magic} usos de magia</span> al mes: plan nutricional, resumen de consulta con IA, inventario y precios.{:else}<span class="font-semibold">Sin asistente de IA.</span> Lo tienes desde el plan Crecimiento.{/if}</p>
           <p class="relative mt-5 text-[15px] leading-relaxed {dark ? 'text-paper/60' : 'text-ink-soft'}">{p.blurb}</p>
           {#if p.includes}<p class="relative mt-6 text-[13px] font-semibold {dark ? 'text-paper' : 'text-ink'}">{p.includes}</p>{/if}
           <ul class="relative mt-4 flex-1 space-y-3 text-[15px]">

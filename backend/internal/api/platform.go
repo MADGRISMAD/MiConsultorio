@@ -296,11 +296,8 @@ func (s *Server) applyClinicChange(ctx context.Context, actor *Principal, id str
 			if err != nil {
 				return err
 			}
-			if plan.MaxUsers != nil && st.UsedUsers > *plan.MaxUsers {
-				return fail(http.StatusConflict, "El consultorio tiene "+itoa(st.UsedUsers)+" cuentas activas y el plan "+plan.Name+" permite "+itoa(*plan.MaxUsers)+". Que desactive cuentas primero.")
-			}
-			if plan.MaxDoctors != nil && st.UsedDoctors > *plan.MaxDoctors {
-				return fail(http.StatusConflict, "El consultorio tiene "+itoa(st.UsedDoctors)+" médicos activos y el plan "+plan.Name+" permite "+itoa(*plan.MaxDoctors)+". Que desactive cuentas primero.")
+			if msg := st.fitsPlan(plan); msg != "" {
+				return fail(http.StatusConflict, "El consultorio no cabe en ese plan: "+msg+". Que desactive cuentas primero.")
 			}
 			var kinds int
 			if err := tx.QueryRow(ctx, `SELECT 1 + cardinality(specialties) FROM clinics WHERE id = $1`, id).Scan(&kinds); err != nil {

@@ -52,12 +52,15 @@ func withLabels(list []person) []person {
 }
 
 type seats struct {
-	Plan        string `json:"plan"`
-	PlanName    string `json:"plan_name"`
-	MaxUsers    *int   `json:"max_users"`
-	MaxDoctors  *int   `json:"max_doctors"`
-	UsedUsers   int    `json:"used_users"`
-	UsedDoctors int    `json:"used_doctors"`
+	Plan          string `json:"plan"`
+	PlanName      string `json:"plan_name"`
+	MaxDoctors    *int   `json:"max_doctors"`
+	MaxReception  *int   `json:"max_reception"`
+	MaxCashiers   *int   `json:"max_cashiers"`
+	UsedUsers     int    `json:"used_users"` // everyone who signs in, administrators included
+	UsedDoctors   int    `json:"used_doctors"`
+	UsedReception int    `json:"used_reception"`
+	UsedCashiers  int    `json:"used_cashiers"`
 }
 
 func seatUsage(ctx context.Context, q queryRower, clinicID string) (seats, error) {
@@ -65,30 +68,55 @@ func seatUsage(ctx context.Context, q queryRower, clinicID string) (seats, error
 	err := q.QueryRow(ctx, `
 		SELECT c.plan,
 		       count(u.id) FILTER (WHERE NOT u.disabled AND u.linked_owner_id IS NULL),
-		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'doctor' AND u.linked_owner_id IS NULL)
+		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'doctor' AND u.linked_owner_id IS NULL),
+		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'reception' AND u.linked_owner_id IS NULL),
+		       count(u.id) FILTER (WHERE NOT u.disabled AND u.role = 'cashier' AND u.linked_owner_id IS NULL)
 		FROM clinics c LEFT JOIN users u ON u.clinic_id = c.id
-		WHERE c.id = $1 GROUP BY c.plan`, clinicID).Scan(&s.Plan, &s.UsedUsers, &s.UsedDoctors)
+		WHERE c.id = $1 GROUP BY c.plan`, clinicID).Scan(&s.Plan, &s.UsedUsers, &s.UsedDoctors, &s.UsedReception, &s.UsedCashiers)
 	if err != nil {
 		return s, err
 	}
 	plan, _ := planByID(s.Plan)
-	s.PlanName, s.MaxUsers, s.MaxDoctors = plan.Name, plan.MaxUsers, plan.MaxDoctors
+	s.PlanName, s.MaxDoctors, s.MaxReception, s.MaxCashiers = plan.Name, plan.MaxDoctors, plan.MaxReception, plan.MaxCashiers
 	return s, nil
 }
 
-// room returns an error when adding the given people would exceed the plan.
-func (s seats) room(addUsers, addDoctors int) *httpError {
-	if s.MaxUsers != nil && s.UsedUsers+addUsers > *s.MaxUsers {
-		e := fail(http.StatusConflict, "Tu plan "+s.PlanName+" ya usa todos sus lugares. Cambia de plan o desactiva a alguien.")
-		e.Code = "SEAT_LIMIT"
-		return e
+// roleSeat is the label, the limit and the use of the seats of a role (nil limit: not counted or unlimited).
+func (s seats) roleSeat(role string) (label string, max *int, used int) {
+	switch role {
+	case RoleDoctor:
+		return "especialistas", s.MaxDoctors, s.UsedDoctors
+	case RoleReception:
+		return "cuentas de recepción", s.MaxReception, s.UsedReception
+	case RoleCashier:
+		return "cuentas de caja", s.MaxCashiers, s.UsedCashiers
 	}
-	if s.MaxDoctors != nil && s.UsedDoctors+addDoctors > *s.MaxDoctors {
-		e := fail(http.StatusConflict, "Tu plan "+s.PlanName+" permite hasta "+itoa(*s.MaxDoctors)+" médicos o especialistas. Cambia de plan o desactiva a alguien.")
+	return "", nil, 0
+}
+
+// room returns an error when adding one account of the role would exceed the plan.
+func (s seats) room(role string) *httpError {
+	label, max, used := s.roleSeat(role)
+	if max != nil && used+1 > *max {
+		e := fail(http.StatusConflict, "Tu plan "+s.PlanName+" permite "+itoa(*max)+" "+label+" y ya las usas. Cambia de plan o desactiva a alguien.")
 		e.Code = "SEAT_LIMIT"
 		return e
 	}
 	return nil
+}
+
+// fitsPlan reports (empty when it fits) which accounts exceed the limits of another plan.
+func (s seats) fitsPlan(p Plan) string {
+	for _, c := range []struct {
+		role string
+		max  *int
+	}{{RoleDoctor, p.MaxDoctors}, {RoleReception, p.MaxReception}, {RoleCashier, p.MaxCashiers}} {
+		label, _, used := s.roleSeat(c.role)
+		if c.max != nil && used > *c.max {
+			return "hay " + itoa(used) + " " + label + " activas y el plan " + p.Name + " permite " + itoa(*c.max)
+		}
+	}
+	return ""
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
@@ -198,11 +226,7 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		doctors := 0
-		if req.Role == RoleDoctor {
-			doctors = 1
-		}
-		if he := st.room(1, doctors); he != nil {
+		if he := st.room(req.Role); he != nil {
 			return he
 		}
 		id, err := db.InsertUser(r.Context(), tx, db.UserParams{
@@ -275,12 +299,12 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 			if m.ID == p.UserID {
 				return fail(http.StatusBadRequest, "No puedes cambiar tu propio rol.")
 			}
-			if *req.Role == RoleDoctor && !m.Disabled {
+			if !m.Disabled {
 				st, err := seatUsage(r.Context(), tx, p.ClinicID)
 				if err != nil {
 					return err
 				}
-				if he := st.room(0, 1); he != nil {
+				if he := st.room(*req.Role); he != nil {
 					return he
 				}
 			}
@@ -476,11 +500,7 @@ func (s *Server) reactivateMember(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		doctors := 0
-		if m.Role == RoleDoctor {
-			doctors = 1
-		}
-		if he := st.room(1, doctors); he != nil {
+		if he := st.room(m.Role); he != nil {
 			return he
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE users SET disabled = false, disabled_at = NULL, token_version = token_version + 1 WHERE id = $1`, m.ID); err != nil {

@@ -27,7 +27,7 @@
       area: 'Nutrición',
       title: '*Nutrición*',
       text: 'De las medidas al menú de la semana, con el cálculo hecho por ti o con ayuda de IA.',
-      points: ['Plan nutricional de 7 días con calorías y macronutrientes', 'Genera el menú con IA y evita lo que el paciente no come', 'Seguimiento de peso y cita de seguimiento al guardar'],
+      points: ['Plan nutricional de 7 días con calorías y macronutrientes', 'Con IA (desde Crecimiento) genera el menú y evita lo que el paciente no come', 'Seguimiento de peso y cita de seguimiento al guardar'],
       bg: 'bg-panel ring-1 ring-ink/10',
       accent: 'text-mint'
     },

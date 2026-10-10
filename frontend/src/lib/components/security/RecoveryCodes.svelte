@@ -34,7 +34,7 @@
     frame.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0';
     const items = codes.map((c) => `<li>${c}</li>`).join('');
     frame.srcdoc = `<!doctype html><meta charset="utf-8"><title>Códigos de recuperación</title>
-      <style>body{font-family:system-ui,sans-serif;padding:24px}ul{columns:2;font:20px/2 ui-monospace,monospace;list-style:none;padding:0}</style>
+      <style>@page{size:letter;margin:0}body{font-family:system-ui,sans-serif;margin:0;padding:10mm}ul{columns:2;font:20px/2 ui-monospace,monospace;list-style:none;padding:0}</style>
       <h1>Caresia: códigos de recuperación</h1><p>Cada código sirve una sola vez. Guárdalos en un lugar seguro.</p><ul>${items}</ul>`;
     frame.onload = () => {
       frame.contentWindow?.print();

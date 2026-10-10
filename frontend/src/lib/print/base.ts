@@ -44,7 +44,8 @@ export function fieldValue(f: FieldDef, values: FieldValues | undefined): string
 
 export const CSS = `
 @page { size: letter; margin: 0; }
-.pg { width: 100%; border-collapse: collapse; } .pg > thead > tr > td { height: 14mm; padding: 0; } .pg > tfoot > tr > td { height: 18mm; padding: 0; } .pg > tbody > tr > td { padding: 0 14mm; vertical-align: top; }
+.pg { width: 100%; border-collapse: collapse; } /* The browser's own margins stay at 0 (that is what hides its date / title / address header and footer); the sheet's margins are made here, equal on the four sides and repeated on every page. */
+.pg > thead > tr > td { height: 10mm; padding: 0; } .pg > tfoot > tr > td { height: 10mm; padding: 0; } .pg > tbody > tr > td { padding: 0 10mm; vertical-align: top; }
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 body { margin: 0; color: #000; background: #fff; font: 12px/1.45 "Helvetica Neue", Arial, sans-serif; }

@@ -130,7 +130,7 @@
           <h1 class="display text-[2.4rem] leading-none sm:text-5xl">Tu <em class="italic text-app-primary">equipo</em></h1>
           <p class="mb-2 mt-3 text-[15px] text-app-muted">Agrega a quienes van a usar Caresia. Cada quien ve solo lo que le toca. Este paso es opcional: puedes hacerlo después en <strong class="font-semibold text-app-ink">Equipo</strong>.</p>
           {#if seats}
-            <p class="mb-5 text-sm text-app-muted">Plan {seats.plan_name}: {seats.used_users} de {seats.max_users ?? '∞'} cuentas{seats.max_doctors !== null ? ` · ${seats.used_doctors} de ${seats.max_doctors} médicos` : ''}.</p>
+            <p class="mb-5 text-sm text-app-muted">Plan {seats.plan_name}: {seats.used_doctors} de {seats.max_doctors ?? '∞'} especialistas · {seats.used_reception} de {seats.max_reception ?? '∞'} recepción · {seats.used_cashiers} de {seats.max_cashiers ?? '∞'} caja.</p>
           {/if}
 
           {#if added.length}

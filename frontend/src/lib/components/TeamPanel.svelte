@@ -126,24 +126,21 @@
 
 {#if seats}
   <section class="card mb-4 p-5 sm:p-6" aria-label="Lugares del plan">
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <div>
-        <h2 class="display text-2xl">Plan {seats.plan_name}</h2>
-        <p class="text-sm text-app-muted">
-          {seats.used_users} {seats.used_users === 1 ? 'persona entra' : 'personas entran'} a la app
-          {#if seats.max_doctors !== null}· {seats.used_doctors} de {seats.max_doctors} médicos o especialistas{/if}
-        </p>
-      </div>
-      <strong class="font-mono text-sm">{seats.max_users === null ? 'Sin límite de cuentas' : `${seats.used_users} de ${seats.max_users} cuentas`}</strong>
+    <h2 class="display text-2xl">Plan {seats.plan_name}</h2>
+    <p class="text-sm text-app-muted">{seats.used_users} {seats.used_users === 1 ? 'persona entra' : 'personas entran'} a la app. Las cuentas de administración no cuentan para el límite.{#if !session.cobros} Las cuentas de caja se usan en la sección de Cobros, que viene con el plan Crecimiento.{/if}</p>
+    <div class="mt-4 grid gap-4 sm:grid-cols-3">
+      {#each [{ label: 'Especialistas', used: seats.used_doctors, max: seats.max_doctors }, { label: 'Recepción', used: seats.used_reception, max: seats.max_reception }, { label: 'Caja', used: seats.used_cashiers, max: seats.max_cashiers }] as r}
+        <div>
+          <p class="flex items-baseline justify-between text-sm"><span class="font-medium">{r.label}</span><strong class="font-mono">{r.max === null ? `${r.used} · sin límite` : `${r.used} de ${r.max}`}</strong></p>
+          {#if r.max !== null}
+            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-app-ink/10" aria-hidden="true">
+              <div class="h-full rounded-full {pct(r.used, r.max) >= 100 ? 'bg-app-warning' : 'bg-app-primary'}" style="width: {pct(r.used, r.max)}%"></div>
+            </div>
+            {#if r.used >= r.max}<p class="mt-1 text-xs text-app-warning">Lugares llenos: desactiva a alguien o cambia de plan.</p>{/if}
+          {/if}
+        </div>
+      {/each}
     </div>
-    {#if seats.max_users !== null}
-      <div class="mt-3 h-2 overflow-hidden rounded-full bg-app-ink/10" aria-hidden="true">
-        <div class="h-full rounded-full {pct(seats.used_users, seats.max_users) >= 100 ? 'bg-app-warning' : 'bg-app-primary'}" style="width: {pct(seats.used_users, seats.max_users)}%"></div>
-      </div>
-      {#if seats.used_users >= seats.max_users}
-        <p class="mt-3 text-sm text-app-warning">Ya usas todos los lugares. Desactiva a alguien o pide un plan mayor para agregar más personas.</p>
-      {/if}
-    {/if}
   </section>
 {/if}
 

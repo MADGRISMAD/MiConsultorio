@@ -36,6 +36,11 @@ class SessionStore {
     return !!this.user?.billing?.cobros;
   }
 
+  /** The clinic's plan includes the AI assistant ("magia"): Crecimiento and Pro. */
+  get magic(): boolean {
+    return (this.user?.billing?.magic_uses ?? 0) > 0;
+  }
+
   /** Subscription blocks clinic data when not usable (platform staff are never blocked). */
   get locked(): boolean {
     return !!this.user?.billing && !this.user.billing.usable;

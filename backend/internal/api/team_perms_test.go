@@ -1,6 +1,10 @@
 package api_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/madgrismad/miconsultorio/backend/internal/config"
+)
 
 func TestPerPersonPermissions(t *testing.T) {
 	e := setup(t)
@@ -78,4 +82,21 @@ func TestPlanGates(t *testing.T) {
 	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, e.clinicA)
 	admin.expect(200, "PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{"adminHistorials"}})
 	admin.expect(200, "PATCH", "/api/team/"+rid, map[string]any{"permissions_extra": []string{}})
+}
+
+// Básico has no AI: the summary asks for a plan that includes it, and nothing is spent.
+func TestBasicHasNoMagic(t *testing.T) {
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "k", "m", "http://127.0.0.1:1"
+	})
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	doc.expect(201, "POST", "/api/patients/"+pid+"/encounters", map[string]any{"reason": "Control"})
+	e.exec(`UPDATE clinics SET plan = 'basico' WHERE id = $1`, e.clinicA)
+	if code, o := doc.do("POST", "/api/patients/"+pid+"/ai-summary", map[string]any{}); code != 403 || o["code"] != "PLAN_REQUIRED" {
+		t.Fatalf("no AI on Básico: %d %v", code, o)
+	}
+	if n := e.scalar(`SELECT count(*) FROM magic_usage`); n != 0 {
+		t.Fatalf("nothing spent: %v", n)
+	}
 }

@@ -457,7 +457,7 @@ func TestLastAdminCannotBeRemoved(t *testing.T) {
 
 func TestSeatLimits(t *testing.T) {
 	e := setup(t)
-	// A clinic on the Consultorio plan: 3 accounts, 1 doctor.
+	// A clinic on the Básico plan: 2 specialists, 1 front desk and 1 cash account (the administrator is not counted).
 	id, err := db.CreateClinic(context.Background(), e.pool, db.ClinicParams{
 		Name: "Chica", Plan: "basico", Status: "active",
 		AdminName: "Dueña", AdminEmail: "duena@chica.mx", AdminUsername: "duena", AdminPassword: pw,
@@ -468,23 +468,28 @@ func TestSeatLimits(t *testing.T) {
 	_ = id
 	admin := e.loginPw("duena", pw)
 	seats := sub(admin.expect(200, "GET", "/api/team", nil), "seats")
-	if seats["max_users"].(float64) != 3 || seats["max_doctors"].(float64) != 1 || seats["used_users"].(float64) != 1 {
+	if seats["max_doctors"].(float64) != 2 || seats["max_reception"].(float64) != 1 || seats["max_cashiers"].(float64) != 1 || seats["used_users"].(float64) != 1 {
 		t.Fatalf("seats: %v", seats)
 	}
 	doc := sub(admin.expect(201, "POST", "/api/team", member("Doctora Uno", "doc1", "doctor")), "person")["id"].(string)
-	out := admin.expect(409, "POST", "/api/team", member("Doctora Dos", "doc2", "doctor"))
-	if out["code"] != "SEAT_LIMIT" {
-		t.Fatalf("doctor limit: %v", out)
+	admin.expect(201, "POST", "/api/team", member("Doctora Dos", "doc2", "doctor"))
+	for _, c := range []struct{ name, user, role string }{{"Doctora Tres", "doc3", "doctor"}} {
+		if admin.expect(409, "POST", "/api/team", member(c.name, c.user, c.role))["code"] != "SEAT_LIMIT" {
+			t.Fatalf("limit of %s", c.role)
+		}
 	}
-	admin.expect(201, "POST", "/api/team", member("Recep", "recep1", "reception")) // third seat
-	if admin.expect(409, "POST", "/api/team", member("Cajero", "cash1", "cashier"))["code"] != "SEAT_LIMIT" {
-		t.Fatal("user limit")
+	admin.expect(201, "POST", "/api/team", member("Recep", "recep1", "reception"))
+	if admin.expect(409, "POST", "/api/team", member("Recep 2", "recep2", "reception"))["code"] != "SEAT_LIMIT" {
+		t.Fatal("front desk limit")
+	}
+	admin.expect(201, "POST", "/api/team", member("Cajero", "cash1", "cashier"))
+	if admin.expect(409, "POST", "/api/team", member("Cajero 2", "cash2", "cashier"))["code"] != "SEAT_LIMIT" {
+		t.Fatal("cash limit")
 	}
 	// freeing a seat frees the room, and reactivating needs room again
 	admin.expect(204, "POST", "/api/team/"+doc+"/deactivate", nil)
-	cash := sub(admin.expect(201, "POST", "/api/team", member("Cajero", "cash1", "cashier")), "person")["id"].(string)
+	admin.expect(201, "POST", "/api/team", member("Doctora Tres", "doc3", "doctor"))
 	admin.expect(409, "POST", "/api/team/"+doc+"/reactivate", nil)
-	_ = cash
 }
 
 // ---------------------------------------------------------------------------
@@ -585,6 +590,7 @@ func TestPlatformPanel(t *testing.T) {
 	root.expect(404, "PATCH", "/api/platform/clinics/00000000-0000-0000-0000-000000000000", map[string]any{"name": "Nadie"})
 
 	// downgrading below the accounts in use is refused until they free seats
+	e.exec(`UPDATE users SET role = 'doctor' WHERE clinic_id = $1 AND username IN ('recep_a', 'cash_a')`, e.clinicA)
 	root.expect(409, "PATCH", "/api/platform/clinics/"+e.clinicA, map[string]any{"plan": "basico"})
 
 	// payments extend the period and show up in the detail

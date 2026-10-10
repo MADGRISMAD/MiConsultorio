@@ -348,18 +348,13 @@ func (s *Server) billingCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The new plan must fit the people already on the account.
-	var users, doctors int
-	if err := s.db.QueryRow(r.Context(), `
-		SELECT count(*), count(*) FILTER (WHERE role = 'doctor') FROM users WHERE clinic_id = $1 AND NOT disabled`, p.ClinicID).Scan(&users, &doctors); err != nil {
+	st, err := seatUsage(r.Context(), s.db, p.ClinicID)
+	if err != nil {
 		serverError(w, r, err)
 		return
 	}
-	if offer.MaxUsers != nil && users > *offer.MaxUsers {
-		writeError(w, http.StatusConflict, "Tienes "+itoa(users)+" cuentas activas y el plan "+offer.Name+" permite "+itoa(*offer.MaxUsers)+". Desactiva cuentas primero.")
-		return
-	}
-	if offer.MaxDoctors != nil && doctors > *offer.MaxDoctors {
-		writeError(w, http.StatusConflict, "Tienes "+itoa(doctors)+" médicos activos y el plan "+offer.Name+" permite "+itoa(*offer.MaxDoctors)+". Desactiva cuentas primero.")
+	if msg := st.fitsPlan(offer.Plan); msg != "" {
+		writeError(w, http.StatusConflict, "No se puede cambiar a ese plan: "+msg+". Desactiva cuentas primero.")
 		return
 	}
 

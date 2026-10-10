@@ -3,6 +3,7 @@
   import { Op } from '$lib/op.svelte';
   import { dateTime } from '$lib/format';
   import type { ConsultSummaryResult } from '$lib/types/rx';
+  import { session } from '$lib/session.svelte';
   import OpError from '../../ui/OpError.svelte';
   import Icon from '../../ui/Icon.svelte';
 
@@ -26,7 +27,7 @@
   );
 </script>
 
-{#if hasNotes}
+{#if hasNotes && session.magic}
   <section class="card p-5 sm:p-6" aria-labelledby="ai-sum-h">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>

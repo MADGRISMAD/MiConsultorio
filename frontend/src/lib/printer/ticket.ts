@@ -232,7 +232,9 @@ export function cartaHtml(sale: Sale, s: PosSettings): string {
   const total = (l: string, v: string, b = false) => `<tr class="${b ? 'b' : ''}"><td>${l}</td><td class="r">${v}</td></tr>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante #${sale.folio}</title>
 <style>
-@page { size: letter; margin: 18mm; }
+@page { size: letter; margin: 0; }
+.pgx, .pgx > thead > tr > td, .pgx > tbody > tr > td, .pgx > tfoot > tr > td { margin: 0; border: 0; background: none; }
+.pgx { width: 100%; } .pgx > thead > tr > td, .pgx > tfoot > tr > td { height: 10mm; padding: 0; } .pgx > tbody > tr > td { padding: 0 10mm; }
 * { box-sizing: border-box; }
 body { font: 13px/1.45 Arial, Helvetica, sans-serif; color: #000; margin: 0; }
 h1 { font-size: 22px; margin: 0 0 2px; } .s { font-size: 11px; color: #444; }
@@ -244,7 +246,7 @@ td { padding: 5px 8px; border: 1px solid #bbb; vertical-align: top; }
 .r { text-align: right; white-space: nowrap; } th.r { text-align: right; }
 .tot { width: 55%; margin-left: auto; } .tot td { border: 0; padding: 3px 8px; } .b td { font-weight: 700; font-size: 15px; border-top: 2px solid #000; }
 .foot { margin-top: 26px; font-size: 11px; color: #333; text-align: center; border-top: 1px solid #999; padding-top: 8px; }
-</style></head><body>
+</style></head><body><table class="pgx"><thead><tr><td></td></tr></thead><tbody><tr><td>
 <div class="head">
   <div><h1>${esc(s.business_name || 'Mi consultorio')}</h1>
     ${s.legal_name && s.legal_name !== s.business_name ? `<div>${esc(s.legal_name)}</div>` : ''}
@@ -264,7 +266,7 @@ ${total('Total', peso(sale.total_cents), true)}
 </tbody></table>
 ${pays ? `<table class="tot"><tbody><tr><td colspan="2"><strong>Forma de pago</strong></td></tr>${pays}${(sale.balance_cents ?? 0) > 0 ? total('Saldo pendiente', peso(sale.balance_cents ?? 0), true) : ''}</tbody></table>` : ''}
 <div class="foot">${s.ticket_footer ? esc(s.ticket_footer).replace(/\n/g, '<br>') + '<br>' : ''}Este documento es un comprobante de pago y no sustituye a una factura (CFDI).</div>
-</body></html>`;
+</td></tr></tbody><tfoot><tr><td></td></tr></tfoot></table></body></html>`;
 }
 
 /** The return note (nota de devolución) for the browser's print dialog, in the same ticket style. */

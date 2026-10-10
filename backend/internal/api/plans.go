@@ -12,15 +12,17 @@ const (
 )
 
 // Plan limits. nil means unlimited. They mirror the landing page:
-// Básico = 1 professional + 1 front desk (agenda and records); Crecimiento = up to 5 professionals
-// and collections (cobros); Pro = no limits.
+// Básico = 2 specialists, 1 front desk, 1 cash account, no AI (agenda and records); Crecimiento = 5 specialists,
+// 2 front desk, 2 cash accounts, collections (cobros) and AI; Pro = unlimited accounts for now, 500 AI uses.
 type Plan struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	PriceMonth  int    `json:"price_month"` // MXN, 0 = custom
-	MaxUsers    *int   `json:"max_users"`
-	MaxDoctors  *int   `json:"max_doctors"`
-	Description string `json:"description"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	PriceMonth int    `json:"price_month"` // MXN, 0 = custom
+	// Seats per kind of account (nil: no limit). Administrators are not counted.
+	MaxDoctors   *int   `json:"max_doctors"`   // specialists
+	MaxReception *int   `json:"max_reception"` // front desk
+	MaxCashiers  *int   `json:"max_cashiers"`  // cash register
+	Description  string `json:"description"`
 	// Cobros is true when the plan includes the collections section (point of sale, cash register, ...).
 	Cobros bool `json:"cobros"`
 	// MagicUses is the monthly allowance of AI actions (magic inventory and pricing).
@@ -45,11 +47,11 @@ func (p Plan) StorageBytes() int64 { return int64(p.StorageGB) << 30 }
 func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
-	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxUsers: ptr(3), MaxDoctors: ptr(1), Description: "Agenda, expedientes y equipo: 1 profesional, 1 recepción y el administrador", Cobros: false, MagicUses: 150, MaxBranches: 1,
+	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxDoctors: ptr(2), MaxReception: ptr(1), MaxCashiers: ptr(1), Description: "Agenda y expedientes: 2 especialistas, 1 recepción y 1 caja, sin asistente de IA", Cobros: false, MagicUses: 0, MaxBranches: 1,
 		MaxKinds: ptr(1), StorageGB: 2, WhatsApp: false, Permissions: false, Support: "correo"},
-	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxUsers: nil, MaxDoctors: ptr(5), Description: "Hasta 5 profesionales, recepción ilimitada y sección de cobros", Cobros: true, MagicUses: 250, MaxBranches: 3,
+	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 1199, MaxDoctors: ptr(5), MaxReception: ptr(2), MaxCashiers: ptr(2), Description: "5 especialistas, 2 recepciones, 2 cajas, cobros y asistente de IA", Cobros: true, MagicUses: 250, MaxBranches: 3,
 		MaxKinds: ptr(3), StorageGB: 20, WhatsApp: true, Permissions: true, Support: "prioritario"},
-	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxUsers: nil, MaxDoctors: nil, Description: "Sin límites, cobros incluidos, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10,
+	{ID: "pro", Name: "Pro", PriceMonth: 0, MaxDoctors: nil, MaxReception: nil, MaxCashiers: nil, Description: "Cuentas sin límite por ahora, cobros incluidos y 500 usos de IA, a medida", Cobros: true, MagicUses: 500, MaxBranches: 10,
 		MaxKinds: nil, StorageGB: 100, WhatsApp: true, Permissions: true, Support: "dedicado"},
 }
 
@@ -121,6 +123,7 @@ type billingInfo struct {
 	CurrentPeriodEnd *time.Time `json:"current_period_end"`
 	SuspendedReason  string     `json:"suspended_reason"`
 	Cobros           bool       `json:"cobros"`
+	MagicUses        int        `json:"magic_uses"`
 }
 
 func (b Billing) info(now time.Time) billingInfo {
@@ -128,7 +131,7 @@ func (b Billing) info(now time.Time) billingInfo {
 	return billingInfo{
 		Plan: b.Plan, PlanName: p.Name, State: b.State(now), Usable: b.Usable(now),
 		TrialEndsAt: b.TrialEndsAt, TrialDaysLeft: b.TrialDaysLeft(now),
-		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros,
+		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros, MagicUses: p.MagicUses,
 	}
 }
 

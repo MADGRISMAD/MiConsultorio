@@ -24,7 +24,7 @@ func magicMonth() string { return time.Now().Format("2006-01") }
 func (s *Server) spendMagic(ctx context.Context, p *Principal) error {
 	plan, _ := planByID(p.Billing.Plan)
 	if plan.MagicUses == 0 {
-		return fail(http.StatusForbidden, "Tu plan no incluye usos de magia.")
+		return planRequired("El asistente de IA (magia) viene con los planes Crecimiento y Pro.")
 	}
 	var used int
 	err := s.db.QueryRow(ctx, `

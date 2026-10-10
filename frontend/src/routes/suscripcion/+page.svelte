@@ -120,7 +120,7 @@
     paying = '';
   }
 
-  const limit = (n: number | null, one: string, many: string) => (n === null ? `${many} ilimitados` : n === 1 ? `1 ${one}` : `Hasta ${n} ${many}`);
+  const limit = (n: number | null, one: string, many: string) => (n === null ? `${many} sin límite` : n === 1 ? `1 ${one}` : `Hasta ${n} ${many}`);
   const CK: Record<CheckoutRow['status'], { label: string; tone: 'warn' | 'ok' | 'bad' | 'muted' }> = {
     pending: { label: 'Pendiente', tone: 'warn' },
     paid: { label: 'Pagado', tone: 'ok' },
@@ -223,14 +223,14 @@
             {/if}
           </div>
           <ul class="mt-5 grid flex-1 content-start gap-2 text-sm">
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'profesional', 'profesionales')}</li>
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_users, 'usuario', 'usuarios')}</li>
+            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'especialista', 'especialistas')}</li>
+            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'cuenta de recepción', 'cuentas de recepción')} · {limit(o.max_cashiers, 'caja', 'cajas')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja e inventario' : 'Sin sección de cobros'}</li>
             <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_kinds, 'giro', 'giros')} · {limit(o.max_branches, 'sucursal', 'sucursales')}</li>
             <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja, inventario y facturación' : 'Sin sección de cobros'}</li>
             <li class="flex gap-2 {o.whatsapp ? '' : 'text-app-muted'}"><Icon name={o.whatsapp ? 'check' : 'x'} size={16} />{o.whatsapp ? 'Recordatorios por WhatsApp' : 'Recordatorios solo por correo'}</li>
             <li class="flex gap-2 {o.permissions ? '' : 'text-app-muted'}"><Icon name={o.permissions ? 'check' : 'x'} size={16} />{o.permissions ? 'Permisos por persona' : 'Permisos por rol'}</li>
-            <li class="flex gap-2"><Icon name="sparkles" size={16} />{o.magic_uses} usos de magia (IA) al mes</li>
+            <li class="flex gap-2 {o.magic_uses ? '' : 'text-app-muted'}"><Icon name={o.magic_uses ? 'sparkles' : 'x'} size={16} />{o.magic_uses ? `${o.magic_uses} usos de magia (IA) al mes` : 'Sin asistente de IA'}</li>
             <li class="flex gap-2"><Icon name="check" size={16} />{o.storage_gb} GB de archivos · soporte {o.support === 'correo' ? 'por correo' : o.support}</li>
           </ul>
           <div class="mt-6">

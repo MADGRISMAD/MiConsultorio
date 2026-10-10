@@ -188,7 +188,7 @@
           {#if seats}
             <div>
               <dt class="section-title">Cuentas del plan</dt>
-              <dd class="mt-1">{seatLine(seats.max_users, seats.used_users)} · médicos {seatLine(seats.max_doctors, seats.used_doctors)}</dd>
+              <dd class="mt-1">especialistas {seatLine(seats.max_doctors, seats.used_doctors)} · recepción {seatLine(seats.max_reception, seats.used_reception)} · caja {seatLine(seats.max_cashiers, seats.used_cashiers)}</dd>
             </div>
           {/if}
         </dl>

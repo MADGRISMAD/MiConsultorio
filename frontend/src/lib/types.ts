@@ -49,6 +49,7 @@ export interface Billing {
   suspended_reason: string;
   /** the plan includes the collections (cobros) section */
   cobros: boolean;
+  magic_uses: number;
 }
 
 /** Data printed on recetas and notes (cédula profesional, school, title). */
@@ -105,18 +106,22 @@ export interface Person {
 export interface Seats {
   plan: string;
   plan_name: string;
-  max_users: number | null;
   max_doctors: number | null;
+  max_reception: number | null;
+  max_cashiers: number | null;
   used_users: number;
   used_doctors: number;
+  used_reception: number;
+  used_cashiers: number;
 }
 
 export interface Plan {
   id: string;
   name: string;
   price_month: number;
-  max_users: number | null;
   max_doctors: number | null;
+  max_reception: number | null;
+  max_cashiers: number | null;
   description: string;
   cobros: boolean;
   magic_uses: number;

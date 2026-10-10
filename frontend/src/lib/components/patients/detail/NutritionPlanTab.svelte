@@ -455,16 +455,20 @@
         <p class="hint">{patient.age != null ? `${patient.age} años · ${patient.sex || 'sexo sin registrar'}` : 'El paciente no tiene fecha de nacimiento registrada.'}.</p>
         {#if gError}<Alert class="mt-3">{gError}</Alert>{/if}
         <OpError op={aiOp} class="mt-3" />
+        {#if session.magic}
         <p class="hint">La IA usa la edad, el sexo, el peso y los antecedentes alimentarios del paciente; no se envía su nombre. Tarda unos segundos. Siempre revísalo antes de guardarlo.</p>
         <p class="mt-2 note" role="note"><strong>Generar la semana completa usa 1 uso de magia</strong> de tu plan. Cada cambio de una comida, snack o día con IA, después, usa <strong>1 uso más</strong>.</p>
+        {:else}
+        <p class="mt-2 note" role="note"><Icon name="sparkles" size={14} /> El asistente de IA viene con los planes Crecimiento y Pro. Con tu plan puedes calcular las calorías y armar el menú a mano.</p>
+        {/if}
         <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="btn-primary" disabled={aiOp.phase === 'loading'} onclick={generateAI}>{#if aiOp.phase === 'loading'}<span class="spin"></span>Armando la semana…{:else}<Icon name="sparkles" size={18} />Generar semana con IA{/if}</button>
-          <button type="button" class="btn-secondary" disabled={aiOp.phase === 'loading'} onclick={generate}>Calcular y armar a mano</button>
+          {#if session.magic}<button type="button" class="btn-primary" disabled={aiOp.phase === 'loading'} onclick={generateAI}>{#if aiOp.phase === 'loading'}<span class="spin"></span>Armando la semana…{:else}<Icon name="sparkles" size={18} />Generar semana con IA{/if}</button>{/if}
+          <button type="button" class="{session.magic ? 'btn-secondary' : 'btn-primary'}" disabled={aiOp.phase === 'loading'} onclick={generate}>Calcular y armar a mano</button>
           <button type="button" class="btn-ghost" onclick={() => (gOpen = false)}>Llenar a mano</button>
         </div>
       </section>
     {:else if !readonly}
-      <button type="button" class="btn-secondary mb-4" onclick={openGenerator}><Icon name="sparkles" size={18} />Recalcular o generar con IA</button>
+      <button type="button" class="btn-secondary mb-4" onclick={openGenerator}><Icon name="sparkles" size={18} />{session.magic ? 'Recalcular o generar con IA' : 'Recalcular calorías'}</button>
     {/if}
 
     <section class="card p-4 sm:p-5">
@@ -505,11 +509,11 @@
         <h3 class="display text-xl">{shown.days.length > 1 ? 'Alimentación semanal' : 'Menú del día'}</h3>
         {#if shown.kcal}<p class="text-sm text-app-muted">Meta: {shown.kcal} kcal al día</p>{/if}
       </div>
-      {#if !readonly && shown.days.length > 0}
+      {#if !readonly && shown.days.length > 0 && session.magic}
         <p class="mt-2 note" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa. Si falla, el uso se devuelve.</p>
       {/if}
       {#if shown.days.length === 0 || cols.length === 0}
-        <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : 'Usa «Generar semana con IA» o «Calcular y armar a mano».'}</p>
+        <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : session.magic ? 'Usa «Generar semana con IA» o «Calcular y armar a mano».' : 'Usa «Calcular y armar a mano».'}</p>
       {/if}
 
       {#snippet cell(di: number, mi: number)}
@@ -517,7 +521,7 @@
         {#if m}
           <textarea class="field min-h-[5.5rem] !px-2.5 !py-2 text-[13px] leading-snug [field-sizing:content]" rows="4" maxlength="1200" readonly={readonly} value={m.items} aria-label="{shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { items: e.currentTarget.value })} placeholder={readonly ? '' : 'Alimentos y porciones'}></textarea>
           <label class="mt-1 flex items-center gap-1 text-[11px] text-app-muted"><input class="w-14 rounded-md border border-app-ink/15 bg-app-panel px-1.5 py-0.5 text-right text-[11px] text-app-ink" inputmode="numeric" readonly={readonly} value={m.kcal || ''} aria-label="Calorías de {shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { kcal: Math.round(num(e.currentTarget.value)) })} />kcal</label>
-          {#if !readonly}
+          {#if !readonly && session.magic}
             <div class="mt-1 flex items-center gap-2">
               <button type="button" class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-app-primary hover:bg-app-primary/10 disabled:opacity-60" disabled={fragBusy !== ''} title="Cambiar esta comida por otra distinta (usa 1 uso de magia)" onclick={() => swapFrag(di, mi)}>
                 {#if fragBusy === `${di}-${mi}`}<span class="spin"></span>{:else}<Icon name="refresh" size={13} />{/if}Cambiar
@@ -552,7 +556,7 @@
             <tbody>
               {#each shown.days as d, di}
                 <tr class="border-t border-app-ink/10">
-                  <th scope="row" class="px-2 py-2 text-left align-top text-sm font-semibold">{d.name}{#if !readonly}<button type="button" class="mt-1 flex items-center gap-1 text-[11px] font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>{#if fragBusy === `${di}-day`}<span class="spin"></span>{:else}<Icon name="refresh" size={12} />{/if}Cambiar día</button>{/if}</th>
+                  <th scope="row" class="px-2 py-2 text-left align-top text-sm font-semibold">{d.name}{#if !readonly && session.magic}<button type="button" class="mt-1 flex items-center gap-1 text-[11px] font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>{#if fragBusy === `${di}-day`}<span class="spin"></span>{:else}<Icon name="refresh" size={12} />{/if}Cambiar día</button>{/if}</th>
                   {#each cols as _, ci}<td class="border-l border-app-ink/10 p-1.5 align-top">{@render cell(di, ci)}</td>{/each}
                   <td class="border-l border-app-ink/10 px-1.5 py-2 text-center align-top text-xs {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'font-semibold text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</td>
                 </tr>
@@ -564,7 +568,7 @@
         <ul class="mt-3 grid gap-3">
           {#each shown.days as d, di}
             <li class="rounded-xl border border-app-ink/10 p-3">
-              <p class="flex items-baseline justify-between gap-2 font-semibold">{d.name}{#if !readonly}<button type="button" class="text-xs font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>Cambiar día</button>{/if}<span class="text-xs font-normal {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</span></p>
+              <p class="flex items-baseline justify-between gap-2 font-semibold">{d.name}{#if !readonly && session.magic}<button type="button" class="text-xs font-medium text-app-primary hover:underline" disabled={fragBusy !== ''} onclick={() => swapFrag(di, null)}>Cambiar día</button>{/if}<span class="text-xs font-normal {shown.kcal && Math.abs(dayTotal(d) - shown.kcal) > shown.kcal * 0.1 ? 'text-app-warning' : 'text-app-muted'}">{dayTotal(d)} kcal</span></p>
               <div class="mt-2 grid gap-2.5">
                 {#each cols as c, ci}
                   <div><p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-app-muted">{c}</p>{@render cell(di, ci)}</div>
