@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { session } from '$lib/session.svelte';
   import { publicOrigin } from '$lib/site';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -160,7 +161,7 @@
       <p class="hint mb-3 !mt-0">Solo se envían a pacientes que aceptaron recibir recordatorios y que tienen correo o teléfono.</p>
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="flex cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.remind_email} />Por correo</label>
-        <label class="flex cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.remind_whatsapp} />Por WhatsApp</label>
+        <label class="flex cursor-pointer items-center gap-3 text-sm font-medium {session.whatsapp || s.remind_whatsapp ? '' : 'opacity-60'}"><input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.remind_whatsapp} disabled={!session.whatsapp && !s.remind_whatsapp} />Por WhatsApp{#if !session.whatsapp} <span class="badge">Desde Crecimiento</span>{/if}</label>
         <div class="sm:col-span-2">
           <label class="label" for="ag-hours">Cuántas horas antes de la cita</label>
           <input id="ag-hours" type="text" class="field" bind:value={hoursText} inputmode="numeric" placeholder="24, 2" />

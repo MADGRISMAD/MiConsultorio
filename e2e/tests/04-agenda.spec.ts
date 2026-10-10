@@ -5,7 +5,7 @@ test('una cita que choca con otra avisa del conflicto', async ({ page }) => {
   const id = uid();
   const date = futureWeekday(7);
   await page.goto('/admin/admin-citas');
-  await expect(page.getByRole('heading', { name: 'Administrar citas' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible();
 
   const book = async (names: string) => {
     await page.getByRole('button', { name: 'Nueva cita' }).first().click();

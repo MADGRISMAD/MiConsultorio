@@ -183,7 +183,7 @@
             </select>
             <div class="flex gap-1">
               {#if p.role === 'doctor' && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Áreas de atención" aria-label="Áreas de {p.name}" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
-              {#if p.role !== 'admin'}<button type="button" class="icon-btn" title="Permisos" aria-label="Permisos de {p.name}" onclick={() => (permsFor = p)}><Icon name="shield" size={18} /></button>{/if}
+              {#if p.role !== 'admin' && (session.personPermissions || (p.permissions_extra?.length ?? 0) + (p.permissions_denied?.length ?? 0) > 0)}<button type="button" class="icon-btn" title="Permisos" aria-label="Permisos de {p.name}" onclick={() => (permsFor = p)}><Icon name="shield" size={18} /></button>{/if}
               <button type="button" class="icon-btn" title="Restablecer contraseña" aria-label="Restablecer la contraseña de {p.name}" onclick={() => { newPassword = ''; pwOp.reset(); pwFor = p; }}><Icon name="key" size={18} /></button>
               <button type="button" class="icon-btn danger" title="Desactivar" aria-label="Desactivar a {p.name}" onclick={() => { toggleOp.reset(); toggle = { person: p, disable: true }; }}><Icon name="ban" size={18} /></button>
             </div>

@@ -62,7 +62,7 @@ func (s *Server) orgOverview(w http.ResponseWriter, r *http.Request) {
 				serverError(w, r, err)
 				return
 			}
-			out["can_create"] = first == p.UserID && !inOrg
+			out["can_create"] = first == p.UserID && !inOrg && plan.MaxBranches > 1
 		}
 		writeJSON(w, http.StatusOK, out)
 		return

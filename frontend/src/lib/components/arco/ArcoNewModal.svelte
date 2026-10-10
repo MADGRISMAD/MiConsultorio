@@ -8,7 +8,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import { KINDS, KIND_LABEL } from './labels';
 
-  let { open, onclose, oncreated }: { open: boolean; onclose: () => void; oncreated: (r: ArcoRequest) => void } = $props();
+  let { open, onclose, oncreated, patient = null }: { open: boolean; onclose: () => void; oncreated: (r: ArcoRequest) => void; patient?: { id: string; name: string; email: string; phone: string } | null } = $props();
 
   const today = () => new Date().toLocaleDateString('en-CA');
   const blank = (): ArcoNewInput => ({ kind: 'acceso', requester_name: '', requester_email: '', requester_phone: '', description: '', patient_id: '', received_on: today() });
@@ -18,6 +18,7 @@
   $effect(() => {
     if (open) {
       form = blank();
+      if (patient) Object.assign(form, { patient_id: patient.id, requester_name: patient.name, requester_email: patient.email, requester_phone: patient.phone });
       op.reset();
     }
   });

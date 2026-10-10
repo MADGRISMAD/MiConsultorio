@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
+  import { AGENDA_TABS } from '$lib/components/nav/tabs';
   import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy, onMount } from 'svelte';
@@ -75,6 +77,7 @@
 <svelte:head><title>En proceso · Caresia</title></svelte:head>
 
 <Guard title="En proceso" permissions={['navAppointments', 'adminAppointments']}>
+  <SectionTabs tabs={AGENDA_TABS} label="Agenda" />
   <PageHeader title="En proceso" subtitle="Quién está en el consultorio ahora: en espera y en consulta. Se actualiza solo." />
 
   {#if ld.error}<Alert class="mb-4">{ld.error}</Alert>{/if}

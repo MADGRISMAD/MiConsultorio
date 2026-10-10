@@ -48,3 +48,6 @@ export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   return dateTime(iso);
 }
+
+/** A request that was fully carried out: answered and, when it was granted, executed. */
+export const arcoDone = (r: ArcoRequest) => r.status === 'atendida' && !r.pending_execute;

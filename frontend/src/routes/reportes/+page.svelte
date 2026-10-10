@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
+  import { REPORT_TABS } from '$lib/components/nav/tabs';
   import Guard from '$lib/components/Guard.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
@@ -12,6 +14,7 @@
 <svelte:head><title>Reportes · Caresia</title></svelte:head>
 
 <Guard title="Reportes" permissions={['adminUsers', 'navHistorials']}>
+  <SectionTabs tabs={REPORT_TABS} label="Reportes" />
   <PageHeader title="Reportes" subtitle="Cómo va la operación del consultorio y quiénes son tus pacientes.">
     {#snippet actions()}
       {#if session.has('posReports') && session.cobros}

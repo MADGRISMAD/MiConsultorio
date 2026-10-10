@@ -256,7 +256,7 @@
   const listSorted = $derived([...appts].sort((a, b) => (a.date + a.startHour).localeCompare(b.date + b.startHour)));
 </script>
 
-<PageHeader title={admin ? 'Administrar citas' : 'Citas'} subtitle={admin ? 'Crea, reprograma y cancela citas. Arrastra una cita para moverla.' : 'Consulta la agenda del consultorio.'}>
+<PageHeader title="Agenda" subtitle={canEdit ? 'Crea, reprograma y cancela citas. Arrastra una cita para moverla.' : 'Consulta la agenda del consultorio.'}>
   {#snippet actions()}
     {#if canEdit || ownProId}
       <button type="button" class="btn-secondary" onclick={() => { busyPreset = null; blockOpen = true; }}><Icon name="ban" size={18} />{ownProId ? 'Marcar no disponible' : myProId ? 'No atiendo / bloquear' : 'Bloquear horario'}</button>

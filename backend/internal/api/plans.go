@@ -124,6 +124,10 @@ type billingInfo struct {
 	SuspendedReason  string     `json:"suspended_reason"`
 	Cobros           bool       `json:"cobros"`
 	MagicUses        int        `json:"magic_uses"`
+	MaxBranches      int        `json:"max_branches"`
+	MaxKinds         *int       `json:"max_kinds"`
+	WhatsApp         bool       `json:"whatsapp"`
+	Permissions      bool       `json:"permissions"`
 }
 
 func (b Billing) info(now time.Time) billingInfo {
@@ -132,6 +136,7 @@ func (b Billing) info(now time.Time) billingInfo {
 		Plan: b.Plan, PlanName: p.Name, State: b.State(now), Usable: b.Usable(now),
 		TrialEndsAt: b.TrialEndsAt, TrialDaysLeft: b.TrialDaysLeft(now),
 		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros, MagicUses: p.MagicUses,
+		MaxBranches: p.MaxBranches, MaxKinds: p.MaxKinds, WhatsApp: p.WhatsApp, Permissions: p.Permissions,
 	}
 }
 

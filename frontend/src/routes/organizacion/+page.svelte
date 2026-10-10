@@ -56,7 +56,7 @@
 
 <svelte:head><title>Sucursales · Caresia</title></svelte:head>
 
-<Guard title="Sucursales" permissions={['adminUsers']}>
+<Guard title="Sucursales" permissions={['adminUsers']} branches>
   <PageHeader title="Sucursales" subtitle="Todas tus sucursales, con sus reportes juntos. Cada una conserva sus pacientes, agenda, inventario y caja por separado.">
     {#snippet actions()}
       {#if ov?.can_create}

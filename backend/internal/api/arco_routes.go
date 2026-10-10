@@ -98,12 +98,14 @@ func (s *Server) arcoList(w http.ResponseWriter, r *http.Request) {
 	}
 	// "vencida" is a derived state: the stored status keeps what the request really is.
 	qs := r.URL.Query()
-	status, kind, deadline := qs.Get("status"), qs.Get("kind"), qs.Get("deadline")
+	status, kind, deadline, patient := qs.Get("status"), qs.Get("kind"), qs.Get("deadline"), qs.Get("patient")
 	needle := strings.ToLower(strings.TrimSpace(qs.Get("q")))
 	out := make([]arcoRequest, 0, len(all))
 	for _, a := range all {
 		switch {
 		case kind != "" && a.Kind != kind:
+			continue
+		case patient != "" && (a.PatientID == nil || *a.PatientID != patient):
 			continue
 		case status == "abiertas" && !a.Open && !a.PendingExecute:
 			continue

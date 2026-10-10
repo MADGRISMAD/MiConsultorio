@@ -50,6 +50,10 @@ export interface Billing {
   /** the plan includes the collections (cobros) section */
   cobros: boolean;
   magic_uses: number;
+  max_branches: number;
+  max_kinds: number | null;
+  whatsapp: boolean;
+  permissions: boolean;
 }
 
 /** Data printed on recetas and notes (cédula profesional, school, title). */

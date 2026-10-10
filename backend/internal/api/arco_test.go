@@ -195,6 +195,13 @@ func TestArcoCancellationKeepsRecord(t *testing.T) {
 
 	// An access request links the existing export.
 	acc := sub(admin.expect(201, "POST", "/api/arco/", arcoStaff(map[string]any{"patient_id": pid})), "request")["id"].(string)
+	// the patient's own list (their profile): only theirs
+	if mine := admin.expect(200, "GET", "/api/arco/?patient="+pid+"&status=", nil)["requests"].([]any); len(mine) < 2 {
+		t.Fatalf("patient filter: %d", len(mine))
+	}
+	if none := admin.expect(200, "GET", "/api/arco/?patient=00000000-0000-0000-0000-000000000000", nil)["requests"].([]any); len(none) != 0 {
+		t.Fatalf("another patient: %d", len(none))
+	}
 	pk := sub(admin.expect(200, "GET", "/api/arco/"+acc+"/package", nil), "package")
 	if pk["export_path"] != "/patients/"+pid+"/export" {
 		t.Fatalf("export link: %v", pk)

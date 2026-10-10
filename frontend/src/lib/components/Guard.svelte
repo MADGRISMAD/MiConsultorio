@@ -18,9 +18,11 @@
     allowLocked?: boolean;
     /** Needs a plan that includes cobros (Crecimiento or Pro). */
     cobros?: boolean;
+    /** Needs a plan with branches (Pro). */
+    branches?: boolean;
     children: Snippet;
   }
-  let { permissions, roles, title, allowLocked = false, cobros = false, children }: Props = $props();
+  let { permissions, roles, title, allowLocked = false, cobros = false, branches = false, children }: Props = $props();
 
   const allowed = $derived(
     roles ? (session.user ? roles.includes(session.user.role) : false) : permissions ? permissions.some((p) => session.has(p)) : true
@@ -44,6 +46,12 @@
     {:else if cobros && !session.cobros}
       <div class="card mx-auto mt-10 max-w-md">
         <EmptyState icon="lock" title="Cobros no está en tu plan" text="La sección de cobros (punto de venta, caja, inventario y más) viene con los planes Crecimiento y Pro. Pide el cambio de plan a tu administrador de Caresia.">
+          <a href={session.home} class="btn-primary">Volver al inicio</a>
+        </EmptyState>
+      </div>
+    {:else if branches && !session.branches}
+      <div class="card mx-auto mt-10 max-w-md">
+        <EmptyState icon="lock" title="Sucursales no está en tu plan" text="Varias sucursales bajo la misma cuenta vienen con el plan Pro. Puedes cambiar de plan en Ajustes › Suscripción y plan.">
           <a href={session.home} class="btn-primary">Volver al inicio</a>
         </EmptyState>
       </div>

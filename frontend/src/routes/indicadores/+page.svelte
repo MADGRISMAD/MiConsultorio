@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
+  import { REPORT_TABS } from '$lib/components/nav/tabs';
   import Guard from '$lib/components/Guard.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
@@ -52,6 +54,7 @@
 <svelte:head><title>Indicadores · Caresia</title></svelte:head>
 
 <Guard title="Indicadores" permissions={['adminUsers']}>
+  <SectionTabs tabs={REPORT_TABS} label="Reportes" />
   <PageHeader title="Indicadores" subtitle="Cómo va tu consultorio frente al periodo anterior de la misma duración." />
   <div class="mb-6"><RangeBar bind:from bind:to bind:preset /></div>
 

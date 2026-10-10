@@ -55,6 +55,7 @@
       items: [
         { id: 'negocio', label: 'Datos del consultorio', desc: 'Nombre, teléfono, dirección, giro, especialidades y horario de atención', icon: 'building', show: admin },
         { id: 'equipo', to: '/equipo', label: 'Equipo', desc: 'Agregar personal, qué puede ver y hacer cada quien', icon: 'users', show: admin },
+        { id: 'sucursales', to: '/organizacion', label: 'Sucursales', desc: 'Varias clínicas bajo la misma cuenta, con sus reportes juntos', icon: 'building', show: () => admin() && session.branches },
         { id: 'plan', to: '/suscripcion', label: 'Suscripción y plan', desc: 'Tu plan de Caresia, cuánto pagas y tus facturas', icon: 'sparkles', show: () => session.has(PERMISSIONS.adminUsers) }
       ]
     },
@@ -73,7 +74,7 @@
         { id: 'ticket', label: 'Datos fiscales y ticket', desc: 'RFC, domicilio fiscal y lo que dice tu ticket de venta', icon: 'receipt', show: cobros },
         { id: 'ventas', label: 'Ventas y pagos', desc: 'IVA, descuentos y formas de pago (efectivo, tarjeta, transferencia)', icon: 'cash', show: cobros },
         { id: 'terminal', label: 'Cobro con tarjeta (Mercado Pago)', desc: 'Conecta tu cuenta de Mercado Pago y tu terminal Point', icon: 'wallet', show: cobros },
-        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Cuánto gana cada profesional por sus servicios y ventas', icon: 'users', show: cobros },
+        { id: 'comisiones', to: '/pos/comisiones', label: 'Comisiones', desc: 'Cuánto gana cada profesional por sus servicios y ventas', icon: 'users', show: () => admin() && session.cobros },
         { id: 'impresora', label: 'Impresora de tickets', desc: 'Elegir la impresora: térmica USB, Bluetooth o la de tu computadora', icon: 'receipt', show: cobros }
       ]
     },
@@ -81,6 +82,7 @@
       title: 'Seguridad y legal',
       items: [
         { id: 'seguridad', label: 'Seguridad', desc: 'Código extra al iniciar sesión (verificación en dos pasos) para el equipo', icon: 'lock', show: admin },
+        { id: 'arco', to: '/arco-solicitudes', label: 'Solicitudes ARCO (bandeja)', desc: 'Lo que llega del formulario público. Cada solicitud también queda en el expediente del paciente', icon: 'shield', show: admin },
         { id: 'cumplimiento', label: 'Aviso de privacidad y datos legales', desc: 'Responsable sanitario, aviso de privacidad, derechos ARCO y pendientes de cumplimiento', icon: 'shield', show: admin }
       ]
     },

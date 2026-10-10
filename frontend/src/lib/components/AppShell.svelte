@@ -27,47 +27,24 @@
     soon?: boolean;
     /** only on plans that include cobros */
     cobros?: boolean;
+    /** other path prefixes that keep the item highlighted */
+    also?: string[];
   }
   interface NavGroup {
     title: string;
     items: NavItem[];
   }
 
+  // One short list. Agenda, Cobros and Reportes open with their own tabs; team, plan, branches and commissions live in Ajustes.
   const clinicGroups: NavGroup[] = [
     {
       title: 'Consultorio',
       items: [
         { label: 'Inicio', href: '/', icon: 'home' },
-        { label: 'Citas', href: '/admin/navegar-citas', icon: 'calendar', perms: [PERMISSIONS.navAppointments] },
-        { label: 'En proceso', href: '/en-proceso', icon: 'users', perms: [PERMISSIONS.navAppointments] },
-        { label: 'Lista de espera', href: '/agenda/espera', icon: 'clock-plus', perms: [PERMISSIONS.navAppointments] },
-        { label: 'Avisos', href: '/avisos', icon: 'bell', perms: [PERMISSIONS.navAppointments, PERMISSIONS.pos, PERMISSIONS.posManage] },
+        { label: 'Agenda', href: '/admin/navegar-citas', match: '/admin/', icon: 'calendar', perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments], also: ['/en-proceso', '/agenda'] },
         { label: 'Pacientes', href: '/pacientes', icon: 'folder', perms: [PERMISSIONS.navHistorials, PERMISSIONS.adminHistorials] },
-        { label: 'Indicadores', href: '/indicadores', icon: 'activity', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Reportes clínicos', href: '/reportes', icon: 'chart', perms: [PERMISSIONS.adminUsers, PERMISSIONS.navHistorials] }
-      ]
-    },
-    {
-      title: 'Administración',
-      items: [
-        { label: 'Administrar citas', href: '/admin/admin-citas', icon: 'calendar', perms: [PERMISSIONS.adminAppointments] },
-        { label: 'Equipo', href: '/equipo', icon: 'users', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Sucursales', href: '/organizacion', icon: 'building', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Solicitudes ARCO', href: '/arco-solicitudes', icon: 'shield', perms: [PERMISSIONS.adminUsers] },
-        { label: 'Suscripción y plan', href: '/suscripcion', icon: 'sparkles', perms: [PERMISSIONS.adminUsers] }
-      ]
-    },
-    {
-      title: 'Cobros',
-      items: [
-        { label: 'Punto de venta', href: '/pos/cobros', icon: 'cash', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Caja', href: '/pos/caja', icon: 'wallet', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Servicios y precios', href: '/pos/servicios', icon: 'tag', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Inventario', href: '/pos/inventario', icon: 'box', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Facturación', href: '/pos/facturacion', icon: 'receipt', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Cuentas por cobrar', href: '/pos/cuentas', icon: 'wallet', perms: [PERMISSIONS.pos], cobros: true },
-        { label: 'Comisiones', href: '/pos/comisiones', icon: 'users', perms: [PERMISSIONS.posManage], cobros: true },
-        { label: 'Reportes de ventas', href: '/pos/reportes', icon: 'chart', perms: [PERMISSIONS.posReports], cobros: true }
+        { label: 'Cobros', href: '/pos/cobros', match: '/pos', icon: 'cash', perms: [PERMISSIONS.pos], cobros: true },
+        { label: 'Reportes', href: '/reportes', icon: 'chart', perms: [PERMISSIONS.adminUsers, PERMISSIONS.navHistorials], also: ['/indicadores'] }
       ]
     }
   ];
@@ -144,7 +121,7 @@
               <li>
                 <a
                   href={item.href}
-                  aria-current={isActive(item.match ?? item.href.split('?')[0]) ? 'page' : undefined}
+                  aria-current={isActive(item.match ?? item.href.split('?')[0]) || (item.also ?? []).some(isActive) ? 'page' : undefined}
                   class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink aria-[current=page]:bg-app-primary/10 aria-[current=page]:text-app-primary"
                 >
                   <Icon name={item.icon} size={20} />

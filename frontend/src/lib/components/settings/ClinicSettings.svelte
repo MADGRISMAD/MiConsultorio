@@ -68,6 +68,9 @@
     <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); if (giroChanged) { kindOp.reset(); confirmGiro = true; } else void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
       <h2 class="display mb-5 text-3xl">Giro y especialidades</h2>
       <SpecialtyPicker bind:kind bind:specialties />
+      {#if session.user?.billing?.max_kinds != null}
+        <p class="hint mt-2">Tu plan {session.user.billing.plan_name} permite hasta {session.user.billing.max_kinds} {session.user.billing.max_kinds === 1 ? 'giro' : 'giros'} ({newGiros.length} elegido{newGiros.length === 1 ? '' : 's'}).{#if newGiros.length > session.user.billing.max_kinds} <strong class="text-app-warning">Para guardar necesitas quitar giros o cambiar de plan.</strong>{/if}</p>
+      {/if}
       <OpError op={kindOp} class="mt-4" />
       <div class="mt-5"><button type="submit" class="btn-primary" disabled={kindOp.phase === 'loading'}>Guardar giro</button></div>
     </form>

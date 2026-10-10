@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
+  import { AGENDA_TABS } from '$lib/components/nav/tabs';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
@@ -103,6 +105,7 @@
 <svelte:head><title>Lista de espera · Caresia</title></svelte:head>
 
 <Guard title="Lista de espera" permissions={['navAppointments', 'adminAppointments']}>
+  <SectionTabs tabs={AGENDA_TABS} label="Agenda" />
   <PageHeader title="Lista de espera" subtitle="Quienes esperan un lugar. Cuando se libera uno que les acomoda, el primero de la fila recibe la oferta por correo.">
     {#snippet actions()}
       <a href="/admin/navegar-citas" class="btn-secondary"><Icon name="calendar" size={18} />Agenda</a>

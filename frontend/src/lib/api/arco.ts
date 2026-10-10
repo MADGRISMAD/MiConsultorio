@@ -16,6 +16,8 @@ export interface ArcoFilters {
   kind?: string;
   q?: string;
   deadline?: string;
+  /** only the requests of this patient */
+  patient?: string;
 }
 
 const one = (r: { request: ArcoRequest }) => r.request;
