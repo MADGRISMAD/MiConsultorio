@@ -80,6 +80,8 @@ export interface Professional {
   slot_minutes: number;
   hours: HoursMap;
   color: string;
+  /** giros this person works in; empty means all of the clinic's */
+  areas?: string[];
 }
 
 export interface ProfessionalInput {

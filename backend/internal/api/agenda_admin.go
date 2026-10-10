@@ -37,6 +37,7 @@ type professional struct {
 	SlotMinutes int                    `json:"slot_minutes"`
 	Hours       map[string][][2]string `json:"hours"`
 	Color       string                 `json:"color"`
+	Areas       []string               `json:"areas"` // giros this person works in; empty: all of the clinic's
 }
 
 func (s *Server) listProfessionals(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +53,7 @@ func (s *Server) listProfessionals(w http.ResponseWriter, r *http.Request) {
 func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]professional, error) {
 	rows, err := s.db.Query(r.Context(), `
 		SELECT u.id::text, u.name, u.role, u.specialty_title, coalesce(ps.bookable, false), coalesce(ps.consults, true), coalesce(ps.video_url, ''),
-		       coalesce(ps.slot_minutes, ags.slot_minutes, 30), coalesce(ps.hours, '{}'::jsonb), coalesce(ps.color, '')
+		       coalesce(ps.slot_minutes, ags.slot_minutes, 30), coalesce(ps.hours, '{}'::jsonb), coalesce(ps.color, ''), coalesce(u.areas, '{}')
 		FROM users u
 		LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		LEFT JOIN agenda_settings ags ON ags.clinic_id = u.clinic_id
@@ -66,8 +67,11 @@ func (s *Server) loadProfessionals(r *http.Request, clinicID, onlyID string) ([]
 	for rows.Next() {
 		var pr professional
 		var raw []byte
-		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.Consults, &pr.VideoURL, &pr.SlotMinutes, &raw, &pr.Color); err != nil {
+		if err := rows.Scan(&pr.ID, &pr.Name, &pr.Role, &pr.Specialty, &pr.Bookable, &pr.Consults, &pr.VideoURL, &pr.SlotMinutes, &raw, &pr.Color, &pr.Areas); err != nil {
 			return nil, err
+		}
+		if pr.Areas == nil {
+			pr.Areas = []string{}
 		}
 		pr.Hours = map[string][][2]string{}
 		_ = json.Unmarshal(raw, &pr.Hours)

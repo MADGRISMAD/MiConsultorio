@@ -491,6 +491,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 
 	var apptID string
 	taken, tooManyOpen := false, false
+	var sameArea error
 	err = inTx(ctx, b.db, func(tx pgx.Tx) error {
 		// One booking at a time per professional and day: the check and the insert are atomic.
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+c.ID+"|"+pro.ID+"|"+req.Date); err != nil {
@@ -522,6 +523,14 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if open >= 3 {
 			tooManyOpen = true
+			return nil
+		}
+		linkedID := ""
+		if linked != nil {
+			linkedID = linked.ID
+		}
+		if err := b.openInSameArea(ctx, tx, c.ID, linkedID, req.Email, phone, &pro.ID, ""); err != nil {
+			sameArea = err
 			return nil
 		}
 		var svc any
@@ -570,6 +579,9 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	case taken:
 		writeError(w, http.StatusConflict, "Ese horario ya no está disponible. Elige otro.")
+		return
+	case sameArea != nil:
+		writeFailure(w, r, sameArea)
 		return
 	case tooManyOpen:
 		writeError(w, http.StatusConflict, "Ya tienes varias citas próximas con estos datos. Para agendar otra, comunícate con el consultorio.")

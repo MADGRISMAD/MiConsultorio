@@ -333,6 +333,9 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		if err := s.checkSlot(r.Context(), tx, p.ClinicID, &f, ""); err != nil {
 			return err
 		}
+		if err := s.openInSameArea(r.Context(), tx, p.ClinicID, deref(f.PatientID), f.Email, f.Phone, f.ProfessionalID, ""); err != nil {
+			return err
+		}
 		id := newRowID()
 		sealed, err := encField("appointments", "details", id, f.Details)
 		if err != nil {
@@ -409,6 +412,9 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 			deref(cur.ProfessionalID) == deref(f.ProfessionalID)
 		if !sameSlot {
 			if err := s.checkSlot(r.Context(), tx, p.ClinicID, &f, id); err != nil {
+				return err
+			}
+			if err := s.openInSameArea(r.Context(), tx, p.ClinicID, deref(f.PatientID), f.Email, f.Phone, f.ProfessionalID, id); err != nil {
 				return err
 			}
 		}

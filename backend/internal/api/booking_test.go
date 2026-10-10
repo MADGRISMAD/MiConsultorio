@@ -248,6 +248,7 @@ func TestBookingRateLimitPerContact(t *testing.T) {
 	b := newBookingEnv(t, false)
 	anon := b.anon()
 	for i, st := range []string{"10:00", "10:30", "11:00"} {
+		b.exec(`UPDATE appointments SET status = 'cancelled'`) // one open visit per giro
 		if code, out := b.book(anon, st, "mismo@x.mx", ""); code != 201 {
 			t.Fatalf("booking %d: %d %v", i, code, out)
 		}
@@ -518,8 +519,11 @@ func TestRemindersRespectConsentAndStatus(t *testing.T) {
 
 	// opt-out: no consent anywhere, pending reminders deleted, other upcoming visits of the contact too
 	_, o1 := b.book(anon, "13:00", "baja@x.mx", "")
+	t1 := b.token(o1)
+	b.exec(`UPDATE appointments SET professional_id = NULL WHERE confirm_token = $1`, t1) // no giro: does not count as open in the same one
 	_, o2 := b.book(anon, "13:30", "baja@x.mx", "")
-	t1, t2 := b.token(o1), b.token(o2)
+	b.exec(`UPDATE appointments SET professional_id = $2 WHERE confirm_token = $1`, t1, b.pro)
+	t2 := b.token(o2)
 	anon.expect(200, "POST", "/api/public/appointments/"+t1+"/optout", nil)
 	if len(b.reminderRows(t1)) != 0 || len(b.reminderRows(t2)) != 0 {
 		t.Fatalf("opt-out must drop reminders: %v %v", b.reminderRows(t1), b.reminderRows(t2))

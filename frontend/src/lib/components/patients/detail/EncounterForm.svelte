@@ -61,6 +61,7 @@
   let isPrivate = $state(false);
   let followDate = $state('');
   let followTime = $state('');
+  let followPro = $state('');
   let error = $state('');
   /** services and supplies of this consultation, saved as a pre-account once the note exists */
   let chargeLines = $state<ChargeDraftLine[]>([]);
@@ -83,7 +84,7 @@
       codes = [];
       codeDraft = codeError = error = '';
       isPrivate = false;
-      followDate = followTime = '';
+      followDate = followTime = followPro = '';
       chargeLines = [];
       sendToCash = true;
       op.reset();
@@ -132,8 +133,8 @@
 
   async function saveFollowUp() {
     try {
-      const a = await specialtyApi.followUp(patient.id, { date: followDate, start_hour: followTime || undefined, reason: reason.trim() });
-      toast.show(`Cita de seguimiento agendada el ${a.date} a las ${a.startHour} (por confirmar)`);
+      const a = await specialtyApi.followUp(patient.id, { date: followDate, start_hour: followTime || undefined, reason: reason.trim(), professional_id: followPro || undefined });
+      toast.show(`${followPro ? 'Derivación' : 'Cita de seguimiento'} agendada el ${a.date} a las ${a.startHour} (por confirmar)`);
     } catch (e) {
       toast.show(`La nota quedó guardada, pero la cita de seguimiento no: ${e instanceof Error ? e.message : 'inténtalo de nuevo'}`, 'error');
     }
@@ -249,7 +250,7 @@
       {/if}
     </fieldset>
 
-    <FollowUpField bind:date={followDate} bind:time={followTime} id="enc-follow" />
+    <FollowUpField bind:date={followDate} bind:time={followTime} bind:professionalId={followPro} id="enc-follow" />
 
     <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-app-ink/10 bg-app-elevated/60 p-4">
       <input type="checkbox" class="mt-1 h-5 w-5 accent-[rgb(var(--app-primary))]" bind:checked={isPrivate} />

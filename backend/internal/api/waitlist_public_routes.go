@@ -435,6 +435,9 @@ func (s *Server) wlAccept(ctx context.Context, token string, v *wlView, clinicID
 		if code != SlotFree {
 			return release("cancelled", "Ese horario ya no está disponible. Seguirás en la lista por si se libera otro.")
 		}
+		if err := s.openInSameArea(ctx, tx, clinicID, deref(patient), email, phone, &proID, ""); err != nil {
+			return release("cancelled", "Ya tienes una cita pendiente en esta especialidad. Reprograma o cancela esa para tomar este lugar.")
+		}
 		names, last := name, ""
 		if i := strings.Index(name, " "); i > 0 {
 			names, last = name[:i], strings.TrimSpace(name[i+1:])

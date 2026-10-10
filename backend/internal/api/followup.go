@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// A professional of any giro can recommend the next visit; it lands in the agenda as pending confirmation
+// A professional of any giro can recommend the next visit (with themselves, or with someone else of the team: a referral); it lands in the agenda as pending confirmation
 // (status "scheduled"), for the front desk to confirm with the patient.
 
 type followUpIn struct {
@@ -75,6 +75,20 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
+	// With someone else of the team it is a referral (a general physician sending the patient to physiotherapy):
+	// it says who sent it, the other person is told, and the record becomes visible in their giro.
+	referral := f.ProfessionalID != nil && *f.ProfessionalID != p.UserID
+	var targetAreas []string
+	if referral {
+		var consults bool
+		if err := s.db.QueryRow(r.Context(), `
+			SELECT coalesce(ps.consults, true), coalesce(u.areas, '{}') FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
+			WHERE u.clinic_id = $1 AND u.id = $2 AND NOT u.disabled AND u.role IN ('admin', 'doctor')`, p.ClinicID, *f.ProfessionalID).Scan(&consults, &targetAreas); err != nil || !consults {
+			writeError(w, http.StatusBadRequest, "Esa persona del equipo no atiende pacientes.")
+			return
+		}
+		f.Details = "Derivado por " + p.Name + map[bool]string{true: ": " + in.Reason, false: ""}[in.Reason != ""]
+	}
 
 	var out appointment
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
@@ -94,6 +108,9 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 		if msg := f.validate(); msg != "" {
 			return fail(http.StatusBadRequest, msg)
 		}
+		if err := s.openInSameArea(r.Context(), tx, p.ClinicID, pid, "", "", f.ProfessionalID, ""); err != nil {
+			return err
+		}
 		id := newRowID()
 		sealed, err := encField("appointments", "details", id, f.Details)
 		if err != nil {
@@ -112,7 +129,21 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 		if err := s.scheduleReminders(r.Context(), tx, p.ClinicID, id); err != nil {
 			return err
 		}
-		audit(r.Context(), tx, p.ClinicID, p, "appointment_create", "Recomendó una cita de seguimiento (por confirmar)", map[string]any{"appointment": id, "date": f.Date, "start": f.StartHour, "recommended": true})
+		msg := "Recomendó una cita de seguimiento (por confirmar)"
+		if referral {
+			msg = "Derivó al paciente a otro profesional del equipo (por confirmar)"
+			if len(targetAreas) > 0 {
+				// the record has to be visible in the giro that will see the patient
+				if _, err := tx.Exec(r.Context(), `
+					UPDATE patients SET kinds = (SELECT array_agg(DISTINCT x) FROM unnest(kinds || $3::text[]) x) WHERE clinic_id = $1 AND id = $2 AND cardinality(kinds) > 0`,
+					p.ClinicID, pid, targetAreas); err != nil {
+					return err
+				}
+			}
+			s.notify(r.Context(), tx, p.ClinicID, ntfNotice{UserID: *f.ProfessionalID, Kind: "referral", Title: p.Name + " te derivó un paciente",
+				Body: names + " " + last + " · " + f.Date + " " + f.StartHour + map[bool]string{true: " · " + in.Reason, false: ""}[in.Reason != ""], Link: "/pacientes/" + pid})
+		}
+		audit(r.Context(), tx, p.ClinicID, p, "appointment_create", msg, map[string]any{"appointment": id, "date": f.Date, "start": f.StartHour, "recommended": true, "referral": referral})
 		return nil
 	})
 	if err != nil {

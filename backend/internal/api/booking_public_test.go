@@ -124,6 +124,7 @@ func TestBookingMailsTheSpecialist(t *testing.T) {
 	b := newBookingEnv(t, false)
 	post := func(start string) {
 		t.Helper()
+		b.exec(`UPDATE appointments SET status = 'cancelled'`) // one open visit per giro: the previous one is out of the way
 		b.anon().expect(201, "POST", "/api/public/booking/"+b.slugA+"/appointments", map[string]any{"professional_id": b.pro, "date": b.date, "start": start,
 			"names": "Ana", "last_names": "López", "phone": "5512345678", "reason": "Dolor privado", "accept_privacy": true})
 	}
@@ -166,6 +167,7 @@ func TestRegisteredPatientBooksWithTheirProfessional(t *testing.T) {
 	if st, _ := book(other, "10:30"); st != 409 {
 		t.Fatalf("a patient in treatment books only with their professional: %d", st)
 	}
+	b.exec(`UPDATE appointments SET status = 'cancelled'`) // one open visit per giro
 	if st, body := book(b.pro, "11:00"); st != 201 {
 		t.Fatalf("their own professional: %d %v", st, body)
 	}

@@ -35,7 +35,7 @@ export const specialtyApi = {
     request<{ chart: PatientChart }>('POST', `${p(patientId)}/charts`, { kind, data, note }).then((r) => r.chart),
 
   /** a recommended next visit: lands in the agenda pending confirmation */
-  followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string }) =>
+  followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string; professional_id?: string }) =>
     request<{ appointment: { id: string; date: string; startHour: string } }>('POST', `${p(patientId)}/follow-up`, body).then((r) => r.appointment),
   /** Changes one meal (or a whole day) of the menu with the AI, looking at the rest of the week. Nothing is saved. */
   nutritionFragment: (patientId: string, body: { days: NutritionDay[]; day: number; meal?: number; dislike: string; request: string; dislikes: string }) =>
