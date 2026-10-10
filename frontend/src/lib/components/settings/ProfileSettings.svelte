@@ -11,6 +11,16 @@
   import Stars from '../ui/Stars.svelte';
   import ProfileMedia from './ProfileMedia.svelte';
 
+  interface Props {
+    /** Qué parte se ve: la página y sus fotos, el directorio, o las opiniones (Google Maps, encuesta y respuestas). */
+    tab?: 'pagina' | 'directorio' | 'opiniones';
+    /** Dirección definida en «Reservas» que aún no se ha recargado aquí. */
+    slugOverride?: string;
+    onstate?: (v: { enabled: boolean; listed: boolean; survey: boolean }) => void;
+    goto?: (tab: string) => void;
+  }
+  let { tab = 'pagina', slugOverride = '', onstate, goto }: Props = $props();
+
   let p = $state<ClinicProfile | null>(null);
   let slug = $state('');
   let reviewUrl = $state('');
@@ -63,7 +73,11 @@
     }
   });
 
-  const link = $derived(slug ? `${publicOrigin()}/${slug}` : '');
+  const mySlug = $derived(slugOverride || slug);
+  const link = $derived(mySlug ? `${publicOrigin()}/${mySlug}` : '');
+  $effect(() => {
+    if (p) onstate?.({ enabled: p.enabled, listed: p.listed, survey: p.survey_enabled });
+  });
 
   async function save(e: SubmitEvent) {
     e.preventDefault();
@@ -76,24 +90,26 @@
 </script>
 
 <section aria-labelledby="pf-set">
-  <h3 id="pf-set" class="section-title mb-3">Página pública del consultorio</h3>
+  <h3 id="pf-set" class="sr-only">Página pública, directorio y opiniones</h3>
   {#if loadError}
     <Alert>{loadError}</Alert>
   {:else if !p}
     <LoadingRows />
   {:else}
     <form id="pf-form" onsubmit={save} class="grid gap-5">
+      <div class="grid gap-5 {tab !== 'pagina' ? '!hidden' : ''}">
       <p class="text-sm text-app-muted">
         Una página para que tus pacientes te encuentren: qué ofreces, tu equipo, dónde estás y la opinión de quienes ya se atendieron. Comparte el enlace en Instagram, WhatsApp o Google.
       </p>
-      <label class="flex cursor-pointer items-center gap-3 text-sm font-medium">
-        <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.enabled} />
-        Publicar la página del consultorio
+      <label class="flex cursor-pointer items-start gap-3 rounded-2xl p-4 ring-1 ring-app-ink/12 {p.enabled ? 'bg-app-accent/8' : ''}">
+        <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.enabled} disabled={!mySlug} />
+        <span>
+          <span class="font-medium">Publicar la página del consultorio</span>
+          <span class="block text-sm text-app-muted">{#if !mySlug}Necesita tu dirección en línea.{:else if p.enabled}Publicada: <a class="break-all font-medium text-app-primary underline" href={link} target="_blank" rel="noopener">{link}</a>{:else}Sin publicar: nadie puede verla todavía.{/if}</span>
+        </span>
       </label>
-      {#if !slug}
-        <p class="note">Para publicarla, primero define la dirección de reserva en línea en «Agenda y reservas»: la página usa la misma dirección.</p>
-      {:else if p.enabled}
-        <p class="text-sm">Dirección: <a class="break-all font-medium text-app-primary underline" href={link} target="_blank" rel="noopener">{link}</a></p>
+      {#if !mySlug}
+        <p class="note">Primero escribe tu dirección en línea. <button type="button" class="font-medium underline" onclick={() => goto?.('reservas')}>Ir a «Reservas»</button></p>
       {/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
@@ -125,6 +141,9 @@
         </div>
       </div>
 
+      </div>
+
+      <div class="grid gap-5 {tab !== 'directorio' ? '!hidden' : ''}">
       <div class="rounded-2xl bg-app-primary/6 p-4">
         <p class="section-title mb-2">Directorio de Caresia</p>
         <p class="mb-3 text-sm text-app-muted">Aparece en el buscador de Caresia, donde los pacientes encuentran especialistas por especialidad y ciudad, ven tus precios, tus opiniones verificadas y tu próximo horario libre, y agendan.</p>
@@ -132,6 +151,7 @@
           <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.listed} disabled={!p.enabled} />
           Aparecer en el directorio{#if !p.enabled}<span class="font-normal text-app-muted">(primero publica tu página)</span>{/if}
         </label>
+        {#if !p.enabled}<p class="mt-2 text-sm"><button type="button" class="font-medium text-app-primary underline" onclick={() => goto?.('pagina')}>Ir a publicar mi página</button></p>{/if}
         {#if p.listed}<p class="mt-1 text-sm">Míralo en <a class="font-medium text-app-primary underline" href="{publicOrigin()}/directorio" target="_blank" rel="noopener">{publicOrigin()}/directorio</a></p>{/if}
         <div class="mt-3 grid gap-4 sm:grid-cols-3">
           <div>
@@ -179,6 +199,9 @@
         </fieldset>
       </div>
 
+      </div>
+
+      <div class="grid gap-5 {tab !== 'opiniones' ? '!hidden' : ''}">
       <div class="rounded-2xl bg-app-primary/6 p-4">
         <p class="section-title mb-2">Google Maps</p>
         <p class="mb-3 text-sm text-app-muted">Si tu consultorio ya aparece en Google Maps, conecta tu ficha para invitar a tus pacientes satisfechos a dejarte una reseña.</p>
@@ -218,13 +241,14 @@
           Mostrar la calificación y los comentarios autorizados en la página pública
         </label>
       </div>
+      </div>
 
     </form>
 
-    <ProfileMedia />
+    <div hidden={tab !== 'pagina'}><ProfileMedia /></div>
 
     {#if results}
-      <div class="mt-8">
+      <div class="mt-8 {tab !== 'opiniones' ? '!hidden' : ''}">
         <h3 class="section-title mb-3">Opiniones de pacientes</h3>
         {#if results.stats.count === 0}
           <p class="text-sm text-app-muted">Aún no hay respuestas. {results.sent ? `Se han enviado ${results.sent} encuesta${results.sent === 1 ? '' : 's'}.` : ''}</p>

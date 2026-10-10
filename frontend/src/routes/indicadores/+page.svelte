@@ -83,7 +83,7 @@
           <p class="display mt-1 text-3xl">{c.satisfaction_avg.toFixed(1)} <span class="align-middle"><Stars value={c.satisfaction_avg} size={16} /></span></p>
           <p class="mt-1 text-xs text-app-muted">{c.satisfaction_responses} respuesta{c.satisfaction_responses === 1 ? '' : 's'}{p.satisfaction_responses > 0 ? ` · antes ${p.satisfaction_avg.toFixed(1)}` : ''}</p>
         {:else}
-          <p class="mt-1 text-sm text-app-muted">Sin respuestas todavía. Activa la encuesta en <a class="underline" href="/ajustes?s=perfil">Ajustes › Página pública y encuesta</a>.</p>
+          <p class="mt-1 text-sm text-app-muted">Sin respuestas todavía. Activa la encuesta en <a class="underline" href="/ajustes?s=enlinea&t=opiniones">Ajustes › Reservas y página pública › Opiniones</a>.</p>
         {/if}
       </div>
     </div>
