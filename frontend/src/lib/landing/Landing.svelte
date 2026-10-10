@@ -11,6 +11,7 @@
   import Modules from './Modules.svelte';
   import Nav from './Nav.svelte';
   import Pricing from './Pricing.svelte';
+  import Security from './Security.svelte';
   import Specialties from './Specialties.svelte';
   import Steps from './Steps.svelte';
   import { theme } from '$lib/theme.svelte';
@@ -39,6 +40,7 @@
   <Modules />
   <Marquee />
   <Specialties />
+  <Security />
   <Steps />
   <div class="relative z-10 -mt-9 rounded-t-[36px] bg-paper">
     <Pricing />

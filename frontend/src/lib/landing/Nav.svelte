@@ -11,6 +11,7 @@
     ['#funciones', 'Funciones'],
     ['#incluye', 'Todo incluido'],
     ['#especialidades', 'Especialidades'],
+    ['#seguridad', 'Seguridad'],
     ['#precios', 'Precios'],
     ['#preguntas', 'Preguntas']
   ];
