@@ -148,6 +148,7 @@ type surveyPublic struct {
 func (s *Server) mountPublicSurvey(r chi.Router) {
 	p := &surveyPublic{Server: s, reads: newRateLimiter(300, 10*time.Minute), badTok: newRateLimiter(15, 15*time.Minute), writes: newRateLimiter(30, 10*time.Minute)}
 	r.Get("/public/clinic/{slug}", p.profile)
+	r.Get("/public/clinic/{slug}/media/{id}", p.mediaPublic)
 	r.Get("/public/survey/{token}", p.view)
 	r.Post("/public/survey/{token}", p.answer)
 }
@@ -304,4 +305,9 @@ func (s *Server) mountProfile(r chi.Router) {
 	r.With(admin).Get("/clinic/profile", s.getProfile)
 	r.With(admin).Put("/clinic/profile", s.updateClinicProfile)
 	r.With(admin).Get("/clinic/surveys", s.surveySummary)
+	r.With(admin).Get("/clinic/media", s.mediaOverview)
+	r.With(admin).Post("/clinic/media", s.mediaUpload)
+	r.With(admin).Get("/clinic/media/{id}", s.mediaOwn)
+	r.With(admin).Delete("/clinic/media/{id}", s.mediaDelete)
+	r.With(admin).Put("/clinic/profile/professionals/{id}", s.setProHidden)
 }

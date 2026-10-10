@@ -16,7 +16,7 @@ export const plans = [
     blurb: 'Ordena tu consultorio: agenda, expedientes y recordatorios en un solo lugar, para ti y tu pequeño equipo.',
     includes: '',
     features: [
-      '2 especialistas, 1 recepcionista y 1 cajero (más el administrador)',
+      '2 especialistas y 1 recepcionista (más el administrador)',
       '2 giros y 1 sucursal',
       'Agenda ilimitada, reserva en línea y recordatorios por correo',
       'Expedientes, recetas y herramientas de tu especialidad',

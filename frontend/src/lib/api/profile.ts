@@ -6,6 +6,7 @@ export interface ClinicProfile {
   about: string;
   hours_text: string;
   whatsapp: string;
+  contact_email: string;
   website: string;
   maps_url: string;
   google_place_id: string;
@@ -33,14 +34,19 @@ export interface PublicClinic {
   address: string;
   phone: string;
   areas: string[];
-  professionals: { name: string; title: string }[];
+  professionals: { name: string; title: string; photo_url: string }[];
   tagline: string;
   about: string;
   hours_text: string;
   whatsapp: string;
+  email: string;
   website: string;
   maps_url: string;
   review_url: string;
+  kinds: string[];
+  profile_url: string;
+  cover_url: string;
+  gallery: string[];
   booking_url: string;
   slug: string;
   rating?: SurveyStats;
@@ -68,4 +74,22 @@ export interface CalendarFeed {
 export const calendarApi = {
   get: () => request<CalendarFeed>('GET', '/me/calendar'),
   set: (action: 'enable' | 'rotate' | 'disable', show_names: boolean) => request<CalendarFeed>('POST', '/me/calendar', { action, show_names })
+};
+
+export interface MediaOverview {
+  profile: string | null;
+  cover: string | null;
+  gallery: string[];
+  max_gallery: number;
+  professionals: { id: string; name: string; title: string; photo: string | null; hidden: boolean; active: boolean }[];
+}
+
+export const mediaApi = {
+  overview: () => request<MediaOverview>('GET', '/clinic/media'),
+  upload: (slot: 'profile' | 'cover' | 'gallery' | 'pro', image: string, userId = '') =>
+    request<{ id: string }>('POST', '/clinic/media', { slot, image, ...(userId ? { user_id: userId } : {}) }),
+  remove: (id: string) => request<{ ok: boolean }>('DELETE', `/clinic/media/${seg(id)}`),
+  setHidden: (userId: string, hidden: boolean) => request<{ ok: boolean }>('PUT', `/clinic/profile/professionals/${seg(userId)}`, { hidden }),
+  /** the editor's own preview of a photo (works before the page is published) */
+  url: (id: string) => `/api/clinic/media/${seg(id)}`
 };

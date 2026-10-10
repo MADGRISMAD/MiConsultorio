@@ -146,7 +146,32 @@
     paying = '';
   }
 
-  const limit = (n: number | null, one: string, many: string) => (n === null ? `${many} sin límite` : n === 1 ? `1 ${one}` : `Hasta ${n} ${many}`);
+  const limit = (n: number | null, one: string, many: string) => (n === null ? `${many[0].toUpperCase()}${many.slice(1)} sin límite` : n === 1 ? `1 ${one}` : `Hasta ${n} ${many}`);
+  const plain = (n: number | null, one: string, many: string) => (n === null ? `${many} sin límite` : n === 1 ? `1 ${one}` : `${n} ${many}`);
+
+  /** What each card lists: the team, the clinic, and the benefits the plan brings (each thing once). */
+  function features(o: PlanOffer): { text: string; on: boolean; icon?: 'sparkles' }[] {
+    const team = [plain(o.max_doctors, 'especialista', 'especialistas'), plain(o.max_reception, 'recepcionista', 'recepcionistas')];
+    if (o.max_cashiers !== 0) team.push(plain(o.max_cashiers, 'cajero', 'cajeros'));
+    return [
+      { text: `${team.join(' · ')}${o.max_doctors === null ? '' : ' (más el administrador)'}`, on: true },
+      { text: `${plain(o.max_kinds, 'giro', 'giros')} · ${plain(o.max_branches, 'sucursal', 'sucursales')}`, on: true },
+      { text: 'Agenda, reserva en línea y recordatorios por correo', on: true },
+      { text: 'Expedientes, recetas y certificados de tu especialidad', on: true },
+      { text: 'Portal del paciente y página pública del consultorio', on: true },
+      { text: 'Encuesta de satisfacción, indicadores y alertas de interacciones', on: true },
+      o.cobros
+        ? { text: 'Cobros: punto de venta, caja, inventario y facturación', on: true }
+        : { text: 'Sin sección de cobros (viene desde Crecimiento)', on: false },
+      o.permissions
+        ? { text: 'Permisos por rol y por persona', on: true }
+        : { text: 'Permisos por rol: recepción agenda sin ver expedientes', on: true },
+      o.magic_uses
+        ? { text: `Asistente de IA: ${o.magic_uses.toLocaleString('es-MX')} usos al mes`, on: true, icon: 'sparkles' }
+        : { text: 'Sin asistente de IA (viene desde Crecimiento)', on: false },
+      { text: `${o.storage_gb} GB de archivos · soporte ${o.support === 'correo' ? 'por correo' : o.support}`, on: true }
+    ];
+  }
   const CK: Record<CheckoutRow['status'], { label: string; tone: 'warn' | 'ok' | 'bad' | 'muted' }> = {
     pending: { label: 'Pendiente', tone: 'warn' },
     paid: { label: 'Pagado', tone: 'ok' },
@@ -256,13 +281,9 @@
             {/if}
           </div>
           <ul class="mt-5 grid flex-1 content-start gap-2 text-sm">
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_doctors, 'especialista', 'especialistas')}</li>
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_reception, 'recepcionista', 'recepcionistas')} · {limit(o.max_cashiers, 'cajero', 'cajeros')}</li>
-            <li class="flex gap-2"><Icon name="check" size={16} />{limit(o.max_kinds, 'giro', 'giros')} · {limit(o.max_branches, 'sucursal', 'sucursales')}</li>
-            <li class="flex gap-2 {o.cobros ? '' : 'text-app-muted'}"><Icon name={o.cobros ? 'check' : 'x'} size={16} />{o.cobros ? 'Incluye cobros: punto de venta, caja, inventario y facturación' : 'Sin sección de cobros'}</li>
-            <li class="flex gap-2 {o.permissions ? '' : 'text-app-muted'}"><Icon name={o.permissions ? 'check' : 'x'} size={16} />{o.permissions ? 'Permisos por persona' : 'Permisos por rol'}</li>
-            <li class="flex gap-2 {o.magic_uses ? '' : 'text-app-muted'}"><Icon name={o.magic_uses ? 'sparkles' : 'x'} size={16} />{o.magic_uses ? `${o.magic_uses.toLocaleString('es-MX')} usos de magia (IA) al mes` : 'Sin asistente de IA'}</li>
-            <li class="flex gap-2"><Icon name="check" size={16} />{o.storage_gb} GB de archivos · soporte {o.support === 'correo' ? 'por correo' : o.support}</li>
+            {#each features(o) as f}
+              <li class="flex gap-2 {f.on ? '' : 'text-app-muted'}"><Icon name={f.icon ?? (f.on ? 'check' : 'x')} size={16} class="mt-0.5 flex-none" />{f.text}</li>
+            {/each}
           </ul>
           <div class="mt-6">
             {#if !o.online || o.month_cents <= 0}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/madgrismad/miconsultorio/backend/internal/db"
 )
 
 // The clinic's public page (/clinica/<slug>, the same slug as online booking) and the settings of the satisfaction survey.
@@ -27,6 +28,7 @@ type clinicProfile struct {
 	About            string `json:"about"`
 	HoursText        string `json:"hours_text"`
 	WhatsApp         string `json:"whatsapp"`
+	ContactEmail     string `json:"contact_email"`
 	Website          string `json:"website"`
 	MapsURL          string `json:"maps_url"`
 	GooglePlaceID    string `json:"google_place_id"`
@@ -47,14 +49,14 @@ func defaultProfile() clinicProfile {
 	return clinicProfile{ShowReviews: true, SurveyDelayHours: 3, MapsMinRating: 4}
 }
 
-const profileCols = `enabled, tagline, about, hours_text, whatsapp, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating`
+const profileCols = `enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating`
 
 func (s *Server) loadProfile(ctx context.Context, clinicID string) (clinicProfile, error) {
 	c := defaultProfile()
 	var mr int16
 	var delay int32
 	err := s.db.QueryRow(ctx, `SELECT `+profileCols+` FROM clinic_profile WHERE clinic_id = $1`, clinicID).
-		Scan(&c.Enabled, &c.Tagline, &c.About, &c.HoursText, &c.WhatsApp, &c.Website, &c.MapsURL, &c.GooglePlaceID, &c.ShowReviews, &c.SurveyEnabled, &delay, &mr)
+		Scan(&c.Enabled, &c.Tagline, &c.About, &c.HoursText, &c.WhatsApp, &c.ContactEmail, &c.Website, &c.MapsURL, &c.GooglePlaceID, &c.ShowReviews, &c.SurveyEnabled, &delay, &mr)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return defaultProfile(), nil
 	}
@@ -107,7 +109,7 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 	for _, f := range []struct {
 		v   *string
 		max int
-	}{{&in.Tagline, 120}, {&in.About, 1500}, {&in.HoursText, 400}, {&in.WhatsApp, 20}, {&in.GooglePlaceID, 200}} {
+	}{{&in.Tagline, 120}, {&in.About, 1500}, {&in.HoursText, 400}, {&in.WhatsApp, 20}, {&in.ContactEmail, 120}, {&in.GooglePlaceID, 200}} {
 		*f.v = strings.TrimSpace(*f.v)
 		if utf8.RuneCountInString(*f.v) > f.max {
 			writeError(w, http.StatusBadRequest, "Uno de los textos es demasiado largo.")
@@ -123,6 +125,10 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "El enlace de Google Maps debe empezar con https://.")
 		return
 	}
+	if in.ContactEmail != "" && !db.ValidEmail(in.ContactEmail) {
+		writeError(w, http.StatusBadRequest, "El correo de contacto no es válido.")
+		return
+	}
 	if in.GooglePlaceID != "" && !placeIDRe.MatchString(in.GooglePlaceID) {
 		writeError(w, http.StatusBadRequest, "El Place ID de Google no es válido.")
 		return
@@ -136,11 +142,11 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := s.db.Exec(r.Context(), `
-		INSERT INTO clinic_profile (clinic_id, enabled, tagline, about, hours_text, whatsapp, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
-		ON CONFLICT (clinic_id) DO UPDATE SET enabled = $2, tagline = $3, about = $4, hours_text = $5, whatsapp = $6, website = $7, maps_url = $8,
+		INSERT INTO clinic_profile (clinic_id, enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $14, $7, $8, $9, $10, $11, $12, $13, now())
+		ON CONFLICT (clinic_id) DO UPDATE SET enabled = $2, tagline = $3, about = $4, hours_text = $5, whatsapp = $6, contact_email = $14, website = $7, maps_url = $8,
 			google_place_id = $9, show_reviews = $10, survey_enabled = $11, survey_delay_hours = $12, maps_min_rating = $13, updated_at = now()`,
-		p.ClinicID, in.Enabled, in.Tagline, in.About, in.HoursText, in.WhatsApp, in.Website, in.MapsURL, in.GooglePlaceID, in.ShowReviews, in.SurveyEnabled, in.SurveyDelayHours, in.MapsMinRating)
+		p.ClinicID, in.Enabled, in.Tagline, in.About, in.HoursText, in.WhatsApp, in.Website, in.MapsURL, in.GooglePlaceID, in.ShowReviews, in.SurveyEnabled, in.SurveyDelayHours, in.MapsMinRating, in.ContactEmail)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -230,28 +236,54 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 			areas = append(areas, l)
 		}
 	}
-	pros := []map[string]string{}
+	// the team shown: people who work there now, see patients, are not hidden and work in a giro the clinic still has
+	pros := []map[string]any{}
 	rows, err := s.db.Query(ctx, `
-		SELECT u.name, u.specialty_title FROM professional_settings ps JOIN users u ON u.id = ps.user_id
-		WHERE ps.clinic_id = $1 AND u.clinic_id = $1 AND ps.bookable AND ps.consults AND NOT u.disabled ORDER BY u.name LIMIT 30`, id)
+		SELECT u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro')
+		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
+		WHERE u.clinic_id = $1 AND u.role IN ('admin', 'doctor') AND u.linked_owner_id IS NULL AND NOT u.disabled AND NOT u.public_hidden
+		  AND coalesce(ps.consults, true) AND (cardinality(u.areas) = 0 OR u.areas && $2::text[])
+		ORDER BY u.name LIMIT 30`, id, kinds)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
 	for rows.Next() {
 		var n, t string
-		if err := rows.Scan(&n, &t); err != nil {
+		var photo *string
+		if err := rows.Scan(&n, &t, &photo); err != nil {
 			rows.Close()
 			serverError(w, r, err)
 			return
 		}
-		pros = append(pros, map[string]string{"name": n, "title": t})
+		pr := map[string]any{"name": n, "title": t, "photo_url": ""}
+		if photo != nil {
+			pr["photo_url"] = mediaURL(slug, *photo)
+		}
+		pros = append(pros, pr)
 	}
 	rows.Close()
+	profileID, coverID, gallery, err := s.publicMedia(ctx, id)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	galleryURLs := make([]string, 0, len(gallery))
+	for _, g := range gallery {
+		galleryURLs = append(galleryURLs, mediaURL(slug, g))
+	}
+	profileURL, coverURL := "", ""
+	if profileID != nil {
+		profileURL = mediaURL(slug, *profileID)
+	}
+	if coverID != nil {
+		coverURL = mediaURL(slug, *coverID)
+	}
 	out := map[string]any{
 		"name": name, "address": address, "phone": phone, "areas": areas, "professionals": pros,
 		"tagline": prof.Tagline, "about": prof.About, "hours_text": prof.HoursText, "whatsapp": prof.WhatsApp, "website": prof.Website,
 		"maps_url": prof.MapsURL, "review_url": prof.reviewURL(), "booking_url": "", "slug": slug,
+		"email": prof.ContactEmail, "kinds": kinds, "profile_url": profileURL, "cover_url": coverURL, "gallery": galleryURLs,
 	}
 	if bookingOn {
 		out["booking_url"] = "/reservar/" + slug
@@ -289,3 +321,5 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, out)
 }
+
+func mediaURL(slug, id string) string { return "/api/public/clinic/" + slug + "/media/" + id }

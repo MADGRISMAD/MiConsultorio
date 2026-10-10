@@ -457,7 +457,7 @@ func TestLastAdminCannotBeRemoved(t *testing.T) {
 
 func TestSeatLimits(t *testing.T) {
 	e := setup(t)
-	// A clinic on the Básico plan: 2 specialists, 1 front desk and 1 cash account (the administrator is not counted).
+	// A clinic on the Básico plan: 2 specialists and 1 front desk, no cash accounts (the administrator is not counted).
 	id, err := db.CreateClinic(context.Background(), e.pool, db.ClinicParams{
 		Name: "Chica", Plan: "basico", Status: "active",
 		AdminName: "Dueña", AdminEmail: "duena@chica.mx", AdminUsername: "duena", AdminPassword: pw,
@@ -468,7 +468,7 @@ func TestSeatLimits(t *testing.T) {
 	_ = id
 	admin := e.loginPw("duena", pw)
 	seats := sub(admin.expect(200, "GET", "/api/team", nil), "seats")
-	if seats["max_doctors"].(float64) != 2 || seats["max_reception"].(float64) != 1 || seats["max_cashiers"].(float64) != 1 || seats["used_users"].(float64) != 1 {
+	if seats["max_doctors"].(float64) != 2 || seats["max_reception"].(float64) != 1 || seats["max_cashiers"].(float64) != 0 || seats["used_users"].(float64) != 1 {
 		t.Fatalf("seats: %v", seats)
 	}
 	doc := sub(admin.expect(201, "POST", "/api/team", member("Doctora Uno", "doc1", "doctor")), "person")["id"].(string)
@@ -482,9 +482,8 @@ func TestSeatLimits(t *testing.T) {
 	if admin.expect(409, "POST", "/api/team", member("Recep 2", "recep2", "reception"))["code"] != "SEAT_LIMIT" {
 		t.Fatal("front desk limit")
 	}
-	admin.expect(201, "POST", "/api/team", member("Cajero", "cash1", "cashier"))
-	if admin.expect(409, "POST", "/api/team", member("Cajero 2", "cash2", "cashier"))["code"] != "SEAT_LIMIT" {
-		t.Fatal("cash limit")
+	if admin.expect(409, "POST", "/api/team", member("Cajero", "cash1", "cashier"))["code"] != "SEAT_LIMIT" {
+		t.Fatal("Básico has no cash accounts: there is no till to use")
 	}
 	// freeing a seat frees the room, and reactivating needs room again
 	admin.expect(204, "POST", "/api/team/"+doc+"/deactivate", nil)

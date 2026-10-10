@@ -114,7 +114,8 @@ func TestBillingSubscription(t *testing.T) {
 		t.Fatalf("un aviso ajeno no debe tocar la clínica: %s", pre)
 	}
 
-	// Cambio de plan: la nueva reemplaza a la anterior, que se cancela en Mercado Pago
+	// Cambio de plan: la nueva reemplaza a la anterior, que se cancela en Mercado Pago (Básico no tiene cuentas de caja)
+	e.exec(`UPDATE users SET disabled = true WHERE clinic_id = $1 AND role = 'cashier'`, e.clinicA)
 	co2 := admin.expect(201, "POST", "/api/billing/checkout", map[string]any{"plan": "basico", "period": "year"})
 	if rec := fake.preBodies[1]["auto_recurring"].(map[string]any); rec["frequency"] != 12.0 || rec["transaction_amount"] != 3000.0 {
 		t.Fatalf("anual: %v", rec)

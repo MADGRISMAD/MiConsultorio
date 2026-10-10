@@ -9,6 +9,7 @@
   import { dateShort } from '$lib/format';
   import LoadingRows from '../ui/LoadingRows.svelte';
   import Stars from '../ui/Stars.svelte';
+  import ProfileMedia from './ProfileMedia.svelte';
 
   let p = $state<ClinicProfile | null>(null);
   let slug = $state('');
@@ -83,6 +84,10 @@
             <p class="hint">Con código de país, solo números.</p>
           </div>
           <div>
+            <label class="label" for="pf-mail">Correo de contacto</label>
+            <input id="pf-mail" class="field" type="email" maxlength="120" bind:value={p.contact_email} placeholder="contacto@miconsultorio.mx" />
+          </div>
+          <div>
             <label class="label" for="pf-web">Sitio web</label>
             <input id="pf-web" class="field" maxlength="200" bind:value={p.website} placeholder="https://" />
           </div>
@@ -132,6 +137,8 @@
       <OpError op={saveOp} />
       <div><button class="btn-primary" disabled={saveOp.phase === 'loading'}>Guardar</button></div>
     </form>
+
+    <ProfileMedia />
 
     {#if results}
       <div class="mt-8">

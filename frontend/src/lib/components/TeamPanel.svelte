@@ -41,6 +41,8 @@
 
   // ----- add a person -----
   let addOpen = $state(false);
+  // a plan without cobros has no cash accounts: the role is not offered (someone who already has it keeps it)
+  const rolesOffered = $derived(CLINIC_ROLES.filter((r) => !(r === 'cashier' && seats?.max_cashiers === 0)));
   let form = $state({ name: '', email: '', username: '', phone: '', password: '', role: 'reception' as ClinicRole, areas: [] as string[] });
   const addOp = new Op();
   function openAdd() {
@@ -129,7 +131,7 @@
     <h2 class="display text-2xl">Plan {seats.plan_name}</h2>
     <p class="text-sm text-app-muted">{seats.used_users} {seats.used_users === 1 ? 'persona entra' : 'personas entran'} a la app. Las cuentas de administración no cuentan para el límite.{#if !session.cobros} Las cuentas de caja se usan en la sección de Cobros, que viene con el plan Crecimiento.{/if}</p>
     <div class="mt-4 grid gap-4 sm:grid-cols-3">
-      {#each [{ label: 'Especialistas', used: seats.used_doctors, max: seats.max_doctors }, { label: 'Recepcionistas', used: seats.used_reception, max: seats.max_reception }, { label: 'Cajeros', used: seats.used_cashiers, max: seats.max_cashiers }] as r}
+      {#each [{ label: 'Especialistas', used: seats.used_doctors, max: seats.max_doctors }, { label: 'Recepcionistas', used: seats.used_reception, max: seats.max_reception }, { label: 'Cajeros', used: seats.used_cashiers, max: seats.max_cashiers }].filter((x) => x.max !== 0) as r}
         <div>
           <p class="flex items-baseline justify-between text-sm"><span class="font-medium">{r.label}</span><strong class="font-mono">{r.max === null ? `${r.used} · sin límite` : `${r.used} de ${r.max}`}</strong></p>
           {#if r.max !== null}
@@ -179,7 +181,7 @@
                 roleChange = { person: p, role };
               }}
             >
-              {#each CLINIC_ROLES as r}<option value={r}>{ROLES[r].label}</option>{/each}
+              {#each CLINIC_ROLES.filter((r) => r === p.role || rolesOffered.includes(r)) as r}<option value={r}>{ROLES[r].label}</option>{/each}
             </select>
             <div class="flex gap-1">
               {#if p.role === 'doctor' && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Áreas de atención" aria-label="Áreas de {p.name}" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
@@ -266,7 +268,7 @@
     <fieldset class="sm:col-span-2">
       <legend class="label">Rol</legend>
       <div class="grid gap-2">
-        {#each CLINIC_ROLES as r}
+        {#each rolesOffered as r}
           <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition {form.role === r ? 'border-app-primary bg-app-primary/8' : 'border-app-ink/10 hover:border-app-ink/25'}">
             <input type="radio" name="role" class="mt-1 accent-[rgb(var(--app-primary))]" value={r} bind:group={form.role} />
             <span>

@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -27,7 +28,7 @@ func TestSurveyAndPublicProfile(t *testing.T) {
 		t.Fatalf("settings: %v", out)
 	}
 	page := anon.expect(200, "GET", "/api/public/clinic/"+b.slugA, nil)
-	if page["tagline"] != "Cuidamos tu sonrisa" || page["booking_url"] != "/reservar/"+b.slugA || len(page["professionals"].([]any)) != 1 {
+	if page["tagline"] != "Cuidamos tu sonrisa" || page["booking_url"] != "/reservar/"+b.slugA || len(page["professionals"].([]any)) != 2 {
 		t.Fatalf("public page: %v", page)
 	}
 
@@ -79,4 +80,85 @@ func TestSurveyAndPublicProfile(t *testing.T) {
 	}
 	// the receptionist does not see the results
 	b.login("recep_a").expect(403, "GET", "/api/clinic/surveys", nil)
+}
+
+// Photos of the public page: one profile picture, one banner, up to five gallery photos and one per specialist; the page
+// follows the team (a hidden or disabled specialist, and a giro the clinic left, disappear).
+func TestClinicPageMedia(t *testing.T) {
+	b := newBookingEnv(t, false)
+	admin := b.login("admin_a")
+	anon := b.anon()
+	png := "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+	admin.expect(200, "PUT", "/api/clinic/profile", map[string]any{"enabled": true, "tagline": "Hola", "show_reviews": true, "survey_delay_hours": 3, "maps_min_rating": 4, "contact_email": "hola@clinica.mx"})
+
+	// validation
+	admin.expect(400, "POST", "/api/clinic/media", map[string]any{"slot": "cover", "image": "data:image/png;base64,AAAA"})                 // not an image
+	admin.expect(400, "POST", "/api/clinic/media", map[string]any{"slot": "cover", "image": "data:image/gif;base64,R0lGODlhAQABAAAAACw="}) // not a type we take
+	admin.expect(400, "POST", "/api/clinic/media", map[string]any{"slot": "nope", "image": png})
+	admin.expect(400, "POST", "/api/clinic/media", map[string]any{"slot": "pro", "user_id": "x", "image": png})
+	b.login("recep_a").expect(403, "POST", "/api/clinic/media", map[string]any{"slot": "cover", "image": png})
+
+	first := admin.expect(201, "POST", "/api/clinic/media", map[string]any{"slot": "cover", "image": png})["id"].(string)
+	second := admin.expect(201, "POST", "/api/clinic/media", map[string]any{"slot": "cover", "image": png})["id"].(string) // replaces
+	if first == second {
+		t.Fatal("a new photo is a new row")
+	}
+	admin.expect(201, "POST", "/api/clinic/media", map[string]any{"slot": "profile", "image": png})
+	var gal []string
+	for i := 0; i < 5; i++ {
+		gal = append(gal, admin.expect(201, "POST", "/api/clinic/media", map[string]any{"slot": "gallery", "image": png})["id"].(string))
+	}
+	admin.expect(409, "POST", "/api/clinic/media", map[string]any{"slot": "gallery", "image": png}) // the sixth
+
+	page := anon.expect(200, "GET", "/api/public/clinic/"+b.slugA, nil)
+	if len(page["gallery"].([]any)) != 5 || !strings.HasSuffix(page["cover_url"].(string), second) || page["profile_url"] == "" || page["email"] != "hola@clinica.mx" {
+		t.Fatalf("page: %v", page)
+	}
+	res, err := http.Get(b.srv.URL + page["cover_url"].(string))
+	if err != nil || res.StatusCode != 200 || res.Header.Get("Content-Type") != "image/png" {
+		t.Fatalf("cover: %v %v", err, res)
+	}
+	res.Body.Close()
+	req, _ := http.NewRequest("GET", b.srv.URL+page["cover_url"].(string), nil)
+	req.Header.Set("If-None-Match", res.Header.Get("ETag"))
+	if res2, _ := http.DefaultClient.Do(req); res2.StatusCode != 304 {
+		t.Fatalf("etag: %d", res2.StatusCode)
+	}
+	admin.expect(200, "DELETE", "/api/clinic/media/"+gal[0], nil)
+	admin.expect(404, "DELETE", "/api/clinic/media/"+gal[0], nil)
+	if res3, _ := http.Get(b.srv.URL + "/api/public/clinic/" + b.slugA + "/media/" + gal[0]); res3.StatusCode != 404 {
+		t.Fatalf("deleted photo: %d", res3.StatusCode)
+	}
+
+	// the team: a photo per specialist, hide one, disable another
+	doc := b.userID("doc_a")
+	photo := admin.expect(201, "POST", "/api/clinic/media", map[string]any{"slot": "pro", "user_id": doc, "image": png})["id"].(string)
+	pros := func() []any {
+		return anon.expect(200, "GET", "/api/public/clinic/"+b.slugA, nil)["professionals"].([]any)
+	}
+	if len(pros()) != 2 {
+		t.Fatalf("team: %v", pros())
+	}
+	admin.expect(200, "PUT", "/api/clinic/profile/professionals/"+doc, map[string]any{"hidden": true})
+	if len(pros()) != 1 {
+		t.Fatalf("hidden: %v", pros())
+	}
+	if res4, _ := http.Get(b.srv.URL + "/api/public/clinic/" + b.slugA + "/media/" + photo); res4.StatusCode != 404 {
+		t.Fatalf("a hidden specialist keeps no public photo: %d", res4.StatusCode)
+	}
+	admin.expect(200, "PUT", "/api/clinic/profile/professionals/"+doc, map[string]any{"hidden": false})
+	b.exec(`UPDATE users SET disabled = true WHERE id = $1`, doc)
+	if len(pros()) != 1 {
+		t.Fatalf("disabled: %v", pros())
+	}
+	b.exec(`UPDATE users SET disabled = false WHERE id = $1`, doc)
+	// a specialist of a giro the clinic no longer works in
+	b.exec(`UPDATE users SET areas = '{DERMATOLOGY}' WHERE id = $1`, doc)
+	if len(pros()) != 1 {
+		t.Fatalf("giro left: %v", pros())
+	}
+	ov := admin.expect(200, "GET", "/api/clinic/media", nil)
+	if len(ov["professionals"].([]any)) < 1 || ov["cover"] != second {
+		t.Fatalf("overview: %v", ov)
+	}
 }
