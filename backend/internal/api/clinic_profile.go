@@ -312,7 +312,7 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	// the team shown: people who work there now, see patients, are not hidden and work in a giro the clinic still has
 	pros := []map[string]any{}
 	rows, err := s.db.Query(ctx, `
-		SELECT u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'),
+		SELECT u.name, u.specialty_title, u.areas, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'),
 		       u.cedula, u.cedula_specialty, u.public_bio
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		WHERE u.clinic_id = $1 AND u.role IN ('admin', 'doctor') AND u.linked_owner_id IS NULL AND NOT u.disabled AND NOT u.public_hidden
@@ -325,12 +325,13 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var n, t, ced, cedSpec, bio string
 		var photo *string
-		if err := rows.Scan(&n, &t, &photo, &ced, &cedSpec, &bio); err != nil {
+		var areas []string
+		if err := rows.Scan(&n, &t, &areas, &photo, &ced, &cedSpec, &bio); err != nil {
 			rows.Close()
 			serverError(w, r, err)
 			return
 		}
-		pr := map[string]any{"name": n, "title": t, "photo_url": "", "cedula": ced, "cedula_specialty": cedSpec, "bio": bio}
+		pr := map[string]any{"name": n, "title": publicTitle(t, areas, kinds), "photo_url": "", "cedula": ced, "cedula_specialty": cedSpec, "bio": bio}
 		if photo != nil {
 			pr["photo_url"] = mediaURL(slug, *photo)
 		}

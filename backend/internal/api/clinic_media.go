@@ -71,7 +71,7 @@ func (s *Server) mediaOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	prows, err := s.db.Query(ctx, `
-		SELECT u.id::text, u.name, u.specialty_title, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'), u.public_hidden, u.public_bio,
+		SELECT u.id::text, u.name, u.specialty_title, u.areas, (SELECT m.id::text FROM clinic_media m WHERE m.user_id = u.id AND m.slot = 'pro'), u.public_hidden, u.public_bio,
 		       (NOT u.disabled AND coalesce(ps.consults, true) AND (cardinality(u.areas) = 0 OR u.areas && $2::text[]))
 		FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		WHERE u.clinic_id = $1 AND u.role IN ('admin', 'doctor') AND u.linked_owner_id IS NULL AND NOT u.disabled
@@ -84,10 +84,12 @@ func (s *Server) mediaOverview(w http.ResponseWriter, r *http.Request) {
 	pros := []mediaPro{}
 	for prows.Next() {
 		var x mediaPro
-		if err := prows.Scan(&x.ID, &x.Name, &x.Title, &x.Photo, &x.Hidden, &x.Bio, &x.Active); err != nil {
+		var areas []string
+		if err := prows.Scan(&x.ID, &x.Name, &x.Title, &areas, &x.Photo, &x.Hidden, &x.Bio, &x.Active); err != nil {
 			serverError(w, r, err)
 			return
 		}
+		x.Title = publicTitle(x.Title, areas, kinds)
 		pros = append(pros, x)
 	}
 	out["professionals"] = pros

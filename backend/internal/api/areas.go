@@ -152,3 +152,18 @@ func tagsShown(col string, n int) string {
 func areaShown(col string, n int) string {
 	return "(" + col + " = '' OR " + col + " = ANY($" + itoa(n) + "::text[]))"
 }
+
+// publicTitle is what a team member's card says under the name: the giros they are registered in (as long as the clinic still has
+// them), so a change of giro shows up by itself; with none registered, the title they wrote in their account.
+func publicTitle(title string, areas, clinicKinds []string) string {
+	labels := []string{}
+	for _, a := range areas {
+		if slices.Contains(clinicKinds, a) && areaLabels[a] != "" {
+			labels = append(labels, areaLabels[a])
+		}
+	}
+	if len(labels) == 0 {
+		return title
+	}
+	return strings.Join(labels, " · ")
+}

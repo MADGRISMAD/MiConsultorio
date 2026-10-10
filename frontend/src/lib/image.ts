@@ -49,3 +49,12 @@ export async function fileToPhoto(file: File, max = 1600): Promise<string> {
   }
   throw new Error('La imagen sigue siendo muy pesada. Prueba con una más pequeña.');
 }
+
+/** A canvas as a JPEG data URL, lowering the quality until it fits in about 1 MB (what the server accepts for public photos). */
+export function canvasToPhoto(canvas: HTMLCanvasElement): string {
+  for (const q of [0.88, 0.78, 0.68, 0.56]) {
+    const url = canvas.toDataURL('image/jpeg', q);
+    if (url.length <= 1_300_000) return url;
+  }
+  throw new Error('La imagen sigue siendo muy pesada. Prueba con una más pequeña.');
+}

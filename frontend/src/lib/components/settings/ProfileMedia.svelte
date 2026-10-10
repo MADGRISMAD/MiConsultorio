@@ -2,7 +2,7 @@
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { mediaApi, type MediaOverview } from '$lib/api/profile';
-  import { fileToPhoto } from '$lib/image';
+  import PhotoCrop from './PhotoCrop.svelte';
   import { toast } from '$lib/toast.svelte';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
@@ -21,14 +21,29 @@
   };
   onMount(load);
 
-  /** one action at a time: pick a file, shrink it, send it, reload */
-  async function put(key: string, slot: 'profile' | 'cover' | 'gallery' | 'pro', files: FileList | null, max: number, userId = '') {
+  type Slot = 'profile' | 'cover' | 'gallery' | 'pro';
+  // what each photo looks like on the public page: its frame and the width it is saved at
+  const FRAME: Record<Slot, { aspect: number; width: number; hint: string }> = {
+    pro: { aspect: 4 / 5, width: 800, hint: 'Se verá en la polaroid del especialista.' },
+    profile: { aspect: 1, width: 600, hint: '' },
+    cover: { aspect: 3, width: 1800, hint: '' },
+    gallery: { aspect: 2, width: 1600, hint: 'En celular se ve un poco más alta.' }
+  };
+  let crop = $state<{ file: File; key: string; slot: Slot; userId: string } | null>(null);
+
+  /** choosing a picture opens the crop window; confirming sends the chosen part */
+  function put(key: string, slot: Slot, files: FileList | null, _max = 0, userId = '') {
     const file = files?.[0];
-    if (!file) return;
+    if (file) crop = { file, key, slot, userId };
+  }
+  async function sendCrop(dataUrl: string) {
+    if (!crop) return;
+    const { key, slot, userId } = crop;
+    crop = null;
     busy = key;
     error = '';
     try {
-      await mediaApi.upload(slot, await fileToPhoto(file, max), userId);
+      await mediaApi.upload(slot, dataUrl, userId);
       await load();
       toast.show('Foto guardada');
     } catch (e) {
@@ -79,9 +94,11 @@
   const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 </script>
 
+<PhotoCrop file={crop?.file ?? null} aspect={FRAME[crop?.slot ?? 'pro'].aspect} outWidth={FRAME[crop?.slot ?? 'pro'].width} hint={FRAME[crop?.slot ?? 'pro'].hint} ondone={sendCrop} oncancel={() => (crop = null)} />
+
 <section aria-labelledby="pm-h" class="mt-10">
   <h3 id="pm-h" class="section-title mb-1">Imágenes de tu página</h3>
-  <p class="mb-4 text-sm text-app-muted">Las fotos se ajustan solas de tamaño. Se guardan en cuanto las eliges (no hace falta el botón Guardar de arriba).</p>
+  <p class="mb-4 text-sm text-app-muted">Al elegir una foto puedes encuadrar qué parte se muestra. Se guardan en cuanto las eliges (no hace falta el botón Guardar de arriba).</p>
   {#if error}<Alert class="mb-3">{error}</Alert>{/if}
   {#if !ov}
     <LoadingRows />
