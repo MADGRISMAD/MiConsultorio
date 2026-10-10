@@ -122,7 +122,7 @@
         <AddToCalendar event={{ title: `Cita en ${appt.clinic.name}`, date: appt.date, start: appt.start, end: appt.end, location: appt.clinic.address, details: [appt.professional && `Atiende: ${appt.professional}`, appt.service && `Servicio: ${appt.service}`, appt.clinic.phone && `Teléfono: ${appt.clinic.phone}`].filter(Boolean).join('\n') }} />
       {/if}
       {#if appt.rebook_slug && !appt.past && (appt.status === 'scheduled' || appt.status === 'confirmed' || appt.status === 'cancelled')}
-        <a class="btn-secondary btn-lg" href="/reservar/{appt.rebook_slug}"><Icon name="calendar" size={18} />{appt.status === 'cancelled' ? t('appt.rebookNew') : t('appt.rebook')}</a>
+        <a class="btn-secondary btn-lg" href="/{appt.rebook_slug}/reservar"><Icon name="calendar" size={18} />{appt.status === 'cancelled' ? t('appt.rebookNew') : t('appt.rebook')}</a>
         {#if appt.status !== 'cancelled'}<p class="hint !mt-0 text-center">{t('appt.rebookHint')}</p>{/if}
       {/if}
       {#if appt.can_cancel && !askCancel}

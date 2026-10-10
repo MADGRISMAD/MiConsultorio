@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { saveAll } from '$lib/saveall.svelte';
   import { publicOrigin } from '$lib/site';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -31,10 +30,10 @@
     }
   });
 
-  const link = $derived(slug ? `${publicOrigin()}/clinica/${slug}` : '');
+  const link = $derived(slug ? `${publicOrigin()}/${slug}` : '');
 
-  async function save(e?: SubmitEvent) {
-    e?.preventDefault();
+  async function save(e: SubmitEvent) {
+    e.preventDefault();
     if (!p) return;
     if (await saveOp.run(async () => {
       const r = await profileApi.save($state.snapshot(p) as ClinicProfile);
@@ -43,7 +42,6 @@
       reviewUrl = r.review_url;
     })) toast.show('Perfil y encuesta guardados');
   }
-  $effect(() => saveAll.register(() => save()));
 </script>
 
 <section aria-labelledby="pf-set">
@@ -162,9 +160,9 @@
       </div>
     {/if}
 
-    <div class="mt-10 border-t border-app-ink/10 pt-5">
+    <div class="mt-10 pt-5 save-sticky">
       <OpError op={saveOp} class="mb-3" />
-      {#if !saveAll.active}<button type="submit" form="pf-form" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar cambios</button>{/if}
+      <button type="submit" form="pf-form" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar cambios</button>
       <p class="hint mt-2">Guarda los textos, la página, Google Maps y la encuesta. Las fotos se guardan al elegirlas.</p>
     </div>
   {/if}

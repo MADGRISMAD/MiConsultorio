@@ -7,7 +7,6 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { saveAll } from '$lib/saveall.svelte';
   import { PERMISSIONS, type PosSettings, type ProviderStatus } from '$lib/types';
   import AccountPanel from '$lib/components/AccountPanel.svelte';
   import BusinessSection from '$lib/components/pos/settings/BusinessSection.svelte';
@@ -216,7 +215,7 @@
   }
 </script>
 
-<div class="grid gap-6 md:grid-cols-[minmax(17rem,20rem)_minmax(0,1fr)] md:items-start {dirty || saveAll.active || section?.id === 'ticket' || section?.id === 'ventas' || section?.id === 'impresora' ? 'pb-24' : ''}">
+<div class="grid gap-6 md:grid-cols-[minmax(17rem,20rem)_minmax(0,1fr)] md:items-start {dirty ? 'pb-24' : ''}">
   <!-- Categories: same language as the sidebar -->
   <nav class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5 {section && !wide ? 'hidden' : ''}" aria-label="Secciones de ajustes">
     <header>
@@ -339,24 +338,16 @@
   {/if}
 </div>
 
-{#if saveAll.active}
-  <div class="fixed inset-x-0 bottom-0 z-40 border-t border-app-ink/10 bg-app-panel/95 px-4 py-3 shadow-app backdrop-blur" role="region" aria-label="Guardar cambios">
-    <div class="mx-auto flex max-w-5xl items-center justify-end gap-3 lg:pl-72">
-      <button type="button" class="btn-primary" disabled={saveAll.busy} onclick={() => void saveAll.run()}>
-        {#if saveAll.busy}<span class="spin"></span>{/if}Guardar
-      </button>
-    </div>
-  </div>
-{:else if s && (section?.id === 'ticket' || section?.id === 'ventas' || section?.id === 'impresora')}
+{#if dirty || saveOp.phase === 'error'}
   <div class="page-in fixed inset-x-0 bottom-0 z-40 border-t border-app-ink/10 bg-app-panel/95 px-4 py-3 shadow-app backdrop-blur" role="region" aria-label="Cambios sin guardar">
     <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 lg:pl-72">
       <p class="text-sm {saveOp.phase === 'error' ? 'font-medium text-app-danger' : 'text-app-muted'}" role={saveOp.phase === 'error' ? 'alert' : undefined}>
-        {saveOp.phase === 'error' ? saveOp.message : dirty ? 'Tienes cambios sin guardar.' : 'Todo guardado.'}
+        {saveOp.phase === 'error' ? saveOp.message : 'Tienes cambios sin guardar.'}
       </p>
       <div class="flex gap-2">
-        {#if dirty}<button type="button" class="btn-secondary" disabled={saveOp.phase === 'loading'} onclick={discard}>Descartar</button>{/if}
-        <button type="button" class="btn-primary" disabled={saveOp.phase === 'loading' || !dirty} onclick={save}>
-          {#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar
+        <button type="button" class="btn-secondary" disabled={saveOp.phase === 'loading'} onclick={discard}>Descartar</button>
+        <button type="button" class="btn-primary" disabled={saveOp.phase === 'loading'} onclick={save}>
+          {#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar cambios
         </button>
       </div>
     </div>

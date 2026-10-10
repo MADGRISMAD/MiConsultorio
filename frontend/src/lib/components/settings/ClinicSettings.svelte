@@ -5,7 +5,6 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { saveAll } from '$lib/saveall.svelte';
   import { CLINIC_KINDS, type ClinicKind, type ClinicSettings } from '$lib/types';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import ClinicFields from '$lib/components/setup/ClinicFields.svelte';
@@ -53,17 +52,6 @@
   async function save(op: Op, patch: Parameters<typeof api.updateClinic>[0], done: string) {
     if (await op.run(async () => session.setClinic(await api.updateClinic(patch)))) toast.show(done);
   }
-  $effect(() =>
-    saveAll.register(async () => {
-      if (!ready) return;
-      await save(dataOp, { name, phone_number: phone, address, image_url: image }, 'Datos guardados');
-      await save(hoursOp, { settings: $state.snapshot(settings) }, 'Horario guardado');
-      if (giroChanged) {
-        kindOp.reset();
-        confirmGiro = true;
-      }
-    })
-  );
 </script>
 
 {#if !ready}
@@ -74,7 +62,7 @@
       <h2 class="display mb-5 text-3xl">Nombre y contacto</h2>
       <ClinicFields bind:name bind:phone bind:address bind:image />
       <OpError op={dataOp} class="mt-4" />
-      {#if !saveAll.active}<div class="mt-5"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>{/if}
+      <div class="save-sticky"><button type="submit" class="btn-primary" disabled={dataOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
 
     <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); if (giroChanged) { kindOp.reset(); confirmGiro = true; } else void save(kindOp, { kind, specialties }, 'Giro guardado'); }}>
@@ -84,7 +72,7 @@
         <p class="hint mt-2">Tu plan {session.user.billing.plan_name} permite hasta {session.user.billing.max_kinds} {session.user.billing.max_kinds === 1 ? 'giro' : 'giros'} ({newGiros.length} elegido{newGiros.length === 1 ? '' : 's'}).{#if newGiros.length > session.user.billing.max_kinds} <strong class="text-app-warning">Para guardar necesitas quitar giros o cambiar de plan.</strong>{/if}</p>
       {/if}
       <OpError op={kindOp} class="mt-4" />
-      {#if !saveAll.active}<div class="mt-5"><button type="submit" class="btn-primary" disabled={kindOp.phase === 'loading'}>Guardar giro</button></div>{/if}
+      <div class="save-sticky"><button type="submit" class="btn-primary" disabled={kindOp.phase === 'loading'}>Guardar giro</button></div>
     </form>
 
     <form class="card p-4 sm:p-6" onsubmit={(e) => { e.preventDefault(); void save(hoursOp, { settings: $state.snapshot(settings) }, 'Horario guardado'); }}>
@@ -92,7 +80,7 @@
       <p class="mb-5 text-sm text-app-muted">Ahora: {summarizeHours(settings)} · citas de {settings.appointment_minutes} min</p>
       <HoursEditor bind:settings />
       <OpError op={hoursOp} class="mt-4" />
-      {#if !saveAll.active}<div class="mt-5"><button type="submit" class="btn-primary" disabled={hoursOp.phase === 'loading'}>Guardar horario</button></div>{/if}
+      <div class="save-sticky"><button type="submit" class="btn-primary" disabled={hoursOp.phase === 'loading'}>Guardar horario</button></div>
     </form>
   </div>
 {/if}

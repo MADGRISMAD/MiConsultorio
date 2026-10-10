@@ -25,7 +25,7 @@ test.describe('navegador en inglés', () => {
   test.use({ locale: 'en-US' });
 
   test('las páginas públicas se muestran en inglés sin elegir', async ({ page }) => {
-    await page.goto('/arco/clinica-inexistente');
+    await page.goto('/clinica-inexistente/arco');
     await expect(page.getByRole('heading', { name: 'This page is not available' })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });

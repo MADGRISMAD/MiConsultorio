@@ -24,11 +24,11 @@ func TestSurveyAndPublicProfile(t *testing.T) {
 	save := map[string]any{"enabled": true, "tagline": "Cuidamos tu sonrisa", "about": "Clínica familiar", "show_reviews": true, "survey_enabled": true,
 		"survey_delay_hours": 3, "maps_min_rating": 4, "google_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4", "maps_url": "https://maps.app.goo.gl/abc"}
 	out := admin.expect(200, "PUT", "/api/clinic/profile", save)
-	if out["public_url"] != "/clinica/"+b.slugA || !strings.Contains(out["review_url"].(string), "writereview?placeid=ChIJ") {
+	if out["public_url"] != "/"+b.slugA || !strings.Contains(out["review_url"].(string), "writereview?placeid=ChIJ") {
 		t.Fatalf("settings: %v", out)
 	}
 	page := anon.expect(200, "GET", "/api/public/clinic/"+b.slugA, nil)
-	if page["tagline"] != "Cuidamos tu sonrisa" || page["booking_url"] != "/reservar/"+b.slugA || len(page["professionals"].([]any)) != 2 {
+	if page["tagline"] != "Cuidamos tu sonrisa" || page["booking_url"] != "/"+b.slugA+"/reservar" || len(page["professionals"].([]any)) != 2 {
 		t.Fatalf("public page: %v", page)
 	}
 

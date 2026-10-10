@@ -159,7 +159,7 @@ func (s *Server) arcoSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"slug": code, "path": "/arco/" + code, "url": s.appLink("/arco/" + code),
+		"slug": code, "path": "/" + code + "/arco", "url": s.appLink("/" + code + "/arco"),
 		"privacy_contact_set": l.PrivacyContact != "" && l.PrivacyEmail != "",
 		"mail_enabled":        s.mailEnabled(),
 	})

@@ -213,6 +213,10 @@ html.lenis body {
 }
 
 @layer components {
+  /* the save button of a settings block: follows the scroll while that block is on screen */
+  .save-sticky {
+    @apply sticky bottom-0 z-30 -mx-4 mt-5 border-t border-app-ink/10 bg-app-panel/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6;
+  }
   /* checkbox that matches the fields: rounded, the primary color when checked, a clear focus ring */
   .check {
     appearance: none;

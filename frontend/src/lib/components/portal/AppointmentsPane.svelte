@@ -99,7 +99,7 @@
     <section aria-labelledby="ap-next">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h2 id="ap-next" class="section-title">{t('portal.appts.next')}</h2>
-        <a class="btn-primary !min-h-9" href="/reservar/{encodeURIComponent(slug)}"><Icon name="plus" size={16} />{t('portal.appts.book')}</a>
+        <a class="btn-primary !min-h-9" href="/{encodeURIComponent(slug)}/reservar"><Icon name="plus" size={16} />{t('portal.appts.book')}</a>
       </div>
       {#if up.length === 0}
         <div class="card-empty">{t('portal.appts.none')}</div>

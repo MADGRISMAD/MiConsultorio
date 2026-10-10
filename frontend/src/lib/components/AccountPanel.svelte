@@ -4,7 +4,6 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { saveAll } from '$lib/saveall.svelte';
   import { ROLES } from '$lib/types';
   import Avatar from './ui/Avatar.svelte';
   import Icon from './ui/Icon.svelte';
@@ -15,14 +14,12 @@
   let { embedded = false }: { /** inside the settings hub, which already shows the title */ embedded?: boolean } = $props();
 
   const u = $derived(session.user);
-  /** inside Ajustes the single sticky button saves these forms */
-  const own = $derived(embedded && saveAll.active);
 
   let name = $state(session.user?.name ?? '');
   let phone = $state('');
   const profileOp = new Op();
-  async function saveProfile(e?: SubmitEvent) {
-    e?.preventDefault();
+  async function saveProfile(e: SubmitEvent) {
+    e.preventDefault();
     if (await profileOp.run(async () => session.setUser(await api.updateProfile(name, phone)))) toast.show('Datos actualizados');
   }
 
@@ -33,8 +30,8 @@
   let specialty = $state(session.user?.professional?.specialty_license ?? '');
   const proOp = new Op();
   const canPrescribe = $derived(u?.role === 'doctor' || u?.role === 'admin');
-  async function savePro(e?: SubmitEvent) {
-    e?.preventDefault();
+  async function savePro(e: SubmitEvent) {
+    e.preventDefault();
     if (cedula.trim() && !/^\d{7,8}$/.test(cedula.trim())) return proOp.fail('La cédula profesional son 7 u 8 dígitos.');
     const ok = await proOp.run(async () =>
       session.setUser(await api.updateProfile(name, phone, { cedula: cedula.trim(), cedula_institution: institution.trim(), cedula_specialty: specialty.trim(), specialty_title: title.trim() }))
@@ -46,14 +43,6 @@
   let next = $state('');
   let again = $state('');
   const pwOp = new Op();
-  $effect(() => {
-    if (!embedded) return;
-    return saveAll.register(async () => {
-      await saveProfile();
-      if (canPrescribe) await savePro();
-    });
-  });
-
   async function savePassword(e: SubmitEvent) {
     e.preventDefault();
     if (next !== again) return pwOp.fail('Las contraseñas nuevas no coinciden.');
@@ -91,7 +80,7 @@
         <input id="acc-phone" class="field" type="tel" bind:value={phone} autocomplete="tel" />
       </div>
       <OpError op={profileOp} />
-      {#if !own}<div><button type="submit" class="btn-primary" disabled={profileOp.phase === 'loading'}>Guardar datos</button></div>{/if}
+      <div><button type="submit" class="btn-primary" disabled={profileOp.phase === 'loading'}>Guardar datos</button></div>
     </form>
   </section>
 
@@ -117,7 +106,7 @@
           <input id="pro-spec" class="field" bind:value={specialty} />
         </div>
         <OpError op={proOp} class="sm:col-span-2" />
-        {#if !own}<div class="sm:col-span-2"><button type="submit" class="btn-primary" disabled={proOp.phase === 'loading'}>Guardar datos profesionales</button></div>{/if}
+        <div class="sm:col-span-2"><button type="submit" class="btn-primary" disabled={proOp.phase === 'loading'}>Guardar datos profesionales</button></div>
       </form>
     </section>
   {/if}

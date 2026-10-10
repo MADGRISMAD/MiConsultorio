@@ -9,7 +9,6 @@
   import { toast } from '$lib/toast.svelte';
   import { PRO_COLORS, type AgendaSettings, type DayKey, type HoursMap, type Professional } from '$lib/types/agenda';
   import Icon from '../ui/Icon.svelte';
-  import { saveAll } from '$lib/saveall.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
 
   const DAYS: [DayKey, string][] = [['mon', 'Lunes'], ['tue', 'Martes'], ['wed', 'Miércoles'], ['thu', 'Jueves'], ['fri', 'Viernes'], ['sat', 'Sábado'], ['sun', 'Domingo']];
@@ -43,8 +42,8 @@
     newRoom = '';
   }
 
-  async function save(e?: SubmitEvent) {
-    e?.preventDefault();
+  async function save(e: SubmitEvent) {
+    e.preventDefault();
     if (!s) return;
     const hours = hoursText.split(/[,\s]+/).filter(Boolean).map(Number);
     if (hours.some((h) => !Number.isInteger(h))) {
@@ -69,13 +68,6 @@
     })) toast.show(`Agenda de ${p.name} guardada`);
     savingPro = '';
   }
-  $effect(() =>
-    saveAll.register(async () => {
-      if (!s) return;
-      await save();
-      for (const p of pros) await savePro(p);
-    })
-  );
   const ranges = (p: Professional, d: DayKey) => (p.hours[d] ??= []);
   function addRange(p: Professional, d: DayKey) {
     ranges(p, d).push(['09:00', '14:00']);
@@ -132,7 +124,7 @@
           <label class="label" for="ag-slug">Dirección de tu página de reservas</label>
           <input id="ag-slug" type="text" class="field" bind:value={s.booking_slug} maxlength="63" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
           <p class="hint">
-            {#if slugPreview && slugOk}Tus pacientes entrarán a <strong class="break-all text-app-ink">{origin}/reservar/{slugPreview}</strong>
+            {#if slugPreview && slugOk}Tus pacientes entrarán a <strong class="break-all text-app-ink">{origin}/{slugPreview}/reservar</strong>
             {:else}Letras minúsculas, números y guiones (2 a 63 caracteres).{/if}
           </p>
         </div>
@@ -182,11 +174,9 @@
     </section>
 
     <OpError op={saveOp} />
-    {#if !saveAll.active}
-      <div class="flex justify-end">
-        <button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar ajustes</button>
-      </div>
-    {/if}
+    <div class="save-sticky flex justify-end">
+      <button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar ajustes</button>
+    </div>
   </form>
 
   <section aria-labelledby="ag-pros">
@@ -256,11 +246,9 @@
               </ul>
             </fieldset>
             {#if proOp.phase === 'error' && savingPro === ''}<p class="alert" role="alert">{proOp.message}</p>{/if}
-            {#if !saveAll.active}
-              <div class="flex justify-end">
-                <button type="button" class="btn-primary" disabled={savingPro === p.id} onclick={() => savePro(p)}>{#if savingPro === p.id}<span class="spin"></span>{/if}Guardar a {p.name}</button>
-              </div>
-            {/if}
+            <div class="save-sticky flex justify-end">
+              <button type="button" class="btn-primary" disabled={savingPro === p.id} onclick={() => savePro(p)}>{#if savingPro === p.id}<span class="spin"></span>{/if}Guardar a {p.name}</button>
+            </div>
           </div>
         </details>
       {/each}

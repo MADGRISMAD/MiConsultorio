@@ -15,7 +15,7 @@ import (
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
 )
 
-// The clinic's public page (/clinica/<slug>, the same slug as online booking) and the settings of the satisfaction survey.
+// The clinic's public page (/<slug>, the same slug as online booking) and the settings of the satisfaction survey.
 // The page shows what the clinic chose to publish, the professionals offered online and, if wanted, the rating that
 // patients gave in the survey with the comments they allowed to show. The link to leave a review on Google Maps only
 // exists when the clinic gave its Place ID.
@@ -85,7 +85,7 @@ func publicProfilePath(slug string) string {
 	if slug == "" {
 		return ""
 	}
-	return "/clinica/" + slug
+	return "/" + slug
 }
 
 func httpsURL(raw string, max int) (string, bool) {
@@ -286,7 +286,7 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		"email": prof.ContactEmail, "kinds": kinds, "profile_url": profileURL, "cover_url": coverURL, "gallery": galleryURLs,
 	}
 	if bookingOn {
-		out["booking_url"] = "/reservar/" + slug
+		out["booking_url"] = "/" + slug + "/reservar"
 	}
 	if prof.ShowReviews {
 		st, err := s.surveyStatsFor(ctx, id, nil, nil)

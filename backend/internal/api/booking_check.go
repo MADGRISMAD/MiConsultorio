@@ -40,7 +40,7 @@ func (s *Server) bookingCheck(w http.ResponseWriter, r *http.Request) {
 	case !enabled:
 		out("disabled", "Las reservas en línea están apagadas", "Activa «Reservas en línea» para que tus pacientes puedan abrir este enlace.", "/ajustes?s=agenda", "Activar en Agenda y reservas")
 	case slug != "" && slug != saved:
-		out("slug_mismatch", "El enlace no coincide con el de tu consultorio", "Tu enlace correcto es /reservar/"+saved+". Revisa que esté completo, sin espacios ni letras de más.", "/reservar/"+saved, "Abrir mi enlace correcto")
+		out("slug_mismatch", "El enlace no coincide con el de tu consultorio", "Tu enlace correcto es /"+saved+"/reservar. Revisa que esté completo, sin espacios ni letras de más.", "/"+saved+"/reservar", "Abrir mi enlace correcto")
 	case consulting == 0:
 		out("no_consults", "Nadie atiende consultas en la agenda", "Marca «Atiendo consultas» en al menos un profesional.", "/ajustes?s=agenda", "Ir a Agenda y reservas")
 	case bookable == 0:

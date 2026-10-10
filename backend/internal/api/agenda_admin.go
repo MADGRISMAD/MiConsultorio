@@ -466,6 +466,9 @@ func (in *agendaSettings) validate() string {
 	}
 	in.Rooms = rooms
 	in.BookingSlug = strings.ToLower(strings.TrimSpace(in.BookingSlug))
+	if reservedSlugs[in.BookingSlug] {
+		return "Esa dirección está reservada por la plataforma: elige otra."
+	}
 	if in.BookingSlug != "" && !slugRe.MatchString(in.BookingSlug) {
 		return "La dirección de reservas debe tener de 2 a 63 caracteres: letras minúsculas, números y guiones, y empezar con letra o número."
 	}
@@ -546,3 +549,14 @@ func (s *Server) updateAgendaSettings(w http.ResponseWriter, r *http.Request) {
 	audit(r.Context(), s.db, p.ClinicID, p, "agenda_settings", "Cambió la configuración de la agenda", map[string]any{"booking_enabled": in.BookingEnabled})
 	writeJSON(w, http.StatusOK, map[string]any{"settings": in})
 }
+
+// reservedSlugs are the first segment of the app's own pages: a clinic's public address (/<slug>/...) can't take them.
+var reservedSlugs = func() map[string]bool {
+	m := map[string]bool{}
+	for _, s := range strings.Fields(`api admin agenda ajustes arco arco-solicitudes avisos baja bienvenida cita clinica configuracion cuenta en-proceso
+		encuesta equipo espera forgot indicadores login offline organizacion pacientes plataforma portal pos privacidad recetas register reportes
+		reservar restablecer suscripcion terminos verificar assets static app www mail ayuda soporte caresia`) {
+		m[s] = true
+	}
+	return m
+}()

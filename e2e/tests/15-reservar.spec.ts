@@ -12,7 +12,7 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   // a visitor with no session
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.goto(`/reservar/${slug}`);
+  await page.goto(`/${slug}/reservar`);
   // the details come first: the calendar stays closed until they are filled in
   await expect(page.getByText('Completa tus datos para elegir la fecha.')).toBeVisible();
   const id = uid();
@@ -38,4 +38,9 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   expect(JSON.stringify(ntf)).toContain(`Visitante${id}`);
   await ctx.close();
   await api.dispose();
+});
+
+test('el enlace viejo /reservar/<nombre> lleva al nuevo /<nombre>/reservar', async ({ page }) => {
+  await page.goto('/reservar/enlace-viejo-x');
+  await expect(page).toHaveURL(/\/enlace-viejo-x\/reservar$/);
 });

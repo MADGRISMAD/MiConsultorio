@@ -227,7 +227,7 @@ func (s *Server) recallMail(clinic, phone, slug string, r recallRow) (subject, t
 	subject = title + " · " + clinic
 	link := ""
 	if slug != "" {
-		link = s.appLink("/reservar/" + slug)
+		link = s.appLink("/" + slug + "/reservar")
 	}
 	unsub := s.appLink("/baja/" + s.unsubscribeToken(r.PatientID))
 	text = hello + ", " + line + "\n\n"

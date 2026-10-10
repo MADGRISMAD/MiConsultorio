@@ -633,7 +633,7 @@ func TestBookingCheckPointsToWhatIsMissing(t *testing.T) {
 	if p := problem(b.slugA)["problem"]; p != "" {
 		t.Fatalf("everything is set: %v", p)
 	}
-	if r := problem("clinica-aa"); r["problem"] != "slug_mismatch" || r["to"] != "/reservar/"+b.slugA {
+	if r := problem("clinica-aa"); r["problem"] != "slug_mismatch" || r["to"] != "/"+b.slugA+"/reservar" {
 		t.Fatalf("mismatch: %v", r)
 	}
 	b.exec(`UPDATE professional_settings SET bookable = false WHERE clinic_id = $1`, b.clinicA)
