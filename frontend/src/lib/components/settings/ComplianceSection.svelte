@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { saveAll } from '$lib/saveall.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -24,8 +25,8 @@
   }
   void load();
 
-  async function save(e: SubmitEvent) {
-    e.preventDefault();
+  async function save(e?: SubmitEvent) {
+    e?.preventDefault();
     if (!legal) return;
     if (await saveOp.run(async () => (legal = await api.legal.save($state.snapshot(legal) as Legal)))) {
       toast.show('Datos legales guardados');
@@ -34,6 +35,7 @@
   }
 
   const pending = $derived(items?.filter((i) => i.status === 'todo').length ?? 0);
+  $effect(() => saveAll.register(() => save()));
 </script>
 
 {#if ld.error}
@@ -108,7 +110,7 @@
         </div>
       </div>
       <OpError op={saveOp} class="mt-4" />
-      <div class="mt-5"><button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar datos legales</button></div>
+      {#if !saveAll.active}<div class="mt-5"><button type="submit" class="btn-primary" disabled={saveOp.phase === 'loading'}>{#if saveOp.phase === 'loading'}<span class="spin"></span>{/if}Guardar datos legales</button></div>{/if}
     </form>
   </div>
 {/if}

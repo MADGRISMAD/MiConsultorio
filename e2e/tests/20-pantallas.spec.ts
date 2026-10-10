@@ -54,3 +54,18 @@ test('el expediente de un paciente abre todas sus pestañas sin errores', async 
   }
   expect(errors).toEqual([]);
 });
+
+test('Ajustes tiene un solo botón Guardar que acompaña el scroll y guarda todo el apartado', async ({ page }) => {
+  await page.goto('/ajustes?s=negocio');
+  await page.waitForLoadState('networkidle');
+  const guardar = page.getByRole('region', { name: 'Guardar cambios' }).getByRole('button', { name: 'Guardar', exact: true });
+  await expect(guardar).toBeVisible();
+  // los botones propios de cada bloque ya no aparecen
+  await expect(page.getByRole('button', { name: /^Guardar (datos|giro|horario)$/ })).toHaveCount(0);
+  await page.mouse.wheel(0, 3000);
+  await expect(guardar).toBeInViewport();
+  await page.getByLabel(/^Teléfono/).first().fill('5512345678');
+  await guardar.click();
+  await expect(page.getByText('Datos guardados')).toBeVisible();
+  await expect(page.getByText('Horario guardado')).toBeVisible();
+});

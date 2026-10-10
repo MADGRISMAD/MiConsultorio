@@ -5,6 +5,7 @@
   import { agendaLoadApi } from '$lib/api/waitlist';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
+  import { saveAll } from '$lib/saveall.svelte';
   import type { ServiceDuration } from '$lib/types/waitlist';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
@@ -35,6 +36,11 @@
       toast.show(`Duración de «${r.name}» guardada`);
     }
   }
+  $effect(() =>
+    saveAll.register(async () => {
+      for (const r of rows) if (dirty(r)) await save(r);
+    })
+  );
 </script>
 
 <section class="card px-5 py-5 sm:px-6" aria-labelledby="{uid}-t">
