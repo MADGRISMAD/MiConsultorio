@@ -162,12 +162,13 @@
               <span class="truncate">{p.name}</span>
               {#if self}<Pill tone="info">Tú</Pill>{/if}
               {#if (p.permissions_extra?.length ?? 0) + (p.permissions_denied?.length ?? 0) > 0}<Pill tone="info">Permisos personalizados</Pill>{/if}
-              {#if p.role === 'doctor' && (p.areas?.length ?? 0) > 0}<Pill tone="info">{areaText(p)}</Pill>{/if}
+              {#if (p.role === 'doctor' || p.role === 'admin') && (p.areas?.length ?? 0) > 0}<Pill tone="info">{areaText(p)}</Pill>{/if}
             </p>
             <p class="truncate text-sm text-app-muted">{p.email || `@${p.username}`} · {p.last_login_at ? `entró ${ago(p.last_login_at)}` : 'aún no ha entrado'}</p>
           </div>
           {#if self}
             <RolePill role={p.role} long />
+            {#if p.role === 'admin' && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Mis áreas de atención" aria-label="Mis áreas de atención" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
           {:else}
             <label class="sr-only" for="role-{p.id}">Rol de {p.name}</label>
             <select
@@ -184,7 +185,7 @@
               {#each CLINIC_ROLES.filter((r) => r === p.role || rolesOffered.includes(r)) as r}<option value={r}>{ROLES[r].label}</option>{/each}
             </select>
             <div class="flex gap-1">
-              {#if p.role === 'doctor' && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Áreas de atención" aria-label="Áreas de {p.name}" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
+              {#if (p.role === 'doctor' || p.role === 'admin') && (session.clinic?.specialties.length ?? 0) > 0}<button type="button" class="icon-btn" title="Áreas de atención" aria-label="Áreas de {p.name}" onclick={() => openAreas(p)}><Icon name="stethoscope" size={18} /></button>{/if}
               {#if p.role !== 'admin' && (session.personPermissions || (p.permissions_extra?.length ?? 0) + (p.permissions_denied?.length ?? 0) > 0)}<button type="button" class="icon-btn" title="Permisos" aria-label="Permisos de {p.name}" onclick={() => (permsFor = p)}><Icon name="shield" size={18} /></button>{/if}
               <button type="button" class="icon-btn" title="Restablecer contraseña" aria-label="Restablecer la contraseña de {p.name}" onclick={() => { newPassword = ''; pwOp.reset(); pwFor = p; }}><Icon name="key" size={18} /></button>
               <button type="button" class="icon-btn danger" title="Desactivar" aria-label="Desactivar a {p.name}" onclick={() => { toggleOp.reset(); toggle = { person: p, disable: true }; }}><Icon name="ban" size={18} /></button>
