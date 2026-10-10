@@ -58,7 +58,6 @@
       <li><strong>Infraestructura y alojamiento</strong> del sitio y de la base de datos: <Fill v="[PROVEEDORES DE HOSPEDAJE A CONFIRMAR]" />.</li>
       <li><strong>Mercado Pago</strong>, para cobrar la suscripción y, si el consultorio lo activa, los pagos con terminal o enlace de pago.</li>
       <li><strong>Proveedor de correo electrónico (SMTP)</strong>, para enviar mensajes de la plataforma (recuperación de contraseña, avisos y confirmaciones de citas).</li>
-      <li><strong>WhatsApp (Meta)</strong>, solo si el consultorio activa los recordatorios por ese medio.</li>
       <li><strong>Facturama</strong> u otro proveedor autorizado de timbrado de CFDI, solo si el consultorio activa la facturación.</li>
       <li><strong>Google (Gemini)</strong>, solo si el consultorio usa las funciones de «magia» del inventario: se envían las listas o fotos de productos que el consultorio sube, no datos de pacientes.</li>
       <li><strong>Herramienta de estadísticas de visitas sin cookies</strong> y <strong>Google Fonts</strong> (tipografías) para el sitio público.</li>

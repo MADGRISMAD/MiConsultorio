@@ -33,8 +33,6 @@ type Plan struct {
 	MaxKinds *int `json:"max_kinds"`
 	// StorageGB is the space for attachments (studies, photos, documents).
 	StorageGB int `json:"storage_gb"`
-	// WhatsApp: appointment reminders by WhatsApp.
-	WhatsApp bool `json:"whatsapp"`
 	// Permissions: allow or deny single permissions per person, on top of the role.
 	Permissions bool `json:"permissions"`
 	// Support is the level of attention: "correo", "prioritario" or "dedicado".
@@ -48,11 +46,11 @@ func ptr(n int) *int { return &n }
 
 var planCatalog = []Plan{
 	{ID: "basico", Name: "Básico", PriceMonth: 499, MaxDoctors: ptr(2), MaxReception: ptr(1), MaxCashiers: ptr(1), Description: "Agenda y expedientes: 2 especialistas, 1 recepcionista y 1 cajero, sin asistente de IA", Cobros: false, MagicUses: 0, MaxBranches: 1,
-		MaxKinds: ptr(2), StorageGB: 2, WhatsApp: false, Permissions: false, Support: "correo"},
+		MaxKinds: ptr(2), StorageGB: 2, Permissions: false, Support: "correo"},
 	{ID: "crecimiento", Name: "Crecimiento", PriceMonth: 999, MaxDoctors: ptr(5), MaxReception: ptr(2), MaxCashiers: ptr(2), Description: "5 especialistas, 2 recepcionistas, 2 cajeros, cobros y asistente de IA", Cobros: true, MagicUses: 500, MaxBranches: 1,
-		MaxKinds: ptr(3), StorageGB: 20, WhatsApp: true, Permissions: true, Support: "prioritario"},
+		MaxKinds: ptr(3), StorageGB: 20, Permissions: true, Support: "prioritario"},
 	{ID: "pro", Name: "Pro", PriceMonth: 1899, MaxDoctors: nil, MaxReception: nil, MaxCashiers: nil, Description: "Cuentas sin límite, cobros incluidos y 1,500 usos de IA, a medida", Cobros: true, MagicUses: 1500, MaxBranches: 10,
-		MaxKinds: nil, StorageGB: 100, WhatsApp: true, Permissions: true, Support: "dedicado"},
+		MaxKinds: nil, StorageGB: 100, Permissions: true, Support: "dedicado"},
 }
 
 func planByID(id string) (Plan, bool) {
@@ -126,7 +124,6 @@ type billingInfo struct {
 	MagicUses        int        `json:"magic_uses"`
 	MaxBranches      int        `json:"max_branches"`
 	MaxKinds         *int       `json:"max_kinds"`
-	WhatsApp         bool       `json:"whatsapp"`
 	Permissions      bool       `json:"permissions"`
 }
 
@@ -136,7 +133,7 @@ func (b Billing) info(now time.Time) billingInfo {
 		Plan: b.Plan, PlanName: p.Name, State: b.State(now), Usable: b.Usable(now),
 		TrialEndsAt: b.TrialEndsAt, TrialDaysLeft: b.TrialDaysLeft(now),
 		CurrentPeriodEnd: b.CurrentPeriodEnd, SuspendedReason: b.SuspendedReason, Cobros: p.Cobros, MagicUses: p.MagicUses,
-		MaxBranches: p.MaxBranches, MaxKinds: p.MaxKinds, WhatsApp: p.WhatsApp, Permissions: p.Permissions,
+		MaxBranches: p.MaxBranches, MaxKinds: p.MaxKinds, Permissions: p.Permissions,
 	}
 }
 

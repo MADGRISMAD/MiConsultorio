@@ -101,9 +101,6 @@ func (s *Server) loadReminderTarget(ctx context.Context, q queryRower, clinicID,
 	t.Phone = firstNonEmpty(apPhone, pPhone, gPhone, oPhone)
 	err = t.Info.settle(x)
 	t.Start = t.Info.Start
-	if err == nil && t.RemindWA && !planOf(ctx, q, clinicID).WhatsApp {
-		t.RemindWA = false // a plan without WhatsApp stops sending them, whatever the old setting says
-	}
 	return t, err == nil, err
 }
 

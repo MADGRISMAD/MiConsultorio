@@ -43,7 +43,6 @@ export const plans = [
       'Cobros: punto de venta, caja, inventario y reportes',
       'Terminal y ligas de Mercado Pago, devoluciones y comisiones',
       'Facturación electrónica (CFDI)',
-      'Recordatorios por WhatsApp',
       'Permisos por persona',
       'Asistente de IA con 500 usos al mes',
       '20 GB de archivos · Soporte prioritario y alta asistida'
@@ -70,7 +69,7 @@ export const faqs = [
   { q: '¿Para qué especialidades sirve?', a: 'Para odontología, medicina general e interna, pediatría, nutrición, psicología, fisioterapia, quiropráctica, ortopedia, dermatología, ginecología y veterinaria. Cada una trae sus formularios y herramientas, y si atiendes más de una conviven en el mismo consultorio.' },
   { q: '¿Qué hace la inteligencia artificial?', a: 'Arma un borrador del plan nutricional de 7 días (y cambia una comida si al paciente no le gusta), prepara un resumen del expediente antes de la consulta, convierte una lista o una foto en tu inventario y sugiere precios. Cada acción es un «uso de magia»: el plan Crecimiento incluye 500 al mes y el Pro 1,500; el Básico no incluye asistente de IA. Las calorías se calculan con fórmulas clínicas y tú siempre revisas y ajustas el resultado antes de guardarlo. No se envía el nombre del paciente.' },
   { q: '¿Puedo atender varias personas a la misma hora?', a: 'Sí. La agenda es por profesional y por sala: varios doctores pueden tener consulta en el mismo horario. Las citas que recomienda un profesional quedan en la agenda como «por confirmar» para que recepción las confirme.' },
-  { q: '¿Mis pacientes pueden agendar por su cuenta?', a: 'Sí. Cada consultorio tiene su liga de reserva en línea y un portal donde el paciente ve sus citas, recetas y vacunas. Los recordatorios salen automáticos por correo, y también por WhatsApp desde el plan Crecimiento.' },
+  { q: '¿Mis pacientes pueden agendar por su cuenta?', a: 'Sí. Cada consultorio tiene su liga de reserva en línea y un portal donde el paciente ve sus citas, recetas y vacunas. Los recordatorios salen automáticos por correo.' },
   { q: '¿Mi recepcionista puede agendar sin ver los expedientes?', a: 'Sí. Cada usuario tiene permisos por rol, y además puedes darle o quitarle permisos a una persona en particular: recepción administra la agenda sin acceso a la información clínica.' },
   { q: '¿Puedo cobrar desde Caresia?', a: 'Sí, en los planes Crecimiento y Pro. Incluyen punto de venta, caja con corte, inventario, cobro con terminal o liga de Mercado Pago, devoluciones, comisiones por profesional y facturación electrónica. Al terminar una consulta, la cuenta pasa sola a caja.' },
   { q: '¿Cómo se protege la información de mis pacientes?', a: 'El acceso requiere usuario y contraseña, con verificación en dos pasos opcional. Cada clínica solo ve a sus propios pacientes, los datos sensibles se guardan cifrados, queda registro de quién abre cada expediente y puedes descargar tus datos cuando quieras.' },

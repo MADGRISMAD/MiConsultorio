@@ -41,12 +41,9 @@ class SessionStore {
     return (this.user?.billing?.max_branches ?? 1) > 1;
   }
 
-  /** Per-person permissions and WhatsApp reminders come with Crecimiento and Pro. */
+  /** Per-person permissions come with Crecimiento and Pro. */
   get personPermissions(): boolean {
     return !!this.user?.billing?.permissions;
-  }
-  get whatsapp(): boolean {
-    return !!this.user?.billing?.whatsapp;
   }
 
   /** The clinic's plan includes the AI assistant ("magia"): Crecimiento and Pro. */

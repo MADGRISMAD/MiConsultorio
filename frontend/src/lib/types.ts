@@ -52,7 +52,6 @@ export interface Billing {
   magic_uses: number;
   max_branches: number;
   max_kinds: number | null;
-  whatsapp: boolean;
   permissions: boolean;
 }
 
@@ -132,7 +131,6 @@ export interface Plan {
   max_branches: number;
   max_kinds: number | null;
   storage_gb: number;
-  whatsapp: boolean;
   permissions: boolean;
   support: 'correo' | 'prioritario' | 'dedicado';
 }

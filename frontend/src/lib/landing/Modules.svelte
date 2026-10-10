@@ -20,7 +20,7 @@
         'Vista por día, semana, mes y lista, por profesional y por sala',
         'Reprograma arrastrando la cita',
         'Reserva en línea con la liga de tu consultorio',
-        'Recordatorios automáticos por correo (y por WhatsApp desde Crecimiento)',
+        'Recordatorios automáticos por correo',
         'Lista de espera: avisa al paciente cuando se libera un lugar',
         'Panel «En proceso»: quién espera y quién está en consulta',
         'Citas de seguimiento recomendadas por el profesional, por confirmar',
