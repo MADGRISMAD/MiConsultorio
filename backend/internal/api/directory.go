@@ -82,10 +82,11 @@ type nextSlot struct {
 	Professional string `json:"professional"`
 }
 
-// nextFreeSlot busca el primer horario libre (cualquier especialista) en los próximos 14 días.
-func (s *Server) nextFreeSlot(ctx context.Context, slug string) *nextSlot {
+// nextFreeSlot busca el primer horario libre (cualquier especialista) en los próximos 14 días. La caché va por id
+// del consultorio (el enlace puede cambiar o repetirse entre bases distintas).
+func (s *Server) nextFreeSlot(ctx context.Context, clinicID, slug string) *nextSlot {
 	nextSlotCache.Lock()
-	if e, ok := nextSlotCache.m[slug]; ok && time.Now().Before(e.exp) {
+	if e, ok := nextSlotCache.m[clinicID]; ok && time.Now().Before(e.exp) {
 		nextSlotCache.Unlock()
 		return e.val
 	}
@@ -119,7 +120,7 @@ func (s *Server) nextFreeSlot(ctx context.Context, slug string) *nextSlot {
 		}
 	}
 	nextSlotCache.Lock()
-	nextSlotCache.m[slug] = nextSlotEntry{val: found, exp: time.Now().Add(5 * time.Minute)}
+	nextSlotCache.m[clinicID] = nextSlotEntry{val: found, exp: time.Now().Add(5 * time.Minute)}
 	nextSlotCache.Unlock()
 	return found
 }
@@ -249,7 +250,7 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 			h.Rating = st
 		}
 		if h.Booking {
-			h.NextSlot = s.nextFreeSlot(ctx, h.Slug)
+			h.NextSlot = s.nextFreeSlot(ctx, x.id, h.Slug)
 		}
 		if h.Insurances == nil {
 			h.Insurances = []string{}

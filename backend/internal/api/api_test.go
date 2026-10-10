@@ -40,22 +40,9 @@ func setup(t *testing.T) *env { return setupWith(t, nil) }
 // setupWith is setup with a chance to adjust the server configuration (provider URLs, keys).
 func setupWith(t *testing.T, mod func(*config.Config)) *env {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("TEST_DATABASE_URL not set")
-	}
+	maybeParallel(t)
 	ctx := context.Background()
-	pool, err := db.Connect(ctx, url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
-	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Migrate(ctx, pool); err != nil {
-		t.Fatal(err)
-	}
+	pool := testDB(t)
 	e := &env{t: t, pool: pool, mail: &fakeMailer{enabled: true}}
 	e.clinicA = e.seedClinic("a")
 	e.clinicB = e.seedClinic("b")
