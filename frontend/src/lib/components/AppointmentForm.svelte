@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { agendaApi } from '$lib/api/agenda';
   import { addMinutes, outsideHours } from '$lib/clinic';
   import { session } from '$lib/session.svelte';
   import type { PatientRow } from '$lib/types';
@@ -14,8 +15,10 @@
     /** server answer to the last save: SLOT_TAKEN can be overridden with overbook, SLOT_BLOCKED cannot */
     conflict?: { code: string; message: string } | null;
     slotMinutes?: number;
+    /** the appointment being edited (it does not count as another pending one) */
+    editingId?: string | null;
   }
-  let { data = $bindable(), professionals = [], rooms = [], services = [], conflict = null, slotMinutes }: Props = $props();
+  let { data = $bindable(), professionals = [], rooms = [], services = [], conflict = null, slotMinutes, editingId = null }: Props = $props();
 
   const settings = $derived(session.clinic?.settings);
   const minutes = $derived(slotMinutes ?? settings?.appointment_minutes ?? 30);
@@ -49,6 +52,52 @@
     data.CURP = '';
   }
   const registered = $derived(!!data.patient_id);
+
+  // An open appointment of this patient in the giro: shown before saving, not after
+  let pending = $state<{ date: string; start: string; with: string; message: string } | null>(null);
+  let pseq = 0;
+  $effect(() => {
+    const patient = data.patient_id;
+    const pro = data.professional_id;
+    const email = data.email;
+    const phone = data.phone;
+    if (!pro || (!patient && !email && !phone)) {
+      pending = null;
+      return;
+    }
+    const my = ++pseq;
+    const timer = setTimeout(() => {
+      agendaApi
+        .pendingCheck({ patient: patient ?? undefined, professional: pro, exclude: editingId ?? undefined, email, phone })
+        .then((r) => my === pseq && (pending = r))
+        .catch(() => my === pseq && (pending = null));
+    }, 300);
+    return () => clearTimeout(timer);
+  });
+
+  // Free times of the chosen professional that day, to pick from instead of typing the hour
+  let slots = $state<{ start: string; end: string }[]>([]);
+  let slotsLoading = $state(false);
+  let sseq = 0;
+  $effect(() => {
+    const pro = data.professional_id;
+    const date = data.date;
+    if (!pro || !date) {
+      slots = [];
+      return;
+    }
+    const my = ++sseq;
+    slotsLoading = true;
+    agendaApi
+      .freeSlots(date, pro)
+      .then((r) => my === sseq && (slots = r))
+      .catch(() => my === sseq && (slots = []))
+      .finally(() => my === sseq && (slotsLoading = false));
+  });
+  function pickSlot(s: { start: string; end: string }) {
+    data.startHour = s.start;
+    data.endHour = s.end;
+  }
   const warning = $derived(outsideHours(settings, data.date, data.startHour, data.endHour));
 </script>
 
@@ -111,6 +160,25 @@
     <span class="label">Hora de finalización *</span>
     <input type="time" step="300" class="field" bind:value={data.endHour} required />
   </label>
+  <div class="sm:col-span-2">
+    {#if !data.professional_id}
+      <p class="hint">Elige un profesional para ver sus horarios libres.</p>
+    {:else if slotsLoading}
+      <p class="hint">Buscando horarios libres…</p>
+    {:else if slots.length === 0}
+      <p class="hint">Ese día no hay horarios libres para esa persona (puedes escribir una hora y agendar como sobreturno).</p>
+    {:else}
+      <p class="label">Horarios libres</p>
+      <div class="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto" role="group" aria-label="Horarios libres">
+        {#each slots as s (s.start)}
+          <button type="button" aria-pressed={data.startHour === s.start} class="rounded-full px-3 py-1 text-sm ring-1 ring-inset ring-app-ink/15 hover:bg-app-elevated {data.startHour === s.start ? 'bg-app-primary/10 ring-app-primary' : ''}" onclick={() => pickSlot(s)}>{s.start}</button>
+        {/each}
+      </div>
+    {/if}
+  </div>
+  {#if pending}
+    <p class="flex items-start gap-2 rounded-xl bg-app-danger/10 px-3.5 py-2.5 text-sm font-medium text-app-danger sm:col-span-2" role="alert"><Icon name="alert" size={17} class="mt-0.5 flex-none" />{pending.message}</p>
+  {/if}
   {#if warning}
     <p class="flex items-start gap-2 rounded-xl bg-app-warning/12 px-3.5 py-2.5 text-sm font-medium text-app-warning sm:col-span-2" role="status"><Icon name="clock" size={17} class="mt-0.5 flex-none" />{warning} Puedes agendarla de todos modos.</p>
   {/if}

@@ -116,3 +116,23 @@ func TestFollowUpWhileAttendedAndFreeSlots(t *testing.T) {
 	}
 	doc.expect(400, "GET", "/api/agenda/free-slots?date=nope", nil)
 }
+
+func TestPendingCheckBeforeSaving(t *testing.T) {
+	e := setup(t)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	day := time.Now().AddDate(0, 0, 8)
+	for day.Weekday() == time.Saturday || day.Weekday() == time.Sunday {
+		day = day.AddDate(0, 0, 1)
+	}
+	check := "/api/agenda/pending-check?patient=" + pid + "&professional=" + e.userID("doc_a")
+	if out := doc.expect(200, "GET", check, nil); out["pending"] != nil {
+		t.Fatalf("nothing pending yet: %v", out)
+	}
+	doc.expect(201, "POST", "/api/patients/"+pid+"/follow-up", map[string]any{"date": day.Format("2006-01-02")})
+	out := doc.expect(200, "GET", check, nil)
+	if pend, _ := out["pending"].(map[string]any); pend == nil || pend["with"] == "" {
+		t.Fatalf("pending: %v", out)
+	}
+	doc.expect(400, "GET", "/api/agenda/pending-check?patient=x", nil)
+}

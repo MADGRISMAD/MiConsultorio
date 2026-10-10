@@ -62,6 +62,7 @@
   let followDate = $state('');
   let followTime = $state('');
   let followPro = $state('');
+  let followBlocked = $state(false);
   let error = $state('');
   /** services and supplies of this consultation, saved as a pre-account once the note exists */
   let chargeLines = $state<ChargeDraftLine[]>([]);
@@ -142,6 +143,10 @@
 
   async function save(thenRx: boolean) {
     error = '';
+    if (followDate && followBlocked) {
+      error = 'El paciente ya tiene una cita pendiente en este giro. Quita la fecha de seguimiento o reprograma esa cita primero; la nota aún no se guardó.';
+      return;
+    }
     if (codeDraft && !addCode()) return;
     const m = cleanMeasures();
     if (![reason, subjective, exam, assessment, plan, notes].some((s) => s.trim()) && !Object.keys(m).length) {
@@ -250,7 +255,7 @@
       {/if}
     </fieldset>
 
-    <FollowUpField bind:date={followDate} bind:time={followTime} bind:professionalId={followPro} id="enc-follow" />
+    <FollowUpField bind:date={followDate} bind:time={followTime} bind:professionalId={followPro} patientId={patient.id} bind:blocked={followBlocked} id="enc-follow" />
 
     <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-app-ink/10 bg-app-elevated/60 p-4">
       <input type="checkbox" class="mt-1 h-5 w-5 accent-[rgb(var(--app-primary))]" bind:checked={isPrivate} />

@@ -22,6 +22,9 @@ export const agendaApi = {
   /** free start times of a professional on a day (the calendar view of a follow-up) */
   freeSlots: (date: string, professional = '') =>
     request<{ slots: { start: string; end: string }[] }>('GET', `/agenda/free-slots${qs({ date, professional })}`).then((r) => r.slots),
+  /** an open appointment of the patient in the same giro (what saving would refuse), or null */
+  pendingCheck: (q: { patient?: string; professional?: string; exclude?: string; email?: string; phone?: string }) =>
+    request<{ pending: { date: string; start: string; with: string; message: string } | null }>('GET', `/agenda/pending-check${qs(q)}`).then((r) => r.pending),
   services: () => request<{ services: ServiceOption[] }>('GET', '/agenda/services').then((r) => r.services),
 
   blocks: (from?: string, to?: string) => request<{ blocks: TimeBlock[] }>('GET', `/agenda/blocks${qs({ from, to })}`).then((r) => r.blocks),

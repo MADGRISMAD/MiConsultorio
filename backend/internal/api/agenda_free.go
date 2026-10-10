@@ -67,3 +67,21 @@ func (s *Server) freeSlots(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"date": date, "slots": slots})
 }
+
+// pendingCheck is GET /agenda/pending-check?patient=&professional=&exclude=&email=&phone=: says before saving whether the
+// patient already has an open appointment in the giro of that professional (the same rule the save enforces).
+func (s *Server) pendingCheck(w http.ResponseWriter, r *http.Request) {
+	p := principalFrom(r.Context())
+	q := r.URL.Query()
+	pro := q.Get("professional")
+	patient, exclude := q.Get("patient"), q.Get("exclude")
+	if (pro != "" && !validUUID(pro)) || (patient != "" && !validUUID(patient)) || (exclude != "" && !validUUID(exclude)) {
+		writeError(w, http.StatusBadRequest, "Los datos no son válidos.")
+		return
+	}
+	var proPtr *string
+	if pro != "" {
+		proPtr = &pro
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"pending": s.findOpenInSameArea(r.Context(), s.db, p.ClinicID, patient, q.Get("email"), q.Get("phone"), proPtr, exclude)})
+}

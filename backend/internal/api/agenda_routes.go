@@ -13,6 +13,7 @@ func (s *Server) mountAgendaRoot(r chi.Router) {
 		view := require(PermNavAppointments, PermAdminAppointments)
 		r.With(view).Get("/professionals", s.listProfessionals)
 		r.With(view).Get("/free-slots", s.freeSlots)
+		r.With(view).Get("/pending-check", s.pendingCheck)
 		r.With(require(PermAdminUsers)).Put("/professionals/{id}", s.updateProfessional)
 		r.With(view).Get("/services", s.listAgendaServices)
 		r.With(view).Get("/blocks", s.listBlocks)

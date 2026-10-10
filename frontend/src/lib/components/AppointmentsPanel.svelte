@@ -379,7 +379,7 @@
 
 <Modal open={formOpen} title={editingId ? 'Editar cita' : 'Nueva cita'} onclose={() => (formOpen = false)}>
   <form id="appointment-form" onsubmit={submitForm}>
-    <AppointmentForm bind:data={form} professionals={pros} {rooms} {services} {conflict} slotMinutes={slot} />
+    <AppointmentForm bind:data={form} professionals={pros} {rooms} {services} {conflict} slotMinutes={slot} {editingId} />
   </form>
   {#if formOp.phase === 'error'}
     <Alert class="mt-4">{formOp.message}</Alert>

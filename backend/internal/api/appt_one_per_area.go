@@ -16,6 +16,24 @@ const areaOfProfessional = `coalesce(nullif(u.areas, '{}'), ARRAY[c.kind])`
 // openInSameArea returns an error when the patient (by id, or by e-mail or phone for someone not yet registered) already has an
 // upcoming appointment in a giro of the professional (unless they are being attended today). excludeID is the appointment being moved.
 func (s *Server) openInSameArea(ctx context.Context, q queryRower, clinicID, patientID string, email, phone string, proID *string, excludeID string) error {
+	o := s.findOpenInSameArea(ctx, q, clinicID, patientID, email, phone, proID, excludeID)
+	if o == nil {
+		return nil
+	}
+	e := fail(http.StatusConflict, o.Message)
+	e.Code = "ALREADY_BOOKED_AREA"
+	return e
+}
+
+type openAppt struct {
+	Date    string `json:"date"`
+	Start   string `json:"start"`
+	With    string `json:"with"`
+	Message string `json:"message"`
+}
+
+// findOpenInSameArea is the lookup behind openInSameArea (nil: nothing in the way).
+func (s *Server) findOpenInSameArea(ctx context.Context, q queryRower, clinicID, patientID string, email, phone string, proID *string, excludeID string) *openAppt {
 	if proID == nil || *proID == "" || (patientID == "" && email == "" && phone == "") {
 		return nil
 	}
@@ -45,7 +63,5 @@ func (s *Server) openInSameArea(ctx context.Context, q queryRower, clinicID, pat
 	if err != nil || !found {
 		return nil // no match (or no way to tell): never block on a failed lookup
 	}
-	e := fail(http.StatusConflict, "Este paciente tiene una cita pendiente en este giro: "+date+" a las "+start+" con "+who+". Para agendar otra en la misma especialidad, primero reprograma o cancela esa; si ya lo están atendiendo, sí se puede. En otras especialidades también.")
-	e.Code = "ALREADY_BOOKED_AREA"
-	return e
+	return &openAppt{Date: date, Start: start, With: who, Message: "Este paciente tiene una cita pendiente en este giro: " + date + " a las " + start + " con " + who + ". Para agendar otra en la misma especialidad, primero reprograma o cancela esa; si ya lo están atendiendo, sí se puede. En otras especialidades también."}
 }

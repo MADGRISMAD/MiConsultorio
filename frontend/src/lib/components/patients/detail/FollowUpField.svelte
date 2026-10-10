@@ -10,11 +10,15 @@
     time: string;
     /** who sees the patient: empty is me; someone else of the team makes it a referral */
     professionalId?: string;
+    /** the patient, to warn before saving when they already have an open visit in the giro */
+    patientId?: string;
+    /** true while an open visit in the giro stands in the way */
+    blocked?: boolean;
     /** shown under the field */
     hint?: string;
     id?: string;
   }
-  let { date = $bindable(), time = $bindable(), professionalId = $bindable(''), hint = '', id = 'followup' }: Props = $props();
+  let { date = $bindable(), time = $bindable(), professionalId = $bindable(''), patientId = '', blocked = $bindable(false), hint = '', id = 'followup' }: Props = $props();
   const today = new Date().toISOString().slice(0, 10);
 
   let team = $state<Professional[]>([]);
@@ -51,6 +55,26 @@
     time = '';
   }
   const shown = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  // an open visit of the patient in this giro (checked as soon as a date is chosen, not after the note is saved)
+  let pending = $state<{ message: string } | null>(null);
+  let pseq = 0;
+  $effect(() => {
+    const d = date;
+    const pro = professionalId || me;
+    if (!d || !patientId || !pro) {
+      pending = null;
+      return;
+    }
+    const my = ++pseq;
+    agendaApi
+      .pendingCheck({ patient: patientId, professional: pro })
+      .then((r) => my === pseq && (pending = r))
+      .catch(() => my === pseq && (pending = null));
+  });
+  $effect(() => {
+    blocked = !!date && !!pending;
+  });
 
   // free times of the chosen day, for the person who will see the patient
   let slots = $state<{ start: string; end: string }[]>([]);
@@ -124,6 +148,9 @@
         {/if}
       </div>
     </div>
+  {/if}
+  {#if date && pending}
+    <p class="mt-3 flex items-start gap-2 rounded-xl bg-app-danger/10 px-3.5 py-2.5 text-sm font-medium text-app-danger" role="alert">{pending.message}</p>
   {/if}
   <p class="hint mt-2">{hint || (referral ? 'Se agenda con esa persona como pendiente de confirmar, indica que tú lo derivaste y le llega un aviso.' : 'Se agrega a la agenda como pendiente de confirmar: recepción la confirma con el paciente.')} Si el paciente ya tiene otra cita pendiente en este giro, se te avisará; si ya lo están atendiendo, sí se puede agendar.</p>
 </fieldset>
