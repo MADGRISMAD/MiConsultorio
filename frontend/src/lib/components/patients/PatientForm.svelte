@@ -15,6 +15,7 @@
   import PrivacyNoticeModal from './PrivacyNoticeModal.svelte';
   import Icon from '../ui/Icon.svelte';
   import LoadingRows from '../ui/LoadingRows.svelte';
+  import DateField from '../ui/DateField.svelte';
   import { ageFrom, ageText } from './util';
 
   /** Pass the patient to edit; leave empty to register a new one. */
@@ -119,6 +120,8 @@
   const mixed = $derived(!editing && (schema?.subjects.length ?? 0) > 1);
   const fields = $derived(schema?.profile[subject] ?? []);
   const sexOptions = $derived(animal ? ['Hembra', 'Macho'] : ['Mujer', 'Hombre', 'Otro']);
+  let birthBad = $state(false);
+  let ownerBirthBad = $state(false);
   const age = $derived(ageFrom(f.birth_date));
   const minor = $derived(!animal && age !== null && age < 18);
   const guardianRequired = $derived(animal || minor);
@@ -142,7 +145,9 @@
     if (!f.names.trim()) e.names = animal ? 'Escribe el nombre del animal.' : 'Escribe el nombre del paciente.';
     if (!animal && !f.last_names.trim()) e.last_names = 'Escribe los apellidos del paciente.';
     if (!f.sex) e.sex = 'Elige una opción.';
-    if (f.birth_date && (age === null || f.birth_date > today)) e.birth_date = 'La fecha no puede ser futura.';
+    if (birthBad) e.birth_date = 'Escribe la fecha completa como DD/MM/AAAA (día, mes y año).';
+    else if (f.birth_date && (age === null || f.birth_date > today)) e.birth_date = 'La fecha no puede ser futura.';
+    if (ownerBirthBad) e.owner_birth_date = 'Escribe la fecha completa como DD/MM/AAAA.';
     const curp = f.curp.trim().toUpperCase();
     if (!animal && curp && !/^[A-Z0-9]{18}$/.test(curp)) e.curp = 'La CURP tiene 18 letras y números, sin espacios.';
     if (f.email.trim() && !/^\S+@\S+\.\S+$/.test(f.email.trim())) e.email = 'Revisa el correo electrónico.';
@@ -282,7 +287,7 @@
 
         <div>
           <label class="label" for="pf-birth_date">{animal ? 'Fecha de nacimiento aproximada' : 'Fecha de nacimiento'}{#if age !== null && !errors.birth_date} <span class="font-normal text-app-muted">({ageText(age)})</span>{/if}</label>
-          <input id="pf-birth_date" class="field" type="date" max={today} bind:value={f.birth_date} aria-invalid={!!errors.birth_date} aria-describedby={errors.birth_date ? 'pf-birth_date-h' : animal ? 'pf-birth_date-t' : undefined} />
+          <DateField id="pf-birth_date" max={today} bind:value={f.birth_date} bind:invalid={birthBad} ariaInvalid={!!errors.birth_date} describedby={errors.birth_date ? 'pf-birth_date-h' : animal ? 'pf-birth_date-t' : undefined} />
           {#if animal && !errors.birth_date}<p id="pf-birth_date-t" class="hint">Si no la sabes, pon una fecha aproximada según la edad que te indique el propietario.</p>{/if}
           {@render err('birth_date')}
         </div>
@@ -373,8 +378,9 @@
           </div>
           <div>
             <label class="label" for="pf-owner_birth">Fecha de nacimiento del propietario <span class="font-normal text-app-muted">(opcional)</span></label>
-            <input id="pf-owner_birth" class="field" type="date" max={today} bind:value={f.owner_birth_date} aria-describedby="pf-owner_birth-t" />
+            <DateField id="pf-owner_birth" max={today} bind:value={f.owner_birth_date} bind:invalid={ownerBirthBad} describedby="pf-owner_birth-t" />
             <p id="pf-owner_birth-t" class="hint">Solo informativa; no se usa para nada más.</p>
+            {@render err('owner_birth_date')}
           </div>
         {/if}
       </div>

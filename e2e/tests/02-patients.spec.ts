@@ -10,13 +10,19 @@ test('registra una persona y un animal', async ({ page }) => {
   await page.fill(ui.patient.names, `Persona${id}`);
   await page.fill(ui.patient.lastNames, 'Medina');
   await page.getByRole('radio', { name: 'Hombre' }).click();
-  await page.fill(ui.patient.birth, '1980-03-12');
+  // the date is typed with digits only: the slashes put themselves
+  await page.locator(ui.patient.birth).pressSequentially('1203');
+  await page.getByRole('button', { name: 'Registrar paciente' }).click();
+  await expect(page.getByText('Escribe la fecha completa')).toBeVisible(); // incomplete: not silently dropped
+  await page.locator(ui.patient.birth).pressSequentially('1980');
+  await expect(page.locator(ui.patient.birth)).toHaveValue('12/03/1980');
   await page.fill(ui.patient.phone, '5512345678');
   await page.fill(ui.patient.allergies, 'Ninguna conocida');
   await page.check(ui.patient.ack);
   await page.getByRole('button', { name: 'Registrar paciente' }).click();
   await page.waitForURL(/\/pacientes\/[0-9a-f-]{36}$/);
   await expect(page.getByText(`Persona${id}`).first()).toBeVisible();
+  await expect(page.getByText(/4\d años/).first()).toBeVisible(); // the typed date was saved
 
   // animal: the owner is required
   await page.goto('/pacientes/nuevo');
