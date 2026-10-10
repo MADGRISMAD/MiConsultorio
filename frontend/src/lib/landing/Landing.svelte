@@ -10,6 +10,7 @@
   import Marquee from './Marquee.svelte';
   import Modules from './Modules.svelte';
   import Nav from './Nav.svelte';
+  import Retention from './Retention.svelte';
   import Pricing from './Pricing.svelte';
   import Security from './Security.svelte';
   import Specialties from './Specialties.svelte';
@@ -38,6 +39,7 @@
   <Hero />
   <Chaos />
   <Features />
+  <Retention />
   <Modules />
   <Marquee />
   <Specialties />

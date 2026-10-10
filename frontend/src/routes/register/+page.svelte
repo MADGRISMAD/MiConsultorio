@@ -101,7 +101,7 @@
           {@render err('email')}
         </div>
         <div>
-          <label class="label" for="r-user">Usuario <span class="font-normal text-app-muted">(o entra con tu correo)</span></label>
+          <label class="label" for="r-user">Usuario</label>
           <input id="r-user" class="field" bind:value={username} placeholder="admin" autocomplete="username" autocapitalize="none" aria-invalid={touched && !!problems.username} />
           {@render err('username')}
         </div>

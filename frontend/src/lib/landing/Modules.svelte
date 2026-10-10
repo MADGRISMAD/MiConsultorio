@@ -22,6 +22,8 @@
         'Reprograma arrastrando la cita',
         'Reserva en línea con la liga de tu consultorio',
         'Recordatorios automáticos por correo',
+        'Avisos de seguimiento: vacunas, limpieza a los 6 meses, Papanicolaou, anticonceptivo',
+        'Felicitaciones de cumpleaños por correo, con baja en un clic',
         'Lista de espera: avisa al paciente cuando se libera un lugar',
         'Panel «En proceso»: quién espera y quién está en consulta',
         'Citas de seguimiento recomendadas por el profesional, por confirmar',
