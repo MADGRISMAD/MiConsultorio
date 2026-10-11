@@ -7,13 +7,10 @@
   import { demoHref, loginPath } from './data';
   import { btn, EASE, onFrame, pageProgress, reducedMotion, Spring } from './motion';
 
+  // Solo lo básico; el resto de secciones (todo incluido, especialidades, seguridad, preguntas) se descubre con scroll y desde el pie.
   const links = [
     ['#funciones', 'Funciones'],
-    ['#incluye', 'Todo incluido'],
-    ['#especialidades', 'Especialidades'],
-    ['#seguridad', 'Seguridad'],
     ['#precios', 'Precios'],
-    ['#preguntas', 'Preguntas'],
     ['/directorio', 'Buscar especialista']
   ];
   const mobileLinks = [...links, [loginPath, 'Iniciar sesión']];
