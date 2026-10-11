@@ -104,6 +104,11 @@
 
   const isActive = (href: string) => (href === '/' || href === '/plataforma' ? page.url.pathname === href : page.url.pathname.startsWith(href));
   const billing = $derived(session.user?.billing);
+  const trial = $derived.by(() => {
+    const d = billing?.state === 'trialing' ? billing.trial_days_left : null;
+    if (d == null) return '';
+    return `Estás en tu prueba gratuita: ${d === 0 ? 'termina hoy' : d === 1 ? 'te queda 1 día' : `te quedan ${d} días`}.`;
+  });
 
   async function signOut() {
     await session.logout();
@@ -148,6 +153,12 @@
     </nav>
 
     <div class="border-t border-app-ink/10 p-3">
+      {#if desktop && trial}
+        <p class="mb-2 flex items-start gap-2 rounded-xl bg-app-primary/10 px-3 py-2 text-xs leading-snug text-app-primary" role="status">
+          <Icon name="sparkles" size={15} class="mt-0.5 flex-none" />
+          <span>{trial}</span>
+        </p>
+      {/if}
       {#if desktop}
         <div class="mb-2 flex items-center gap-1">
           <a
@@ -185,7 +196,7 @@
     </div>
   </aside>
 
-  <div class="lg:pl-72" style="background-image: radial-gradient(ellipse 60% 360px at 50% 0%, rgb(var(--app-primary) / 0.08), transparent 75%); background-repeat: no-repeat">
+  <div class="flow-root lg:pl-72" style="background-image: radial-gradient(ellipse 60% 360px at 50% 0%, rgb(var(--app-primary) / 0.08), transparent 75%); background-repeat: no-repeat">
     {#if !desktop}
     <header class="sticky top-0 z-20 px-3 pt-3 sm:px-5 lg:px-8">
       <div class="mx-auto flex h-14 max-w-7xl items-center gap-2 rounded-full bg-app-surface/75 pl-2 pr-2.5 shadow-[0_1px_0_rgba(11,37,64,0.05),0_12px_32px_-14px_rgba(11,37,64,0.2)] ring-1 ring-app-ink/5 backdrop-blur-xl sm:pl-4">
@@ -223,11 +234,11 @@
     </header>
     {/if}
 
-    {#if billing?.state === 'trialing' && billing.trial_days_left !== null}
+    {#if !desktop && trial}
       <div class="mx-auto mt-3 max-w-7xl px-3 sm:px-5 lg:px-8" role="status">
         <p class="flex items-center gap-2 rounded-2xl bg-app-primary/10 px-4 py-2.5 text-sm text-app-primary">
           <Icon name="sparkles" size={17} class="flex-none" />
-          <span>Estás en tu prueba gratuita: {billing.trial_days_left === 0 ? 'termina hoy' : billing.trial_days_left === 1 ? 'te queda 1 día' : `te quedan ${billing.trial_days_left} días`}.</span>
+          <span>{trial}</span>
         </p>
       </div>
     {/if}

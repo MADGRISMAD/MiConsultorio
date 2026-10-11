@@ -195,6 +195,13 @@ html.lenis body {
   --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 24px 48px -20px rgba(0, 0, 0, 0.55);
   color-scheme: dark;
 }
+/* Same idea as the landing: whatever peeks out around the panel (overscroll, a collapsed margin) matches the theme, never white */
+:root:has(.app) body {
+  background: rgb(244 248 251);
+}
+:root:has(.app[data-theme='dark']) body {
+  background: rgb(7 22 40);
+}
 .app {
   font-family: 'Instrument Sans Variable', system-ui, sans-serif;
   background: rgb(var(--app-surface));
