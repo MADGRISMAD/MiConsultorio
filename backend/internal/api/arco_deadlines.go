@@ -59,6 +59,9 @@ func arcoBusinessDaysLeft(today, due time.Time) int {
 			n++
 		}
 	}
+	if sign < 0 && n == 0 {
+		n = 1 // vencida el viernes y hoy es fin de semana: sigue vencida, no «por vencer»
+	}
 	return sign * n
 }
 
