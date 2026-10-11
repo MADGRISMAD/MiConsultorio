@@ -77,7 +77,7 @@
     if (a.status === 'completed') return a.patient_id ? { label: 'Expediente', icon: 'file', run: () => goto(`/pacientes/${a.patient_id}`) } : null;
     if (!isActive(a)) return null;
     if (!a.patient_id) {
-      return canConsult ? { label: 'Registrar paciente', icon: 'user-plus', run: () => goto('/pacientes/nuevo') } : null;
+      return canConsult ? { label: 'Registrar paciente', icon: 'user-plus', run: () => goto(`/pacientes/nuevo?cita=${encodeURIComponent(a.id)}`) } : null;
     }
     if (a.status === 'in_progress') return canConsult ? { label: 'Continuar consulta', icon: 'stethoscope', run: () => goto(consultUrl(a)) } : null;
     const early = tooEarly(a);

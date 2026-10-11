@@ -5,6 +5,7 @@ import "github.com/go-chi/chi/v5"
 // mountAgenda Routes inside /appointments (status, move, confirm...).
 func (s *Server) mountAgenda(r chi.Router) {
 	r.With(require(PermNavAppointments, PermAdminAppointments)).Post("/{id}/status", s.changeAppointmentStatus)
+	r.With(require(PermAdminAppointments, PermAdminHistorials)).Post("/{id}/patient", s.linkAppointmentPatient)
 }
 
 // mountAgendaRoot Routes of /agenda (professionals, availability, blocks, settings).

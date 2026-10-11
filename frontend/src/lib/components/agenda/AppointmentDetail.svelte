@@ -141,6 +141,9 @@
           {/if}
         {/if}
         {#if timeHint && canStatus}<p class="basis-full text-sm text-app-muted" role="note">{timeHint}</p>{/if}
+        {#if !appt.patient_id && open && session.has(PERMISSIONS.adminHistorials)}
+          <a class="btn-secondary" href="/pacientes/nuevo?cita={encodeURIComponent(appt.id)}"><Icon name="user-plus" size={18} />Registrar paciente</a>
+        {/if}
         {#if appt.status === 'completed' && appt.patient_id && canExpedient}
           <a class="btn-secondary" href="/pacientes/{encodeURIComponent(appt.patient_id)}"><Icon name="folder" size={18} />Abrir expediente</a>
         {/if}
