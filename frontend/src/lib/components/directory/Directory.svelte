@@ -100,7 +100,7 @@
     <div class="mx-auto flex h-16 max-w-6xl items-center gap-4 px-5 sm:px-8">
       <a href="/" class="flex items-center gap-2 font-display text-xl"><span class="grid h-8 w-8 place-items-center rounded-xl bg-ink text-paper"><Icon name="plus" size={16} stroke={2.6} /></span>Caresia</a>
       <span class="hidden text-sm text-ink-soft sm:inline">Directorio de especialistas</span>
-      <a href="/" class="ml-auto text-sm font-medium text-ink-soft hover:text-ink">¿Eres especialista? Aparece aquí</a>
+      <a href="/" class="ml-auto text-sm font-medium text-ink-soft hover:text-ink">¿Eres especialista? Completa tu perfil y sube</a>
     </div>
   </header>
 
@@ -144,28 +144,36 @@
     {:else}
       <p class="mb-4 text-sm text-ink-soft">{total} {total === 1 ? 'resultado' : 'resultados'}</p>
       <ul class="grid gap-4">
-        {#each results as r (r.slug)}
-          <li class="grid gap-5 rounded-[28px] bg-panel p-5 ring-1 ring-ink/10 transition hover:shadow-[0_24px_48px_-20px_rgba(11,37,64,0.3)] sm:grid-cols-[auto_1fr_auto] sm:p-6">
-            <a href="/{r.slug}" class="block h-24 w-24 flex-none overflow-hidden rounded-3xl bg-ink/5 ring-1 ring-ink/10" aria-hidden="true" tabindex="-1">
-              {#if r.photo_url || r.cover_url}<img src={r.photo_url || r.cover_url} alt="" class="h-full w-full object-cover" loading="lazy" />{:else}<span class="grid h-full w-full place-items-center bg-ink text-paper"><Icon name="plus" size={32} stroke={2.4} /></span>{/if}
-            </a>
+        {#each results as r, i (r.slug || `sin-pagina-${i}`)}
+          <li class="grid gap-5 rounded-[28px] p-5 ring-1 transition sm:grid-cols-[auto_1fr_auto] sm:p-6 {r.has_page ? 'bg-panel ring-ink/10 hover:shadow-[0_24px_48px_-20px_rgba(11,37,64,0.3)]' : 'bg-ink/[0.03] ring-ink/8'}">
+            {#if r.has_page}
+              <a href="/{r.slug}" class="block h-24 w-24 flex-none overflow-hidden rounded-3xl bg-ink/5 ring-1 ring-ink/10" aria-hidden="true" tabindex="-1">
+                {#if r.photo_url || r.cover_url}<img src={r.photo_url || r.cover_url} alt="" class="h-full w-full object-cover" loading="lazy" />{:else}<span class="grid h-full w-full place-items-center bg-ink text-paper"><Icon name="plus" size={32} stroke={2.4} /></span>{/if}
+              </a>
+            {:else}
+              <span class="grid h-24 w-24 flex-none place-items-center rounded-3xl bg-ink/8 text-ink-faint" aria-hidden="true"><Icon name="building" size={32} /></span>
+            {/if}
             <div class="min-w-0">
-              <h2 class="font-display text-[1.7rem] leading-tight"><a href="/{r.slug}" class="hover:text-signal">{r.name}</a></h2>
+              <h2 class="font-display text-[1.7rem] leading-tight">{#if r.has_page}<a href="/{r.slug}" class="hover:text-signal">{r.name}</a>{:else}{r.name}{/if}</h2>
               {#if r.tagline}<p class="text-[15px] text-ink-soft">{r.tagline}</p>{/if}
               <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 {#if r.rating.count > 0}<span class="inline-flex items-center gap-1.5"><Stars value={r.rating.average} size={15} /><strong>{r.rating.average.toFixed(1)}</strong><span class="text-ink-faint">({r.rating.count})</span></span>{:else}<span class="text-ink-faint">Sin opiniones aún</span>{/if}
-                <span class="inline-flex items-center gap-1 text-ink-soft"><Icon name="building" size={14} />{r.city}, {r.state}</span>
+                {#if r.city}<span class="inline-flex items-center gap-1 text-ink-soft"><Icon name="building" size={14} />{r.city}, {r.state}</span>{/if}
                 {#if r.price_from_cents > 0}<span class="text-ink-soft">Desde <strong class="text-ink">{moneyCents(r.price_from_cents)}</strong></span>{/if}
               </p>
-              {#if r.areas.length}<p class="mt-2 flex flex-wrap gap-1.5">{#each r.areas as a (a)}<span class="rounded-full bg-signal-soft px-2.5 py-0.5 text-xs font-medium text-signal">{a}</span>{/each}</p>{/if}
+              {#if r.areas.length}<p class="mt-2 flex flex-wrap gap-1.5">{#each r.areas as a (a)}<span class="rounded-full bg-signal-soft px-2.5 py-0.5 text-xs font-medium text-signal">{a}</span>{/each}{#if r.completeness >= 90}<span class="rounded-full bg-mint-soft px-2.5 py-0.5 text-xs font-medium text-mint">Perfil completo</span>{/if}</p>{/if}
               {#if r.insurances.length}<p class="mt-2 text-xs text-ink-faint">Acepta: {r.insurances.join(', ')}</p>{/if}
             </div>
             <div class="flex flex-col gap-2 sm:w-56 sm:items-stretch">
-              {#if r.next_slot}
-                <p class="rounded-2xl bg-ink/[0.04] px-3 py-2 text-sm"><span class="block text-xs text-ink-faint">Próxima cita disponible</span><strong>{fmtDay(r.next_slot.date)} · {r.next_slot.start}</strong></p>
+              {#if r.has_page}
+                {#if r.next_slot}
+                  <p class="rounded-2xl bg-ink/[0.04] px-3 py-2 text-sm"><span class="block text-xs text-ink-faint">Próxima cita disponible</span><strong>{fmtDay(r.next_slot.date)} · {r.next_slot.start}</strong></p>
+                {/if}
+                {#if r.booking}<a href="/{r.slug}/reservar" class="{btn} bg-signal text-white hover:bg-ink"><Icon name="calendar" size={16} />Agendar cita</a>{/if}
+                <a href="/{r.slug}" class="{btn} bg-panel text-ink ring-1 ring-ink/15 hover:bg-ink hover:text-paper">Ver perfil</a>
+              {:else}
+                <p class="rounded-2xl bg-ink/[0.04] px-3 py-2 text-sm text-ink-soft">Aún no completa su perfil: sin horarios ni reservas en línea.</p>
               {/if}
-              {#if r.booking}<a href="/{r.slug}/reservar" class="{btn} bg-signal text-white hover:bg-ink"><Icon name="calendar" size={16} />Agendar cita</a>{/if}
-              <a href="/{r.slug}" class="{btn} bg-panel text-ink ring-1 ring-ink/15 hover:bg-ink hover:text-paper">Ver perfil</a>
             </div>
           </li>
         {/each}

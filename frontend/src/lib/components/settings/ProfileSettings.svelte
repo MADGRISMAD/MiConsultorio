@@ -3,7 +3,7 @@
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
-  import { profileApi, type ClinicProfile, type ProfileService, type SurveySummary } from '$lib/api/profile';
+  import { profileApi, type ClinicProfile, type ProfileCompleteness, type ProfileService, type SurveySummary } from '$lib/api/profile';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
   import { dateShort, moneyCents } from '$lib/format';
@@ -16,7 +16,7 @@
     tab?: 'pagina' | 'directorio' | 'opiniones';
     /** Dirección definida en «Reservas» que aún no se ha recargado aquí. */
     slugOverride?: string;
-    onstate?: (v: { enabled: boolean; listed: boolean; survey: boolean }) => void;
+    onstate?: (v: { enabled: boolean; hidden: boolean; score: number; survey: boolean }) => void;
     goto?: (tab: string) => void;
   }
   let { tab = 'pagina', slugOverride = '', onstate, goto }: Props = $props();
@@ -26,13 +26,15 @@
   let reviewUrl = $state('');
   let results = $state<SurveySummary | null>(null);
   let services = $state<ProfileService[]>([]);
+  let completeness = $state<ProfileCompleteness>({ score: 0, items: [] });
   let states = $state<string[]>([]);
   let payMethods = $state<string[]>([]);
   // listas que se escriben separadas por comas
   let insText = $state('');
   let langText = $state('');
   const toList = (t: string) => t.split(',').map((x) => x.trim()).filter(Boolean);
-  function take(r: { profile: ClinicProfile; slug: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[] }) {
+  function take(r: { profile: ClinicProfile; slug: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[]; completeness: ProfileCompleteness }) {
+    completeness = r.completeness;
     p = r.profile;
     slug = r.slug;
     reviewUrl = r.review_url;
@@ -76,7 +78,7 @@
   const mySlug = $derived(slugOverride || slug);
   const link = $derived(mySlug ? `${publicOrigin()}/${mySlug}` : '');
   $effect(() => {
-    if (p) onstate?.({ enabled: p.enabled, listed: p.listed, survey: p.survey_enabled });
+    if (p) onstate?.({ enabled: p.enabled, hidden: p.directory_hidden, score: completeness.score, survey: p.survey_enabled });
   });
 
   async function save(e: SubmitEvent) {
@@ -146,13 +148,31 @@
       <div class="grid gap-5 {tab !== 'directorio' ? '!hidden' : ''}">
       <div class="rounded-2xl bg-app-primary/6 p-4">
         <p class="section-title mb-2">Directorio de Caresia</p>
-        <p class="mb-3 text-sm text-app-muted">Aparece en el buscador de Caresia, donde los pacientes encuentran especialistas por especialidad y ciudad, ven tus precios, tus opiniones verificadas y tu próximo horario libre, y agendan.</p>
-        <label class="flex cursor-pointer items-center gap-3 text-sm font-medium">
-          <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.listed} disabled={!p.enabled} />
-          Aparecer en el directorio{#if !p.enabled}<span class="font-normal text-app-muted">(primero publica tu página)</span>{/if}
+        <p class="mb-3 text-sm text-app-muted">Todos los consultorios aparecen en el buscador de Caresia, donde los pacientes encuentran especialistas por especialidad y ciudad. <strong class="text-app-ink">Los que tienen su perfil completo salen primero; entre más datos falten, más abajo.</strong></p>
+
+        <div class="mb-4 rounded-xl bg-app-panel p-4 ring-1 ring-app-ink/10">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="font-medium">Tu perfil: <span class="display text-2xl">{completeness.score}</span><span class="text-app-muted"> / 100</span></p>
+            {#if !p.directory_hidden}<a class="text-sm font-medium text-app-primary underline" href="{publicOrigin()}/directorio" target="_blank" rel="noopener">Verlo en el directorio</a>{/if}
+          </div>
+          <div class="mt-2 h-2 overflow-hidden rounded-full bg-app-ink/10" role="progressbar" aria-valuenow={completeness.score} aria-valuemin="0" aria-valuemax="100" aria-label="Qué tan completo está tu perfil"><div class="h-full rounded-full bg-app-accent transition-all" style="width:{completeness.score}%"></div></div>
+          {#if completeness.items.some((i) => !i.done)}
+            <p class="mt-3 text-sm font-medium">Para subir, te falta:</p>
+            <ul class="mt-1.5 grid gap-1 text-sm sm:grid-cols-2">
+              {#each completeness.items.filter((i) => !i.done) as it (it.label)}
+                <li class="flex items-baseline justify-between gap-3 text-app-muted"><span>{it.label}</span><span class="font-mono text-xs">+{it.points}</span></li>
+              {/each}
+            </ul>
+            <p class="hint mt-2">Se actualiza al guardar. Lo que llenes en otras pestañas (fotos, servicios, reservas) también cuenta.</p>
+          {:else}
+            <p class="mt-3 text-sm font-medium text-app-accent">Perfil completo: apareces entre los primeros.</p>
+          {/if}
+        </div>
+
+        <label class="flex cursor-pointer items-start gap-3 text-sm">
+          <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.directory_hidden} />
+          <span><span class="font-medium">No mostrar mi consultorio en el directorio</span><span class="block text-app-muted">Dejas de aparecer en el buscador; tu página y tus reservas por enlace siguen igual.</span></span>
         </label>
-        {#if !p.enabled}<p class="mt-2 text-sm"><button type="button" class="font-medium text-app-primary underline" onclick={() => goto?.('pagina')}>Ir a publicar mi página</button></p>{/if}
-        {#if p.listed}<p class="mt-1 text-sm">Míralo en <a class="font-medium text-app-primary underline" href="{publicOrigin()}/directorio" target="_blank" rel="noopener">{publicOrigin()}/directorio</a></p>{/if}
         <div class="mt-3 grid gap-4 sm:grid-cols-3">
           <div>
             <label class="label" for="pf-state">Estado</label>

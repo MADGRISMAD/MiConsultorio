@@ -14,8 +14,8 @@ export interface ClinicProfile {
   survey_enabled: boolean;
   survey_delay_hours: number;
   maps_min_rating: number;
-  // directorio
-  listed: boolean;
+  // directorio: todos salen; quien no quiera, se oculta
+  directory_hidden: boolean;
   city: string;
   state: string;
   neighborhood: string;
@@ -24,6 +24,11 @@ export interface ClinicProfile {
   payment_methods: string[];
   /** ids de los servicios que se muestran con precio (solo al guardar) */
   public_services?: string[];
+}
+
+export interface ProfileCompleteness {
+  score: number;
+  items: { label: string; points: number; done: boolean }[];
 }
 
 export interface ProfileService {
@@ -92,6 +97,9 @@ export interface DirectoryHit {
   next_slot: { date: string; start: string; professional: string } | null;
   price_from_cents: number;
   insurances: string[];
+  has_page: boolean;
+  /** 0–100: qué tanto llenó su perfil (ordena el directorio) */
+  completeness: number;
 }
 
 export interface DirectoryOptions {
@@ -112,12 +120,12 @@ export const directoryApi = {
 
 export const profileApi = {
   get: () =>
-    request<{ profile: ClinicProfile; slug: string; public_url: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[] }>(
+    request<{ profile: ClinicProfile; slug: string; public_url: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[]; completeness: ProfileCompleteness }>(
       'GET',
       '/clinic/profile'
     ),
   save: (p: ClinicProfile) =>
-    request<{ profile: ClinicProfile; slug: string; public_url: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[] }>(
+    request<{ profile: ClinicProfile; slug: string; public_url: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[]; completeness: ProfileCompleteness }>(
       'PUT',
       '/clinic/profile',
       p

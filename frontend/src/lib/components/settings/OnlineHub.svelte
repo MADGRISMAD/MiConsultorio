@@ -9,7 +9,7 @@
   const TABS: { id: Tab; title: string; what: string }[] = [
     { id: 'reservas', title: 'Reservas', what: 'Tu dirección y que los pacientes agenden solos' },
     { id: 'pagina', title: 'Página', what: 'Tu página con servicios, equipo y fotos' },
-    { id: 'directorio', title: 'Directorio', what: 'Aparecer en el buscador de Caresia' },
+    { id: 'directorio', title: 'Directorio', what: 'Tu lugar en el buscador de Caresia: entre más completo tu perfil, más arriba' },
     { id: 'portal', title: 'Paciente', what: 'Citas y recetas de tus pacientes' },
     { id: 'opiniones', title: 'Opiniones', what: 'Encuesta, Google y respuestas' }
   ];
@@ -18,7 +18,8 @@
   let slug = $state('');
   let booking = $state<boolean | null>(null);
   let pageOn = $state<boolean | null>(null);
-  let listed = $state<boolean | null>(null);
+  let hidden = $state<boolean | null>(null);
+  let score = $state<number | null>(null);
   let portal = $state<boolean | null>(null);
   let survey = $state<boolean | null>(null);
 
@@ -42,7 +43,7 @@
       case 'pagina':
         return { text: pageOn ? 'Publicada' : 'Sin publicar', on: pageOn };
       case 'directorio':
-        return { text: listed ? 'Apareces' : 'No apareces', on: listed };
+        return hidden === null ? { text: '', on: null } : hidden ? { text: 'Oculto', on: false } : { text: `Perfil ${score ?? 0}/100`, on: (score ?? 0) >= 60 };
       case 'portal':
         return { text: portal ? 'Activo' : 'Apagado', on: portal };
       case 'opiniones':
@@ -89,7 +90,7 @@
       <PortalSettings slugOverride={slug} onstate={(v) => (portal = v.enabled)} goto={go} />
     </div>
     <div class={tab === 'pagina' || tab === 'directorio' || tab === 'opiniones' ? '' : '!hidden'}>
-      <ProfileSettings tab={profileTab} slugOverride={slug} goto={go} onstate={(v) => ((pageOn = v.enabled), (listed = v.listed), (survey = v.survey))} />
+      <ProfileSettings tab={profileTab} slugOverride={slug} goto={go} onstate={(v) => ((pageOn = v.enabled), (hidden = v.hidden), (score = v.score), (survey = v.survey))} />
     </div>
   </div>
 </div>
