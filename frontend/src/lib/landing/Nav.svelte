@@ -51,16 +51,18 @@
       ? 'bg-paper/75 shadow-[0_1px_0_rgba(11,37,64,0.06),0_12px_32px_-12px_rgba(11,37,64,0.18)] ring-1 ring-ink/5 backdrop-blur-xl'
       : ''}"
   >
-    <a href="#inicio" aria-label="Caresia, inicio" class="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
-      <Wordmark />
-    </a>
-    <div class="hidden items-center md:flex">
-      {#each links as [href, label]}
-        <a {href} class="group relative px-3.5 py-2 text-[15px] text-ink-soft transition-colors hover:text-ink">
-          {label}
-          <span class="absolute inset-x-3.5 bottom-1 h-px origin-right scale-x-0 bg-ink transition-transform duration-500 ease-out-strong group-hover:origin-left group-hover:scale-x-100"></span>
-        </a>
-      {/each}
+    <div class="flex items-center">
+      <a href="#inicio" aria-label="Caresia, inicio" class="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
+        <Wordmark />
+      </a>
+      <div class="ml-5 hidden items-center md:flex">
+        {#each links as [href, label]}
+          <a {href} class="group relative px-3.5 py-2 text-[15px] text-ink-soft transition-colors hover:text-ink">
+            {label}
+            <span class="absolute inset-x-3.5 bottom-1 h-px origin-right scale-x-0 bg-ink transition-transform duration-500 ease-out-strong group-hover:origin-left group-hover:scale-x-100"></span>
+          </a>
+        {/each}
+      </div>
     </div>
     <div class="flex items-center gap-1.5">
       <button
