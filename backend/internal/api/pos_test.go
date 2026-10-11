@@ -253,6 +253,8 @@ type fakeMP struct {
 	mode             string
 	setups           int
 	busy, refundFail bool
+	cancelFail       bool                      // Mercado Pago refuses to cancel
+	cancelHeaders    []string                  // x-allow-cancelable-status sent with each cancel
 	refundBodies     []map[string]any          // bodies sent with order refunds (partial ones carry the amount)
 	orderFailure     string                    // when set, POST /v1/orders answers with this Orders-API error code
 	preapprovals     map[string]map[string]any // suscripciones (preapproval) por id
@@ -433,6 +435,12 @@ func newFakeMP(t *testing.T) (*fakeMP, *httptest.Server) {
 		}
 		switch action {
 		case "cancel":
+			f.cancelHeaders = append(f.cancelHeaders, r.Header.Get("x-allow-cancelable-status"))
+			if f.cancelFail {
+				w.WriteHeader(400)
+				reply(w, map[string]any{"message": "order cannot be canceled"})
+				return
+			}
 			f.canceled = append(f.canceled, id)
 			in["status"] = "canceled"
 			reply(w, in)
@@ -799,6 +807,23 @@ func TestPointTerminalAndLinks(t *testing.T) {
 		t.Fatalf("the terminal must be told to cancel: %v", fake.canceled)
 	}
 	cash.expect(409, "DELETE", "/api/pos/charges/"+in2["id"].(string), nil)
+
+	// the cancel must reach a charge already on the terminal's screen, and a refusal must not mark it cancelled
+	if fake.cancelHeaders[0] != "at_terminal" {
+		t.Fatalf("cancel needs the at_terminal header: %v", fake.cancelHeaders)
+	}
+	inRef := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 1000})
+	fake.mu.Lock()
+	fake.cancelFail = true
+	fake.mu.Unlock()
+	cash.expect(409, "DELETE", "/api/pos/charges/"+inRef["id"].(string), nil)
+	if st := sub(cash.expect(200, "GET", "/api/pos/charges/"+inRef["id"].(string), nil), "charge")["status"]; st != "open" {
+		t.Fatalf("a refused cancel must leave the charge open: %v", st)
+	}
+	fake.mu.Lock()
+	fake.cancelFail = false
+	fake.mu.Unlock()
+	cash.expect(200, "DELETE", "/api/pos/charges/"+inRef["id"].(string), nil)
 
 	// the order webhook refreshes a charge without anyone polling
 	in3 := cash.expect(201, "POST", "/api/pos/point/charges", map[string]any{"amount_cents": 2000})

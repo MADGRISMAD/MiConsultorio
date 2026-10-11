@@ -72,6 +72,11 @@ var providerHTTP = &http.Client{Timeout: 20 * time.Second}
 
 // mpCall talks to Mercado Pago with a bearer token. A 4xx/5xx becomes an error carrying MP's message.
 func (s *Server) mpCall(ctx context.Context, token, method, path string, body, out any) error {
+	return s.mpCallH(ctx, token, method, path, nil, body, out)
+}
+
+// mpCallH is mpCall with extra request headers.
+func (s *Server) mpCallH(ctx context.Context, token, method, path string, headers map[string]string, body, out any) error {
 	var rdr io.Reader
 	if body != nil {
 		raw, _ := json.Marshal(body)
@@ -85,6 +90,9 @@ func (s *Server) mpCall(ctx context.Context, token, method, path string, body, o
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 	if method == http.MethodPost {
 		key := make([]byte, 16)
 		_, _ = rand.Read(key)
@@ -1171,13 +1179,20 @@ func (s *Server) chargeCancel(w http.ResponseWriter, r *http.Request) {
 			writeFailure(w, r, err)
 			return
 		}
-		// If it can no longer be cancelled, the sync below tells what happened.
-		_ = s.mpCall(r.Context(), token, http.MethodPost, "/v1/orders/"+url.PathEscape(id)+"/cancel", nil, nil)
+		// Once the order is on the terminal's screen (at_terminal) Mercado Pago only cancels it with this header; it answers 202
+		// and the terminal drops the charge a moment later. Without it the cancel was refused and the customer could still pay.
+		cancelErr := s.mpCallH(r.Context(), token, http.MethodPost, "/v1/orders/"+url.PathEscape(id)+"/cancel", map[string]string{"x-allow-cancelable-status": "at_terminal"}, nil, nil)
 		if c, err = s.syncCharge(r.Context(), p.ClinicID, c, ref); err != nil {
 			providerFailure(w, r, err)
 			return
 		}
 		if c.Status == "open" {
+			// Only mark it cancelled when Mercado Pago accepted the cancel: otherwise the terminal still has the charge.
+			if cancelErr != nil {
+				log.Printf("point cancel %s: %v", id, cancelErr)
+				writeError(w, http.StatusConflict, "No se pudo cancelar en la terminal. Cancélalo también en la terminal o inténtalo de nuevo.")
+				return
+			}
 			c.Status = s.setCharge(r.Context(), id, "canceled")
 		}
 	} else {

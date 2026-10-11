@@ -196,7 +196,6 @@
       polling = false;
     }
   }
-  onDestroy(stopPoll);
 
   async function startCharge() {
     formError = '';
@@ -222,15 +221,30 @@
 
   async function cancelCharge() {
     const c = charge;
-    stopPoll();
-    charge = null;
     if (!c) return;
+    stopPoll();
     try {
       await api.pos.cancelCharge(c.id);
-    } catch {
-      /* already closed on the provider side */
+      charge = null;
+    } catch (e) {
+      // The provider refused (e.g. the customer is already paying): keep the charge on screen and keep watching it.
+      mpError = e instanceof Error ? e.message : 'No se pudo cancelar el cobro.';
+      if (charge) startPoll();
     }
   }
+
+  // Closing the modal (or leaving the page) with a charge still open must also clear it from the terminal: one cancel, not two.
+  function cancelOnLeave() {
+    const c = charge;
+    if (!c || c.status !== 'open') return;
+    stopPoll();
+    charge = null;
+    api.pos.cancelCharge(c.id).catch(() => {});
+  }
+  $effect(() => {
+    if (!open) untrack(cancelOnLeave);
+  });
+  onDestroy(cancelOnLeave);
 
   async function copyUrl() {
     if (!charge?.url) return;
