@@ -2,6 +2,7 @@
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { agendaApi } from '$lib/api/agenda';
+  import { beginConsult, consultUrl } from '$lib/consultFlow';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { moneyCents } from '$lib/format';
@@ -78,18 +79,11 @@
     }
   }
 
-  const consultUrl = (a: Appt) => `/pacientes/${encodeURIComponent(a.patient_id ?? '')}?cita=${encodeURIComponent(a.id)}&motivo=${encodeURIComponent(a.details || a.service_name)}`;
-
   /** Marks the arrival when needed, then the consultation as started, and opens the patient's record. */
   async function startConsult() {
     if (!appt?.patient_id) return;
     const a = appt;
-    const ok = await op.run(async () => {
-      let cur = a;
-      if (cur.status === 'scheduled' || cur.status === 'confirmed') cur = await agendaApi.setStatus(cur.id, 'arrived');
-      if (cur.status === 'arrived') cur = await agendaApi.setStatus(cur.id, 'in_progress');
-      onchanged(cur);
-    });
+    const ok = await op.run(async () => onchanged(await beginConsult(a)));
     if (ok) goto(consultUrl(a));
   }
 </script>

@@ -8,12 +8,11 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Landing from '$lib/landing/Landing.svelte';
+  import TodayPanel from '$lib/components/home/TodayPanel.svelte';
 
   let appointments = $state<Appointment[]>([]);
-  let patientCount = $state<number | null>(null);
 
   const canAppointments = $derived(session.has(PERMISSIONS.navAppointments) || session.has(PERMISSIONS.adminAppointments));
-  const canPatients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
 
   $effect(() => {
     if (session.status === 'authenticated') {
@@ -25,12 +24,11 @@
   $effect(() => {
     if (session.status !== 'authenticated' || session.isPlatform || session.locked) return;
     if (canAppointments) api.appointments().then((a) => (appointments = a), () => {});
-    if (canPatients) api.patients.list().then((e) => (patientCount = e.length), () => {});
   });
 
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = $derived(appointments.filter((a) => a.date >= today).slice(0, 5));
-  const todayCount = $derived(appointments.filter((a) => a.date === today).length);
+  // hoy lo atiende el panel de arriba; aquí, los días que vienen
+  const upcoming = $derived(appointments.filter((a) => a.date > today).slice(0, 5));
   const greeting = (() => {
     const h = new Date().getHours();
     return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
@@ -58,7 +56,7 @@
   <Guard title="Inicio">
     <section class="relative">
       <p class="section-title">{greeting}</p>
-      <h1 class="display mt-3 text-[2.75rem] leading-[0.95] sm:text-6xl">Tu consultorio, <em class="italic text-app-primary">{session.user?.name?.split(' ')[0] || session.user?.username}.</em></h1>
+      <h1 class="display mt-3 text-[2.75rem] leading-[0.95] sm:text-6xl">Tu consultorio, <em class="italic text-app-primary">{(session.user?.name?.split(' ')[0] || session.user?.username || '').replace(/\.$/, '')}.</em></h1>
       {#if session.clinic}
         <p class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-app-muted">
           <strong class="font-medium text-app-ink">{session.clinic.name}</strong>
@@ -76,34 +74,17 @@
       {/if}
     </section>
 
-    <div class="mt-9 grid gap-4 sm:grid-cols-3">
-      {#if canAppointments}
-        <div class="card p-6">
-          <p class="section-title">Citas de hoy</p>
-          <p class="display mt-3 text-6xl leading-none tabular-nums">{todayCount}</p>
-        </div>
-        <div class="card p-6">
-          <p class="section-title">Próximas citas</p>
-          <p class="display mt-3 text-6xl leading-none tabular-nums">{appointments.filter((a) => a.date >= today).length}</p>
-        </div>
-      {/if}
-      {#if canPatients}
-        <div class="card p-6">
-          <p class="section-title">Pacientes</p>
-          <p class="display mt-3 text-6xl leading-none tabular-nums">{patientCount ?? '—'}</p>
-        </div>
-      {/if}
-    </div>
+    {#if canAppointments}<div class="mt-8"><TodayPanel /></div>{/if}
 
     <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
       {#if canAppointments}
         <section class="card p-5 sm:p-6">
           <div class="mb-4 flex items-center justify-between">
-            <h2 class="display text-3xl">Próximas citas</h2>
+            <h2 class="display text-3xl">Próximos días</h2>
             <a href="/admin/navegar-citas" class="text-sm font-semibold text-app-primary hover:underline">Ver todas</a>
           </div>
           {#if upcoming.length === 0}
-            <p class="rounded-xl bg-app-ink/5 px-4 py-8 text-center text-sm text-app-muted">No hay citas próximas.</p>
+            <p class="rounded-xl bg-app-ink/5 px-4 py-8 text-center text-sm text-app-muted">No hay citas en los próximos días.</p>
           {:else}
             <ul class="divide-y divide-app-ink/8">
               {#each upcoming as a (a.id)}
