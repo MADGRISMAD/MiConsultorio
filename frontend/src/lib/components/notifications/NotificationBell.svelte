@@ -8,6 +8,8 @@
   import { timeAgo } from './util';
 
   const POLL_MS = 60_000;
+  /** `up`: el botón está al pie de la barra lateral, así que el panel abre hacia arriba y a la derecha */
+  let { up = false }: { up?: boolean } = $props();
   const uid = $props.id();
 
   let unread = $state(0);
@@ -123,7 +125,7 @@
         id="{uid}-panel"
         role="region"
         aria-label="Avisos"
-        class="fixed inset-x-3 top-16 z-50 max-h-[75vh] overflow-hidden rounded-2xl border border-app-ink/10 bg-app-panel shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[22rem]"
+        class="fixed inset-x-3 top-16 z-50 max-h-[75vh] overflow-hidden rounded-2xl border border-app-ink/10 bg-app-panel shadow-xl sm:absolute sm:inset-x-auto sm:w-[22rem] {up ? 'sm:bottom-full sm:left-0 sm:top-auto sm:mb-2' : 'sm:right-0 sm:top-full sm:mt-2'}"
       >
         <div class="flex items-center justify-between gap-2 border-b border-app-ink/10 px-4 py-3">
           <h2 class="text-sm font-semibold">Avisos</h2>
