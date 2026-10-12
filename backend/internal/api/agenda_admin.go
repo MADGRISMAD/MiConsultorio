@@ -175,7 +175,7 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 // listAgendaServices is the catalog of services an appointment can be for (works on every plan).
 func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
-	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, duration_minutes, modality FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, duration_minutes, modality, price_cents, deposit_percent FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -186,11 +186,13 @@ func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
 		Name            string `json:"name"`
 		DurationMinutes *int   `json:"duration_minutes"`
 		Modality        string `json:"modality"`
+		PriceCents      int    `json:"price_cents"`
+		DepositPercent  *int   `json:"deposit_percent"` // nil: usa el de la agenda
 	}
 	out := []svc{}
 	for rows.Next() {
 		var v svc
-		if err := rows.Scan(&v.ID, &v.Name, &v.DurationMinutes, &v.Modality); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.DurationMinutes, &v.Modality, &v.PriceCents, &v.DepositPercent); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -405,6 +407,7 @@ type agendaSettings struct {
 	BookingRequiresConfirmation bool     `json:"booking_requires_confirmation"`
 	BookingShowPrices           bool     `json:"booking_show_prices"`
 	CancelMinHours              int      `json:"cancel_min_hours"`
+	DepositPercent              int      `json:"deposit_percent"` // anticipo al reservar en línea, % del precio (0 = no se cobra)
 	RemindEmail                 bool     `json:"remind_email"`
 	RemindWhatsapp              bool     `json:"remind_whatsapp"`
 	RemindHours                 []int    `json:"remind_hours"`
@@ -419,10 +422,10 @@ func loadAgendaSettings(r *http.Request, q queryRower, clinicID string) (agendaS
 	st := defaultAgendaSettings()
 	err := q.QueryRow(r.Context(), `
 		SELECT slot_minutes, rooms, booking_enabled, coalesce(booking_slug, ''), booking_lead_hours, booking_horizon_days, booking_message,
-		       booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours
+		       booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours, deposit_percent
 		FROM agenda_settings WHERE clinic_id = $1`, clinicID).
 		Scan(&st.SlotMinutes, &st.Rooms, &st.BookingEnabled, &st.BookingSlug, &st.BookingLeadHours, &st.BookingHorizonDays, &st.BookingMessage,
-			&st.BookingRequiresConfirmation, &st.RemindEmail, &st.RemindWhatsapp, &st.RemindHours, &st.ReminderTemplate, &st.BookingShowPrices, &st.CancelMinHours)
+			&st.BookingRequiresConfirmation, &st.RemindEmail, &st.RemindWhatsapp, &st.RemindHours, &st.ReminderTemplate, &st.BookingShowPrices, &st.CancelMinHours, &st.DepositPercent)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return st, nil
 	}
@@ -485,6 +488,9 @@ func (in *agendaSettings) validate() string {
 	if in.CancelMinHours < 0 || in.CancelMinHours > 720 {
 		return "El tiempo mínimo para cancelar debe estar entre 0 y 720 horas."
 	}
+	if in.DepositPercent < 0 || in.DepositPercent > 100 {
+		return "El anticipo debe estar entre 0 y 100 %."
+	}
 	in.BookingMessage = strings.TrimSpace(in.BookingMessage)
 	in.ReminderTemplate = strings.TrimSpace(in.ReminderTemplate)
 	if utf8.RuneCountInString(in.BookingMessage) > 500 || utf8.RuneCountInString(in.ReminderTemplate) > 1000 {
@@ -532,13 +538,13 @@ func (s *Server) updateAgendaSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := s.db.Exec(r.Context(), `
 		INSERT INTO agenda_settings (clinic_id, slot_minutes, rooms, booking_enabled, booking_slug, booking_lead_hours, booking_horizon_days,
-			booking_message, booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			booking_message, booking_requires_confirmation, remind_email, remind_whatsapp, remind_hours, reminder_template, booking_show_prices, cancel_min_hours, deposit_percent)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		ON CONFLICT (clinic_id) DO UPDATE SET slot_minutes = $2, rooms = $3, booking_enabled = $4, booking_slug = $5, booking_lead_hours = $6,
 			booking_horizon_days = $7, booking_message = $8, booking_requires_confirmation = $9, remind_email = $10, remind_whatsapp = $11,
-			remind_hours = $12, reminder_template = $13, booking_show_prices = $14, cancel_min_hours = $15, updated_at = now()`,
+			remind_hours = $12, reminder_template = $13, booking_show_prices = $14, cancel_min_hours = $15, deposit_percent = $16, updated_at = now()`,
 		p.ClinicID, in.SlotMinutes, in.Rooms, in.BookingEnabled, slug, in.BookingLeadHours, in.BookingHorizonDays, in.BookingMessage,
-		in.BookingRequiresConfirmation, in.RemindEmail, in.RemindWhatsapp, in.RemindHours, in.ReminderTemplate, in.BookingShowPrices, in.CancelMinHours)
+		in.BookingRequiresConfirmation, in.RemindEmail, in.RemindWhatsapp, in.RemindHours, in.ReminderTemplate, in.BookingShowPrices, in.CancelMinHours, in.DepositPercent)
 	if isUniqueViolation(err) {
 		writeJSON(w, http.StatusConflict, errorBody{Code: "SLUG_TAKEN", Message: "Esa dirección de reservas ya la usa otro consultorio."})
 		return

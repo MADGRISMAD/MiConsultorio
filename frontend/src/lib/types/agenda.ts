@@ -1,7 +1,10 @@
-export type ApptStatus = 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
+export type ApptStatus = 'pending_payment' | 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
 
 export interface Appt {
   id: string;
+  /** anticipo pagado en línea y su estado (none, pending, paid, refunded, kept, applied) */
+  deposit_cents?: number;
+  deposit_state?: 'none' | 'pending' | 'paid' | 'refunded' | 'kept' | 'applied';
   patient_id: string | null;
   names: string;
   last_names: string;
@@ -129,6 +132,8 @@ export interface AgendaSettings {
   booking_requires_confirmation: boolean;
   booking_show_prices: boolean;
   cancel_min_hours: number;
+  /** anticipo al reservar en línea, % del precio (0: no se cobra) */
+  deposit_percent: number;
   remind_email: boolean;
   remind_whatsapp: boolean;
   remind_hours: number[];
@@ -140,6 +145,9 @@ export interface ServiceOption {
   name: string;
   duration_minutes?: number | null;
   modality?: 'presencial' | 'videollamada' | 'ambas';
+  price_cents?: number;
+  /** anticipo propio del servicio; null usa el de la agenda */
+  deposit_percent?: number | null;
 }
 
 export interface ApptFilters {
@@ -153,6 +161,7 @@ export interface ApptFilters {
 
 /** Label and colour classes (Tailwind, theme tokens) of each status. */
 export const STATUS_META: Record<ApptStatus, { label: string; tone: 'info' | 'ok' | 'warn' | 'bad' | 'muted'; card: string }> = {
+  pending_payment: { label: 'Pendiente de pago', tone: 'warn', card: 'bg-app-warning/10 text-app-ink border-app-warning border-dashed' },
   scheduled: { label: 'Por confirmar', tone: 'info', card: 'bg-app-primary/14 text-app-ink border-app-primary' },
   confirmed: { label: 'Confirmada', tone: 'ok', card: 'bg-app-accent/16 text-app-ink border-app-accent' },
   arrived: { label: 'Llegó', tone: 'warn', card: 'bg-app-warning/16 text-app-ink border-app-warning' },

@@ -150,8 +150,15 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents, duration_minutes, modality FROM catalog_items
-		WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY category, name LIMIT 200`, c.ID)
+	depositOn := false
+	if planOf(ctx, b.db, c.ID).Cobros {
+		_, terr := b.clinicToken(ctx, c.ID)
+		depositOn = terr == nil
+	}
+	rows, err := b.db.Query(ctx, `SELECT ci.id, ci.name, ci.category, ci.price_cents, ci.duration_minutes, ci.modality,
+		       coalesce(ci.deposit_percent, a.deposit_percent) FROM catalog_items ci
+		LEFT JOIN agenda_settings a ON a.clinic_id = ci.clinic_id
+		WHERE ci.clinic_id = $1 AND ci.kind = 'service' AND ci.active ORDER BY ci.category, ci.name LIMIT 200`, c.ID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -160,9 +167,9 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 	services := []map[string]any{}
 	for rows.Next() {
 		var id, name, cat, modality string
-		var price int
+		var price, percent int
 		var minutes *int
-		if err := rows.Scan(&id, &name, &cat, &price, &minutes, &modality); err != nil {
+		if err := rows.Scan(&id, &name, &cat, &price, &minutes, &modality, &percent); err != nil {
 			serverError(w, r, err)
 			return
 		}
@@ -172,6 +179,9 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 		}
 		if c.ShowPrices {
 			svc["price_cents"] = price
+		}
+		if depositOn && price > 0 && percent > 0 {
+			svc["deposit_cents"] = depositAmount(price, percent)
 		}
 		services = append(services, svc)
 	}
@@ -489,6 +499,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	end := pro.end(c, req.Start, dur)
+	depCents, depTitle := b.depositFor(ctx, c.ID, req.ServiceID)
 	token, err := newToken()
 	if err != nil {
 		serverError(w, r, err)
@@ -523,7 +534,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		var open int
 		if err := tx.QueryRow(ctx, `
 			SELECT count(*) FROM appointments
-			WHERE clinic_id = $1 AND source = 'online' AND status IN ('scheduled', 'confirmed') AND date >= current_date - 1
+			WHERE clinic_id = $1 AND source = 'online' AND status IN ('pending_payment', 'scheduled', 'confirmed') AND date >= current_date - 1
 			  AND (($2 <> '' AND lower(email) = $2) OR ($3 <> '' AND phone = $3))`, c.ID, req.Email, phone).Scan(&open); err != nil {
 			return err
 		}
@@ -563,10 +574,17 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, professional_id, status, source,
 			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id, patient_id, modality, video_url)
-			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid, $16, $17)
+			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, $18, 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid, $16, $17)
 			RETURNING id`,
-			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID, modality, videoURL).Scan(&apptID); err != nil {
+			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID, modality, videoURL,
+			map[bool]string{true: "pending_payment", false: "scheduled"}[depCents > 0]).Scan(&apptID); err != nil {
 			return err
+		}
+		if depCents > 0 { // the time is held, not confirmed: nobody is told until the deposit is paid
+			if _, err := tx.Exec(ctx, `UPDATE appointments SET deposit_cents = $2, deposit_state = 'pending', deposit_expires_at = $3 WHERE id = $1`,
+				apptID, depCents, time.Now().Add(depositHold)); err != nil {
+				return err
+			}
 		}
 		if req.Holder != "" { // the time is theirs now
 			if _, err := tx.Exec(ctx, `DELETE FROM booking_holds WHERE clinic_id = $1 AND holder = $2`, c.ID, req.Holder); err != nil {
@@ -574,7 +592,10 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		audit(ctx, tx, c.ID, nil, "appointment_booked_online", "Cita reservada en línea para el "+req.Date+" a las "+req.Start,
-			map[string]any{"appointment_id": apptID, "professional_id": pro.ID, "requires_confirmation": c.RequiresConfirmation})
+			map[string]any{"appointment_id": apptID, "professional_id": pro.ID, "requires_confirmation": c.RequiresConfirmation, "deposit_cents": depCents})
+		if depCents > 0 {
+			return nil
+		}
 		b.ntfAppointment(ctx, tx, c.ID, pro.ID, "booking_new", "Nueva cita por reserva en línea",
 			bookingWho(req)+" · "+req.Date+" "+req.Start+" con "+pro.Name, "/admin/navegar-citas")
 		return b.scheduleReminders(ctx, tx, c.ID, apptID)
@@ -600,6 +621,26 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if depCents > 0 {
+		payURL, err := b.createDepositCharge(ctx, c.ID, apptID, token, depCents, depTitle)
+		if err != nil { // without a way to pay the time is not held
+			_, _ = b.db.Exec(ctx, `UPDATE appointments SET status = 'cancelled', deposit_state = 'none', cancel_reason = 'No se pudo abrir el pago del anticipo' WHERE id = $1`, apptID)
+			providerFailure(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"appointment": map[string]any{
+			"token":        token,
+			"date":         req.Date,
+			"start":        req.Start,
+			"end":          end,
+			"professional": pro.Name,
+			"clinic":       c.Name,
+			"status":       "pending_payment",
+			"modality":     modality,
+			"deposit":      map[string]any{"cents": depCents, "state": "pending", "pay_url": payURL},
+		}})
+		return
+	}
 	info, ok, err := b.loadApptInfo(ctx, b.db, c.ID, apptID)
 	if err == nil && ok && req.Email != "" {
 		subject, text, html := b.bookingMail(info, c.RequiresConfirmation)

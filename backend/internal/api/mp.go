@@ -468,6 +468,11 @@ func (s *Server) mpWebhook(w http.ResponseWriter, r *http.Request) {
 	if topic == "" {
 		topic = r.URL.Query().Get("type")
 	}
+	if dep := r.URL.Query().Get("dep"); dep != "" && topic == "payment" { // the deposit of an online booking
+		s.settleDeposit(r.Context(), dep)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if strings.Contains(topic, "order") || topic == "point_integration_wh" {
 		if id != "" {
 			s.syncOrderFromWebhook(r.Context(), id)

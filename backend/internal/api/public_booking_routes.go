@@ -75,12 +75,17 @@ type tokenAppt struct {
 	Info                            apptInfo
 	CancelMinHours                  int
 	ShowReminders                   bool
+	DepositCents                    int
+	DepositState, DepositURL        string
+	DepositExpires                  *time.Time
 }
 
 const tokenApptSQL = `
 	SELECT ap.clinic_id, ap.status, coalesce(ap.patient_id::text, ''), ap.names, ap.phone, ap.email,
-	       coalesce(s.cancel_min_hours, 2), ap.reminders_consent OR coalesce(p.reminders_ok, false), ` + apptInfoCols + ` ` + apptInfoFrom + `
+	       coalesce(s.cancel_min_hours, 2), ap.reminders_consent OR coalesce(p.reminders_ok, false),
+	       ap.deposit_cents, ap.deposit_state, coalesce(dc.pay_url, ''), ap.deposit_expires_at, ` + apptInfoCols + ` ` + apptInfoFrom + `
 	LEFT JOIN patients p ON p.id = ap.patient_id AND p.clinic_id = ap.clinic_id
+	LEFT JOIN mp_charges dc ON dc.id = ap.deposit_charge_id AND dc.clinic_id = ap.clinic_id
 	WHERE ap.confirm_token = $1`
 
 // findByToken loads an appointment by its secret link. forUpdate locks the row (use inside a transaction).
@@ -91,7 +96,7 @@ func (b *bookingAPI) findByToken(ctx context.Context, q queryRower, token string
 	}
 	var a tokenAppt
 	var x apptInfoScan
-	err := q.QueryRow(ctx, sql, token).Scan(append([]any{&a.ClinicID, &a.Status, &a.PatientID, &a.Names, &a.Phone, &a.Email, &a.CancelMinHours, &a.ShowReminders}, a.Info.targets(&x)...)...)
+	err := q.QueryRow(ctx, sql, token).Scan(append([]any{&a.ClinicID, &a.Status, &a.PatientID, &a.Names, &a.Phone, &a.Email, &a.CancelMinHours, &a.ShowReminders, &a.DepositCents, &a.DepositState, &a.DepositURL, &a.DepositExpires}, a.Info.targets(&x)...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -130,13 +135,25 @@ func (b *bookingAPI) lookup(w http.ResponseWriter, r *http.Request, forUpdate bo
 }
 
 func (a *tokenAppt) canCancel(now time.Time) bool {
+	if a.Status == "pending_payment" {
+		return true // not confirmed yet: letting go of the time is always fine
+	}
 	return (a.Status == "scheduled" || a.Status == "confirmed") &&
 		a.StartAt.Sub(now) >= time.Duration(a.CancelMinHours)*time.Hour
 }
 
 func (a *tokenAppt) view(now time.Time) map[string]any {
 	active := a.Status == "scheduled" || a.Status == "confirmed"
+	var deposit map[string]any
+	if a.DepositCents > 0 && a.DepositState != "none" {
+		deposit = map[string]any{"cents": a.DepositCents, "state": a.DepositState}
+		if a.Status == "pending_payment" {
+			deposit["pay_url"] = a.DepositURL
+			deposit["expires_at"] = a.DepositExpires
+		}
+	}
 	return map[string]any{
+		"deposit":          deposit,
 		"clinic":           map[string]string{"name": a.Info.ClinicName, "address": a.Info.ClinicAddress, "phone": a.Info.ClinicPhone},
 		"professional":     a.Info.Professional,
 		"service":          a.Info.Service,
@@ -162,6 +179,12 @@ func (b *bookingAPI) getByToken(w http.ResponseWriter, r *http.Request) {
 	a, ok := b.lookup(w, r, false, b.db)
 	if !ok {
 		return
+	}
+	if a.Status == "pending_payment" { // coming back from Mercado Pago: look for the payment before answering
+		b.settleDeposit(r.Context(), a.ID)
+		if a, ok = b.lookup(w, r, false, b.db); !ok {
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"appointment": a.view(time.Now())})
 }
@@ -197,6 +220,13 @@ func (b *bookingAPI) cancelByToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reason := truncate(strings.TrimSpace(req.Reason), 300)
+	defer func() { // the deposit goes back once the cancellation is stored
+		var id, clinic, state string
+		if b.db.QueryRow(r.Context(), `SELECT id::text, clinic_id::text, deposit_state FROM appointments WHERE confirm_token = $1 AND status = 'cancelled'`, chi.URLParam(r, "token")).Scan(&id, &clinic, &state) == nil &&
+			(state == "paid" || state == "pending") {
+			b.onDepositCancel(r.Context(), clinic, id, false)
+		}
+	}()
 	b.mutate(w, r, func(ctx context.Context, tx pgx.Tx, a *tokenAppt, now time.Time) (string, error) {
 		if a.Status == "cancelled" {
 			return "", nil

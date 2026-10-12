@@ -130,6 +130,7 @@ func (s *Server) router() http.Handler {
 							r.Get("/items/{id}/movements", s.listStockMovements)
 						})
 
+						r.With(require(PermPOS)).Get("/appointments/{id}/deposit", s.appointmentDeposit)
 						r.With(require(PermPOS)).Post("/sales", s.createSale)
 						r.With(require(PermPOS)).Get("/sales", s.listSales)
 						r.With(require(PermPOS)).Get("/sales/{id}", s.getSale)

@@ -95,6 +95,8 @@ func (s *Server) setServiceBooking(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var in struct {
 		Modality string `json:"modality"`
+		// DepositPercent: anticipo de este servicio; nil usa el de la agenda
+		DepositPercent *int `json:"deposit_percent"`
 	}
 	if !validUUID(id) {
 		writeError(w, http.StatusNotFound, "Servicio no encontrado.")
@@ -107,12 +109,16 @@ func (s *Server) setServiceBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "La modalidad debe ser presencial, videollamada o ambas.")
 		return
 	}
+	if in.DepositPercent != nil && (*in.DepositPercent < 0 || *in.DepositPercent > 100) {
+		writeError(w, http.StatusBadRequest, "El anticipo debe estar entre 0 y 100 %.")
+		return
+	}
 	p := principalFrom(r.Context())
 	if err := s.checkModality(r.Context(), p.ClinicID, in.Modality); err != nil {
 		writeFailure(w, r, err)
 		return
 	}
-	tag, err := s.db.Exec(r.Context(), `UPDATE catalog_items SET modality = $3, updated_at = now() WHERE clinic_id = $1 AND id = $2 AND kind = 'service'`, p.ClinicID, id, in.Modality)
+	tag, err := s.db.Exec(r.Context(), `UPDATE catalog_items SET modality = $3, deposit_percent = $4, updated_at = now() WHERE clinic_id = $1 AND id = $2 AND kind = 'service'`, p.ClinicID, id, in.Modality, in.DepositPercent)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -121,7 +127,7 @@ func (s *Server) setServiceBooking(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Servicio no encontrado.")
 		return
 	}
-	audit(r.Context(), s.db, p.ClinicID, p, "service_modality", "Cambió la modalidad de un servicio", map[string]any{"service": id, "modality": in.Modality})
+	audit(r.Context(), s.db, p.ClinicID, p, "service_modality", "Cambió la modalidad de un servicio", map[string]any{"service": id, "modality": in.Modality, "deposit_percent": in.DepositPercent})
 	writeJSON(w, http.StatusOK, map[string]any{"id": id, "modality": in.Modality})
 }
 

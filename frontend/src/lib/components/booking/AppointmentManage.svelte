@@ -6,7 +6,7 @@
   import { Op } from '$lib/op.svelte';
   import type { PublicAppointment } from '$lib/types/booking';
   import Icon from '$lib/components/ui/Icon.svelte';
-  import { fmtDay, t } from '$lib/i18n/index.svelte';
+  import { fmtDay, fmtMoneyCents, t } from '$lib/i18n/index.svelte';
 
   let { token }: { token: string } = $props();
 
@@ -20,6 +20,7 @@
   const act = new Op();
 
   const STATUS: Record<string, string> = {
+    pending_payment: 'pill-warn',
     scheduled: 'pill-info',
     confirmed: 'pill-ok',
     arrived: 'pill-ok',
@@ -100,6 +101,19 @@
       {#if notice}<p class="flex items-start gap-2 rounded-xl bg-app-accent/10 px-3.5 py-3 text-sm font-medium text-app-accent" role="status"><Icon name="check" size={18} class="mt-px flex-none" />{notice}</p>{/if}
       <OpError op={act} />
     </div>
+
+    {#if appt.deposit}
+      {@const d = appt.deposit}
+      {#if appt.status === 'pending_payment' && d.pay_url}
+        <div class="mt-4 rounded-xl border border-app-warning/40 bg-app-warning/10 p-4">
+          <p class="font-semibold">{t('deposit.title')}</p>
+          <p class="mt-1 text-sm text-app-muted">{t('deposit.text', { amount: fmtMoneyCents(d.cents) })}</p>
+          <a class="btn-primary btn-lg mt-3" href={d.pay_url}>{t('deposit.pay', { amount: fmtMoneyCents(d.cents) })}</a>
+        </div>
+      {:else}
+        <p class="mt-4 rounded-xl bg-app-elevated px-3.5 py-3 text-sm">{t(`deposit.${d.state}`, { amount: fmtMoneyCents(d.cents) })}</p>
+      {/if}
+    {/if}
 
     <dl class="mt-4 grid gap-3 rounded-xl bg-app-elevated p-4 text-sm">
       <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{fmtDay(appt.date)}</dd></div>

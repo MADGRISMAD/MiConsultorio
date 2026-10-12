@@ -102,4 +102,6 @@ export interface ServiceDuration {
   name: string;
   duration_minutes: number | null;
   modality: 'presencial' | 'videollamada' | 'ambas';
+  price_cents?: number;
+  deposit_percent?: number | null;
 }

@@ -3,9 +3,19 @@ export interface BookingService {
   name: string;
   category: string;
   price_cents?: number;
+  /** anticipo que se pide al reservar este servicio */
+  deposit_cents?: number;
   duration_minutes?: number;
   /** presencial, videollamada o ambas */
   modality?: 'presencial' | 'videollamada' | 'ambas';
+}
+
+export interface BookingDeposit {
+  cents: number;
+  state: 'pending' | 'paid' | 'refunded' | 'kept' | 'applied';
+  /** donde pagar (solo mientras está pendiente) */
+  pay_url?: string;
+  expires_at?: string;
 }
 
 export interface BookingProfessional {
@@ -73,6 +83,7 @@ export interface BookingResult {
   reminders: boolean;
   modality?: 'presencial' | 'videollamada';
   video_url?: string;
+  deposit?: BookingDeposit;
 }
 
 export interface PublicAppointment {
@@ -83,7 +94,9 @@ export interface PublicAppointment {
   date: string;
   start: string;
   end: string;
-  status: 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
+  status: 'pending_payment' | 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
+  /** anticipo pagado o por pagar al reservar */
+  deposit?: BookingDeposit | null;
   past: boolean;
   can_confirm: boolean;
   can_cancel: boolean;

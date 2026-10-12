@@ -40,6 +40,7 @@ export const agendaLoadApi = {
   services: () => request<{ services: ServiceDuration[] }>('GET', '/agenda/services').then((r) => r.services),
   setDuration: (id: string, minutes: number | null) =>
     request<unknown>('PUT', `/agenda/services/${seg(id)}/duration`, { duration_minutes: minutes }),
-  setModality: (id: string, modality: 'presencial' | 'videollamada' | 'ambas') =>
-    request<unknown>('PUT', `/agenda/services/${seg(id)}/booking`, { modality })
+  /** how the service is given and its own anticipo (null: the agenda's) */
+  setBooking: (id: string, modality: 'presencial' | 'videollamada' | 'ambas', deposit_percent: number | null) =>
+    request<unknown>('PUT', `/agenda/services/${seg(id)}/booking`, { modality, deposit_percent })
 };

@@ -29,6 +29,9 @@
   let cancelling = $state(false);
   let reason = $state('');
   let noShowAsk = $state(false);
+  let keepDeposit = $state(false);
+  const depositMoney = $derived(appt?.deposit_cents ? moneyCents(appt.deposit_cents) : '');
+  const DEPOSIT_TEXT: Record<string, string> = { pending: 'Anticipo por pagar', paid: 'Anticipo pagado', refunded: 'Anticipo devuelto', kept: 'Anticipo conservado', applied: 'Anticipo aplicado al cobro' };
 
   $effect(() => {
     appt?.id;
@@ -67,7 +70,7 @@
     const id = appt.id;
     let charge: Appt['charge'];
     if (await op.run(async () => {
-      const a = await agendaApi.setStatus(id, status, why);
+      const a = await agendaApi.setStatus(id, status, why, keepDeposit);
       charge = a.charge;
       onchanged(a);
     })) {
@@ -106,6 +109,7 @@
       {#if appt.email}<div><dt class="section-title">Correo</dt><dd class="mt-1 break-all">{appt.email}</dd></div>{/if}
       {#if appt.CURP}<div><dt class="section-title">CURP</dt><dd class="mt-1 font-mono text-sm">{appt.CURP}</dd></div>{/if}
       <div class="sm:col-span-3"><dt class="section-title">Notas</dt><dd class="mt-1 whitespace-pre-wrap">{appt.details || '—'}</dd></div>
+      {#if appt.deposit_cents && appt.deposit_state && appt.deposit_state !== 'none'}<div class="sm:col-span-3"><dt class="section-title">Anticipo en línea</dt><dd class="mt-1 font-medium">{DEPOSIT_TEXT[appt.deposit_state]}: {depositMoney}</dd></div>{/if}
       {#if appt.cancel_reason}<div class="sm:col-span-3"><dt class="section-title">Motivo</dt><dd class="mt-1 whitespace-pre-wrap">{appt.cancel_reason}</dd></div>{/if}
     </dl>
 
@@ -117,6 +121,11 @@
       <form class="mt-5 grid gap-2" onsubmit={(e) => { e.preventDefault(); change(cancelling ? 'cancelled' : 'no_show', reason); }}>
         <label class="label" for="cancel-reason">{cancelling ? 'Motivo de la cancelación' : 'Nota (opcional)'}</label>
         <textarea id="cancel-reason" class="field min-h-20" bind:value={reason} maxlength="500" placeholder={cancelling ? 'Por ejemplo: el paciente avisó que no puede venir' : ''}></textarea>
+        {#if cancelling && appt.deposit_state === 'paid'}
+          <label class="flex cursor-pointer items-start gap-2 text-sm"><input type="checkbox" class="mt-0.5 h-4 w-4" bind:checked={keepDeposit} /><span>Conservar el anticipo ({depositMoney}). Si no, se devuelve al paciente por Mercado Pago.</span></label>
+        {:else if noShowAsk && appt.deposit_state === 'paid'}
+          <p class="text-sm text-app-muted">El anticipo ({depositMoney}) se conserva por la inasistencia.</p>
+        {/if}
         <div class="flex flex-wrap justify-end gap-2">
           <button type="button" class="btn-secondary" onclick={() => { cancelling = false; noShowAsk = false; }}>Volver</button>
           <button type="submit" class="btn-danger" disabled={op.phase === 'loading'}>{cancelling ? 'Cancelar la cita' : 'Marcar como no asistió'}</button>
@@ -151,7 +160,7 @@
         {#if canCharge && ['arrived', 'in_progress', 'completed'].includes(appt.status) && !appt.sale_id}
           <a class="btn-secondary" href="/pos/cobros?cita={encodeURIComponent(appt.id)}"><Icon name="cash" size={18} />Cobrar</a>
         {/if}
-        {#if canStatus && ['scheduled', 'confirmed', 'arrived'].includes(appt.status)}
+        {#if canStatus && ['pending_payment', 'scheduled', 'confirmed', 'arrived'].includes(appt.status)}
           <button type="button" class="btn-ghost" disabled={!started} title={started ? undefined : timeHint} onclick={() => (noShowAsk = true)}><Icon name="ban" size={18} />No asistió</button>
           <button type="button" class="btn-ghost text-app-danger" onclick={() => (cancelling = true)}><Icon name="x" size={18} />Cancelar</button>
         {/if}

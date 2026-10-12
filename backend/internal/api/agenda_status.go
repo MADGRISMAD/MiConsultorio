@@ -14,15 +14,16 @@ import (
 
 // Allowed status changes of an appointment. A closed appointment (completed, no_show, cancelled) is never reopened.
 var statusTransitions = map[string][]string{
-	"scheduled":   {"confirmed", "arrived", "cancelled", "no_show"},
-	"confirmed":   {"arrived", "cancelled", "no_show"},
-	"arrived":     {"in_progress", "cancelled", "no_show"},
-	"in_progress": {"completed"},
+	"pending_payment": {"cancelled"},
+	"scheduled":       {"confirmed", "arrived", "cancelled", "no_show"},
+	"confirmed":       {"arrived", "cancelled", "no_show"},
+	"arrived":         {"in_progress", "cancelled", "no_show"},
+	"in_progress":     {"completed"},
 }
 
 func validStatus(s string) bool {
 	switch s {
-	case "scheduled", "confirmed", "arrived", "in_progress", "completed", "no_show", "cancelled":
+	case "pending_payment", "scheduled", "confirmed", "arrived", "in_progress", "completed", "no_show", "cancelled":
 		return true
 	}
 	return false
@@ -44,12 +45,14 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 	var in struct {
 		Status string `json:"status"`
 		Reason string `json:"reason"`
+		// KeepDeposit: the clinic keeps the anticipo of a cancelled appointment instead of giving it back
+		KeepDeposit bool `json:"keep_deposit"`
 	}
 	if !decode(w, r, &in) {
 		return
 	}
 	in.Reason = strings.TrimSpace(in.Reason)
-	if !validStatus(in.Status) || in.Status == "scheduled" {
+	if !validStatus(in.Status) || in.Status == "scheduled" || in.Status == "pending_payment" {
 		writeError(w, http.StatusBadRequest, "El estado no es válido.")
 		return
 	}
@@ -112,6 +115,11 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 	}
 	if in.Status == "cancelled" || in.Status == "no_show" {
 		waitlistWake()
+		s.onDepositCancel(r.Context(), p.ClinicID, id, in.Status == "no_show" || in.KeepDeposit)
+		if out, err = loadAppointment(r.Context(), s.db, p.ClinicID, id); err != nil {
+			serverError(w, r, err)
+			return
+		}
 	}
 	resp := map[string]any{"appointment": out}
 	if chargeID != "" {
@@ -232,6 +240,8 @@ func contains(list []string, s string) bool {
 
 func statusName(s string) string {
 	switch s {
+	case "pending_payment":
+		return "Pendiente de pago"
 	case "scheduled":
 		return "Programada"
 	case "confirmed":

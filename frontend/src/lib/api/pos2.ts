@@ -56,6 +56,9 @@ export const pos2 = {
   cfdiFileUrl: (invoiceId: string, ext: 'xml' | 'pdf') => `/api/pos/invoices/${seg(invoiceId)}/${ext}`,
 
   // data owned by other modules, read defensively
+  /** anticipo pagado en línea de una cita y aún sin usar en una venta */
+  appointmentDeposit: (id: string) =>
+    request<{ deposit: { charge_id: string; cents: number } | null }>('GET', `/pos/appointments/${seg(id)}/deposit`).then((r) => r.deposit),
   appointment: (id: string) =>
     request<{ appointment: ApptPrefill }>('GET', `/appointments/${seg(id)}`).then((r) => r.appointment),
   plan: (id: string) => request<{ plan: PlanPrefill }>('GET', `/plans/${seg(id)}`).then((r) => r.plan)

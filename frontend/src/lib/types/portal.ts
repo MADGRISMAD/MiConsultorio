@@ -26,7 +26,7 @@ export interface PortalAppointment {
   date: string;
   start_hour: string;
   end_hour: string;
-  status: 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
+  status: 'pending_payment' | 'scheduled' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'no_show' | 'cancelled';
   professional: string;
   service: string;
   can_cancel: boolean;

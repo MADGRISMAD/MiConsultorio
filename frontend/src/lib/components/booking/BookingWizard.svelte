@@ -241,7 +241,21 @@
   {#if info.message}<p class="mt-3 rounded-xl bg-app-primary/8 px-4 py-3 text-sm">{info.message}</p>{/if}
 </header>
 
-{#if done}
+{#if done && done.deposit?.state === 'pending'}
+  <section class="card page-in px-5 py-7 sm:px-8" aria-live="polite">
+    <div class="grid h-12 w-12 place-items-center rounded-full bg-app-warning/16 text-app-warning"><Icon name="wallet" size={26} /></div>
+    <h2 class="display mt-4 text-3xl leading-tight">{t('deposit.title')}</h2>
+    <p class="mt-3 text-app-muted">{t('deposit.text', { amount: fmtMoneyCents(done.deposit.cents) })}</p>
+    <dl class="mt-5 grid gap-2 rounded-xl bg-app-elevated p-4 text-sm">
+      <div><dt class="text-xs text-app-muted">{t('common.date')}</dt><dd class="font-semibold first-letter:uppercase">{fmtDay(done.date)}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: done.start })}</dd></div>
+      <div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{done.professional}</dd></div>
+    </dl>
+    <a href={done.deposit.pay_url} class="btn-primary btn-lg mt-5">{t('deposit.pay', { amount: fmtMoneyCents(done.deposit.cents) })}</a>
+    <p class="mt-3 text-xs text-app-muted">{t('deposit.refundNote')}</p>
+    <a href="/cita/{done.token}" class="mt-4 inline-block text-sm text-app-primary underline">{t('booking.manage')}</a>
+  </section>
+{:else if done}
   <section class="card page-in px-5 py-7 sm:px-8" aria-live="polite">
     <div class="grid h-12 w-12 place-items-center rounded-full bg-app-accent/14 text-app-accent"><Icon name="check" size={26} /></div>
     <h2 class="display mt-4 text-3xl leading-tight">{done.pending_confirmation ? t('booking.doneRequested') : t('booking.doneBooked')}</h2>
@@ -392,6 +406,7 @@
                   <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {t('booking.minutes', { n: s.duration_minutes })}</span>{/if}
                     {#if s.modality === 'videollamada'}<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-app-primary/10 px-2 py-0.5 text-[11px] font-semibold text-app-primary"><Icon name="video" size={12} />{t('booking.videoOnly')}</span>{:else if s.modality === 'ambas' && !forPet}<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-app-primary/10 px-2 py-0.5 text-[11px] font-semibold text-app-primary"><Icon name="video" size={12} />{t('booking.videoBoth')}</span>{/if}</span>
                   {#if s.price_cents !== undefined}<span class="font-mono text-xs text-app-muted">{fmtMoneyCents(s.price_cents)}</span>{/if}
+                  {#if s.deposit_cents}<span class="ml-1 rounded-full bg-app-warning/14 px-2 py-0.5 text-[11px] font-semibold text-app-ink">{t('deposit.badge', { amount: fmtMoneyCents(s.deposit_cents) })}</span>{/if}
                 </label>
               {/each}
             </div>

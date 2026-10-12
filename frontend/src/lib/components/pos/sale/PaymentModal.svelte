@@ -27,8 +27,10 @@
     partial?: boolean;
     title?: string;
     totalLabel?: string;
+    /** anticipo ya pagado en línea que se puede aplicar como pago */
+    deposit?: { charge_id: string; cents: number } | null;
   }
-  let { open, total, settings, busy, error, onclose, onconfirm, allowCredit = false, creditBlocked = '', partial = false, title = 'Cobrar', totalLabel = 'Total a cobrar' }: Props = $props();
+  let { open, total, settings, busy, error, onclose, onconfirm, allowCredit = false, creditBlocked = '', partial = false, title = 'Cobrar', totalLabel = 'Total a cobrar', deposit = null }: Props = $props();
 
   let onAccount = $state(false);
   const flexible = $derived(partial || onAccount);
@@ -129,6 +131,11 @@
       mpMissing = true;
       mpError = e.message;
     } else mpError = e instanceof Error ? e.message : 'No se pudo conectar con Mercado Pago.';
+  }
+
+  const depositFits = $derived(!!deposit && deposit.cents <= remaining && !payments.some((p) => p.intent_id === deposit.charge_id));
+  function applyDeposit() {
+    if (deposit) addLine({ method: 'mp_link', amount_cents: deposit.cents, intent_id: deposit.charge_id });
   }
 
   function addLine(line: SalePaymentInput) {
@@ -285,6 +292,13 @@
             <span class="text-sm"><span class="block font-medium">Cobrar a abonos</span><span class="block text-xs text-app-muted">Recibe un anticipo (puede ser $0) y deja el resto como saldo por cobrar.</span></span>
           </label>
         {/if}
+      {/if}
+
+      {#if deposit && depositFits}
+        <button type="button" class="flex w-full items-center justify-between gap-3 rounded-2xl bg-app-accent/10 px-3.5 py-3 text-left text-sm ring-1 ring-inset ring-app-accent/30" onclick={applyDeposit}>
+          <span><span class="block font-medium">El paciente ya pagó un anticipo en línea</span><span class="block text-xs text-app-muted">Aplícalo para que solo cobres el resto.</span></span>
+          <span class="font-semibold text-app-accent">Aplicar {moneyCents(deposit.cents)}</span>
+        </button>
       {/if}
 
       {#if payments.length}

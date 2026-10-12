@@ -9,6 +9,7 @@ import (
 // StartBackground launches the workers that run for the life of the process.
 func (s *Server) StartBackground(ctx context.Context) {
 	go every(ctx, "reminders", time.Minute, s.reminderPass, nil)
+	go every(ctx, "deposits", time.Minute, s.depositPass, nil)
 	go every(ctx, "waitlist", time.Minute, s.waitlistPass, waitlistKick)
 	go every(ctx, "birthdays", 30*time.Minute, s.birthdayPass, nil)
 	go every(ctx, "recalls", 30*time.Minute, s.recallPass, nil)

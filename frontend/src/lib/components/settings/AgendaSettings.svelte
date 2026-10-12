@@ -212,6 +212,13 @@
               <input type="number" min="0" max="720" class="field" bind:value={s.cancel_min_hours} />
               <span class="hint">El paciente puede cancelar desde su enlace hasta esta anticipación.</span>
             </label>
+            {#if session.cobros}
+              <label class="block">
+                <span class="label">Anticipo al reservar en línea (% del precio)</span>
+                <input type="number" min="0" max="100" class="field" bind:value={s.deposit_percent} />
+                <span class="hint">0 = no se cobra. Se paga con tu Mercado Pago conectado y solo aplica a servicios con precio; cada servicio puede tener el suyo (Servicios en la agenda). Si no pagan en 30 min, el horario se libera.</span>
+              </label>
+            {/if}
             <label class="flex cursor-pointer items-start gap-3 text-sm sm:pt-7">
               <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={s.booking_requires_confirmation} />
               <span><span class="font-medium">Confirmar manualmente cada reserva</span><span class="block text-app-muted">Queda como programada hasta que recepción la confirme.</span></span>

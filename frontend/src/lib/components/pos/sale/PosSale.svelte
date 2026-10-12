@@ -46,6 +46,16 @@
 
   let payOpen = $state(false);
   let payKey = $state(0);
+  /** the anticipo the patient paid online for the appointment being charged */
+  let deposit = $state<{ charge_id: string; cents: number } | null>(null);
+  $effect(() => {
+    const id = cart.appointmentId;
+    if (!id) {
+      deposit = null;
+      return;
+    }
+    void pos2.appointmentDeposit(id).then((d) => (deposit = d)).catch(() => (deposit = null));
+  });
   let paying = $state(false);
   let payError = $state('');
   let freeOpen = $state(false);
@@ -350,6 +360,7 @@
       error={payError}
       allowCredit
       {creditBlocked}
+      deposit={cart.appointmentId ? deposit : null}
       onclose={() => (payOpen = false)}
       onconfirm={(p, acc) => submit(p, acc)}
     />

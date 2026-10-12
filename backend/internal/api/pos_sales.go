@@ -523,6 +523,9 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 			if _, err := tx.Exec(r.Context(), `UPDATE mp_charges SET sale_id = $2 WHERE id = $1`, id, saleID); err != nil {
 				return err
 			}
+			if _, err := tx.Exec(r.Context(), `UPDATE appointments SET deposit_state = 'applied' WHERE clinic_id = $1 AND deposit_charge_id = $2 AND deposit_state = 'paid'`, p.ClinicID, id); err != nil {
+				return err
+			}
 		}
 		if in.AppointmentID != "" {
 			// the visit is done once it is charged; a visit that already has a live sale keeps pointing at it

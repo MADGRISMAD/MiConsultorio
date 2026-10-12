@@ -38,6 +38,7 @@
   const past = $derived(mine(history));
 
   const STATUS: Record<string, 'info' | 'ok' | 'warn' | 'bad' | 'muted'> = {
+    pending_payment: 'warn',
     scheduled: 'info',
     confirmed: 'ok',
     arrived: 'ok',
