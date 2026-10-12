@@ -55,7 +55,8 @@
 
 <section class="card px-5 py-5 sm:px-6" aria-labelledby="{uid}-t">
   <h2 id="{uid}-t" class="font-semibold">Servicios en la agenda y en la reserva en línea</h2>
-  <p class="mt-1 text-sm text-app-muted">Cuánto tiempo reserva cada servicio (si lo dejas vacío se usa el intervalo del profesional){#if videoOk} y si se da en persona, por videollamada o de las dos formas. La videollamada solo la dan los profesionales de psicología, nutrición, medicina general o interna, dermatología y pediatría, y nunca a mascotas{/if}.</p>
+  <p class="mt-1 text-sm text-app-muted">Cuánto tiempo reserva cada servicio (si lo dejas vacío se usa el intervalo del profesional){#if videoOk}, y si se da en persona, por videollamada o de las dos formas. La videollamada solo la dan los profesionales de psicología, nutrición, medicina general o interna, dermatología y pediatría, y nunca a mascotas{/if}.</p>
+  {#if session.cobros}<p id="{uid}-dep" class="mt-1 text-xs text-app-muted">Anticipo: el porcentaje que se paga al reservar en línea; vacío usa el de los ajustes de la agenda.</p>{/if}
   <OpError op={op} class="mt-4" />
   {#if load.phase === 'loading'}
     <LoadingRows />
@@ -66,23 +67,30 @@
   {:else}
     <ul class="mt-4 divide-y divide-app-ink/8">
       {#each rows as r (r.id)}
-        <li class="flex flex-wrap items-center justify-between gap-3 py-3">
-          <label class="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere]" for="{uid}-{r.id}">{r.name}</label>
-          <div class="flex flex-wrap items-center gap-2">
+        <li class="py-4">
+          <p class="text-sm font-medium [overflow-wrap:anywhere]">{r.name}</p>
+          <div class="mt-2 grid grid-cols-2 items-end gap-x-3 gap-y-2 sm:flex sm:flex-wrap">
             {#if videoOk}
-              <select class="field w-auto" bind:value={r.mode} aria-label="Modalidad de {r.name}">
-                <option value="presencial">En persona</option>
-                <option value="videollamada">Videollamada</option>
-                <option value="ambas">En persona o video</option>
-              </select>
+              <label class="col-span-2 block sm:col-span-1">
+                <span class="mb-1 block text-xs text-app-muted">Cómo se da</span>
+                <select class="field w-full sm:w-auto" bind:value={r.mode}>
+                  <option value="presencial">En persona</option>
+                  <option value="videollamada">Videollamada</option>
+                  <option value="ambas">En persona o video</option>
+                </select>
+              </label>
             {/if}
             {#if session.cobros && (r.price_cents ?? 0) > 0}
-              <input class="field w-20" inputmode="numeric" maxlength="3" placeholder="Anticipo" bind:value={r.dep} aria-label="Anticipo en % de {r.name}; vacío usa el de la agenda" />
-              <span class="text-sm text-app-muted">%</span>
+              <label class="block">
+                <span class="mb-1 block text-xs text-app-muted">Anticipo (%)</span>
+                <input class="field sm:w-28" inputmode="numeric" maxlength="3" placeholder="Agenda" bind:value={r.dep} aria-describedby="{uid}-dep" />
+              </label>
             {/if}
-            <input id="{uid}-{r.id}" class="field w-24" inputmode="numeric" maxlength="3" placeholder="—" bind:value={r.text} aria-describedby="{uid}-u" />
-            <span id="{uid}-u" class="text-sm text-app-muted">min</span>
-            <button type="button" class="btn-secondary" disabled={!dirty(r) || saving === r.id} onclick={() => save(r)} aria-label="Guardar la duración de {r.name}">
+            <label class="block">
+              <span class="mb-1 block text-xs text-app-muted">Duración (min)</span>
+              <input class="field sm:w-28" inputmode="numeric" maxlength="3" placeholder="—" bind:value={r.text} />
+            </label>
+            <button type="button" class="btn-secondary col-span-2 sm:col-span-1" disabled={!dirty(r) || saving === r.id} onclick={() => save(r)} aria-label="Guardar los cambios de {r.name}">
               {#if saving === r.id}<span class="spin"></span>{/if}Guardar
             </button>
           </div>
