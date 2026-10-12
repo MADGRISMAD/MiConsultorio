@@ -1,7 +1,7 @@
 import { bodySvg, kindLabel, zoneLabel } from '$lib/components/specialty/bodyGeometry';
 import { odontogramSvg, STATES, toothSummary } from '$lib/components/specialty/odontoGeometry';
 import type { Issuer, Patient } from '$lib/types';
-import type { BodymapData, Consent, ExercisesData, NutritionPlanData, OdontogramData, PerioData, TreatmentPlan, Vaccination, WeightPoint } from '$lib/types/specialty';
+import type { BodymapData, Consent, ExercisesData, NutritionPlanData, ShoppingSection, OdontogramData, PerioData, TreatmentPlan, Vaccination, WeightPoint } from '$lib/types/specialty';
 import { LOWER, perioStats, UPPER } from '$lib/specialty/perio';
 import { paySchedule } from '$lib/specialty/payplan';
 import { doc, e, fmtDate, fmtDateTime, FOOTER_CONF, issuerBlock, multiline, patientBlock } from './base';
@@ -114,7 +114,10 @@ export function nutritionPlanHtml(patient: Patient, plan: { data: NutritionPlanD
   const block = (title: string, text: string) => (text.trim() ? `<h2>${e(title)}</h2><p>${multiline(text)}</p>` : '');
   // Page 1 is the menu alone, filling the sheet and signed right under it (the patient often keeps only that sheet).
   // Everything else (advice, foods to avoid, supplements, next visit) goes on page 2.
-  const extras = [block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? ''), block('Recomendaciones', d.recommendations), block('Alimentos o hábitos a evitar', d.avoid), block('Suplementos', d.supplements)].join('');
+  const shopping = d.shopping?.length
+    ? `<h2>Lista del súper de la semana${(d.persons ?? 1) > 1 ? ` (${d.persons} personas)` : ''}</h2>${d.shopping.map((sec) => `<table class="grid-t nobreak" style="margin-bottom:6px"><thead><tr><th colspan="3">${e(sec.name)}</th></tr></thead><tbody>${sec.items.map((i) => `<tr><td style="width:20px"><span class="cb"></span></td><td>${e(i.name)}</td><td style="width:120px">${e(i.quantity)}</td></tr>`).join('')}</tbody></table>`).join('')}`
+    : '';
+  const extras = [block('Alimentos que no le gustan (se evitaron en el menú)', d.dislikes ?? ''), block('Recomendaciones', d.recommendations), block('Alimentos o hábitos a evitar', d.avoid), block('Suplementos', d.supplements), shopping].join('');
   // who attended: name, profession, cédula and contact, in the same data box as the patient
   const au = plan.author;
   const proRow = (k: string, v: string) => (v ? `<div><span class="k">${e(k)}</span>${e(v)}</div>` : '');
@@ -250,10 +253,7 @@ ${d.notes ? `<h2>Indicaciones</h2><p>${multiline(d.notes)}</p>` : ''}
   return doc('Hoja de ejercicios', body, GRID_CSS);
 }
 
-export interface ShoppingSection {
-  name: string;
-  items: { name: string; quantity: string }[];
-}
+export type { ShoppingSection };
 
 export function shoppingHtml(patient: Patient, sections: ShoppingSection[], persons: number, clinic: Issuer): string {
   const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Lista del súper</h1><div class="small">${e(fmtDateTime(new Date().toISOString()))}</div></div></div>

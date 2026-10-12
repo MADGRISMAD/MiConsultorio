@@ -116,7 +116,16 @@ export interface NutritionTargets {
   basis: string;
 }
 
+export interface ShoppingSection {
+  name: string;
+  items: { name: string; quantity: string }[];
+}
+
 export interface NutritionPlanData {
+  /** the week's groceries, made with the menu and kept in step when a meal is changed with the AI */
+  shopping?: ShoppingSection[];
+  /** people who eat from the menu (for the list) */
+  persons?: number;
   goal: string;
   basis: string;
   kcal: number;

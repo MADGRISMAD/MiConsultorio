@@ -8,6 +8,7 @@ import type {
   NutritionDay,
   NutritionMeal,
   NutritionPlanData,
+  ShoppingSection,
   NutritionTargets,
   PatientChart,
   PlanInput,
@@ -38,14 +39,14 @@ export const specialtyApi = {
   followUp: (patientId: string, body: { date: string; start_hour?: string; reason?: string; professional_id?: string }) =>
     request<{ appointment: { id: string; date: string; startHour: string } }>('POST', `${p(patientId)}/follow-up`, body).then((r) => r.appointment),
   /** Changes one meal (or a whole day) of the menu with the AI, looking at the rest of the week. Nothing is saved. */
-  nutritionFragment: (patientId: string, body: { days: NutritionDay[]; day: number; meal?: number; dislike: string; request: string; dislikes: string }) =>
-    request<{ meals: NutritionMeal[]; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai/fragment`, body),
-  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string; body_fat_pct?: number }) =>
+  nutritionFragment: (patientId: string, body: { days: NutritionDay[]; day: number; meal?: number; dislike: string; request: string; dislikes: string; shopping?: ShoppingSection[]; persons?: number }) =>
+    request<{ meals: NutritionMeal[]; shopping?: ShoppingSection[]; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai/fragment`, body),
+  nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string; body_fat_pct?: number; persons?: number }) =>
     request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
 
   /** The week's menu added up into what to buy (1 magic use). Nothing is saved. */
   nutritionShopping: (patientId: string, body: { days: NutritionDay[]; persons: number }) =>
-    request<{ sections: { name: string; items: { name: string; quantity: string }[] }[] }>('POST', `${p(patientId)}/nutrition-plan/shopping`, body).then((r) => r.sections),
+    request<{ sections: ShoppingSection[] }>('POST', `${p(patientId)}/nutrition-plan/shopping`, body).then((r) => r.sections),
 
   nutritionCalc: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; body_fat_pct?: number }) =>
     request<NutritionTargets>('POST', `${p(patientId)}/nutrition-plan/calc`, body),

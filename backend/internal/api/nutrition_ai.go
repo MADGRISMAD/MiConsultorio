@@ -37,8 +37,9 @@ var nutritionDaySchema = map[string]any{
 		"avoid":           map[string]any{"type": "STRING"},
 		"supplements":     map[string]any{"type": "STRING"},
 		"follow_up_days":  map[string]any{"type": "NUMBER"},
+		"shopping":        shoppingSections,
 	},
-	"required": []string{"goal", "days", "recommendations"},
+	"required": []string{"goal", "days", "recommendations", "shopping"},
 }
 
 type nutritionAIReq struct {
@@ -53,6 +54,7 @@ type nutritionAIReq struct {
 	Preferences    string  `json:"preferences"`
 	Dislikes       string  `json:"dislikes"` // foods the patient does not like
 	BodyFatPct     float64 `json:"body_fat_pct"`
+	Persons        int     `json:"persons"` // people who eat from the menu, for the shopping list (1 by default)
 }
 
 var nutritionWeek = []string{"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"}
@@ -221,11 +223,12 @@ func forbiddenIn(days []nutritionDayIn, terms []string) []string {
 }
 
 type nutritionAIOut struct {
-	Goal            string  `json:"goal"`
-	Recommendations string  `json:"recommendations"`
-	Avoid           string  `json:"avoid"`
-	Supplements     string  `json:"supplements"`
-	FollowUpDays    float64 `json:"follow_up_days"`
+	Goal            string            `json:"goal"`
+	Recommendations string            `json:"recommendations"`
+	Avoid           string            `json:"avoid"`
+	Supplements     string            `json:"supplements"`
+	FollowUpDays    float64           `json:"follow_up_days"`
+	Shopping        []shoppingSection `json:"shopping"`
 	Days            []struct {
 		Name  string `json:"name"`
 		Meals []struct {
@@ -262,6 +265,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Revisa el peso, la talla y las calorías.")
 		return
 	}
+	in.Persons = max(1, min(in.Persons, 12))
 	if in.Snacks != nil {
 		in.Meals = map[bool]int{true: 5, false: 3}[*in.Snacks]
 	}
@@ -358,7 +362,8 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("Objetivo: %s. Total diario: %d kcal; proteínas %d %%, carbohidratos %d %%, grasas %d %%. ", in.Goal, target, macros[1], macros[0], macros[2]) +
 		"En cada comida escribe los alimentos con porciones concretas (tazas, piezas, gramos). Usa alimentos comunes y accesibles en México y VARÍA el menú: no repitas el mismo platillo principal más de dos veces en la semana. " +
 		"NUNCA incluyas alimentos a los que el paciente sea alérgico o intolerante, y respeta sus enfermedades y su medicación. " +
-		"No propongas suplementos con dosis; si dudas, deja suplementos vacío. En recomendaciones da 4 a 6 consejos breves, en 'avoid' lo que conviene limitar, y sugiere en follow_up_days cuándo darle seguimiento."
+		"No propongas suplementos con dosis; si dudas, deja suplementos vacío. En recomendaciones da 4 a 6 consejos breves, en 'avoid' lo que conviene limitar, y sugiere en follow_up_days cuándo darle seguimiento. " +
+		"Además arma en 'shopping' la LISTA DEL SÚPER de esos 7 días para " + fmt.Sprint(max(in.Persons, 1)) + " persona(s), " + shoppingHowTo + "."
 	if in.Dislikes != "" {
 		basePrompt += "\n\nALIMENTOS QUE NO LE GUSTAN AL PACIENTE (no los uses en ninguna comida; busca sustitutos con valor nutricional equivalente que sí le gusten): " + in.Dislikes
 	}
@@ -398,7 +403,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		plan = nutritionPlanIn{Goal: out.Goal, Kcal: target, CarbPct: macros[0], ProteinPct: macros[1], FatPct: macros[2], WaterLiters: water,
-			Recommendations: out.Recommendations, Avoid: out.Avoid, Supplements: out.Supplements, FollowUpDays: int(out.FollowUpDays + 0.5), Dislikes: in.Dislikes}
+			Recommendations: out.Recommendations, Avoid: out.Avoid, Supplements: out.Supplements, FollowUpDays: int(out.FollowUpDays + 0.5), Dislikes: in.Dislikes, Shopping: cleanShopping(out.Shopping), Persons: max(in.Persons, 1)}
 		complete := true
 		for i, d := range out.Days {
 			day := nutritionDayIn{Name: nutritionWeek[i]}

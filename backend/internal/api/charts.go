@@ -204,6 +204,9 @@ type nutritionPlanIn struct {
 	Avoid           string            `json:"avoid"`
 	Supplements     string            `json:"supplements"`
 	FollowUpDays    int               `json:"follow_up_days"`
+	// Shopping is the week's list of groceries, made with the menu and kept in step with it when a meal is changed with the AI.
+	Shopping []shoppingSection `json:"shopping"`
+	Persons  int               `json:"persons"` // people who eat from the menu (1 when empty)
 }
 
 func validateNutritionPlan(raw []byte) (string, bool) {
@@ -227,6 +230,18 @@ func validateNutritionPlan(raw []byte) (string, bool) {
 		return "El plan tiene demasiadas comidas.", false
 	case len(in.Days) > 7:
 		return "El plan semanal tiene como máximo 7 días.", false
+	case len(in.Shopping) > 12 || in.Persons < 0 || in.Persons > 12:
+		return "La lista del súper no es válida.", false
+	}
+	for _, sec := range in.Shopping {
+		if long(sec.Name, 60) || len(sec.Items) > 60 {
+			return "La lista del súper no es válida.", false
+		}
+		for _, it := range sec.Items {
+			if long(it.Name, 80) || long(it.Quantity, 40) {
+				return "La lista del súper no es válida.", false
+			}
+		}
 	}
 	check := func(meals []nutritionMealIn) (string, bool) {
 		if len(meals) > 12 {

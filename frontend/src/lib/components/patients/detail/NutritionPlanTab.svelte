@@ -24,7 +24,7 @@
   let { patient, canWrite, encounters = [], onchange }: { patient: Patient; canWrite: boolean; encounters?: Encounter[]; onchange?: () => void | Promise<void> } = $props();
 
   const WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-  const empty = (): NutritionPlanData => ({ goal: '', basis: '', kcal: 0, protein_pct: 0, carb_pct: 0, fat_pct: 0, water_liters: 0, meals: [], days: [], dislikes: '', recommendations: '', avoid: '', supplements: '', follow_up_days: 0 });
+  const empty = (): NutritionPlanData => ({ shopping: [], persons: 1, goal: '', basis: '', kcal: 0, protein_pct: 0, carb_pct: 0, fat_pct: 0, water_liters: 0, meals: [], days: [], dislikes: '', recommendations: '', avoid: '', supplements: '', follow_up_days: 0 });
   const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
   /** plans saved before the weekly format become a single typical day */
   function normalize(d: NutritionPlanData): NutritionPlanData {
@@ -73,6 +73,7 @@
   let gActivity = $state(1.375);
   let gSnacks = $state(true);
   let gPrefs = $state('');
+  let gPersons = $state(1);
   let gDislikes = $state('');
   let gOpen = $state(false);
   let gError = $state('');
@@ -198,7 +199,8 @@
         meals: gSnacks ? 5 : 3,
         snacks: gSnacks,
         preferences: gPrefs.trim(),
-        dislikes: gDislikes.trim()
+        dislikes: gDislikes.trim(),
+        persons: Math.min(12, Math.max(1, Math.round(gPersons) || 1))
       });
       drafted = r.plan;
       warn = r.warnings ?? [];
@@ -283,6 +285,7 @@
     const f = frag;
     if (!f) return;
     let meals: NutritionMeal[] = [];
+    let shopping: NutritionPlanData['shopping'];
     let warn: string[] = [];
     fragBusy = `${f.di}-${f.mi ?? 'day'}`;
     const ok = await fragOp.run(async () => {
@@ -292,9 +295,12 @@
         ...(f.mi !== null ? { meal: f.mi } : {}),
         dislike: fragDislike.trim(),
         request: fragRequest.trim(),
-        dislikes: work.dislikes
+        dislikes: work.dislikes,
+        // the same call brings the shopping list up to date, so changing a meal is still one AI use
+        ...(work.shopping?.length ? { shopping: work.shopping, persons: work.persons ?? 1 } : {})
       });
       meals = r.meals;
+      shopping = r.shopping;
       warn = r.warnings ?? [];
     });
     fragBusy = '';
@@ -307,6 +313,7 @@
     }
     work = {
       ...work,
+      ...(shopping?.length ? { shopping } : {}),
       // a dislike remembered during the review stays in the plan, so the next draft keeps it out too
       dislikes: fragDislike.trim() && !work.dislikes.toLowerCase().includes(fragDislike.trim().toLowerCase()) ? [work.dislikes, fragDislike.trim()].filter(Boolean).join(', ') : work.dislikes,
       days: work.days.map((d, j) =>
@@ -425,7 +432,7 @@
           <button type="button" class="btn-primary" onclick={() => { editing = true; openGenerator(); }}><Icon name="sparkles" size={18} />Generar plan nutricional</button>
         {/if}
       {/if}
-      {#if shown.days.some((d) => d.meals.some((m) => m.items.trim())) && session.magic}<button type="button" class="btn-secondary" onclick={() => (shopOpen = true)}><Icon name="sparkles" size={18} />Lista del súper</button>{/if}
+      {#if shown.days.some((d) => d.meals.some((m) => m.items.trim())) && (shown.shopping?.length || (session.magic && !readonly))}<button type="button" class="btn-secondary" onclick={() => (shopOpen = true)}><Icon name={shown.shopping?.length ? 'receipt' : 'sparkles'} size={18} />Lista del súper</button>{/if}
       {#if !readonly && shown.days.length > 0}<button type="button" class="btn-secondary" onclick={() => (smaeOpen = true)}><Icon name="info" size={18} />Equivalentes SMAE</button>{/if}
       {#if history.length || editing}<button type="button" class="btn-secondary" onclick={print}><Icon name="receipt" size={18} />Imprimir</button>{/if}
     </div>
@@ -464,6 +471,9 @@
           <p class="hint">La IA no los usa en ningún día de la semana y busca sustitutos parecidos.</p></div>
         <div class="mt-3"><label class="label" for="g-prefs">Otras preferencias o restricciones <span class="font-normal text-app-muted">(opcional)</span></label>
           <textarea id="g-prefs" class="field min-h-20" rows="2" maxlength="1500" bind:value={gPrefs} placeholder="Ej. Vegetariano, presupuesto bajo, come fuera de casa al mediodía"></textarea></div>
+        <div class="mt-3"><label class="label" for="g-persons">Personas que comen este menú</label>
+          <input id="g-persons" class="field w-24" type="number" min="1" max="12" bind:value={gPersons} />
+          <p class="hint">La lista del súper se arma junto con el menú, en el mismo uso de magia, para estas personas.</p></div>
         <label class="check-row mt-3">
           <input type="checkbox" class="check" bind:checked={gSnacks} />
           <span class="text-sm leading-snug"><strong class="font-semibold">Incluir snacks</strong> entre comidas <span class="text-app-muted">(con snacks: desayuno, snack, comida, snack y cena; sin ellos: desayuno, comida y cena)</span></span>
@@ -527,7 +537,7 @@
         {#if shown.kcal}<p class="text-sm text-app-muted">Meta: {shown.kcal} kcal al día</p>{/if}
       </div>
       {#if !readonly && shown.days.length > 0 && session.magic}
-        <p class="mt-2 note" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa. Si falla, el uso se devuelve.</p>
+        <p class="mt-2 note" role="note"><Icon name="sparkles" size={14} /> Cada <strong>«Cambiar»</strong> con IA (una comida, un snack o un día) usa <strong>1 uso de magia</strong> del plan, igual que generar la semana completa, y también deja al día la <strong>lista del súper</strong>: no se cobra otro uso por la lista. Si falla, el uso se devuelve.</p>
       {/if}
       {#if shown.days.length === 0 || cols.length === 0}
         <p class="mt-3 text-sm text-app-muted">Sin menú todavía. {readonly ? '' : session.magic ? 'Usa «Generar semana con IA» o «Calcular y armar a mano».' : 'Usa «Calcular y armar a mano».'}</p>
@@ -659,4 +669,4 @@
 </Modal>
 
 <SmaeCatalog open={smaeOpen} target={smaeName} onclose={() => (smaeOpen = false)} onpick={smaePick} />
-<ShoppingList open={shopOpen} {patient} days={shown.days} onclose={() => (shopOpen = false)} />
+<ShoppingList open={shopOpen} {patient} days={shown.days} list={shown.shopping ?? []} persons={shown.persons ?? 1} canMake={!readonly && session.magic} onmade={(l, n) => (work = { ...work, shopping: l, persons: n })} onclose={() => (shopOpen = false)} />

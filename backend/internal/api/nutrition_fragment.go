@@ -21,6 +21,7 @@ var nutritionFragmentSchema = map[string]any{
 			"properties": map[string]any{"name": map[string]any{"type": "STRING"}, "items": map[string]any{"type": "STRING"}},
 			"required":   []string{"name", "items"},
 		}},
+		"shopping": shoppingSections,
 	},
 	"required": []string{"meals"},
 }
@@ -32,6 +33,9 @@ type nutritionFragmentReq struct {
 	Dislike  string           `json:"dislike"`  // what the patient just said they do not like
 	Request  string           `json:"request"`  // anything else the nutritionist wants ("más ligero", "con avena")
 	Dislikes string           `json:"dislikes"` // the patient's dislikes already in the plan
+	// Shopping is the list of the plan as it is now: the same call that changes the meal brings it up to date.
+	Shopping []shoppingSection `json:"shopping"`
+	Persons  int               `json:"persons"`
 }
 
 func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
@@ -141,12 +145,17 @@ func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
 	if in.Request != "" {
 		basePrompt += "\nIndicación del nutriólogo: " + in.Request
 	}
+	if len(in.Shopping) > 0 {
+		cur, _ := json.Marshal(cleanShopping(in.Shopping))
+		basePrompt += "\n\nLISTA DEL SÚPER ACTUAL de toda la semana para " + fmt.Sprint(max(in.Persons, 1)) + " persona(s) (JSON): " + string(cur) + "\nDevuelve también en 'shopping' la lista COMPLETA ya actualizada: quita o reduce lo que solo se usaba en lo que se cambió, agrega lo que lleva lo nuevo y suma cantidades cuando otra comida de la semana ya usa ese alimento. Conserva el mismo formato y las secciones."
+	}
 	if len(rest) > 0 {
 		basePrompt += "\n\nEL RESTO DEL MENÚ DE LA SEMANA (no lo cambies; el nuevo platillo NO debe repetir ni parecerse a ninguno de estos, para que la semana siga variada):\n" + strings.Join(rest, "\n")
 	}
 
 	prompt := basePrompt
 	var out []nutritionMealIn
+	var lastShopping []shoppingSection
 	const attempts = 3
 	for attempt := 0; attempt < attempts; attempt++ {
 		rawOut, err := s.gemini(r.Context(), prompt, nil, "", nutritionFragmentSchema)
@@ -161,6 +170,7 @@ func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
 				Name  string `json:"name"`
 				Items string `json:"items"`
 			} `json:"meals"`
+			Shopping []shoppingSection `json:"shopping"`
 		}
 		if json.Unmarshal(rawOut, &got) != nil || len(got.Meals) < len(target) {
 			if attempt == attempts-1 {
@@ -171,6 +181,7 @@ func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
 			prompt = basePrompt + fmt.Sprintf("\n\nIMPORTANTE: devuelve exactamente %d comida(s).", len(target))
 			continue
 		}
+		lastShopping = got.Shopping
 		out = out[:0]
 		for i, m := range target {
 			out = append(out, nutritionMealIn{Name: m.Name, Time: m.Time, Items: strings.TrimSpace(got.Meals[i].Items), Kcal: m.Kcal})
@@ -198,10 +209,27 @@ func (s *Server) nutritionFragmentAI(w http.ResponseWriter, r *http.Request) {
 		}
 		if attempt == attempts-1 {
 			// out of attempts: hand it over anyway, and tell the nutritionist what to check
-			writeJSON(w, http.StatusOK, map[string]any{"meals": out, "warnings": problems})
+			writeJSON(w, http.StatusOK, fragmentAnswer(out, in.Shopping, got.Shopping, problems))
 			return
 		}
 		prompt = basePrompt + "\n\nIMPORTANTE: en el intento anterior " + strings.Join(problems, " y ") + ". Cámbialo por otro platillo distinto."
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"meals": out})
+	writeJSON(w, http.StatusOK, fragmentAnswer(out, in.Shopping, lastShopping, nil))
+}
+
+// fragmentAnswer is what the nutritionist gets back: the new meals and, when the plan has a list, the list brought up to
+// date by the same call. If the model did not return a usable list, the one the plan had is kept and the screen says so.
+func fragmentAnswer(meals []nutritionMealIn, before, updated []shoppingSection, warnings []string) map[string]any {
+	res := map[string]any{"meals": meals}
+	if len(before) > 0 {
+		if fresh := cleanShopping(updated); len(fresh) > 0 {
+			res["shopping"] = fresh
+		} else {
+			warnings = append(warnings, "No se pudo actualizar la lista del súper: revísala.")
+		}
+	}
+	if len(warnings) > 0 {
+		res["warnings"] = warnings
+	}
+	return res
 }

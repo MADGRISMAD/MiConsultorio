@@ -412,7 +412,8 @@ func TestNutritionPlanAI(t *testing.T) {
 			days = append(days, map[string]any{"name": "x", "meals": []any{meal("Desayuno", "Avena con fruta"), meal("Colación 1", "Manzana"), meal("Comida", lunch), meal("Colación 2", "Nueces"), meal("Cena", "Quesadilla")}})
 		}
 		fish = false
-		out, _ := json.Marshal(map[string]any{"goal": "Bajar de peso", "days": days, "recommendations": "Come despacio", "avoid": "Refrescos", "supplements": "", "follow_up_days": 30})
+		out, _ := json.Marshal(map[string]any{"goal": "Bajar de peso", "days": days, "recommendations": "Come despacio", "avoid": "Refrescos", "supplements": "", "follow_up_days": 30,
+			"shopping": []any{map[string]any{"name": "Frutas y verduras", "items": []any{map[string]any{"name": "Manzana", "quantity": "7 piezas"}}}}})
 		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
 	}))
 	defer gem.Close()
@@ -420,6 +421,11 @@ func TestNutritionPlanAI(t *testing.T) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
 	doc, recep := e.login("doc_a"), e.login("recep_a")
+	magicUsed := func() int {
+		var n int
+		_ = e.pool.QueryRow(t.Context(), `SELECT coalesce(sum(used), 0) FROM magic_usage WHERE clinic_id = $1`, e.clinicA).Scan(&n)
+		return n
+	}
 	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
 	url := "/api/patients/" + pid + "/nutrition-plan/ai"
@@ -430,6 +436,13 @@ func TestNutritionPlanAI(t *testing.T) {
 	out := doc.expect(200, "POST", url, map[string]any{"goal": "Bajar de peso", "weight_kg": 82, "height_cm": 170, "activity_factor": 1.375, "activity": "Ligera",
 		"preferences": "Vegetariano", "dislikes": "pescado, hígado", "meals": 5})
 	plan := out["plan"].(map[string]any)
+	// the shopping list comes with the menu in the same call: one magic use for both (the retry for a disliked food is free)
+	if got := magicUsed(); got != 1 {
+		t.Fatalf("menu and shopping list cost one magic use, got %d", got)
+	}
+	if sh, _ := plan["shopping"].([]any); len(sh) != 1 || !strings.Contains(prompts[0], "LISTA DEL SÚPER") {
+		t.Fatalf("shopping list with the plan: %v", plan["shopping"])
+	}
 
 	// calories are computed here: patient born 1970-03-12 ("mejj700312"), so 55 years old; Mifflin-St Jeor
 	// 10*82 + 6.25*170 - 5*age + sexTerm, times 1.375, minus 500 to lose weight
@@ -643,7 +656,8 @@ func TestNutritionFragmentAI(t *testing.T) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		prompts = append(prompts, body.Contents[0].Parts[0]["text"].(string))
 		items := answers[min(len(prompts)-1, len(answers)-1)]
-		out, _ := json.Marshal(map[string]any{"meals": []any{map[string]any{"name": "Comida", "items": items}}})
+		out, _ := json.Marshal(map[string]any{"meals": []any{map[string]any{"name": "Comida", "items": items}},
+			"shopping": []any{map[string]any{"name": "Carnes", "items": []any{map[string]any{"name": "Pechuga de pollo", "quantity": "1 kg"}}}}})
 		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
 	}))
 	defer gem.Close()
@@ -659,8 +673,21 @@ func TestNutritionFragmentAI(t *testing.T) {
 		map[string]any{"name": "Lunes", "meals": []any{meal("Desayuno", "Avena con plátano y nueces"), meal("Comida", "Pescado empanizado con ensalada")}},
 		map[string]any{"name": "Martes", "meals": []any{meal("Desayuno", "Huevo con espinacas"), meal("Comida", "Sopa de lentejas con tortilla")}},
 	}
-	req := map[string]any{"days": days, "day": 0, "meal": 1, "dislike": "pescado"}
+	list := []any{map[string]any{"name": "Carnes y pescado", "items": []any{map[string]any{"name": "Pescado", "quantity": "1 kg"}}}}
+	req := map[string]any{"days": days, "day": 0, "meal": 1, "dislike": "pescado", "shopping": list, "persons": 2}
+	used := func() int {
+		var n int
+		_ = e.pool.QueryRow(t.Context(), `SELECT coalesce(sum(used), 0) FROM magic_usage WHERE clinic_id = $1`, e.clinicA).Scan(&n)
+		return n
+	}
 	out := doc.expect(200, "POST", url, req)
+	// changing a meal also brings the shopping list up to date, in the same call and for one magic use
+	if used() != 1 {
+		t.Fatalf("meal change + shopping list = one magic use, got %d", used())
+	}
+	if sh := out["shopping"].([]any); len(sh) != 1 || sh[0].(map[string]any)["name"] != "Carnes" || !strings.Contains(prompts[0], "LISTA DEL SÚPER ACTUAL") || !strings.Contains(prompts[0], "Pescado") {
+		t.Fatalf("the list is updated by the same call: %v", out["shopping"])
+	}
 	meals := out["meals"].([]any)
 	if len(prompts) != 3 || len(meals) != 1 || meals[0].(map[string]any)["items"] != "Tacos de pollo con nopales y frijoles" || meals[0].(map[string]any)["kcal"] != float64(500) {
 		t.Fatalf("regenerated meal: %d calls, %v", len(prompts), out)
