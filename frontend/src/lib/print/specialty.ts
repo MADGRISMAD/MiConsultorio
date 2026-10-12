@@ -1,7 +1,9 @@
 import { bodySvg, kindLabel, zoneLabel } from '$lib/components/specialty/bodyGeometry';
 import { odontogramSvg, STATES, toothSummary } from '$lib/components/specialty/odontoGeometry';
 import type { Issuer, Patient } from '$lib/types';
-import type { BodymapData, Consent, NutritionPlanData, OdontogramData, TreatmentPlan, Vaccination, WeightPoint } from '$lib/types/specialty';
+import type { BodymapData, Consent, ExercisesData, NutritionPlanData, OdontogramData, PerioData, TreatmentPlan, Vaccination, WeightPoint } from '$lib/types/specialty';
+import { LOWER, perioStats, UPPER } from '$lib/specialty/perio';
+import { paySchedule } from '$lib/specialty/payplan';
 import { doc, e, fmtDate, fmtDateTime, FOOTER_CONF, issuerBlock, multiline, patientBlock } from './base';
 
 const KIND_LABEL: Record<string, string> = { vaccine: 'Vacuna', deworming_internal: 'Desparasitación interna', deworming_external: 'Desparasitación externa', other: 'Otro' };
@@ -172,6 +174,7 @@ export function planHtml(plan: TreatmentPlan, patient: Patient, clinic: Issuer, 
 <p><span class="k">Plan</span><strong>${e(plan.title)}</strong></p>${plan.notes ? `<p>${multiline(plan.notes)}</p>` : ''}
 ${phaseHtml}
 <div class="box nobreak" style="text-align:right"><span class="k">Total del plan (IVA incluido cuando aplica)</span><strong style="font-size:16px">${money(plan.total_cents)}</strong><div class="small">Realizado: ${money(plan.done_cents)} · Pendiente: ${money(plan.pending_cents)}</div></div>
+${plan.payment_plan && plan.total_cents > 0 ? `<h2>Plan de pagos</h2><table class="grid-t nobreak"><thead><tr><th>Pago</th><th>Fecha</th><th>Importe</th></tr></thead><tbody>${paySchedule(plan.total_cents, plan.payment_plan).map((r) => `<tr><td>${e(r.label)}</td><td>${r.date ? e(fmtDate(r.date)) : 'Al aceptar el plan'}</td><td>${money(r.cents)}</td></tr>`).join('')}</tbody></table><p class="small">Sin intereses. El total no cambia por pagar en partes.</p>` : ''}
 <p class="small">Los precios pueden cambiar si el diagnóstico cambia; cualquier concepto nuevo requiere tu autorización.</p>
 ${sig}
 <div class="footer">${e(FOOTER_CONF)}</div>`;
@@ -188,4 +191,75 @@ ${c.witness1 || c.witness2 ? `<div class="small">Testigos: ${[c.witness1, c.witn
 <div class="small">Registró: ${e(c.registered_by_name)} · Huella digital (SHA-256): <span style="word-break:break-all">${e(c.content_sha256)}</span></div></div>
 <div class="footer">${e(FOOTER_CONF)}</div>`;
   return doc(CONSENT_LABEL[c.kind] ?? 'Consentimiento', body);
+}
+
+const GRID_CSS = '.grid-t th,.grid-t td{border:1px solid #9DB7D8;padding:3px 6px;font-size:11px}.grid-t th{background:#E3EEFB;color:#0B2540}';
+
+export function periodontogramHtml(patient: Patient, chart: { data: PerioData; note: string; at: string; by: string }, clinic: Issuer): string {
+  const d = chart.data;
+  const st = perioStats(d);
+  const cell = (list: string[], f: (k: string) => string) => list.map((k) => `<td style="text-align:center;padding:2px 3px;font-size:9.5px">${f(k)}</td>`).join('');
+  const colour = (v: number | null) => (v == null ? '' : v <= 3 ? 'background:#DDF3E8' : v === 4 ? 'background:#FDEFC4' : 'background:#F9D3D3');
+  const sites = (k: string, key: 'pd' | 'rec', from: number) => {
+    const t = d.teeth[k];
+    if (!t || t.absent) return t?.absent ? 'ausente' : '';
+    const v = t[key].slice(from, from + 3);
+    return v.every((x) => x == null) ? '' : v.map((x) => (x == null ? '·' : String(x))).join('-');
+  };
+  const bleed = (k: string, from: number) => {
+    const t = d.teeth[k];
+    return t && !t.absent ? t.bop.slice(from, from + 3).map((b) => (b ? '●' : '○')).join('') : '';
+  };
+  const arch = (title: string, list: string[]) => `<h2>${title}</h2><table class="grid-t" style="table-layout:fixed"><thead><tr><th style="width:62px"></th>${list.map((k) => `<th style="text-align:center">${k}</th>`).join('')}</tr></thead><tbody>
+<tr><td>PD vest.</td>${list.map((k) => `<td style="text-align:center;font-size:9.5px;${colour(d.teeth[k]?.pd.slice(0, 3).reduce<number | null>((m, v) => (v == null ? m : m == null || v > m ? v : m), null) ?? null)}">${sites(k, 'pd', 0)}</td>`).join('')}</tr>
+<tr><td>Rec. vest.</td>${cell(list, (k) => sites(k, 'rec', 0))}</tr>
+<tr><td>Sangrado vest.</td>${cell(list, (k) => bleed(k, 0))}</tr>
+<tr><td>PD ling.</td>${list.map((k) => `<td style="text-align:center;font-size:9.5px;${colour(d.teeth[k]?.pd.slice(3, 6).reduce<number | null>((m, v) => (v == null ? m : m == null || v > m ? v : m), null) ?? null)}">${sites(k, 'pd', 3)}</td>`).join('')}</tr>
+<tr><td>Rec. ling.</td>${cell(list, (k) => sites(k, 'rec', 3))}</tr>
+<tr><td>Sangrado ling.</td>${cell(list, (k) => bleed(k, 3))}</tr>
+<tr><td>Mov. / furca</td>${cell(list, (k) => (d.teeth[k] && !d.teeth[k].absent ? `${d.teeth[k].mob}/${d.teeth[k].furc}` : ''))}</tr>
+<tr><td>Placa</td>${cell(list, (k) => (d.teeth[k]?.plaque ? '●' : ''))}</tr></tbody></table>`;
+  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Periodontograma</h1><div class="small">${e(fmtDateTime(chart.at))}</div>${chart.by ? `<div class="small">Registró: ${e(chart.by)}</div>` : ''}</div></div>
+<div class="box nobreak">${patientBlock(patient)}</div>
+${chart.note ? `<p><span class="k">Nota</span>${multiline(chart.note)}</p>` : ''}
+<p class="small">Sitios en orden distal-medio-mesial. PD: profundidad al sondaje en mm. Verde hasta 3 mm, amarillo 4 mm, rojo desde 5 mm. ● sangrado, ○ sin sangrado.</p>
+${arch('Arcada superior', UPPER)}${arch('Arcada inferior', LOWER)}
+<h2>Resumen</h2>
+<table class="grid-t nobreak"><tbody>
+<tr><td>Sitios con sangrado</td><td>${st.bleedingPct}%</td><td>Dientes con placa</td><td>${st.plaquePct}%</td></tr>
+<tr><td>Bolsas de 5 mm o más</td><td>${st.pockets5}</td><td>Bolsas de 4 mm</td><td>${st.pockets4}</td></tr>
+<tr><td>Profundidad promedio</td><td>${st.meanPd} mm</td><td>Pérdida de inserción promedio</td><td>${st.meanCal} mm</td></tr></tbody></table>
+<div class="sig nobreak">Firma del profesional</div>
+<div class="footer">${e(FOOTER_CONF)}</div>`;
+  return doc('Periodontograma', body, GRID_CSS);
+}
+
+export function exercisesHtml(patient: Patient, sheet: { data: ExercisesData; at: string; by: string }, clinic: Issuer): string {
+  const d = sheet.data;
+  const rows = d.items
+    .map((it, i) => `<tr class="nobreak"><td style="width:24px"><strong>${i + 1}</strong></td><td><strong>${e(it.name)}</strong>${it.notes ? `<div class="small">${multiline(it.notes)}</div>` : ''}</td><td>${e(it.sets)}</td><td>${e(it.reps)}</td><td style="width:70px"><span class="cb"></span></td></tr>`)
+    .join('');
+  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Hoja de ejercicios</h1><div class="small">${e(fmtDateTime(sheet.at))}</div>${sheet.by ? `<div class="small">Indicó: ${e(sheet.by)}</div>` : ''}</div></div>
+<div class="box nobreak">${patientBlock(patient)}</div>
+${d.frequency ? `<p><span class="k">Frecuencia</span>${e(d.frequency)}</p>` : ''}
+<table class="grid-t"><thead><tr><th>#</th><th>Ejercicio</th><th>Series</th><th>Repeticiones o tiempo</th><th>Hecho</th></tr></thead><tbody>${rows}</tbody></table>
+${d.notes ? `<h2>Indicaciones</h2><p>${multiline(d.notes)}</p>` : ''}
+<p class="small" style="margin-top:10px">Detén el ejercicio y avisa a tu terapeuta si aparece dolor agudo, mareo u hormigueo.</p>
+<div class="sig nobreak">Firma del profesional</div>
+<div class="footer">${e(FOOTER_CONF)}</div>`;
+  return doc('Hoja de ejercicios', body, GRID_CSS);
+}
+
+export interface ShoppingSection {
+  name: string;
+  items: { name: string; quantity: string }[];
+}
+
+export function shoppingHtml(patient: Patient, sections: ShoppingSection[], persons: number, clinic: Issuer): string {
+  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>Lista del súper</h1><div class="small">${e(fmtDateTime(new Date().toISOString()))}</div></div></div>
+<div class="box nobreak">${patientBlock(patient)}</div>
+<p class="small">Para una semana de tu plan de alimentación${persons > 1 ? `, ${persons} personas` : ''}. Las cantidades son aproximadas.</p>
+${sections.map((s) => `<h2>${e(s.name)}</h2><table class="grid-t nobreak"><tbody>${s.items.map((i) => `<tr><td style="width:22px"><span class="cb"></span></td><td>${e(i.name)}</td><td style="width:140px">${e(i.quantity)}</td></tr>`).join('')}</tbody></table>`).join('')}
+<div class="footer">${e(FOOTER_CONF)}</div>`;
+  return doc('Lista del súper', body, GRID_CSS);
 }

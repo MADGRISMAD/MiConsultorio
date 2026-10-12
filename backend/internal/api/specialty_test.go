@@ -693,3 +693,90 @@ func TestNutritionPlanNeedsCedula(t *testing.T) {
 	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a"))
 	doc.expect(201, "POST", "/api/patients/"+pid+"/charts", save)
 }
+
+// The shopping list adds up the week's menu with the AI; it needs a menu, costs one magic use and gives it back if the AI fails.
+func TestNutritionShoppingList(t *testing.T) {
+	fail := false
+	var prompt string
+	gem := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Contents []struct {
+				Parts []map[string]any `json:"parts"`
+			} `json:"contents"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompt = body.Contents[0].Parts[0]["text"].(string)
+		if fail {
+			w.WriteHeader(500)
+			return
+		}
+		out, _ := json.Marshal(map[string]any{"sections": []any{
+			map[string]any{"name": "Frutas y verduras", "items": []any{map[string]any{"name": "Plátano", "quantity": "1 kg"}, map[string]any{"name": " ", "quantity": "x"}}},
+			map[string]any{"name": "Vacía", "items": []any{}},
+		}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"candidates": []any{map[string]any{"content": map[string]any{"parts": []any{map[string]any{"text": string(out)}}}}}})
+	}))
+	defer gem.Close()
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
+	})
+	doc := e.login("doc_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a"))
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	url := "/api/patients/" + pid + "/nutrition-plan/shopping"
+	days := []any{map[string]any{"name": "Lunes", "meals": []any{map[string]any{"name": "Desayuno", "items": "Avena con plátano", "kcal": 400}}}}
+
+	doc.expect(400, "POST", url, map[string]any{"days": []any{}})
+	doc.expect(400, "POST", url, map[string]any{"days": []any{map[string]any{"name": "Lunes", "meals": []any{map[string]any{"name": "Desayuno", "items": " "}}}}})
+	used := func() int {
+		var n int
+		_ = e.pool.QueryRow(t.Context(), `SELECT coalesce(sum(used), 0) FROM magic_usage WHERE clinic_id = $1`, e.clinicA).Scan(&n)
+		return n
+	}
+	before := used()
+	out := doc.expect(200, "POST", url, map[string]any{"days": days, "persons": 2})
+	secs := out["sections"].([]any)
+	if len(secs) != 1 || len(secs[0].(map[string]any)["items"].([]any)) != 1 || !strings.Contains(prompt, "2 persona") || !strings.Contains(prompt, "Avena con plátano") {
+		t.Fatalf("list: %v / %s", out, prompt)
+	}
+	if used() != before+1 {
+		t.Fatalf("one magic use: %d -> %d", before, used())
+	}
+	fail = true
+	doc.expect(502, "POST", url, map[string]any{"days": days})
+	if used() != before+1 {
+		t.Fatalf("a failed list is not charged: %d", used())
+	}
+}
+
+// A budget can carry the agreed payments: a down payment and equal installments, checked by the server.
+func TestPlanPaymentSchedule(t *testing.T) {
+	e := setup(t)
+	e.exec(`UPDATE clinics SET kind = 'DENTAL' WHERE id = $1`, e.clinicA)
+	doc := e.login("doc_a")
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	soon := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+	body := func(pp any) map[string]any {
+		return map[string]any{"title": "Ortodoncia", "items": []any{map[string]any{"description": "Brackets", "qty": 1, "unit_price_cents": 3000000}}, "payment_plan": pp}
+	}
+	good := map[string]any{"down_pct": 30, "installments": 6, "interval_days": 30, "start_date": soon}
+	for _, bad := range []map[string]any{
+		{"down_pct": 95, "installments": 6, "interval_days": 30, "start_date": soon},
+		{"down_pct": 30, "installments": 0, "interval_days": 30, "start_date": soon},
+		{"down_pct": 30, "installments": 6, "interval_days": 10, "start_date": soon},
+		{"down_pct": 30, "installments": 6, "interval_days": 30, "start_date": "ayer"},
+	} {
+		doc.expect(400, "POST", "/api/patients/"+pid+"/plans", body(bad))
+	}
+	plan := sub(doc.expect(201, "POST", "/api/patients/"+pid+"/plans", body(good)), "plan")
+	pp := plan["payment_plan"].(map[string]any)
+	if pp["installments"].(float64) != 6 || pp["start_date"] != soon {
+		t.Fatalf("stored schedule: %v", pp)
+	}
+	// it can be changed or removed while the budget is still a draft
+	id := plan["id"].(string)
+	got := sub(doc.expect(200, "PUT", "/api/plans/"+id, body(nil)), "plan")
+	if got["payment_plan"] != nil {
+		t.Fatalf("removed: %v", got["payment_plan"])
+	}
+}

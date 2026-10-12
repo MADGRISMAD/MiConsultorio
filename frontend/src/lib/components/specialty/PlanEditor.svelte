@@ -7,7 +7,9 @@
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import type { CatalogItem } from '$lib/types';
-  import type { PlanItemInput, TreatmentPlan } from '$lib/types/specialty';
+  import { defaultPayPlan, paySchedule } from '$lib/specialty/payplan';
+  import type { PaymentPlan, PlanItemInput, TreatmentPlan } from '$lib/types/specialty';
+  import DateField from '../ui/DateField.svelte';
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
 
@@ -35,6 +37,8 @@
   let title = $state('');
   let notes = $state('');
   let reason = $state('');
+  let payOn = $state(false);
+  let pay = $state<PaymentPlan>(defaultPayPlan());
   let rows = $state<Row[]>([]);
   let catalog = $state<CatalogItem[]>([]);
   const op = new Op();
@@ -47,6 +51,8 @@
   function init() {
     op.reset();
     reason = '';
+    payOn = !!plan?.payment_plan;
+    pay = plan?.payment_plan ? { ...plan.payment_plan } : defaultPayPlan();
     title = plan?.title ?? '';
     notes = plan?.notes ?? '';
     rows =
@@ -92,10 +98,12 @@
     const list = items();
     if (mode !== 'add' && !title.trim()) return op.fail('Escribe el título del plan.');
     if (list.length === 0) return op.fail('Agrega al menos un concepto con descripción.');
+    if (payOn && (!pay.start_date || !Number.isInteger(pay.installments) || pay.installments < 1 || pay.installments > 36 || !Number.isInteger(pay.down_pct) || pay.down_pct < 0 || pay.down_pct > 90)) return op.fail('Revisa el plan de pagos: enganche de 0 a 90 %, de 1 a 36 pagos y la fecha del primero.');
+    const payment_plan = payOn ? { ...pay } : null;
     let saved: TreatmentPlan | undefined;
     const ok = await op.run(async () => {
-      if (mode === 'create') saved = await specialtyApi.createPlan(patientId, { title: title.trim(), notes: notes.trim(), items: list });
-      else if (mode === 'edit') saved = await specialtyApi.updatePlan(plan!.id, { title: title.trim(), notes: notes.trim(), items: list });
+      if (mode === 'create') saved = await specialtyApi.createPlan(patientId, { title: title.trim(), notes: notes.trim(), items: list, payment_plan });
+      else if (mode === 'edit') saved = await specialtyApi.updatePlan(plan!.id, { title: title.trim(), notes: notes.trim(), items: list, payment_plan });
       else saved = await specialtyApi.addPlanItems(plan!.id, list, reason.trim());
     });
     if (ok && saved) onsaved(saved);
@@ -163,6 +171,29 @@
       </div>
       <p class="text-sm">Total: <strong class="text-base">{moneyCents(total)}</strong></p>
     </div>
+    {#if mode !== 'add'}
+      <fieldset class="rounded-xl border border-app-ink/12 p-3">
+        <legend class="px-1 text-sm font-medium">Plan de pagos</legend>
+        <label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4" bind:checked={payOn} />Ofrecer pagar el plan en partes (enganche y mensualidades)</label>
+        {#if payOn}
+          <div class="mt-3 grid gap-3 sm:grid-cols-4">
+            <label class="block"><span class="label">Enganche (%)</span><input class="field" type="number" min="0" max="90" bind:value={pay.down_pct} /></label>
+            <label class="block"><span class="label">Número de pagos</span><input class="field" type="number" min="1" max="36" bind:value={pay.installments} /></label>
+            <label class="block"><span class="label">Cada</span>
+              <select class="field" bind:value={pay.interval_days}><option value={7}>7 días</option><option value={14}>14 días</option><option value={15}>15 días</option><option value={30}>30 días (mensual)</option></select></label>
+            <div><label class="label" for="{uid}-pay-date">Primer pago</label><DateField id="{uid}-pay-date" bind:value={pay.start_date} /></div>
+          </div>
+          {#if total > 0 && pay.start_date && pay.installments >= 1}
+            <ul class="mt-3 divide-y divide-app-ink/8 text-sm">
+              {#each paySchedule(total, pay) as row}
+                <li class="flex justify-between gap-3 py-1.5"><span>{row.label}<span class="text-app-muted">{row.date ? ` · ${row.date}` : ' · al aceptar el plan'}</span></span><strong>{moneyCents(row.cents)}</strong></li>
+              {/each}
+            </ul>
+          {/if}
+          <p class="hint">Los pagos se cobran en caja como abonos. Sin interés: el total no cambia.</p>
+        {/if}
+      </fieldset>
+    {/if}
     {#if !canCatalog}<p class="hint">Sin acceso al catálogo de cobros: escribe la descripción y el precio a mano.</p>{/if}
     <OpError op={op} />
   </div>

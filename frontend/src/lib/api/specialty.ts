@@ -43,6 +43,10 @@ export const specialtyApi = {
   nutritionAI: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; activity: string; kcal: number; meals: number; snacks: boolean; preferences: string; dislikes: string; body_fat_pct?: number }) =>
     request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
 
+  /** The week's menu added up into what to buy (1 magic use). Nothing is saved. */
+  nutritionShopping: (patientId: string, body: { days: NutritionDay[]; persons: number }) =>
+    request<{ sections: { name: string; items: { name: string; quantity: string }[] }[] }>('POST', `${p(patientId)}/nutrition-plan/shopping`, body).then((r) => r.sections),
+
   nutritionCalc: (patientId: string, body: { goal: string; weight_kg: number; height_cm: number; activity_factor: number; body_fat_pct?: number }) =>
     request<NutritionTargets>('POST', `${p(patientId)}/nutrition-plan/calc`, body),
 

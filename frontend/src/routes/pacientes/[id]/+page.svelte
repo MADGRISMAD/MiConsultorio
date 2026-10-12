@@ -22,6 +22,9 @@
   import GrowthTab from '$lib/components/patients/detail/GrowthTab.svelte';
   import VaccinesTab from '$lib/components/patients/detail/VaccinesTab.svelte';
   import OdontogramTab from '$lib/components/patients/detail/OdontogramTab.svelte';
+  import PeriodontogramTab from '$lib/components/patients/detail/PeriodontogramTab.svelte';
+  import ExercisesTab from '$lib/components/patients/detail/ExercisesTab.svelte';
+  import FoodRecallTab from '$lib/components/patients/detail/FoodRecallTab.svelte';
   import NutritionPlanTab from '$lib/components/patients/detail/NutritionPlanTab.svelte';
   import PsychologyTab from '$lib/components/patients/detail/PsychologyTab.svelte';
   import BodyMapTab from '$lib/components/patients/detail/BodyMapTab.svelte';
@@ -46,7 +49,7 @@
   import { toast } from '$lib/toast.svelte';
   import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
 
-  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'cronicos' | 'certificados' | 'arco' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'esquema' | 'nutricion' | 'psico' | 'planes' | 'accesos';
+  type Tab = 'resumen' | 'bitacora' | 'recetas' | 'cronicos' | 'certificados' | 'arco' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'periodontograma' | 'ejercicios' | 'recordatorio' | 'esquema' | 'nutricion' | 'psico' | 'planes' | 'accesos';
 
   const id = $derived(page.params.id ?? '');
   let patient = $state<Patient | null>(null);
@@ -121,7 +124,9 @@
       set('laboratorio', labApi.orders(id).then((o) => o.length)),
       set('planes', specialtyApi.plans(id).then((l) => l.length)),
       ...(k.includes('DENTAL') ? [set('odontograma', chartCount('odontogram'))] : []),
-      ...(k.includes('NUTRITION') ? [set('nutricion', chartCount('nutrition_plan'))] : []),
+      ...(k.includes('DENTAL') ? [set('periodontograma', chartCount('periodontogram'))] : []),
+      ...(k.includes('NUTRITION') ? [set('nutricion', chartCount('nutrition_plan')), set('recordatorio', chartCount('food_recall'))] : []),
+      ...(k.some((x) => ['CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS'].includes(x)) ? [set('ejercicios', chartCount('exercises'))] : []),
       ...(k.includes('PSYCHOLOGY') ? [set('psico', chartCount('scale'))] : []),
       ...(k.some((x) => ['CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS'].includes(x)) ? [set('esquema', chartCount('bodymap'))] : [])
     ]);
@@ -214,9 +219,10 @@
     ...(isPerson ? [{ key: 'cronicos' as Tab, label: 'Medicación crónica', count: counts.cronicos }] : []),
     ...(patient?.subject === 'animal' ? [{ key: 'vacunas' as Tab, label: 'Vacunas y desparasitación', count: counts.vacunas }] : hasKind('PEDIATRICS') ? [{ key: 'vacunas' as Tab, label: 'Carnet de vacunación', count: counts.vacunas }] : []),
     ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'odontograma' as Tab, label: 'Odontograma', count: counts.odontograma }] : []),
-    ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional', count: counts.nutricion }] : []),
+    ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'periodontograma' as Tab, label: 'Periodontograma', count: counts.periodontograma }] : []),
+    ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional', count: counts.nutricion }, { key: 'recordatorio' as Tab, label: 'Recordatorio 24 h', count: counts.recordatorio }] : []),
     ...(isPerson && hasKind('PSYCHOLOGY') && inMyAreas('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos', count: counts.psico }] : []),
-    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal', count: counts.esquema }] : []),
+    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal', count: counts.esquema }, { key: 'ejercicios' as Tab, label: 'Hoja de ejercicios', count: counts.ejercicios }] : []),
     ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento', count: counts.planes }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
     ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio', count: counts.laboratorio }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento', count: encounters.filter((e) => !e.hidden && ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')).length }] : []),
@@ -343,6 +349,12 @@
         <VaccinesTab {patient} {schema} {canWrite} {isAdmin} />
       {:else if patient && tab === 'odontograma'}
         <OdontogramTab {patient} {schema} {canWrite} {isAdmin} />
+      {:else if patient && tab === 'periodontograma'}
+        <PeriodontogramTab {patient} {canWrite} />
+      {:else if patient && tab === 'ejercicios'}
+        <ExercisesTab {patient} {canWrite} />
+      {:else if patient && tab === 'recordatorio'}
+        <FoodRecallTab {patient} {canWrite} />
       {:else if patient && tab === 'nutricion'}
         <NutritionPlanTab {patient} {canWrite} {encounters} onchange={async () => { await refreshEncounters(); }} />
       {:else if patient && tab === 'psico'}

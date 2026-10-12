@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -48,37 +49,38 @@ type planEvent struct {
 }
 
 type treatmentPlan struct {
-	ID              string      `json:"id"`
-	PatientID       string      `json:"patient_id"`
-	PatientName     string      `json:"patient_name"`
-	Title           string      `json:"title"`
-	Status          string      `json:"status"`
-	Notes           string      `json:"notes"`
-	ProfessionalID  *string     `json:"professional_id"`
-	Version         int         `json:"version"`
-	AcceptedVersion int         `json:"accepted_version"`
-	AcceptedAt      *time.Time  `json:"accepted_at"`
-	AcceptedByName  string      `json:"accepted_by_name"`
-	CancelReason    string      `json:"cancel_reason"`
-	CreatedByName   string      `json:"created_by_name"`
-	CreatedAt       time.Time   `json:"created_at"`
-	UpdatedAt       time.Time   `json:"updated_at"`
-	TotalCents      int         `json:"total_cents"`   // without cancelled items
-	DoneCents       int         `json:"done_cents"`    // items already performed
-	PendingCents    int         `json:"pending_cents"` // still to perform
-	Items           []planItem  `json:"items"`
-	Events          []planEvent `json:"events,omitempty"`
+	ID              string          `json:"id"`
+	PatientID       string          `json:"patient_id"`
+	PatientName     string          `json:"patient_name"`
+	Title           string          `json:"title"`
+	Status          string          `json:"status"`
+	Notes           string          `json:"notes"`
+	ProfessionalID  *string         `json:"professional_id"`
+	Version         int             `json:"version"`
+	AcceptedVersion int             `json:"accepted_version"`
+	AcceptedAt      *time.Time      `json:"accepted_at"`
+	AcceptedByName  string          `json:"accepted_by_name"`
+	CancelReason    string          `json:"cancel_reason"`
+	CreatedByName   string          `json:"created_by_name"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	TotalCents      int             `json:"total_cents"`   // without cancelled items
+	DoneCents       int             `json:"done_cents"`    // items already performed
+	PendingCents    int             `json:"pending_cents"` // still to perform
+	PaymentPlan     json.RawMessage `json:"payment_plan"`  // agreed schedule of payments (nil: none)
+	Items           []planItem      `json:"items"`
+	Events          []planEvent     `json:"events,omitempty"`
 }
 
 func lineTotal(qty float64, unit int) int { return int(math.Round(qty * float64(unit))) }
 
 const planCols = `p.id::text, p.patient_id::text, trim(pt.names || ' ' || pt.last_names), p.title, p.status, p.notes, p.professional_id::text,
-	p.version, p.accepted_version, p.accepted_at, p.accepted_by_name, p.cancel_reason, p.created_by_name, p.created_at, p.updated_at`
+	p.version, p.accepted_version, p.accepted_at, p.accepted_by_name, p.cancel_reason, p.created_by_name, p.created_at, p.updated_at, p.payment_plan`
 
 func scanPlan(row pgx.Row) (treatmentPlan, error) {
 	var t treatmentPlan
 	err := row.Scan(&t.ID, &t.PatientID, &t.PatientName, &t.Title, &t.Status, &t.Notes, &t.ProfessionalID, &t.Version, &t.AcceptedVersion,
-		&t.AcceptedAt, &t.AcceptedByName, &t.CancelReason, &t.CreatedByName, &t.CreatedAt, &t.UpdatedAt)
+		&t.AcceptedAt, &t.AcceptedByName, &t.CancelReason, &t.CreatedByName, &t.CreatedAt, &t.UpdatedAt, &t.PaymentPlan)
 	t.Items = []planItem{}
 	return t, err
 }
@@ -240,6 +242,36 @@ type planIn struct {
 	Notes          string       `json:"notes"`
 	ProfessionalID string       `json:"professional_id"`
 	Items          []planItemIn `json:"items"`
+	PaymentPlan    *paymentPlan `json:"payment_plan"`
+}
+
+// paymentPlan is the schedule agreed with the patient: a down payment and equal installments.
+type paymentPlan struct {
+	DownPct      int    `json:"down_pct"`
+	Installments int    `json:"installments"`
+	IntervalDays int    `json:"interval_days"`
+	StartDate    string `json:"start_date"`
+}
+
+// cleanPaymentPlan checks the schedule and returns what to store (nil: no plan).
+func cleanPaymentPlan(pp *paymentPlan) (any, string) {
+	if pp == nil {
+		return nil, ""
+	}
+	switch {
+	case pp.DownPct < 0 || pp.DownPct > 90:
+		return nil, "El enganche debe estar entre 0 y 90 %."
+	case pp.Installments < 1 || pp.Installments > 36:
+		return nil, "El plan de pagos lleva entre 1 y 36 pagos."
+	case pp.IntervalDays != 7 && pp.IntervalDays != 14 && pp.IntervalDays != 15 && pp.IntervalDays != 30:
+		return nil, "Los pagos son cada 7, 14, 15 o 30 días."
+	}
+	d, err := time.Parse("2006-01-02", pp.StartDate)
+	if err != nil || d.Before(time.Now().AddDate(0, 0, -2)) || d.After(time.Now().AddDate(2, 0, 0)) {
+		return nil, "La fecha del primer pago no es válida."
+	}
+	b, _ := json.Marshal(pp)
+	return string(b), ""
 }
 
 // clean validates the items of a plan and returns an error message when something is wrong.
@@ -341,10 +373,15 @@ func (s *Server) createPlan(w http.ResponseWriter, r *http.Request) {
 	} else {
 		prof = p.UserID
 	}
+	payPlan, msg := cleanPaymentPlan(in.PaymentPlan)
+	if msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
 	var planID string
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(r.Context(), `INSERT INTO treatment_plans (clinic_id, patient_id, title, notes, professional_id, created_by_name)
-			VALUES ($1,$2,$3,$4,$5,$6) RETURNING id::text`, p.ClinicID, id, in.Title, in.Notes, prof, p.actorName()).Scan(&planID); err != nil {
+		if err := tx.QueryRow(r.Context(), `INSERT INTO treatment_plans (clinic_id, patient_id, title, notes, professional_id, created_by_name, payment_plan)
+			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb) RETURNING id::text`, p.ClinicID, id, in.Title, in.Notes, prof, p.actorName(), payPlan).Scan(&planID); err != nil {
 			return err
 		}
 		if err := insertPlanItems(r.Context(), tx, p.ClinicID, planID, 1, 0, in.Items); err != nil {
@@ -417,6 +454,11 @@ func (s *Server) updatePlan(w http.ResponseWriter, r *http.Request) {
 	if in.ProfessionalID != "" {
 		prof = in.ProfessionalID
 	}
+	payPlan, msg := cleanPaymentPlan(in.PaymentPlan)
+	if msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
+		return
+	}
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		status, version, _, _, err := lockPlan(r.Context(), tx, p.ClinicID, id)
 		if err != nil {
@@ -425,8 +467,8 @@ func (s *Server) updatePlan(w http.ResponseWriter, r *http.Request) {
 		if status != "draft" && status != "proposed" {
 			return fail(http.StatusConflict, "El plan ya fue aceptado: solo se pueden agregar conceptos o cancelar los pendientes.")
 		}
-		if _, err := tx.Exec(r.Context(), `UPDATE treatment_plans SET title=$3, notes=$4, professional_id=$5, updated_at=now() WHERE clinic_id=$1 AND id=$2`,
-			p.ClinicID, id, in.Title, in.Notes, prof); err != nil {
+		if _, err := tx.Exec(r.Context(), `UPDATE treatment_plans SET title=$3, notes=$4, professional_id=$5, payment_plan=$6::jsonb, updated_at=now() WHERE clinic_id=$1 AND id=$2`,
+			p.ClinicID, id, in.Title, in.Notes, prof, payPlan); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `DELETE FROM treatment_plan_items WHERE plan_id=$1`, id); err != nil {

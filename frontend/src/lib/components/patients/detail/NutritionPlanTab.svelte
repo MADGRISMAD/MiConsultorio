@@ -13,6 +13,8 @@
   import type { Encounter, Patient } from '$lib/types';
   import type { NutritionDay, NutritionMeal, NutritionPlanData, PatientChart } from '$lib/types/specialty';
   import Modal from '../../Modal.svelte';
+  import SmaeCatalog from '../../specialty/SmaeCatalog.svelte';
+  import ShoppingList from '../../specialty/ShoppingList.svelte';
   import VersionHistory from '../../specialty/VersionHistory.svelte';
   import ViewedVersionBanner from '../../specialty/ViewedVersionBanner.svelte';
   import EmptyState from '../../ui/EmptyState.svelte';
@@ -38,6 +40,11 @@
   let work = $state<NutritionPlanData>(empty());
   let base = $state('');
   let editing = $state(false);
+  // the catalog of equivalents writes into the meal that was last clicked
+  let smaeOpen = $state(false);
+  let shopOpen = $state(false);
+  let smaeTarget = $state<{ di: number; mi: number } | null>(null);
+
   let viewing = $state<string | null>(null);
   let note = $state('');
   const saveOp = new Op();
@@ -240,6 +247,14 @@
   function setMeal(di: number, mi: number, patch: Partial<NutritionMeal>) {
     work = { ...work, days: work.days.map((d, j) => (j === di ? { ...d, meals: d.meals.map((m, k) => (k === mi ? { ...m, ...patch } : m)) } : d)) };
   }
+  const smaeName = $derived(smaeTarget && shown.days[smaeTarget.di]?.meals[smaeTarget.mi] ? `${shown.days[smaeTarget.di].name}, ${shown.days[smaeTarget.di].meals[smaeTarget.mi].name}` : '');
+  function smaePick(line: string) {
+    if (!smaeTarget) return;
+    const m = shown.days[smaeTarget.di]?.meals[smaeTarget.mi];
+    if (!m) return;
+    setMeal(smaeTarget.di, smaeTarget.mi, { items: m.items.trim() ? `${m.items.replace(/\s+$/, '')}\n${line}` : line });
+    toast.show('Agregado a la comida');
+  }
   // ----- change one piece of the menu with the AI -----
   let frag = $state<{ di: number; mi: number | null } | null>(null);
   let fragModal = $state(false); // the form is open (otherwise it was a one-click swap)
@@ -410,6 +425,8 @@
           <button type="button" class="btn-primary" onclick={() => { editing = true; openGenerator(); }}><Icon name="sparkles" size={18} />Generar plan nutricional</button>
         {/if}
       {/if}
+      {#if shown.days.some((d) => d.meals.some((m) => m.items.trim())) && session.magic}<button type="button" class="btn-secondary" onclick={() => (shopOpen = true)}><Icon name="sparkles" size={18} />Lista del súper</button>{/if}
+      {#if !readonly && shown.days.length > 0}<button type="button" class="btn-secondary" onclick={() => (smaeOpen = true)}><Icon name="info" size={18} />Equivalentes SMAE</button>{/if}
       {#if history.length || editing}<button type="button" class="btn-secondary" onclick={print}><Icon name="receipt" size={18} />Imprimir</button>{/if}
     </div>
   </div>
@@ -519,7 +536,7 @@
       {#snippet cell(di: number, mi: number)}
         {@const m = shown.days[di]?.meals[mi]}
         {#if m}
-          <textarea class="field min-h-[5.5rem] !px-2.5 !py-2 text-[13px] leading-snug [field-sizing:content]" rows="4" maxlength="1200" readonly={readonly} value={m.items} aria-label="{shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { items: e.currentTarget.value })} placeholder={readonly ? '' : 'Alimentos y porciones'}></textarea>
+          <textarea class="field min-h-[5.5rem] !px-2.5 !py-2 text-[13px] leading-snug [field-sizing:content]" rows="4" maxlength="1200" readonly={readonly} value={m.items} aria-label="{shown.days[di].name}, {m.name}" onfocus={() => (smaeTarget = { di, mi })} oninput={(e) => setMeal(di, mi, { items: e.currentTarget.value })} placeholder={readonly ? '' : 'Alimentos y porciones'}></textarea>
           <label class="mt-1 flex items-center gap-1 text-[11px] text-app-muted"><input class="w-14 rounded-md border border-app-ink/15 bg-app-panel px-1.5 py-0.5 text-right text-[11px] text-app-ink" inputmode="numeric" readonly={readonly} value={m.kcal || ''} aria-label="Calorías de {shown.days[di].name}, {m.name}" oninput={(e) => setMeal(di, mi, { kcal: Math.round(num(e.currentTarget.value)) })} />kcal</label>
           {#if !readonly && session.magic}
             <div class="mt-1 flex items-center gap-2">
@@ -640,3 +657,6 @@
     </button>
   {/snippet}
 </Modal>
+
+<SmaeCatalog open={smaeOpen} target={smaeName} onclose={() => (smaeOpen = false)} onpick={smaePick} />
+<ShoppingList open={shopOpen} {patient} days={shown.days} onclose={() => (shopOpen = false)} />

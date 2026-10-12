@@ -1,6 +1,6 @@
 import { api } from '$lib/api';
 import { specialtyApi } from '$lib/api/specialty';
-import type { BodymapData, NutritionPlanData, OdontogramData } from '$lib/types/specialty';
+import type { BodymapData, ExercisesData, NutritionPlanData, OdontogramData, PerioData } from '$lib/types/specialty';
 import { rxApi } from '$lib/api/rx';
 import QRCode from 'qrcode';
 import { printHtml } from '$lib/printer/ticket';
@@ -12,7 +12,7 @@ import { recetaHtml } from './receta';
 import { certificateHtml } from './certificate';
 import { certificatesApi } from '$lib/api/certificates';
 import { labOrderSheetHtml, labReportHtml } from './lab';
-import { carnetHtml, chartHtml, nutritionPlanHtml, planHtml, signedConsentHtml } from './specialty';
+import { carnetHtml, chartHtml, exercisesHtml, nutritionPlanHtml, periodontogramHtml, planHtml, shoppingHtml, signedConsentHtml, type ShoppingSection } from './specialty';
 
 export { escapeHtml } from './base';
 export { consentHtml, expedienteHtml, privacyNoticeHtml, recetaHtml };
@@ -77,6 +77,18 @@ export async function printChart(
 
 export async function printNutritionPlan(patient: Patient, plan: { data: NutritionPlanData; note: string; at: string; by: string; author?: { title: string; cedula: string; phone: string; email: string } }): Promise<void> {
   await printHtml(nutritionPlanHtml(patient, plan, await loadIssuer()));
+}
+
+export async function printPeriodontogram(patient: Patient, chart: { data: PerioData; note: string; at: string; by: string }): Promise<void> {
+  await printHtml(periodontogramHtml(patient, chart, await loadIssuer()));
+}
+
+export async function printExercises(patient: Patient, sheet: { data: ExercisesData; at: string; by: string }): Promise<void> {
+  await printHtml(exercisesHtml(patient, sheet, await loadIssuer()));
+}
+
+export async function printShopping(patient: Patient, sections: ShoppingSection[], persons: number): Promise<void> {
+  await printHtml(shoppingHtml(patient, sections, persons, await loadIssuer()));
 }
 
 export async function printPlan(patient: Patient, planId: string): Promise<void> {

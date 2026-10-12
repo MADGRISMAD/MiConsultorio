@@ -136,6 +136,64 @@ export interface NutritionPlanData {
   follow_up_days: number;
 }
 
+// ---- 24-hour food recall (nutrition) ----
+
+export interface RecallMeal {
+  name: string;
+  time: string;
+  /** what was eaten and how much, in the patient's words */
+  items: string;
+}
+export interface FoodRecallData {
+  /** the day the patient recalls (YYYY-MM-DD) */
+  date: string;
+  kind: '24h' | 'dia_tipico';
+  meals: RecallMeal[];
+  water: string;
+  notes: string;
+}
+
+// ---- exercise sheet (physiotherapy) ----
+
+export interface ExerciseItem {
+  name: string;
+  /** series */
+  sets: string;
+  /** repetitions or time */
+  reps: string;
+  notes: string;
+}
+export interface ExercisesData {
+  items: ExerciseItem[];
+  /** how often: «diario», «3 veces por semana»… */
+  frequency: string;
+  notes: string;
+}
+
+// ---- periodontogram ----
+
+/** Six sites per tooth: vestibular distal, middle, mesial and then lingual/palatal distal, middle, mesial. */
+export interface PerioTooth {
+  absent?: boolean;
+  /** probing depth (mm) */
+  pd: (number | null)[];
+  /** gingival recession (mm) */
+  rec: (number | null)[];
+  /** bleeding on probing */
+  bop: boolean[];
+  /** Miller mobility 0-3 */
+  mob: number;
+  /** furcation involvement 0-3 */
+  furc: number;
+  plaque: boolean;
+}
+export interface PerioData {
+  teeth: Record<string, PerioTooth>;
+  notes: string;
+  plaque_pct: number;
+  bleeding_pct: number;
+}
+
 export type ToothState = 'caries' | 'restauracion' | 'endodoncia' | 'corona' | 'extraccion_indicada' | 'ausente' | 'sellador' | 'implante' | 'fractura' | 'protesis';
 export type Surface = 'V' | 'L' | 'P' | 'M' | 'D' | 'O' | 'I';
 export type Dentition = 'adult' | 'child' | 'mixed';
@@ -217,7 +275,16 @@ export interface PlanEvent {
   created_at: string;
 }
 
+/** The agreed payments of a plan: a down payment (percent of the total) and equal installments. */
+export interface PaymentPlan {
+  down_pct: number;
+  installments: number;
+  interval_days: 7 | 14 | 15 | 30;
+  start_date: string;
+}
+
 export interface TreatmentPlan {
+  payment_plan?: PaymentPlan | null;
   id: string;
   patient_id: string;
   patient_name: string;
@@ -251,6 +318,7 @@ export interface PlanItemInput {
 }
 
 export interface PlanInput {
+  payment_plan?: PaymentPlan | null;
   title: string;
   notes: string;
   items: PlanItemInput[];
