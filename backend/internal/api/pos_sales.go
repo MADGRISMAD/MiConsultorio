@@ -502,6 +502,9 @@ func (s *Server) createSale(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if l.kind == "service" && l.itemID != nil {
+				if err := sellPackage(r.Context(), tx, p.ClinicID, saleID, patientID, *l.itemID, l.in.Qty); err != nil {
+					return err
+				}
 				warns, err := consumeForService(r.Context(), tx, p.ClinicID, *l.itemID, l.name, l.in.Qty, saleID, p.actorName(), in.AllowExpired, cfg.AllowNegativeStock)
 				if err != nil {
 					return err
@@ -770,6 +773,9 @@ func (s *Server) voidSale(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE invoice_requests SET status='cancelled', updated_at=now() WHERE sale_id=$1 AND status='pending'`, id); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(r.Context(), `UPDATE patient_packages SET status = 'void' WHERE clinic_id = $1 AND sale_id = $2`, p.ClinicID, id); err != nil {
 			return err
 		}
 		if err := restockSale(r.Context(), tx, p.ClinicID, id, "Cancelación de la venta #"+itoa(folio), p.actorName()); err != nil {

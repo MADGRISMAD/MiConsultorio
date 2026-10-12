@@ -166,6 +166,7 @@
         cart.professionalId = a.professional_id ?? '';
         cart.origin = `Cobro de la cita de ${cart.customer}. Al cobrar, la cita se marca como completada.`;
         if (a.sale_id) toast.show('Esta cita ya tiene una venta registrada.', 'error');
+        else if (a.package_id) toast.show('Esta cita ya se pagó con una sesión de paquete: no la cobres otra vez.', 'error');
         const svc = a.service_id ? items.find((i) => i.id === a.service_id) : undefined;
         if (svc) add(svc);
         else toast.show('La cita no tiene un servicio del catálogo: agrega los conceptos a cobrar.');

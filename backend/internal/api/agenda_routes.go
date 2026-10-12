@@ -6,6 +6,8 @@ import "github.com/go-chi/chi/v5"
 func (s *Server) mountAgenda(r chi.Router) {
 	r.With(require(PermNavAppointments, PermAdminAppointments)).Post("/{id}/status", s.changeAppointmentStatus)
 	r.With(require(PermAdminAppointments, PermAdminHistorials)).Post("/{id}/patient", s.linkAppointmentPatient)
+	r.With(require(PermNavAppointments, PermAdminAppointments)).Post("/{id}/package", s.redeemPackage)
+	r.With(require(PermNavAppointments, PermAdminAppointments)).Delete("/{id}/package", s.unredeemPackage)
 }
 
 // mountAgendaRoot Routes of /agenda (professionals, availability, blocks, settings).

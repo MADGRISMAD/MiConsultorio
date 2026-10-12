@@ -68,6 +68,8 @@ type appointment struct {
 	// (none, pending, paid, refunded, kept, applied).
 	DepositCents int    `json:"deposit_cents" db:"deposit_cents"`
 	DepositState string `json:"deposit_state" db:"deposit_state"`
+	// PackageID is the package of the patient that pays this visit with one of its sessions.
+	PackageID *string `json:"package_id" db:"package_id"`
 	// StartsAt is the appointment's date and time in the clinic's time zone as an instant; OpensAt is when it can
 	// start being worked (arrival, consultation). Both are filled in by decorateAppointments.
 	StartsAt *time.Time `json:"starts_at" db:"-"`
@@ -93,7 +95,7 @@ const appointmentSelect = `SELECT a.id::text AS id, a.patient_id::text AS patien
 		to_char(a.date, 'YYYY-MM-DD') AS date, to_char(a.start_hour, 'HH24:MI') AS start_hour, to_char(a.end_hour, 'HH24:MI') AS end_hour,
 		a.details, a.professional_id::text AS professional_id, coalesce(pr.name, '') AS professional_name, a.status, a.room, a.source,
 		a.service_id::text AS service_id, coalesce(ci.name, '') AS service_name, a.phone, a.email, a.encounter_id::text AS encounter_id,
-		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at, a.reminders_consent, a.modality, a.video_url, a.deposit_cents, a.deposit_state
+		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at, a.reminders_consent, a.modality, a.video_url, a.deposit_cents, a.deposit_state, a.package_id::text AS package_id
 	FROM appointments a
 	LEFT JOIN users pr ON pr.id = a.professional_id
 	LEFT JOIN catalog_items ci ON ci.id = a.service_id `

@@ -80,7 +80,7 @@ export interface PublicClinic {
   insurances: string[];
   languages: string[];
   payment_methods: string[];
-  services: { id: string; name: string; price_cents: number; duration_minutes: number | null; modality: 'presencial' | 'videollamada' | 'ambas' }[];
+  services: { id: string; name: string; price_cents: number; duration_minutes: number | null; modality: 'presencial' | 'videollamada' | 'ambas'; package_sessions?: number | null }[];
 }
 
 export interface DirectoryHit {

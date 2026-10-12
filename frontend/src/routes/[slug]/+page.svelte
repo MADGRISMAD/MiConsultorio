@@ -147,13 +147,14 @@
               <span class="min-w-0">
                 <span class="block text-[17px] font-medium">{sv.name}</span>
                 <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-faint">
+                  {#if sv.package_sessions}<span class="rounded-full bg-signal-soft px-2 py-0.5 text-xs font-medium text-signal">Paquete de {sv.package_sessions} sesiones</span>{/if}
                   {#if sv.duration_minutes}<span>{sv.duration_minutes} min</span>{/if}
                   {#if sv.modality !== 'presencial'}<span class="inline-flex items-center gap-1 rounded-full bg-signal-soft px-2 py-0.5 text-xs font-medium text-signal"><Icon name="video" size={12} />{sv.modality === 'videollamada' ? 'Por videollamada' : 'En persona o videollamada'}</span>{/if}
                 </span>
               </span>
               <span class="flex items-center gap-4">
                 <span class="whitespace-nowrap font-display text-2xl">{sv.price_cents > 0 ? moneyCents(sv.price_cents) : 'Consultar'}</span>
-                {#if c.booking_url}<a href="{c.booking_url}?servicio={sv.id}" class="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-signal">Reservar</a>{/if}
+                {#if c.booking_url && !sv.package_sessions}<a href="{c.booking_url}?servicio={sv.id}" class="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-signal">Reservar</a>{/if}
               </span>
             </li>
           {/each}

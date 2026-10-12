@@ -158,7 +158,7 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 	rows, err := b.db.Query(ctx, `SELECT ci.id, ci.name, ci.category, ci.price_cents, ci.duration_minutes, ci.modality,
 		       coalesce(ci.deposit_percent, a.deposit_percent) FROM catalog_items ci
 		LEFT JOIN agenda_settings a ON a.clinic_id = ci.clinic_id
-		WHERE ci.clinic_id = $1 AND ci.kind = 'service' AND ci.active ORDER BY ci.category, ci.name LIMIT 200`, c.ID)
+		WHERE ci.clinic_id = $1 AND ci.kind = 'service' AND ci.active AND ci.package_sessions IS NULL ORDER BY ci.category, ci.name LIMIT 200`, c.ID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -346,7 +346,7 @@ func (s *Server) serviceOK(ctx context.Context, clinicID, id string) bool {
 		return false
 	}
 	var ok bool
-	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_items WHERE id = $1 AND clinic_id = $2 AND kind = 'service' AND active)`, id, clinicID).Scan(&ok)
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM catalog_items WHERE id = $1 AND clinic_id = $2 AND kind = 'service' AND active AND package_sessions IS NULL)`, id, clinicID).Scan(&ok)
 	return ok
 }
 

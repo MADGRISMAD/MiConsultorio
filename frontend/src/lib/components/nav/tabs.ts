@@ -5,7 +5,8 @@ import type { Tab } from './SectionTabs.svelte';
 export const AGENDA_TABS: Tab[] = [
   { label: 'Citas', href: '/admin/navegar-citas', also: ['/admin/admin-citas'], perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments] },
   { label: 'En proceso', href: '/en-proceso', perms: [PERMISSIONS.navAppointments] },
-  { label: 'Lista de espera', href: '/agenda/espera', perms: [PERMISSIONS.navAppointments] }
+  { label: 'Lista de espera', href: '/agenda/espera', perms: [PERMISSIONS.navAppointments] },
+  { label: 'Paquetes', href: '/agenda/paquetes', perms: [PERMISSIONS.navAppointments], cobros: true }
 ];
 
 /** One sidebar entry, "Cobros", with the till, the catalog and the back office as tabs. Commissions live in Ajustes. */

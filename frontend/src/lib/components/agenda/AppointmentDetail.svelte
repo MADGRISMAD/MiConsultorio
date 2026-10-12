@@ -2,6 +2,7 @@
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { agendaApi } from '$lib/api/agenda';
+  import { packagesApi, usablePackages, type PatientPackage } from '$lib/api/packages';
   import { beginConsult, consultUrl } from '$lib/consultFlow';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
@@ -30,6 +31,32 @@
   let reason = $state('');
   let noShowAsk = $state(false);
   let keepDeposit = $state(false);
+  // packages of the patient that can pay this visit
+  let patientPkgs = $state<PatientPackage[]>([]);
+  $effect(() => {
+    const pid = appt?.patient_id;
+    patientPkgs = [];
+    if (pid && session.cobros) void packagesApi.ofPatient(pid).then((l) => (patientPkgs = l)).catch(() => {});
+  });
+  const usable = $derived(appt ? usablePackages(patientPkgs, appt.service_id, appt.date) : []);
+  const usedPkg = $derived(patientPkgs.find((p) => p.id === appt?.package_id));
+  const pkgOpen = $derived(!!appt && ['scheduled', 'confirmed', 'arrived', 'in_progress'].includes(appt.status) && !appt.sale_id);
+  async function useSession(pkgId: string) {
+    if (!appt) return;
+    const id = appt.id;
+    if (await op.run(async () => {
+      await packagesApi.redeem(id, pkgId);
+      onchanged(await agendaApi.get(id));
+    })) toast.show('Se usó una sesión del paquete');
+  }
+  async function freeSession() {
+    if (!appt) return;
+    const id = appt.id;
+    if (await op.run(async () => {
+      await packagesApi.unredeem(id);
+      onchanged(await agendaApi.get(id));
+    })) toast.show('Se devolvió la sesión al paquete');
+  }
   const depositMoney = $derived(appt?.deposit_cents ? moneyCents(appt.deposit_cents) : '');
   const DEPOSIT_TEXT: Record<string, string> = { pending: 'Anticipo por pagar', paid: 'Anticipo pagado', refunded: 'Anticipo devuelto', kept: 'Anticipo conservado', applied: 'Anticipo aplicado al cobro' };
 
@@ -110,6 +137,11 @@
       {#if appt.CURP}<div><dt class="section-title">CURP</dt><dd class="mt-1 font-mono text-sm">{appt.CURP}</dd></div>{/if}
       <div class="sm:col-span-3"><dt class="section-title">Notas</dt><dd class="mt-1 whitespace-pre-wrap">{appt.details || '—'}</dd></div>
       {#if appt.deposit_cents && appt.deposit_state && appt.deposit_state !== 'none'}<div class="sm:col-span-3"><dt class="section-title">Anticipo en línea</dt><dd class="mt-1 font-medium">{DEPOSIT_TEXT[appt.deposit_state]}: {depositMoney}</dd></div>{/if}
+      {#if appt.package_id}
+        <div class="sm:col-span-3"><dt class="section-title">Paquete</dt><dd class="mt-1 font-medium">Pagada con una sesión del paquete{usedPkg ? ` «${usedPkg.name}» (quedan ${usedPkg.sessions_total - usedPkg.sessions_used})` : ''}. {#if canStatus && pkgOpen}<button type="button" class="font-normal text-app-primary underline" onclick={freeSession}>Quitar</button>{/if}</dd></div>
+      {:else if canStatus && pkgOpen && usable.length}
+        <div class="sm:col-span-3"><dt class="section-title">Paquete del paciente</dt><dd class="mt-1 flex flex-wrap gap-2">{#each usable as p (p.id)}<button type="button" class="btn-secondary" disabled={op.phase === 'loading'} onclick={() => useSession(p.id)}><Icon name="check" size={16} />Usar una sesión de «{p.name}» (quedan {p.sessions_total - p.sessions_used})</button>{/each}</dd></div>
+      {/if}
       {#if appt.cancel_reason}<div class="sm:col-span-3"><dt class="section-title">Motivo</dt><dd class="mt-1 whitespace-pre-wrap">{appt.cancel_reason}</dd></div>{/if}
     </dl>
 

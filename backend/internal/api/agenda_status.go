@@ -95,6 +95,11 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {
 			return err
 		}
+		if in.Status == "cancelled" { // a session paid with a package goes back to it
+			if err := releasePackage(r.Context(), tx, p.ClinicID, id); err != nil {
+				return err
+			}
+		}
 		if err := s.scheduleReminders(r.Context(), tx, p.ClinicID, id); err != nil {
 			return err
 		}

@@ -242,6 +242,9 @@ func (b *bookingAPI) cancelByToken(w http.ResponseWriter, r *http.Request) {
 			return "", err
 		}
 		a.Status = "cancelled"
+		if err := releasePackage(ctx, tx, a.ClinicID, a.ID); err != nil {
+			return "", err
+		}
 		audit(ctx, tx, a.ClinicID, nil, "appointment_cancelled", "Cita cancelada por el paciente desde su enlace", map[string]any{"appointment_id": a.ID})
 		b.ntfAppointmentByID(ctx, tx, a.ClinicID, a.ID, "appointment_cancelled_patient", "Un paciente canceló su cita", "/admin/navegar-citas")
 		waitlistWake()

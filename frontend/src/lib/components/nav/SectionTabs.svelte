@@ -9,10 +9,12 @@
     perms?: string[];
     /** other paths that mark the tab as current */
     also?: string[];
+    /** only for plans that include cobros (Crecimiento and Pro) */
+    cobros?: boolean;
   }
   let { tabs, label = 'Secciones' }: { tabs: Tab[]; label?: string } = $props();
 
-  const shown = $derived(tabs.filter((t) => !t.perms || t.perms.some((p) => session.has(p))));
+  const shown = $derived(tabs.filter((t) => (!t.perms || t.perms.some((p) => session.has(p))) && (!t.cobros || session.cobros)));
   const current = (t: Tab) => [t.href, ...(t.also ?? [])].some((h) => page.url.pathname === h || page.url.pathname.startsWith(h + '/'));
 </script>
 

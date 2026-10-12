@@ -93,7 +93,7 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	slug := s.bookingSlugOf(r.Context(), p.ClinicID)
 	services := []map[string]any{}
-	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, price_cents, public FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 200`, p.ClinicID)
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, price_cents, public, package_sessions FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY package_sessions IS NOT NULL, name LIMIT 200`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -102,12 +102,13 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 		var id, name string
 		var price int
 		var pub bool
-		if err := rows.Scan(&id, &name, &price, &pub); err != nil {
+		var sessions *int
+		if err := rows.Scan(&id, &name, &price, &pub, &sessions); err != nil {
 			rows.Close()
 			serverError(w, r, err)
 			return
 		}
-		services = append(services, map[string]any{"id": id, "name": name, "price_cents": price, "public": pub})
+		services = append(services, map[string]any{"id": id, "name": name, "price_cents": price, "public": pub, "package_sessions": sessions})
 	}
 	rows.Close()
 	score, checklist, err := s.profileChecklist(r.Context(), p.ClinicID)
@@ -366,7 +367,7 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	// servicios publicados con su precio
 	svcs := []map[string]any{}
-	sr, err := s.db.Query(ctx, `SELECT id::text, name, price_cents, duration_minutes, modality FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND public AND active ORDER BY price_cents, name LIMIT 40`, id)
+	sr, err := s.db.Query(ctx, `SELECT id::text, name, price_cents, duration_minutes, modality, package_sessions FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND public AND active ORDER BY package_sessions IS NOT NULL, price_cents, name LIMIT 40`, id)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -374,13 +375,13 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	for sr.Next() {
 		var sid, n, modality string
 		var price int
-		var dur *int
-		if err := sr.Scan(&sid, &n, &price, &dur, &modality); err != nil {
+		var dur, sessions *int
+		if err := sr.Scan(&sid, &n, &price, &dur, &modality, &sessions); err != nil {
 			sr.Close()
 			serverError(w, r, err)
 			return
 		}
-		svcs = append(svcs, map[string]any{"id": sid, "name": n, "price_cents": price, "duration_minutes": dur, "modality": modality})
+		svcs = append(svcs, map[string]any{"id": sid, "name": n, "price_cents": price, "duration_minutes": dur, "modality": modality, "package_sessions": sessions})
 	}
 	sr.Close()
 	out["services"] = svcs

@@ -140,6 +140,7 @@ export interface ApptPrefill {
   professional_id?: string | null;
   service_id?: string | null;
   sale_id?: string | null;
+  package_id?: string | null;
 }
 
 export interface PlanPrefillItem {

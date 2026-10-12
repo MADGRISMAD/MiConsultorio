@@ -5,6 +5,8 @@ export interface Appt {
   /** anticipo pagado en línea y su estado (none, pending, paid, refunded, kept, applied) */
   deposit_cents?: number;
   deposit_state?: 'none' | 'pending' | 'paid' | 'refunded' | 'kept' | 'applied';
+  /** package of the patient that pays this visit with one of its sessions */
+  package_id?: string | null;
   patient_id: string | null;
   names: string;
   last_names: string;

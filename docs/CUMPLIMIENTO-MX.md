@@ -79,12 +79,12 @@ Las normas piden conservar el expediente y protegerlo. Caresia guarda todo en Po
 
 ## 4. Lo que Caresia **todavía no** hace (para que no te sorprenda)
 
-- **No está certificado** conforme a la NOM-024-SSA3-2012 ni se interconecta con sistemas públicos (CLUES, CURP/RENAPO, HL7, receta electrónica oficial).
-- **No timbra CFDI**: guarda los datos fiscales de la solicitud; el timbrado se hace con tu contador o proveedor autorizado.
-- **No firma electrónicamente** notas ni recetas: la firma es autógrafa en la copia impresa.
-- **No guarda archivos** (estudios, consentimientos escaneados). Hoy se conservan en papel o en tu archivo.
-- **No incluye telemedicina** ni recordatorios por WhatsApp/SMS (cuando se agreguen, requerirán consentimiento para esa finalidad secundaria).
-- No hay catálogo CIE-10 integrado: el código es opcional y se valida solo por formato.
+- **No está certificado** conforme a la NOM-024-SSA3-2012. La certificación la otorga la Secretaría de Salud (DGIS, esquema SIRES) tras un proceso formal de pruebas; no se obtiene con software solamente. Mientras no la tengas, **no la anuncies**: Caresia sigue las prácticas de la NOM-004 (bitácora solo-agregar, firma, cédula, confidencialidad, accesos), pero no se interconecta con sistemas públicos (CLUES, CURP/RENAPO, HL7, receta electrónica oficial).
+- **CFDI:** si configuras Facturama (`FACTURAMA_USER` y `FACTURAMA_PASS`) el timbrado se hace desde Caresia; sin esas credenciales, las facturas quedan como solicitudes que se timbran fuera.
+- **No firma electrónicamente** (e.firma) notas ni recetas: la firma es autógrafa en la copia impresa.
+- **Archivos:** se pueden adjuntar estudios y documentos escaneados al expediente (se guardan cifrados). El consentimiento firmado se escanea y se sube ahí.
+- **Telemedicina:** hay videollamada por enlace (Jitsi o el enlace propio del profesional) solo en los giros donde es prudente; Caresia no graba las sesiones. Los recordatorios por WhatsApp y correo requieren el consentimiento del paciente para esa finalidad.
+- **CIE-10:** el catálogo integrado es **parcial** (los diagnósticos más frecuentes en consulta externa); cualquier otro código se captura a mano y solo se valida por formato.
 - **Cifrado en reposo parcial.** Sí van cifrados (AES-256-GCM, ligados a su registro) dentro de la base: el contenido libre de la bitácora (interrogatorio, exploración, diagnóstico, plan y notas, incluidas las privadas y las adendas), el diagnóstico e indicaciones de las recetas, los antecedentes y alergias del paciente y el detalle de las citas; además de los archivos adjuntos y los tokens de pago, que ya lo estaban. **No** van cifrados porque los reportes, la agenda y las verificaciones los consultan: nombres, CURP, teléfonos y correos, fechas, motivo de consulta, mediciones (peso, signos vitales), códigos CIE-10, los medicamentos de la receta, estados, importes, la especie de un animal y otros textos como notas de vacunas, planes de tratamiento o fichas de especialidad. Los respaldos de la base conservan el cifrado, pero **sin la llave (`TOKEN_ENC_KEY` o `JWT_SECRET`) ese contenido no se puede leer** (ver *Llave de cifrado* en `docs/RESPALDOS.md`). Sigue siendo recomendable el cifrado del disco: quien administra el servidor y tiene la llave puede leer todo. Los registros anteriores se cifran con `go run ./cmd/encryptfields` (admite `--dry-run` y se puede repetir).
 
 Si alguno de estos puntos es indispensable para tu operación, plantéalo antes de contratar.

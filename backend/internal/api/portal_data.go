@@ -217,6 +217,9 @@ func (s *Server) portalCancelAppointment(w http.ResponseWriter, r *http.Request)
 		if _, err := tx.Exec(ctx, `UPDATE appointments SET status = 'cancelled', cancel_reason = $3, updated_at = now() WHERE id = $1 AND clinic_id = $2`, id, sess.ClinicID, why); err != nil {
 			return err
 		}
+		if err := releasePackage(ctx, tx, sess.ClinicID, id); err != nil {
+			return err
+		}
 		if err := s.scheduleReminders(ctx, tx, sess.ClinicID, id); err != nil {
 			return err
 		}

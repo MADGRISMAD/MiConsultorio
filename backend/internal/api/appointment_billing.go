@@ -54,15 +54,15 @@ func (s *Server) autoChargeAppointment(ctx context.Context, tx pgx.Tx, p *Princi
 	if !cbHasCobros(p) {
 		return "", 0, nil
 	}
-	var patientID, professionalID, serviceID, saleID *string
+	var patientID, professionalID, serviceID, saleID, packageID *string
 	var date string
 	err := tx.QueryRow(ctx, `
-		SELECT patient_id::text, professional_id::text, service_id::text, sale_id::text, to_char(date, 'YYYY-MM-DD')
-		FROM appointments WHERE clinic_id = $1 AND id = $2`, p.ClinicID, apptID).Scan(&patientID, &professionalID, &serviceID, &saleID, &date)
+		SELECT patient_id::text, professional_id::text, service_id::text, sale_id::text, package_id::text, to_char(date, 'YYYY-MM-DD')
+		FROM appointments WHERE clinic_id = $1 AND id = $2`, p.ClinicID, apptID).Scan(&patientID, &professionalID, &serviceID, &saleID, &packageID, &date)
 	if err != nil {
 		return "", 0, err
 	}
-	if patientID == nil || saleID != nil {
+	if patientID == nil || saleID != nil || packageID != nil { // paid with a package session: nothing to charge
 		return "", 0, nil
 	}
 	var existing string

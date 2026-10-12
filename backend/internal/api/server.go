@@ -167,10 +167,19 @@ func (s *Server) router() http.Handler {
 						s.mountPosRoutes(r) // lots, consumables, commissions, abonos, CFDI stamping
 					})
 
+					// Paquetes de sesiones: la gestión es de administradores y especialistas; se venden en caja (plan con cobros).
+					r.Route("/packages", func(r chi.Router) {
+						r.Use(requireCobros)
+						r.With(require(PermPOS, PermNavHistorials, PermAdminHistorials, PermNavAppointments)).Get("/", s.listPackages)
+						r.With(requireRoles(RoleAdmin, RoleDoctor)).Post("/", s.savePackage)
+						r.With(requireRoles(RoleAdmin, RoleDoctor)).Put("/{id}", s.savePackage)
+					})
+
 					r.Route("/patients", func(r chi.Router) {
 						clinical := require(PermNavHistorials, PermAdminHistorials)
 						write := require(PermAdminHistorials)
 						front := require(PermAdminAppointments, PermNavHistorials, PermAdminHistorials)
+						r.With(front).Get("/{id}/packages", s.listPatientPackages)
 						r.With(front).Get("/lookup", s.lookupPatients)
 						r.With(front).Get("/schema", s.patientSchema)
 						r.With(require(PermAdminAppointments, PermAdminHistorials)).Post("/quick", s.createPatient(true))
