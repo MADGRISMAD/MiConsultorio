@@ -89,6 +89,42 @@ func (s *Server) setServiceDuration(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"id": id, "duration_minutes": in.Minutes})
 }
 
+// setServiceBooking is PUT /agenda/services/{id}/booking: how a service is given (presencial, videollamada or ambas).
+// It works on every plan, like the duration.
+func (s *Server) setServiceBooking(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var in struct {
+		Modality string `json:"modality"`
+	}
+	if !validUUID(id) {
+		writeError(w, http.StatusNotFound, "Servicio no encontrado.")
+		return
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.Modality != "presencial" && in.Modality != "videollamada" && in.Modality != "ambas" {
+		writeError(w, http.StatusBadRequest, "La modalidad debe ser presencial, videollamada o ambas.")
+		return
+	}
+	p := principalFrom(r.Context())
+	if err := s.checkModality(r.Context(), p.ClinicID, in.Modality); err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	tag, err := s.db.Exec(r.Context(), `UPDATE catalog_items SET modality = $3, updated_at = now() WHERE clinic_id = $1 AND id = $2 AND kind = 'service'`, p.ClinicID, id, in.Modality)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		writeError(w, http.StatusNotFound, "Servicio no encontrado.")
+		return
+	}
+	audit(r.Context(), s.db, p.ClinicID, p, "service_modality", "Cambió la modalidad de un servicio", map[string]any{"service": id, "modality": in.Modality})
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "modality": in.Modality})
+}
+
 // ---------------------------------------------------------------------------
 // Time spans
 // ---------------------------------------------------------------------------

@@ -11,4 +11,5 @@ func (s *Server) mountNotifications(r chi.Router) {
 	r.With(require(PermNavAppointments, PermAdminAppointments)).Get("/agenda/month-load", s.agendaMonthLoad)
 	r.With(require(PermAdminUsers)).Get("/agenda/booking-check", s.bookingCheck)
 	r.With(require(PermAdminUsers)).Put("/agenda/services/{id}/duration", s.setServiceDuration)
+	r.With(require(PermAdminUsers)).Put("/agenda/services/{id}/booking", s.setServiceBooking)
 }

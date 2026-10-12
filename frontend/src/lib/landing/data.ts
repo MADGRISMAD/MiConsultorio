@@ -79,4 +79,4 @@ export const faqs = [
   { q: '¿Hay plazo forzoso?', a: 'No. Los planes son mensuales y puedes cancelar cuando quieras.' }
 ];
 
-export const specialties = ['Odontología', 'Medicina general', 'Pediatría', 'Nutrición', 'Veterinaria', 'Medicina interna', 'Psicología', 'Fisioterapia', 'Quiropráctica', 'Dermatología', 'Ginecología', 'Ortopedia'];
+export const specialties = ['Odontología', 'Medicina general', 'Pediatría', 'Nutrición', 'Veterinaria', 'Medicina interna', 'Psicología y Terapia', 'Fisioterapia', 'Quiropráctica', 'Dermatología', 'Ginecología', 'Ortopedia'];

@@ -151,6 +151,7 @@ func (a *tokenAppt) view(now time.Time) map[string]any {
 		"cancel_min_hours": a.CancelMinHours,
 		"reminders":        a.ShowReminders && active,
 		"rebook_slug":      a.Info.Slug,
+		"video_url":        map[bool]string{true: a.Info.VideoURL}[active],
 	}
 }
 

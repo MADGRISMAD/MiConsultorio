@@ -199,6 +199,9 @@ export interface Overview {
 
 import type { IconName } from './components/ui/Icon.svelte';
 
+/** Giros donde una videollamada es una forma razonable de atender (el servidor valida lo mismo). */
+export const VIDEO_AREAS = ['PSYCHOLOGY', 'NUTRITION', 'GENERAL_MEDICAL', 'INTERNAL_MEDICINE', 'DERMATOLOGY', 'PEDIATRICS'];
+
 /** Business types ("giro"). Keys match the server; order is the order shown in the wizard. */
 export const CLINIC_KINDS = {
   GENERAL_MEDICAL: { label: 'Medicina general', hint: 'Consultorio médico', icon: 'stethoscope' },
@@ -207,7 +210,7 @@ export const CLINIC_KINDS = {
   INTERNAL_MEDICINE: { label: 'Medicina interna', hint: 'Adultos y padecimientos crónicos', icon: 'heart' },
   PHYSIOTHERAPY: { label: 'Fisioterapia', hint: 'Rehabilitación y terapia física', icon: 'activity' },
   NUTRITION: { label: 'Nutrición', hint: 'Planes y seguimiento nutricional', icon: 'leaf' },
-  PSYCHOLOGY: { label: 'Psicología', hint: 'Salud mental y terapia', icon: 'chat' },
+  PSYCHOLOGY: { label: 'Psicología y Terapia', hint: 'Salud mental y terapia', icon: 'chat' },
   DERMATOLOGY: { label: 'Dermatología', hint: 'Piel, cabello y uñas', icon: 'droplet' },
   GYNECOLOGY: { label: 'Ginecología', hint: 'Salud de la mujer', icon: 'flower' },
   ORTHOPEDICS: { label: 'Ortopedia', hint: 'Huesos, músculos y articulaciones', icon: 'bone' },
@@ -321,6 +324,8 @@ export interface CatalogItem {
   next_expiry?: string | null;
   /** Minutes the service takes in the agenda; null/absent = the professional's slot. */
   duration_minutes?: number | null;
+  /** How a service is given: en persona, por videollamada o de las dos formas (solo giros donde es prudente). */
+  modality?: 'presencial' | 'videollamada' | 'ambas';
   /** Set on the services every clinic starts with ("consulta"): re-priceable, never deleted. */
   system_key?: string | null;
   /** Lot of the initial stock (create only). */

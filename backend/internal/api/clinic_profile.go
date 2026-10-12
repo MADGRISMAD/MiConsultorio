@@ -364,21 +364,21 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	// servicios publicados con su precio
 	svcs := []map[string]any{}
-	sr, err := s.db.Query(ctx, `SELECT name, price_cents, duration_minutes FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND public AND active ORDER BY price_cents, name LIMIT 40`, id)
+	sr, err := s.db.Query(ctx, `SELECT id::text, name, price_cents, duration_minutes, modality FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND public AND active ORDER BY price_cents, name LIMIT 40`, id)
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
 	for sr.Next() {
-		var n string
+		var sid, n, modality string
 		var price int
 		var dur *int
-		if err := sr.Scan(&n, &price, &dur); err != nil {
+		if err := sr.Scan(&sid, &n, &price, &dur, &modality); err != nil {
 			sr.Close()
 			serverError(w, r, err)
 			return
 		}
-		svcs = append(svcs, map[string]any{"name": n, "price_cents": price, "duration_minutes": dur})
+		svcs = append(svcs, map[string]any{"id": sid, "name": n, "price_cents": price, "duration_minutes": dur, "modality": modality})
 	}
 	sr.Close()
 	out["services"] = svcs

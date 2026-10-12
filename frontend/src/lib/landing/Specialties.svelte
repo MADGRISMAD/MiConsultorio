@@ -57,9 +57,9 @@
     },
     {
       key: 'F',
-      tab: 'Psicología',
-      area: 'Psicología',
-      title: '*Psicología*',
+      tab: 'Psicología y Terapia',
+      area: 'Psicología y Terapia',
+      title: '*Psicología y Terapia*',
       text: 'Sesiones y notas con la reserva que tu práctica necesita.',
       points: ['Notas privadas que solo tú puedes leer', 'Seguimiento por sesión: ánimo y valoración de riesgo', 'Consentimiento para atención psicológica firmado en pantalla'],
       bg: 'bg-panel ring-1 ring-ink/10',

@@ -175,7 +175,7 @@ func (s *Server) updateProfessional(w http.ResponseWriter, r *http.Request) {
 // listAgendaServices is the catalog of services an appointment can be for (works on every plan).
 func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
-	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, duration_minutes FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
+	rows, err := s.db.Query(r.Context(), `SELECT id::text, name, duration_minutes, modality FROM catalog_items WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY name LIMIT 500`, p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -185,11 +185,12 @@ func (s *Server) listAgendaServices(w http.ResponseWriter, r *http.Request) {
 		ID              string `json:"id"`
 		Name            string `json:"name"`
 		DurationMinutes *int   `json:"duration_minutes"`
+		Modality        string `json:"modality"`
 	}
 	out := []svc{}
 	for rows.Next() {
 		var v svc
-		if err := rows.Scan(&v.ID, &v.Name, &v.DurationMinutes); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.DurationMinutes, &v.Modality); err != nil {
 			serverError(w, r, err)
 			return
 		}

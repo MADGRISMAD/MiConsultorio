@@ -2,7 +2,7 @@
   import { agendaApi } from '$lib/api/agenda';
   import { addMinutes, outsideHours } from '$lib/clinic';
   import { session } from '$lib/session.svelte';
-  import type { PatientRow } from '$lib/types';
+  import { VIDEO_AREAS, type PatientRow } from '$lib/types';
   import type { ApptInput, Professional, ServiceOption } from '$lib/types/agenda';
   import PatientPicker from './patients/PatientPicker.svelte';
   import Icon from './ui/Icon.svelte';
@@ -21,6 +21,18 @@
   let { data = $bindable(), professionals = [], rooms = [], services = [], conflict = null, slotMinutes, editingId = null }: Props = $props();
 
   const settings = $derived(session.clinic?.settings);
+  // video calls only where it is prudent: the professional works in a giro that allows it
+  const clinicKinds = $derived([session.clinic?.kind, ...(session.clinic?.specialties ?? [])].filter(Boolean) as string[]);
+  const canVideo = $derived.by(() => {
+    const pro = professionals.find((p) => p.id === data.professional_id);
+    const areas = pro?.areas?.length ? pro.areas.filter((a) => clinicKinds.includes(a)) : clinicKinds;
+    return areas.some((a) => VIDEO_AREAS.includes(a));
+  });
+  // a service given by video call proposes the video modality
+  $effect(() => {
+    const s = services.find((x) => x.id === data.service_id);
+    if (s?.modality === 'videollamada' && canVideo && data.modality === '') data.modality = 'videollamada';
+  });
   const minutes = $derived(slotMinutes ?? settings?.appointment_minutes ?? 30);
 
   // propose the end time from the usual appointment length, without overriding one already set
@@ -132,9 +144,20 @@
     <span class="label">Servicio</span>
     <select class="field" bind:value={data.service_id}>
       <option value={null}>Sin especificar</option>
-      {#each services as s (s.id)}<option value={s.id}>{s.name}</option>{/each}
+      {#each services as s (s.id)}<option value={s.id}>{s.name}{s.modality === 'videollamada' ? ' · videollamada' : s.modality === 'ambas' ? ' · presencial o video' : ''}</option>{/each}
     </select>
   </label>
+  {#if canVideo}
+    <label class="block sm:col-span-2">
+      <span class="label">Modalidad</span>
+      <select class="field" bind:value={data.modality}>
+        <option value="">Como estaba (en persona)</option>
+        <option value="presencial">En persona</option>
+        <option value="videollamada">Videollamada</option>
+      </select>
+      {#if data.modality === 'videollamada'}<span class="hint">Se crea un enlace de videollamada para esta cita (o se usa el del profesional) y se envía al paciente en sus correos. Solo para personas.</span>{/if}
+    </label>
+  {/if}
 
   <label class="block">
     <span class="label">Fecha *</span>

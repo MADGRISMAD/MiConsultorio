@@ -37,7 +37,7 @@
   {#if view === 'loading'}
     <div class="card-empty" role="status">{t('common.loading')}</div>
   {:else if view === 'ready' && info}
-    {#key slug}<BookingWizard {slug} {info} />{/key}
+    {#key slug}<BookingWizard {slug} {info} presetService={page.url.searchParams.get('servicio') ?? ''} />{/key}
   {:else if view === 'missing'}
     <section class="card px-6 py-9">
       <div class="grid h-12 w-12 place-items-center rounded-full bg-app-ink/8 text-app-muted"><Icon name="calendar" size={24} /></div>

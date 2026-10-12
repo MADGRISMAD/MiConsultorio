@@ -26,6 +26,9 @@ export interface Appt {
   started_at: string | null;
   finished_at: string | null;
   reminders_consent: boolean;
+  /** presencial, videollamada (con su enlace) o null: como era antes de elegirlo por cita */
+  modality: 'presencial' | 'videollamada' | null;
+  video_url: string;
   /** the appointment's date and time (clinic zone) as an instant, and when it can start being worked (one hour before) */
   starts_at: string | null;
   opens_at: string | null;
@@ -49,19 +52,21 @@ export interface ApptInput {
   email: string;
   reminders_consent: boolean;
   overbook: boolean;
+  /** '' deja la cita como está */
+  modality: '' | 'presencial' | 'videollamada';
 }
 
 export function emptyApptInput(): ApptInput {
   return {
     patient_id: null, names: '', last_names: '', CURP: '', date: '', startHour: '', endHour: '', details: '',
-    professional_id: null, service_id: null, room: '', phone: '', email: '', reminders_consent: true, overbook: false
+    professional_id: null, service_id: null, room: '', phone: '', email: '', reminders_consent: true, overbook: false, modality: ''
   };
 }
 
 export function inputFromAppt(a: Appt): ApptInput {
   return {
     patient_id: a.patient_id, names: a.names, last_names: a.last_names, CURP: a.CURP, date: a.date, startHour: a.startHour, endHour: a.endHour,
-    details: a.details, professional_id: a.professional_id, service_id: a.service_id, room: a.room, phone: a.phone, email: a.email, reminders_consent: a.reminders_consent, overbook: false
+    details: a.details, professional_id: a.professional_id, service_id: a.service_id, room: a.room, phone: a.phone, email: a.email, reminders_consent: a.reminders_consent, overbook: false, modality: a.modality ?? ''
   };
 }
 
@@ -133,6 +138,8 @@ export interface AgendaSettings {
 export interface ServiceOption {
   id: string;
   name: string;
+  duration_minutes?: number | null;
+  modality?: 'presencial' | 'videollamada' | 'ambas';
 }
 
 export interface ApptFilters {

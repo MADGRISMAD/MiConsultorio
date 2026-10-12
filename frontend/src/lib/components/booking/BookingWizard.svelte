@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { emailOk } from '$lib/format';
@@ -15,14 +16,17 @@
   import DatePicker from './DatePicker.svelte';
   import WaitlistJoin from './WaitlistJoin.svelte';
 
-  let { slug, info }: { slug: string; info: BookingInfo } = $props();
+  /** a service chosen on the clinic's public page (?servicio=...) */
+  let { slug, info, presetService = '' }: { slug: string; info: BookingInfo; presetService?: string } = $props();
 
   const kind = $derived(CLINIC_KINDS[info.clinic.kind as keyof typeof CLINIC_KINDS]);
 
   // who the visit is for: clinics that see both people and pets let the visitor choose
   const bothKinds = $derived(!!info.animals && !!info.people);
   let forPet = $state(!!info.animals && !info.people);
-  let serviceId = $state('');
+  let serviceId = $state(untrack(() => (info.services.some((s) => s.id === presetService) ? presetService : '')));
+  /** how the visit is given, when the service allows both */
+  let modalityPick = $state<'presencial' | 'videollamada'>('presencial');
   let professionalId = $state('');
   /** the area the patient chose (only asked when the clinic has several) */
   let area = $state('');
@@ -63,7 +67,12 @@
 
   const areas = $derived(info.areas ?? []);
   /** the professionals of the chosen area (those without areas attend in all) */
-  const pros = $derived(info.professionals.filter((p) => !area || !p.areas?.length || p.areas.includes(area)));
+  const service = $derived(info.services.find((s) => s.id === serviceId));
+  /** presencial, or videollamada when the service is only given that way or the visitor chose it (never for a pet) */
+  const modality = $derived<'presencial' | 'videollamada'>(
+    forPet ? 'presencial' : service?.modality === 'videollamada' ? 'videollamada' : service?.modality === 'ambas' ? modalityPick : 'presencial'
+  );
+  const pros = $derived(info.professionals.filter((p) => (!area || !p.areas?.length || p.areas.includes(area)) && (modality !== 'videollamada' || p.video)));
   const professional = $derived(info.professionals.find((p) => p.id === professionalId));
   /** a patient already in treatment sees only the agenda of the professional who has been attending them */
   const lockedPro = $derived(registered ? (forPet ? (pets?.find((x) => x.id === petId)?.professional_id ?? '') : personPro) : '');
@@ -192,6 +201,7 @@
         done = await bookingApi.book(slug, {
           professional_id: professionalId,
           service_id: serviceId || undefined,
+          modality,
           date,
           start,
           names: names.trim(),
@@ -243,7 +253,9 @@
       <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: done.start })}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{done.professional}</dd></div>
       <div><dt class="text-xs text-app-muted">{t('booking.clinic')}</dt><dd class="font-semibold">{done.clinic}</dd></div>
+      {#if done.video_url}<div><dt class="text-xs text-app-muted">{t('booking.videoLink')}</dt><dd class="break-all font-semibold"><a class="text-app-primary underline" href={done.video_url} target="_blank" rel="noopener">{done.video_url}</a></dd></div>{/if}
     </dl>
+    {#if done.video_url}<a href={done.video_url} target="_blank" rel="noopener" class="btn-secondary mt-3 inline-flex items-center gap-2"><Icon name="video" size={16} />{t('booking.videoJoin')}</a><p class="mt-2 text-xs text-app-muted">{t('booking.videoHint')}</p>{/if}
     <p class="mt-4 text-sm text-app-muted">{t('booking.saveLink')}{email ? t('booking.saveLinkEmail') : ''}.</p>
     <a href="/cita/{done.token}" class="btn-primary btn-lg mt-5">{t('booking.manage')}</a>
   </section>
@@ -374,16 +386,31 @@
                 <input type="radio" class="sr-only" name="svc" value="" bind:group={serviceId} onchange={loadDay} />
                 <span>{t('booking.firstTime')}</span>
               </label>
-              {#each info.services as s (s.id)}
+              {#each info.services.filter((s) => !(forPet && s.modality === 'videollamada')) as s (s.id)}
                 <label class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
                   <input type="radio" class="sr-only" name="svc" value={s.id} bind:group={serviceId} onchange={loadDay} />
-                  <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {t('booking.minutes', { n: s.duration_minutes })}</span>{/if}</span>
+                  <span>{s.name}{#if s.duration_minutes} <span class="text-app-muted">· {t('booking.minutes', { n: s.duration_minutes })}</span>{/if}
+                    {#if s.modality === 'videollamada'}<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-app-primary/10 px-2 py-0.5 text-[11px] font-semibold text-app-primary"><Icon name="video" size={12} />{t('booking.videoOnly')}</span>{:else if s.modality === 'ambas' && !forPet}<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-app-primary/10 px-2 py-0.5 text-[11px] font-semibold text-app-primary"><Icon name="video" size={12} />{t('booking.videoBoth')}</span>{/if}</span>
                   {#if s.price_cents !== undefined}<span class="font-mono text-xs text-app-muted">{fmtMoneyCents(s.price_cents)}</span>{/if}
                 </label>
               {/each}
             </div>
           </fieldset>
         {/if}
+        {#if service?.modality === 'ambas' && !forPet}
+          <fieldset class="mt-4">
+            <legend class="label">{t('booking.modality')}</legend>
+            <div class="grid grid-cols-2 gap-2">
+              {#each [['presencial', t('booking.inPerson')], ['videollamada', t('booking.videoCall')]] as [v, label]}
+                <label class="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-app-ink/12 px-3.5 py-2 text-sm font-medium has-[:checked]:border-app-primary has-[:checked]:bg-app-primary/8 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-primary/50">
+                  <input type="radio" class="sr-only" name="modality" value={v} bind:group={modalityPick} onchange={loadDay} />{label}
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+        {/if}
+        {#if forPet && info.services.some((s) => s.modality === 'videollamada')}<p class="mt-3 text-xs text-app-muted">{t('booking.videoPetNote')}</p>{/if}
+        {#if modality === 'videollamada' && pros.length === 0}<p class="mt-3 rounded-xl bg-app-elevated px-4 py-3 text-sm text-app-muted">{t('booking.videoNoPro')}</p>{/if}
         {#if lockedPro && lockedName}<p class="mt-4 rounded-xl bg-app-primary/8 px-4 py-3 text-sm">{t('booking.followUp', { name: lockedName })}</p>{/if}
         <div class="mt-4"><DatePicker min={info.today} horizon={info.horizon_days} value={date} onpick={pickDate} {available} onmonth={(m) => (monthKey = m)} /></div>
         {#if available && available.length === 0 && !date}

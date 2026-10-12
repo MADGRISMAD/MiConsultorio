@@ -13,7 +13,7 @@ import (
 // areaLabels are the names of the people of each giro (what the clinic's team and the public page show).
 var areaLabels = map[string]string{
 	"GENERAL_MEDICAL": "Medicina general", "DENTAL": "Odontología", "PEDIATRICS": "Pediatría", "INTERNAL_MEDICINE": "Medicina interna",
-	"PHYSIOTHERAPY": "Fisioterapia", "NUTRITION": "Nutrición", "PSYCHOLOGY": "Psicología", "DERMATOLOGY": "Dermatología",
+	"PHYSIOTHERAPY": "Fisioterapia", "NUTRITION": "Nutrición", "PSYCHOLOGY": "Psicología y Terapia", "DERMATOLOGY": "Dermatología",
 	"GYNECOLOGY": "Ginecología", "ORTHOPEDICS": "Ortopedia", "VETERINARY": "Veterinaria", "CHIROPRACTIC": "Quiropráctica",
 }
 
@@ -166,4 +166,32 @@ func publicTitle(title string, areas, clinicKinds []string) string {
 		return title
 	}
 	return strings.Join(labels, " · ")
+}
+
+// videoAreas are the giros where a video call is a reasonable way to see someone: talk therapy, diet follow-up, general and internal
+// medicine and paediatric follow-ups, and skin consultations from a photo. The rest need hands, tools or an exam (dental, physiotherapy,
+// chiropractic, orthopaedics, gynaecology, veterinary), so they are not offered.
+var videoAreas = []string{"PSYCHOLOGY", "NUTRITION", "GENERAL_MEDICAL", "INTERNAL_MEDICINE", "DERMATOLOGY", "PEDIATRICS"}
+
+// anyVideoArea says whether some of the giros allow video calls.
+func anyVideoArea(kinds []string) bool {
+	for _, k := range kinds {
+		if slices.Contains(videoAreas, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// canVideo says whether a professional may give video calls: one of the giros they work in is a video giro (no giros set: the clinic's).
+func canVideo(proAreas, clinicKinds []string) bool {
+	if len(proAreas) == 0 {
+		return anyVideoArea(clinicKinds)
+	}
+	for _, a := range proAreas {
+		if slices.Contains(clinicKinds, a) && slices.Contains(videoAreas, a) {
+			return true
+		}
+	}
+	return false
 }

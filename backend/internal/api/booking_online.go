@@ -140,7 +140,7 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 		for _, a := range areas {
 			offered[a] = true
 		}
-		profs = append(profs, map[string]any{"id": p.ID, "name": p.Name, "areas": areas})
+		profs = append(profs, map[string]any{"id": p.ID, "name": p.Name, "areas": areas, "video": canVideo(p.Areas, kinds)})
 	}
 	areaList := []map[string]string{}
 	if len(kinds) > 1 {
@@ -150,7 +150,7 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents, duration_minutes FROM catalog_items
+	rows, err := b.db.Query(ctx, `SELECT id, name, category, price_cents, duration_minutes, modality FROM catalog_items
 		WHERE clinic_id = $1 AND kind = 'service' AND active ORDER BY category, name LIMIT 200`, c.ID)
 	if err != nil {
 		serverError(w, r, err)
@@ -159,14 +159,14 @@ func (b *bookingAPI) bookingInfo(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	services := []map[string]any{}
 	for rows.Next() {
-		var id, name, cat string
+		var id, name, cat, modality string
 		var price int
 		var minutes *int
-		if err := rows.Scan(&id, &name, &cat, &price, &minutes); err != nil {
+		if err := rows.Scan(&id, &name, &cat, &price, &minutes, &modality); err != nil {
 			serverError(w, r, err)
 			return
 		}
-		svc := map[string]any{"id": id, "name": name, "category": cat}
+		svc := map[string]any{"id": id, "name": name, "category": cat, "modality": modality}
 		if minutes != nil {
 			svc["duration_minutes"] = *minutes
 		}
@@ -352,6 +352,7 @@ type bookRequest struct {
 	Reason          string `json:"reason"`
 	AcceptPrivacy   bool   `json:"accept_privacy"`
 	AcceptReminders bool   `json:"accept_reminders"`
+	Modality        string `json:"modality"`   // presencial or videollamada; empty is in person
 	Website         string `json:"website"`    // honeypot: real people never fill it
 	Holder          string `json:"holder"`     // the visitor's key for the time held while the form is filled in
 	Registered      bool   `json:"registered"` // already a patient: the record is found by phone
@@ -473,6 +474,11 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pro := pros[0]
+	modality, videoURL, merr := b.bookingModality(ctx, c, pro, req)
+	if merr != "" {
+		writeError(w, http.StatusBadRequest, merr)
+		return
+	}
 	dur := b.slotServiceMinutes(ctx, b.db, c.ID, req.ServiceID)
 	valid := false
 	for _, st := range c.candidateSlots(pro, req.Date, time.Now(), dur) {
@@ -556,10 +562,10 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, professional_id, status, source,
-			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id, patient_id)
-			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid)
+			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id, patient_id, modality, video_url)
+			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, 'scheduled', 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid, $16, $17)
 			RETURNING id`,
-			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID).Scan(&apptID); err != nil {
+			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID, modality, videoURL).Scan(&apptID); err != nil {
 			return err
 		}
 		if req.Holder != "" { // the time is theirs now
@@ -608,6 +614,8 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		"professional":         pro.Name,
 		"clinic":               c.Name,
 		"status":               "scheduled",
+		"modality":             modality,
+		"video_url":            videoURL,
 		"pending_confirmation": c.RequiresConfirmation,
 		"reminders":            req.AcceptReminders,
 	}})
@@ -898,4 +906,40 @@ func (s *Server) followUpProfessional(ctx context.Context, c *bookingClinic, pat
 		return ""
 	}
 	return id
+}
+
+// bookingModality decides how an online visit is given and, for a video call, the link: the professional's own when they have one,
+// otherwise a private room made for this appointment. It answers a message when the request cannot be served.
+func (b *bookingAPI) bookingModality(ctx context.Context, c *bookingClinic, pro bookable, req bookRequest) (modality, videoURL, msg string) {
+	service := "presencial"
+	if req.ServiceID != "" {
+		_ = b.db.QueryRow(ctx, `SELECT modality FROM catalog_items WHERE id = $1 AND clinic_id = $2`, req.ServiceID, c.ID).Scan(&service)
+	}
+	switch service {
+	case "videollamada":
+		modality = "videollamada"
+	case "ambas":
+		modality = "presencial"
+		if req.Modality == "videollamada" {
+			modality = "videollamada"
+		}
+	default:
+		modality = "presencial"
+		if req.Modality == "videollamada" {
+			return "", "", "Este servicio solo se da en persona."
+		}
+	}
+	if modality != "videollamada" {
+		return modality, "", ""
+	}
+	kinds, err := b.clinicKindsFor(ctx, c.ID)
+	if err != nil || req.Animal || !canVideo(pro.Areas, kinds) {
+		return "", "", "Este profesional no da consultas por videollamada."
+	}
+	var own string
+	_ = b.db.QueryRow(ctx, `SELECT video_url FROM professional_settings WHERE user_id = $1`, pro.ID).Scan(&own)
+	if own != "" {
+		return modality, own, ""
+	}
+	return modality, newVideoRoom(), ""
 }

@@ -45,11 +45,13 @@ type catalogItem struct {
 	DurationMinutes *int `json:"duration_minutes" db:"duration_minutes"`
 	// SystemKey marks the services every clinic starts with ("consulta"): they can be renamed or re-priced, never deleted.
 	SystemKey *string `json:"system_key" db:"system_key"`
+	// Modality is how a service is given: presencial, videollamada or ambas (video only in the giros where it is prudent).
+	Modality string `json:"modality" db:"modality"`
 }
 
 const catalogCols = `id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate::float8 AS tax_rate,
 	track_stock, stock::float8 AS stock, min_stock::float8 AS min_stock, unit, active, sat_product_code, sat_unit_code,
-	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry, duration_minutes, system_key`
+	(SELECT to_char(min(l.expires_on), 'YYYY-MM-DD') FROM stock_lots l WHERE l.item_id = catalog_items.id AND l.qty > 0) AS next_expiry, duration_minutes, system_key, modality`
 
 type catalogInput struct {
 	Kind       string  `json:"kind"`
@@ -72,6 +74,8 @@ type catalogInput struct {
 	SATUnitCode    string `json:"sat_unit_code"`
 	// Minutes a service takes: absent keeps the current value on update, null clears it.
 	DurationMinutes json.RawMessage `json:"duration_minutes"`
+	// Modality of a service; empty keeps «presencial» on create and the current one on update.
+	Modality string `json:"modality"`
 }
 
 // duration reads DurationMinutes: whether the client sent it, and the value (nil clears it).
@@ -123,6 +127,12 @@ func (in *catalogInput) validate() string {
 		return "El IVA debe estar entre 0 y 100."
 	case in.Stock < 0 || in.Stock > 1_000_000 || in.MinStock < 0 || in.MinStock > 1_000_000:
 		return "La existencia no es válida."
+	}
+	if in.Modality != "" && in.Modality != "presencial" && in.Modality != "videollamada" && in.Modality != "ambas" {
+		return "La modalidad debe ser presencial, videollamada o ambas."
+	}
+	if in.Kind != "service" {
+		in.Modality = "presencial"
 	}
 	if in.Kind == "service" {
 		in.TrackStock, in.Stock, in.MinStock = false, 0, 0
@@ -199,13 +209,17 @@ func (s *Server) createCatalogItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
+	if err := s.checkModality(r.Context(), p.ClinicID, in.Modality); err != nil {
+		writeFailure(w, r, err)
+		return
+	}
 	_, minutes, _ := in.duration()
 	var item catalogItem
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		rows, err := tx.Query(r.Context(), `
-			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code, duration_minutes)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING `+catalogCols,
-			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode, minutes)
+			INSERT INTO catalog_items (clinic_id, kind, name, sku, barcode, category, price_cents, cost_cents, tax_rate, track_stock, stock, min_stock, unit, sat_product_code, sat_unit_code, duration_minutes, modality)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING `+catalogCols,
+			p.ClinicID, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.Stock, in.MinStock, in.Unit, in.SATProductCode, in.SATUnitCode, minutes, modalityOrDefault(in.Modality))
 		if err != nil {
 			return err
 		}
@@ -250,14 +264,19 @@ func (s *Server) updateCatalogItem(w http.ResponseWriter, r *http.Request) {
 		active = *in.Active
 	}
 	p := principalFrom(r.Context())
+	if err := s.checkModality(r.Context(), p.ClinicID, in.Modality); err != nil {
+		writeFailure(w, r, err)
+		return
+	}
 	durSet, minutes, _ := in.duration()
 	// stock is changed only through stock movements, never by editing the item
 	rows, err := s.db.Query(r.Context(), `
 		UPDATE catalog_items SET kind=$3, name=$4, sku=$5, barcode=$6, category=$7, price_cents=$8, cost_cents=$9, tax_rate=$10,
 		       track_stock=$11, min_stock=$12, unit=$13, active=$14, sat_product_code=$15, sat_unit_code=$16,
-		       duration_minutes = CASE WHEN $17 THEN $18 WHEN $3 = 'service' THEN duration_minutes END, updated_at=now()
+		       duration_minutes = CASE WHEN $17 THEN $18 WHEN $3 = 'service' THEN duration_minutes END,
+		       modality = CASE WHEN $3 <> 'service' THEN 'presencial' WHEN $19 <> '' THEN $19 ELSE modality END, updated_at=now()
 		WHERE clinic_id=$1 AND id=$2 RETURNING `+catalogCols,
-		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active, in.SATProductCode, in.SATUnitCode, durSet, minutes)
+		p.ClinicID, id, in.Kind, in.Name, in.SKU, in.Barcode, in.Category, in.PriceCents, in.CostCents, in.TaxRate, in.TrackStock, in.MinStock, in.Unit, active, in.SATProductCode, in.SATUnitCode, durSet, minutes, in.Modality)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -537,4 +556,26 @@ func (s *Server) importCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"created": created, "skipped": skipped})
+}
+
+func modalityOrDefault(m string) string {
+	if m == "" {
+		return "presencial"
+	}
+	return m
+}
+
+// checkModality refuses a video modality in a clinic whose giros are not a good fit for it.
+func (s *Server) checkModality(ctx context.Context, clinicID, modality string) error {
+	if modality == "" || modality == "presencial" {
+		return nil
+	}
+	kinds, err := s.clinicKindsFor(ctx, clinicID)
+	if err != nil {
+		return err
+	}
+	if !anyVideoArea(kinds) {
+		return fail(http.StatusBadRequest, "La videollamada solo está disponible en psicología, nutrición, medicina general o interna, dermatología y pediatría.")
+	}
+	return nil
 }

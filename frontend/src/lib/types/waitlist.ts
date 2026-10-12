@@ -101,4 +101,5 @@ export interface ServiceDuration {
   id: string;
   name: string;
   duration_minutes: number | null;
+  modality: 'presencial' | 'videollamada' | 'ambas';
 }

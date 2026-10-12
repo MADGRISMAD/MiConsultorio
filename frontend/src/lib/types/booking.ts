@@ -4,6 +4,8 @@ export interface BookingService {
   category: string;
   price_cents?: number;
   duration_minutes?: number;
+  /** presencial, videollamada o ambas */
+  modality?: 'presencial' | 'videollamada' | 'ambas';
 }
 
 export interface BookingProfessional {
@@ -11,6 +13,8 @@ export interface BookingProfessional {
   name: string;
   /** areas (giros) the professional attends */
   areas?: string[];
+  /** da consultas por videollamada */
+  video?: boolean;
 }
 
 export interface BookingInfo {
@@ -54,6 +58,7 @@ export interface BookingRequest {
   animal?: boolean;
   species?: string;
   pet_name?: string;
+  modality?: 'presencial' | 'videollamada';
 }
 
 export interface BookingResult {
@@ -66,6 +71,8 @@ export interface BookingResult {
   status: string;
   pending_confirmation: boolean;
   reminders: boolean;
+  modality?: 'presencial' | 'videollamada';
+  video_url?: string;
 }
 
 export interface PublicAppointment {
@@ -83,4 +90,6 @@ export interface PublicAppointment {
   cancel_min_hours: number;
   reminders: boolean;
   rebook_slug: string;
+  /** enlace de la videollamada (solo citas por video y activas) */
+  video_url?: string;
 }

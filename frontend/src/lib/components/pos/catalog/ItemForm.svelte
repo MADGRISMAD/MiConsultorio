@@ -4,7 +4,8 @@
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { CatalogInput, CatalogItem, ItemKind } from '$lib/types';
+  import { session } from '$lib/session.svelte';
+  import { VIDEO_AREAS, type CatalogInput, type CatalogItem, type ItemKind } from '$lib/types';
   import Modal from '$lib/components/Modal.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import ConsumablesEditor from './ConsumablesEditor.svelte';
@@ -42,6 +43,8 @@
   let satProduct = $state('');
   let satUnit = $state('');
   let durStr = $state('');
+  let modality = $state<'presencial' | 'videollamada' | 'ambas'>('presencial');
+  const videoOk = $derived([session.clinic?.kind, ...(session.clinic?.specialties ?? [])].some((k) => !!k && VIDEO_AREAS.includes(k)));
   let errors = $state<Record<string, string>>({});
 
   // Reset the fields every time the modal opens (not on every keystroke).
@@ -66,6 +69,7 @@
       satProduct = i?.sat_product_code ?? '';
       satUnit = i?.sat_unit_code ?? '';
       durStr = i?.duration_minutes ? String(i.duration_minutes) : '';
+      modality = i?.modality ?? 'presencial';
       errors = {};
       op.reset();
     });
@@ -120,7 +124,8 @@
       unit: unit.trim() || (isProduct ? 'pza' : 'sesión'),
       sat_product_code: satProduct.trim(),
       sat_unit_code: satUnit.trim().toUpperCase(),
-      duration_minutes: isProduct ? null : dur
+      duration_minutes: isProduct ? null : dur,
+      modality: isProduct ? 'presencial' : modality
     };
     if (!item) {
       if (input.track_stock) {
@@ -234,6 +239,17 @@
         <input id="{uid}-dur" class="field sm:max-w-40" bind:value={durStr} inputmode="numeric" maxlength="3" autocomplete="off" placeholder="Ej. 45" aria-invalid={!!errors.dur} aria-describedby="{uid}-dur-h" />
         <p id="{uid}-dur-h" class="hint" class:text-app-danger={!!errors.dur}>{errors.dur ?? 'Si la dejas vacía se usa el intervalo del profesional. Las citas y la reserva en línea reservan este tiempo.'}</p>
       </div>
+      {#if videoOk}
+        <div>
+          <label class="label" for="{uid}-mod">Cómo se da</label>
+          <select id="{uid}-mod" class="field sm:max-w-64" bind:value={modality}>
+            <option value="presencial">En persona</option>
+            <option value="videollamada">Videollamada</option>
+            <option value="ambas">En persona o videollamada</option>
+          </select>
+          <p class="hint">La videollamada la dan solo los profesionales de psicología, nutrición, medicina general o interna, dermatología y pediatría, y nunca a mascotas.</p>
+        </div>
+      {/if}
     {/if}
 
     {#if isProduct}

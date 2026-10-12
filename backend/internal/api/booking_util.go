@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/madgrismad/miconsultorio/backend/internal/db"
@@ -251,7 +252,8 @@ func (s *Server) bookingMail(a apptInfo, pendingClinic bool) (subject, text, htm
 // What every query about one visit shares: the clinic, the professional, the service, the video link, the time and
 // the calendar identity. Each caller adds its own columns before apptInfoCols and its own joins after apptInfoFrom.
 const apptInfoCols = `c.name, c.address, c.phone_number, coalesce(u.name, ''), coalesce(ci.name, ''), coalesce(c.settings->>'timezone', ''),
-	coalesce(s.booking_enabled, false), s.booking_slug, coalesce(pv.video_url, ''), ap.id::text, to_char(ap.date, 'YYYY-MM-DD'),
+	coalesce(s.booking_enabled, false), s.booking_slug,
+	CASE WHEN ap.modality = 'videollamada' THEN coalesce(nullif(ap.video_url, ''), pv.video_url, '') WHEN ap.modality IS NULL THEN coalesce(pv.video_url, '') ELSE '' END, ap.id::text, to_char(ap.date, 'YYYY-MM-DD'),
 	to_char(ap.start_hour, 'HH24:MI'), to_char(ap.end_hour, 'HH24:MI'), ap.updated_at, coalesce(ap.confirm_token, '')`
 
 const apptInfoFrom = `FROM appointments ap
@@ -307,4 +309,11 @@ func (s *Server) loadApptInfo(ctx context.Context, q queryRower, clinicID, appoi
 	a.PatientName = firstName(a.PatientName)
 	err = a.settle(x)
 	return a, err == nil, err
+}
+
+// newVideoRoom is a private, hard-to-guess meeting room for one appointment.
+func newVideoRoom() string {
+	var raw [10]byte
+	_, _ = rand.Read(raw[:])
+	return "https://meet.jit.si/caresia-" + hex.EncodeToString(raw[:])
 }

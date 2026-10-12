@@ -142,10 +142,19 @@
       <section id="precios" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Servicios y precios</h2>
         <ul class="mt-8 divide-y divide-ink/10 rounded-[28px] bg-panel ring-1 ring-ink/10">
-          {#each c.services as sv (sv.name)}
-            <li class="flex items-center justify-between gap-4 px-6 py-4">
-              <span><span class="block text-[17px] font-medium">{sv.name}</span>{#if sv.duration_minutes}<span class="text-sm text-ink-faint">{sv.duration_minutes} min</span>{/if}</span>
-              <span class="whitespace-nowrap font-display text-2xl">{sv.price_cents > 0 ? moneyCents(sv.price_cents) : 'Consultar'}</span>
+          {#each c.services as sv (sv.id)}
+            <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-6 py-4">
+              <span class="min-w-0">
+                <span class="block text-[17px] font-medium">{sv.name}</span>
+                <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-faint">
+                  {#if sv.duration_minutes}<span>{sv.duration_minutes} min</span>{/if}
+                  {#if sv.modality !== 'presencial'}<span class="inline-flex items-center gap-1 rounded-full bg-signal-soft px-2 py-0.5 text-xs font-medium text-signal"><Icon name="video" size={12} />{sv.modality === 'videollamada' ? 'Por videollamada' : 'En persona o videollamada'}</span>{/if}
+                </span>
+              </span>
+              <span class="flex items-center gap-4">
+                <span class="whitespace-nowrap font-display text-2xl">{sv.price_cents > 0 ? moneyCents(sv.price_cents) : 'Consultar'}</span>
+                {#if c.booking_url}<a href="{c.booking_url}?servicio={sv.id}" class="rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-signal">Reservar</a>{/if}
+              </span>
             </li>
           {/each}
         </ul>

@@ -5,7 +5,7 @@
     | 'check' | 'alert' | 'clock' | 'lock' | 'arrow-right' | 'arrow-left' | 'sparkles' | 'info' | 'wallet'
     | 'shield' | 'stethoscope' | 'tooth' | 'paw' | 'spine' | 'building' | 'activity' | 'user' | 'user-plus' | 'key' | 'mail'
     | 'phone' | 'chevron-down' | 'ban' | 'refresh' | 'baby' | 'heart' | 'leaf' | 'chat' | 'droplet' | 'flower' | 'bone' | 'clock-plus'
-    | 'bell' | 'upload' | 'download' | 'file' | 'archive' | 'rotate' | 'zoom-in' | 'zoom-out';
+    | 'bell' | 'upload' | 'download' | 'file' | 'archive' | 'rotate' | 'zoom-in' | 'zoom-out' | 'video';
 </script>
 
 <script lang="ts">
@@ -74,6 +74,7 @@
     'clock-plus': 'M12 21a9 9 0 1 1 8.2-12.6M12 7v5l3 2M19 15v6M16 18h6',
     upload: 'M12 16V4M7 9l5-5 5 5M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15',
     download: 'M12 4v12M7 11l5 5 5-5M4.5 15v3.5A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5V15',
+    video: 'M3 7.5A1.5 1.5 0 0 1 4.5 6h9A1.5 1.5 0 0 1 15 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 3 16.5zM15 10l5.5-3v10L15 14',
     file: 'M6.5 3h7l4.5 4.5v12A1.5 1.5 0 0 1 16.5 21h-10A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3zM13.5 3v4.5H18M8.5 13h7M8.5 16.5h5',
     archive: 'M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v2A1.5 1.5 0 0 1 18.5 9h-13A1.5 1.5 0 0 1 4 7.5zM5.5 9v9.5A1.5 1.5 0 0 0 7 20h10a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4',
     rotate: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v5h-5',

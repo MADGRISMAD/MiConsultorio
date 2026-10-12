@@ -106,6 +106,7 @@
       <div><dt class="text-xs text-app-muted">{t('common.time')}</dt><dd class="font-semibold">{t('common.hourSuffix', { time: appt.start })}</dd></div>
       {#if appt.professional}<div><dt class="text-xs text-app-muted">{t('common.attends')}</dt><dd class="font-semibold">{appt.professional}</dd></div>{/if}
       {#if appt.service}<div><dt class="text-xs text-app-muted">{t('common.service')}</dt><dd class="font-semibold">{appt.service}</dd></div>{/if}
+      {#if appt.video_url}<div><dt class="text-xs text-app-muted">{t('booking.videoLink')}</dt><dd class="break-all font-semibold"><a class="text-app-primary underline" href={appt.video_url} target="_blank" rel="noopener">{appt.video_url}</a></dd></div>{/if}
       {#if appt.clinic.address}<div><dt class="text-xs text-app-muted">{t('common.address')}</dt><dd class="font-semibold">{appt.clinic.address}</dd></div>{/if}
       {#if appt.clinic.phone}<div><dt class="text-xs text-app-muted">{t('common.phone')}</dt><dd class="font-semibold"><a class="text-app-primary underline" href="tel:{appt.clinic.phone}">{appt.clinic.phone}</a></dd></div>{/if}
     </dl>
@@ -115,6 +116,9 @@
     {/if}
 
     <div class="mt-6 grid gap-3">
+      {#if appt.video_url && !appt.past}
+        <a class="btn-primary btn-lg" href={appt.video_url} target="_blank" rel="noopener"><Icon name="video" size={18} />{t('booking.videoJoin')}</a>
+      {/if}
       {#if appt.can_confirm}
         <button class="btn-primary btn-lg" onclick={confirm} disabled={act.phase === 'loading'}><Icon name="check" size={18} />{t('appt.confirm')}</button>
       {/if}

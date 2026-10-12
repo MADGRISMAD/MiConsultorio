@@ -106,6 +106,7 @@
       <div class="sm:col-span-2"><dt class="section-title">Fecha</dt><dd class="mt-1 font-semibold">{fmtLong(appt.date)}</dd></div>
       <div><dt class="section-title">Horario</dt><dd class="mt-1 font-semibold tabular-nums">{appt.startHour} – {appt.endHour}</dd></div>
       {#if appt.service_name}<div><dt class="section-title">Servicio</dt><dd class="mt-1">{appt.service_name}</dd></div>{/if}
+      {#if appt.modality === 'videollamada' && appt.video_url}<div class="sm:col-span-3"><dt class="section-title">Videollamada</dt><dd class="mt-1"><a class="inline-flex items-center gap-1.5 font-medium text-app-primary hover:underline" href={appt.video_url} target="_blank" rel="noopener"><Icon name="video" size={16} />Unirme a la videollamada</a> <span class="break-all text-xs text-app-muted">{appt.video_url}</span></dd></div>{/if}
       {#if appt.room}<div><dt class="section-title">Sala</dt><dd class="mt-1">{appt.room}</dd></div>{/if}
       {#if appt.phone}<div><dt class="section-title">Teléfono</dt><dd class="mt-1"><a class="text-app-primary hover:underline" href="tel:{appt.phone}">{appt.phone}</a></dd></div>{/if}
       {#if appt.email}<div><dt class="section-title">Correo</dt><dd class="mt-1 break-all">{appt.email}</dd></div>{/if}

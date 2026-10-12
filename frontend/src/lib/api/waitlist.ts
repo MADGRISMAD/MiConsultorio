@@ -39,5 +39,7 @@ export const agendaLoadApi = {
     request<{ month: string; days: MonthLoadDay[] }>('GET', `/agenda/month-load?month=${seg(month)}${professional ? `&professional=${seg(professional)}` : ''}`).then((r) => r.days),
   services: () => request<{ services: ServiceDuration[] }>('GET', '/agenda/services').then((r) => r.services),
   setDuration: (id: string, minutes: number | null) =>
-    request<unknown>('PUT', `/agenda/services/${seg(id)}/duration`, { duration_minutes: minutes })
+    request<unknown>('PUT', `/agenda/services/${seg(id)}/duration`, { duration_minutes: minutes }),
+  setModality: (id: string, modality: 'presencial' | 'videollamada' | 'ambas') =>
+    request<unknown>('PUT', `/agenda/services/${seg(id)}/booking`, { modality })
 };

@@ -31,6 +31,8 @@ type appointmentIn struct {
 	Email            string  `json:"email"`
 	RemindersConsent bool    `json:"reminders_consent"`
 	Overbook         bool    `json:"overbook"` // accept a SLOT_TAKEN conflict (never a block)
+	// Modality: «videollamada» or «presencial»; empty keeps what the appointment has (new ones are left as before: the professional's link, if any).
+	Modality string `json:"modality"`
 }
 
 type appointment struct {
@@ -59,6 +61,9 @@ type appointment struct {
 	StartedAt        *time.Time `json:"started_at" db:"started_at"`
 	FinishedAt       *time.Time `json:"finished_at" db:"finished_at"`
 	RemindersConsent bool       `json:"reminders_consent" db:"reminders_consent"`
+	// Modality is how it is given (nil: as before video calls were chosen per appointment) and VideoURL the link of a video call.
+	Modality *string `json:"modality" db:"modality"`
+	VideoURL string  `json:"video_url" db:"video_url"`
 	// StartsAt is the appointment's date and time in the clinic's time zone as an instant; OpensAt is when it can
 	// start being worked (arrival, consultation). Both are filled in by decorateAppointments.
 	StartsAt *time.Time `json:"starts_at" db:"-"`
@@ -84,7 +89,7 @@ const appointmentSelect = `SELECT a.id::text AS id, a.patient_id::text AS patien
 		to_char(a.date, 'YYYY-MM-DD') AS date, to_char(a.start_hour, 'HH24:MI') AS start_hour, to_char(a.end_hour, 'HH24:MI') AS end_hour,
 		a.details, a.professional_id::text AS professional_id, coalesce(pr.name, '') AS professional_name, a.status, a.room, a.source,
 		a.service_id::text AS service_id, coalesce(ci.name, '') AS service_name, a.phone, a.email, a.encounter_id::text AS encounter_id,
-		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at, a.reminders_consent
+		a.sale_id::text AS sale_id, a.cancel_reason, a.arrived_at, a.started_at, a.finished_at, a.reminders_consent, a.modality, a.video_url
 	FROM appointments a
 	LEFT JOIN users pr ON pr.id = a.professional_id
 	LEFT JOIN catalog_items ci ON ci.id = a.service_id `
@@ -321,6 +326,11 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "El paciente no existe en este consultorio.")
 		return
 	}
+	modality, videoURL, mmsg := s.staffModality(r.Context(), p.ClinicID, f)
+	if mmsg != "" {
+		writeError(w, http.StatusBadRequest, mmsg)
+		return
+	}
 	if msg := s.checkRefs(r.Context(), s.db, p.ClinicID, &f); msg != "" {
 		writeError(w, http.StatusBadRequest, msg)
 		return
@@ -343,10 +353,10 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 		}
 		err = tx.QueryRow(r.Context(), `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id,
-				professional_id, service_id, room, phone, email, confirm_token, reminders_consent, id)
-			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16,$17::uuid) RETURNING id::text`,
+				professional_id, service_id, room, phone, email, confirm_token, reminders_consent, id, modality, video_url)
+			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16,$17::uuid,$18,$19) RETURNING id::text`,
 			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, id).Scan(&id)
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, id, nilIfEmpty(modality), videoURL).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -384,6 +394,11 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 	p := principalFrom(r.Context())
 	if !s.patientBelongs(r.Context(), p.ClinicID, f.PatientID) {
 		writeError(w, http.StatusBadRequest, "El paciente no existe en este consultorio.")
+		return
+	}
+	modality, videoURL, mmsg := s.staffModality(r.Context(), p.ClinicID, f)
+	if mmsg != "" {
+		writeError(w, http.StatusBadRequest, mmsg)
 		return
 	}
 	var out appointment
@@ -425,10 +440,12 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(r.Context(), `
 			UPDATE appointments SET curp=$3, names=$4, last_names=$5, date=$6::date, start_hour=$7::time, end_hour=$8::time,
 				details=$9, patient_id=$10::uuid, professional_id=$11::uuid, service_id=$12::uuid, room=$13, phone=$14, email=$15,
-				confirm_token = coalesce(confirm_token, $16), reminders_consent=$17, updated_at=now()
+				confirm_token = coalesce(confirm_token, $16), reminders_consent=$17,
+				modality = CASE WHEN $18 <> '' THEN $18 ELSE modality END,
+				video_url = CASE WHEN $18 = 'videollamada' THEN coalesce(nullif(video_url, ''), $19) ELSE video_url END, updated_at=now()
 			WHERE clinic_id=$1 AND id=$2`,
 			p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent); err != nil {
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, modality, videoURL); err != nil {
 			return err
 		}
 		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {
@@ -501,4 +518,49 @@ func (s *Server) patientBelongs(ctx context.Context, clinicID string, id *string
 	}
 	var ok bool
 	return s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM patients WHERE clinic_id = $1 AND id = $2)`, clinicID, *id).Scan(&ok) == nil && ok
+}
+
+func nilIfEmpty(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// staffModality validates the modality chosen on the agenda and prepares the video link of a video call: the professional's own link,
+// or a private room made for the appointment. Empty means the appointment stays as it is.
+func (s *Server) staffModality(ctx context.Context, clinicID string, f appointmentIn) (modality, videoURL, msg string) {
+	switch f.Modality {
+	case "":
+		return "", "", ""
+	case "presencial":
+		return "presencial", "", ""
+	case "videollamada":
+	default:
+		return "", "", "La modalidad debe ser presencial o videollamada."
+	}
+	kinds, err := s.clinicKindsFor(ctx, clinicID)
+	if err != nil {
+		return "", "", "No se pudo validar la modalidad."
+	}
+	var areas []string
+	own := ""
+	if f.ProfessionalID != nil {
+		_ = s.db.QueryRow(ctx, `SELECT coalesce(u.areas, '{}'), coalesce(ps.video_url, '') FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id WHERE u.id = $1 AND u.clinic_id = $2`,
+			*f.ProfessionalID, clinicID).Scan(&areas, &own)
+	}
+	if !canVideo(areas, kinds) {
+		return "", "", "Este profesional no da consultas por videollamada."
+	}
+	if f.PatientID != nil {
+		var subject string
+		_ = s.db.QueryRow(ctx, `SELECT subject FROM patients WHERE id = $1 AND clinic_id = $2`, *f.PatientID, clinicID).Scan(&subject)
+		if subject == "animal" {
+			return "", "", "La videoconsulta es solo para personas."
+		}
+	}
+	if own != "" {
+		return "videollamada", own, ""
+	}
+	return "videollamada", newVideoRoom(), ""
 }
