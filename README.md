@@ -35,6 +35,18 @@ Otros comandos desde la raíz: `npm run build` (compila la interfaz), `npm start
 
 Cualquiera puede crear su propio consultorio (con 14 días de prueba) desde <http://localhost:5173/register> (el registro es mínimo; al entrar, un asistente de configuración te guía para elegir el giro —medicina general, odontología, pediatría, medicina interna, fisioterapia, nutrición, psicología, dermatología, ginecología, ortopedia, veterinaria o quiropráctica—, datos del negocio, horario y equipo; después se edita en Configuración). También puedes crear clínicas por línea de comandos: `cd backend && go run ./cmd/createclinic -name "Otra Clínica" -email otra@ejemplo.com -username admin`.
 
+### Datos de ejemplo
+
+Para ver el panel funcionando (inicio, agenda, reportes, caja) sin capturar nada a mano, `seedmock` llena el consultorio de una cuenta con un mes de datos de ejemplo: unos 40 pacientes, citas (completadas, no asistió, canceladas y próximas), notas de consulta, recetas (si la cuenta tiene cédula registrada), medicación crónica, estudios de laboratorio, lista de espera, bloqueos de agenda y un corte de caja por día con sus ventas. Pasa por la API real, como esa cuenta, y luego mueve las fechas hacia atrás; los pacientes de ejemplo no tienen correo, así que nunca se les envía nada.
+
+```bash
+cd backend && go run ./cmd/seedmock -email tu@correo.com            # solo muestra el plan
+cd backend && go run ./cmd/seedmock -email tu@correo.com -yes       # crea los datos
+cd backend && go run ./cmd/seedmock -email tu@correo.com -undo -yes # los quita
+```
+
+Con Docker Compose el binario viene en la imagen: `docker compose exec app /app/seedmock -email tu@correo.com` (con `-yes` para escribir). Los datos de ejemplo se reconocen por el teléfono `5500000…` y la dirección «Dato de ejemplo»; `-undo` borra esos pacientes con sus citas, notas y ventas, los cortes de caja de ejemplo y los conceptos del catálogo `MOCK-…`. Si ya hay una caja abierta se omiten las ventas, y hay que cerrarla para incluirlas. Úsalo en un consultorio de pruebas o de demostración: en uno real las notas de ejemplo quedan mezcladas con las verdaderas hasta que se quiten.
+
 ## Producción con Docker
 
 ```bash

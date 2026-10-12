@@ -18,8 +18,16 @@ func TestPublicDirectory(t *testing.T) {
 	search := func(q string) map[string]any { return anon.expect(200, "GET", "/api/public/directory?"+q, nil) }
 	total := func(q string) float64 { return search(q)["total"].(float64) }
 
-	if total("") != 0 {
-		t.Fatal("nadie aparece hasta que lo pide")
+	// todos entran solos, con el perfil vacío; sin página no hay enlace ni nada publicado
+	empty := search("")
+	if empty["total"].(float64) != 2 {
+		t.Fatalf("todos los consultorios con suscripción vigente aparecen sin pedirlo: %v", empty)
+	}
+	for _, r := range empty["results"].([]any) {
+		h := r.(map[string]any)
+		if h["has_page"] != false || h["slug"] != "" || h["completeness"].(float64) >= 20 {
+			t.Fatalf("sin perfil: tarjeta informativa, sin enlace y con poco puntaje: %v", h)
+		}
 	}
 
 	base := map[string]any{"enabled": true, "survey_delay_hours": 3, "maps_min_rating": 4, "show_reviews": true}
@@ -34,10 +42,8 @@ func TestPublicDirectory(t *testing.T) {
 		return m
 	}
 	// validaciones
-	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"listed": true}))                                                                  // sin ciudad ni estado
-	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"listed": true, "city": "Tijuana", "state": "Texas"}))                             // estado inexistente
-	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"payment_methods": []string{"Bitcoin"}}))                                          // forma de pago fuera de la lista
-	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"listed": true, "enabled": false, "city": "Tijuana", "state": "Baja California"})) // sin página publicada
+	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"city": "Tijuana", "state": "Texas"}))    // estado inexistente
+	admin.expect(400, "PUT", "/api/clinic/profile", with(map[string]any{"payment_methods": []string{"Bitcoin"}})) // forma de pago fuera de la lista
 
 	svcID := ""
 	for _, x := range admin.expect(200, "GET", "/api/clinic/profile", nil)["services"].([]any) {
@@ -49,19 +55,47 @@ func TestPublicDirectory(t *testing.T) {
 		t.Fatal("el editor lista los servicios del catálogo")
 	}
 	admin.expect(200, "PUT", "/api/clinic/profile", with(map[string]any{
-		"listed": true, "city": "Tijuana", "state": "Baja California", "neighborhood": "Zona Río", "tagline": "Cuidamos tu sonrisa",
+		"city": "Tijuana", "state": "Baja California", "neighborhood": "Zona Río", "tagline": "Cuidamos tu sonrisa",
 		"insurances": []string{"GNP", "AXA", " GNP "}, "languages": []string{"Español", "Inglés"}, "payment_methods": []string{"Efectivo", "Tarjeta de crédito"},
 		"public_services": []string{svcID},
 	}))
-	// otra clínica con página pero sin pedir salir en el directorio
+	// otra clínica con la página y la ciudad, pero nada más
 	b.exec(`UPDATE agenda_settings SET booking_enabled = true WHERE clinic_id = $1`, b.clinicB)
-	b.exec(`INSERT INTO clinic_profile (clinic_id, enabled, listed, city, state) VALUES ($1, true, false, 'Tijuana', 'Baja California')`, b.clinicB)
+	b.exec(`INSERT INTO clinic_profile (clinic_id, enabled, city, state) VALUES ($1, true, 'Tijuana', 'Baja California')`, b.clinicB)
 
+	// la que llenó todo sube; la que tiene datos faltantes baja, aunque ambas salgan
 	res := search("")
-	if res["total"].(float64) != 1 {
-		t.Fatalf("solo la que pidió salir: %v", res)
+	if res["total"].(float64) != 2 {
+		t.Fatalf("salen las dos: %v", res)
 	}
-	hit := res["results"].([]any)[0].(map[string]any)
+	hits := res["results"].([]any)
+	first, second := hits[0].(map[string]any), hits[1].(map[string]any)
+	if first["slug"] != "clinica-a" || second["slug"] != "clinica-b" || first["completeness"].(float64) <= second["completeness"].(float64) {
+		t.Fatalf("la más completa va arriba: %v", hits)
+	}
+	if second["completeness"].(float64) != 45 || second["has_page"] != true {
+		t.Fatalf("página + reservas + ubicación = 45 puntos: %v", second)
+	}
+	// un perfil más completo sube sin importar el nombre; cada dato que falta la baja
+	b.exec(`UPDATE clinic_profile SET tagline = 'Hola', whatsapp = '5215512345678', hours_text = 'L-V' WHERE clinic_id = $1`, b.clinicB)
+	if got := search("")["results"].([]any)[1].(map[string]any)["completeness"].(float64); got != 58 {
+		t.Fatalf("más datos, más puntos: %v", got)
+	}
+	// el consultorio ve el mismo puntaje y qué le falta para subir
+	cmp := admin.expect(200, "GET", "/api/clinic/profile", nil)["completeness"].(map[string]any)
+	if cmp["score"].(float64) != first["completeness"].(float64) {
+		t.Fatalf("el puntaje del editor debe ser el del directorio: %v vs %v", cmp["score"], first["completeness"])
+	}
+	pending := 0
+	for _, it := range cmp["items"].([]any) {
+		if it.(map[string]any)["done"] == false {
+			pending++
+		}
+	}
+	if pending == 0 || len(cmp["items"].([]any)) < 10 {
+		t.Fatalf("la lista dice qué falta: %v", cmp)
+	}
+	hit := first
 	if hit["slug"] != "clinica-a" || hit["city"] != "Tijuana" || hit["price_from_cents"].(float64) != 50000 || !strings.Contains(strings.Join(toStrings(hit["areas"]), ","), "Odontología") {
 		t.Fatalf("resultado: %v", hit)
 	}
@@ -74,8 +108,8 @@ func TestPublicDirectory(t *testing.T) {
 
 	// filtros
 	for q, want := range map[string]float64{
-		"area=DENTAL": 1, "area=PSYCHOLOGY": 0, "city=tijuana": 1, "city=Tijuana": 1, "city=ensenada": 0,
-		"state=" + url.QueryEscape("Baja California"): 1, "state=Sonora": 0, "q=sonrisa": 1, "q=DOC_A": 1, "q=zzz": 0, "q=" + url.QueryEscape("%"): 0,
+		"area=DENTAL": 1, "area=PSYCHOLOGY": 0, "city=tijuana": 2, "city=Tijuana": 2, "city=ensenada": 0,
+		"state=" + url.QueryEscape("Baja California"): 2, "state=Sonora": 0, "q=sonrisa": 1, "q=DOC_A": 1, "q=zzz": 0, "q=" + url.QueryEscape("%"): 0,
 		"area=DENTAL&city=tijuana&q=consult": 0,
 	} {
 		if got := total(q); got != want {
@@ -86,7 +120,7 @@ func TestPublicDirectory(t *testing.T) {
 	// opciones para los filtros y el mapa del sitio
 	opt := anon.expect(200, "GET", "/api/public/directory/options", nil)
 	cities := opt["cities"].([]any)
-	if len(cities) != 1 || cities[0].(map[string]any)["slug"] != "tijuana" || len(opt["states"].([]any)) != 32 {
+	if len(cities) != 1 || cities[0].(map[string]any)["slug"] != "tijuana" || cities[0].(map[string]any)["count"].(float64) != 2 || len(opt["states"].([]any)) != 32 {
 		t.Fatalf("opciones: %v", opt)
 	}
 	res2, err := http.Get(b.srv.URL + "/api/public/sitemap.xml")
@@ -100,8 +134,19 @@ func TestPublicDirectory(t *testing.T) {
 			t.Fatalf("el mapa del sitio debe incluir %s:\n%s", want, xmlBody)
 		}
 	}
+	// quien se oculta sale del directorio y del mapa del sitio
+	b.login("admin_b").expect(200, "PUT", "/api/clinic/profile", map[string]any{"enabled": true, "survey_delay_hours": 3, "maps_min_rating": 4, "show_reviews": true, "city": "Tijuana", "state": "Baja California", "directory_hidden": true})
+	if total("") != 1 {
+		t.Fatal("una clínica oculta no aparece")
+	}
+	res3, err := http.Get(b.srv.URL + "/api/public/sitemap.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	xmlBody, _ = io.ReadAll(res3.Body)
+	res3.Body.Close()
 	if strings.Contains(string(xmlBody), "clinica-b") {
-		t.Fatal("el mapa del sitio no incluye clínicas fuera del directorio")
+		t.Fatal("el mapa del sitio no incluye clínicas ocultas")
 	}
 
 	// perfil completo: ubicación, aseguradoras, servicios con precio, cédula y semblanza
@@ -151,6 +196,10 @@ func TestPublicDirectory(t *testing.T) {
 	b.exec(`UPDATE clinics SET billing_status = 'suspended' WHERE id = $1`, b.clinicA)
 	if total("") != 0 {
 		t.Fatal("un consultorio suspendido no aparece")
+	}
+	b.exec(`UPDATE clinics SET billing_status = 'active' WHERE id = $1`, b.clinicA)
+	if total("") != 1 {
+		t.Fatal("al reactivar la suscripción vuelve")
 	}
 }
 

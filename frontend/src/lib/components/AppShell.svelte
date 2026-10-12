@@ -78,6 +78,17 @@
       .filter((g) => g.items.length > 0)
   );
 
+  // En escritorio no hay barra superior: Ajustes, avisos, sucursal y tema viven en la barra lateral (así hay más espacio para el contenido).
+  // Cada herramienta existe una sola vez (la lateral o la de la barra de celular) para no duplicar sondeos de avisos.
+  const wide = typeof matchMedia === 'undefined' ? null : matchMedia('(min-width: 1024px)');
+  let desktop = $state(wide?.matches ?? true);
+  $effect(() => {
+    if (!wide) return;
+    const sync = () => (desktop = wide.matches);
+    wide.addEventListener('change', sync);
+    return () => wide.removeEventListener('change', sync);
+  });
+
   let drawer = $state(false);
   let confirming = $state(false);
 
@@ -93,6 +104,11 @@
 
   const isActive = (href: string) => (href === '/' || href === '/plataforma' ? page.url.pathname === href : page.url.pathname.startsWith(href));
   const billing = $derived(session.user?.billing);
+  const trial = $derived.by(() => {
+    const d = billing?.state === 'trialing' ? billing.trial_days_left : null;
+    if (d == null) return '';
+    return `Estás en tu prueba gratuita: ${d === 0 ? 'termina hoy' : d === 1 ? 'te queda 1 día' : `te quedan ${d} días`}.`;
+  });
 
   async function signOut() {
     await session.logout();
@@ -111,6 +127,7 @@
     aria-label="Navegación principal"
   >
     <a href={session.home} class="px-5 py-5" aria-label="Caresia, inicio"><Brand size={32} class="text-[1.05rem]" /></a>
+    {#if desktop && !session.isPlatform}<div class="px-3 pb-3 empty:hidden"><BranchSwitcher /></div>{/if}
 
     <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
       {#each visible as g}
@@ -136,6 +153,34 @@
     </nav>
 
     <div class="border-t border-app-ink/10 p-3">
+      {#if desktop && trial}
+        <p class="mb-2 flex items-start gap-2 rounded-xl bg-app-primary/10 px-3 py-2 text-xs leading-snug text-app-primary" role="status">
+          <Icon name="sparkles" size={15} class="mt-0.5 flex-none" />
+          <span>{trial}</span>
+        </p>
+      {/if}
+      {#if desktop}
+        <div class="mb-2 flex items-center gap-1">
+          <a
+            href="/ajustes"
+            class="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink aria-[current=page]:bg-app-primary/10 aria-[current=page]:text-app-primary"
+            aria-current={page.url.pathname.startsWith('/ajustes') ? 'page' : undefined}
+          >
+            <Icon name="settings" size={20} />
+            <span>Ajustes</span>
+          </a>
+          {#if !session.isPlatform}<NotificationBell up />{/if}
+          <button
+            type="button"
+            class="icon-btn"
+            title={theme.mode === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+            aria-label={theme.mode === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+            onclick={() => theme.toggle()}
+          >
+            <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
+          </button>
+        </div>
+      {/if}
       <div class="flex items-center gap-1 rounded-xl p-1">
         <a href="/cuenta" class="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 transition hover:bg-app-ink/5" title="Mi cuenta" aria-label="Mi cuenta" aria-current={page.url.pathname === '/cuenta' ? 'page' : undefined}>
           <Avatar name={session.user?.name || session.user?.username || '?'} size={40} />
@@ -151,7 +196,8 @@
     </div>
   </aside>
 
-  <div class="lg:pl-72" style="background-image: radial-gradient(ellipse 60% 360px at 50% 0%, rgb(var(--app-primary) / 0.08), transparent 75%); background-repeat: no-repeat">
+  <div class="flow-root lg:pl-72" style="background-image: radial-gradient(ellipse 60% 360px at 50% 0%, rgb(var(--app-primary) / 0.08), transparent 75%); background-repeat: no-repeat">
+    {#if !desktop}
     <header class="sticky top-0 z-20 px-3 pt-3 sm:px-5 lg:px-8">
       <div class="mx-auto flex h-14 max-w-7xl items-center gap-2 rounded-full bg-app-surface/75 pl-2 pr-2.5 shadow-[0_1px_0_rgba(11,37,64,0.05),0_12px_32px_-14px_rgba(11,37,64,0.2)] ring-1 ring-app-ink/5 backdrop-blur-xl sm:pl-4">
         <button type="button" class="icon-btn lg:hidden" aria-label="Abrir menú" aria-expanded={drawer} onclick={() => (drawer = true)}>
@@ -186,12 +232,13 @@
         </button>
       </div>
     </header>
+    {/if}
 
-    {#if billing?.state === 'trialing' && billing.trial_days_left !== null}
+    {#if !desktop && trial}
       <div class="mx-auto mt-3 max-w-7xl px-3 sm:px-5 lg:px-8" role="status">
         <p class="flex items-center gap-2 rounded-2xl bg-app-primary/10 px-4 py-2.5 text-sm text-app-primary">
           <Icon name="sparkles" size={17} class="flex-none" />
-          <span>Estás en tu prueba gratuita: {billing.trial_days_left === 0 ? 'termina hoy' : billing.trial_days_left === 1 ? 'te queda 1 día' : `te quedan ${billing.trial_days_left} días`}.</span>
+          <span>{trial}</span>
         </p>
       </div>
     {/if}

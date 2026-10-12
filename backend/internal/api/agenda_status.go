@@ -120,6 +120,68 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// linkAppointmentPatient is POST /appointments/{id}/patient: ties a visit booked by name (no registered patient) to the
+// patient just registered from its data. Only a visit without a patient can be linked, and only to a patient of this
+// clinic. Time, status and agenda conflicts are not touched. Administrators of the agenda link any visit; a doctor, theirs.
+func (s *Server) linkAppointmentPatient(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !validUUID(id) {
+		writeError(w, http.StatusNotFound, "Cita no encontrada.")
+		return
+	}
+	var in struct {
+		PatientID string `json:"patient_id"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if !validUUID(in.PatientID) {
+		writeError(w, http.StatusBadRequest, "El paciente no es válido.")
+		return
+	}
+	p := principalFrom(r.Context())
+	var out appointment
+	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
+		var cur *string
+		var prof string
+		if err := tx.QueryRow(r.Context(), `SELECT patient_id::text, coalesce(professional_id::text, '') FROM appointments WHERE clinic_id = $1 AND id = $2 FOR UPDATE`,
+			p.ClinicID, id).Scan(&cur, &prof); err != nil {
+			return err
+		}
+		if !hasPermission(p.Permissions, PermAdminAppointments) && !(p.Role == RoleDoctor && prof == p.UserID) {
+			return fail(http.StatusForbidden, "No tienes permiso para cambiar esta cita.")
+		}
+		if cur != nil {
+			return fail(http.StatusConflict, "Esta cita ya tiene un paciente registrado.")
+		}
+		var ok bool
+		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM patients WHERE clinic_id = $1 AND id = $2)`, p.ClinicID, in.PatientID).Scan(&ok); err != nil {
+			return err
+		}
+		if !ok {
+			return fail(http.StatusBadRequest, "El paciente no existe en este consultorio.")
+		}
+		if _, err := tx.Exec(r.Context(), `UPDATE appointments SET patient_id = $3::uuid, updated_at = now() WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id, in.PatientID); err != nil {
+			return err
+		}
+		var err error
+		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {
+			return err
+		}
+		audit(r.Context(), tx, p.ClinicID, p, "appointment_patient", "Ligó una cita con el paciente registrado", map[string]any{"appointment": id, "patient": in.PatientID})
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "Cita no encontrada.")
+		return
+	}
+	if err != nil {
+		writeFailure(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"appointment": out})
+}
+
 // apptNow is the clock the appointment rules use (tests move it).
 var apptNow = time.Now
 

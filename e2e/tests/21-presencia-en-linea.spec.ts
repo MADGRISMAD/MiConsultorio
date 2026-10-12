@@ -37,9 +37,13 @@ test('de la dirección a la página publicada, sin salir de «Reservas y página
   await expect(page.getByText('Perfil y encuesta guardados')).toBeVisible();
   await expect(tab('Página')).toContainText('Publicada');
 
-  // 4. el directorio y el portal también
+  // 4. el directorio (automático) y el portal
   await tab('Directorio').click();
-  await expect(page.getByRole('checkbox', { name: /Aparecer en el directorio/ })).toBeEnabled();
+  // todos salen en el directorio: aquí se ve el puntaje del perfil y qué falta para subir
+  await expect(page.getByRole('progressbar', { name: /qué tan completo/i })).toBeVisible();
+  await expect(page.getByText('Para subir, te falta:')).toBeVisible();
+  await expect(tab('Directorio')).toContainText(/Perfil \d+\/100/);
+  await expect(page.getByRole('checkbox', { name: /No mostrar mi consultorio/ })).not.toBeChecked();
   await tab('Paciente').click();
   await expect(page.getByRole('checkbox', { name: /Activar el portal/ })).toBeEnabled();
 

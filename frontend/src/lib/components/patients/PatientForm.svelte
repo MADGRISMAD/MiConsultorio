@@ -4,12 +4,14 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { api } from '$lib/api';
+  import { agendaApi } from '$lib/api/agenda';
   import { ownersApi } from '$lib/api/owners';
   import { dateShort } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { FieldValues, Patient, PatientInput, PatientSchema, Subject } from '$lib/types';
   import type { OwnerListItem } from '$lib/types/owners';
+  import type { Appt } from '$lib/types/agenda';
   import DynamicFields from '../DynamicFields.svelte';
   import OwnerPicker from './OwnerPicker.svelte';
   import PrivacyNoticeModal from './PrivacyNoticeModal.svelte';
@@ -96,6 +98,27 @@
     if (animal && !lastTouched) f.last_names = ownerSurnames.trim();
   });
 
+  // Registering from an appointment (?cita=): its data fills the form, and saving ties that appointment to the new patient
+  let fromAppt = $state<Appt | null>(null);
+  function fillFromAppt(a: Appt) {
+    if (a.patient_id) return;
+    fromAppt = a;
+    f.names = a.names;
+    f.last_names = a.last_names;
+    f.curp = (a.CURP ?? '').toUpperCase();
+    const digits = (a.phone ?? '').replace(/\D/g, '');
+    const phone = digits.length === 12 && digits.startsWith('52') ? digits.slice(2) : digits;
+    // an animal's contact data is its owner's
+    if (animal) {
+      f.guardian_phone = phone;
+      f.guardian_email = a.email ?? '';
+    } else {
+      f.phone = phone;
+      f.email = a.email ?? '';
+    }
+    mailOk = !!a.email && a.reminders_consent;
+  }
+
   let errors = $state<Record<string, string>>({});
   let profileErrors = $state<Record<string, string>>({});
   const op = new Op();
@@ -114,6 +137,8 @@
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'No se pudo cargar el formulario.';
     }
+    const cita = editing ? null : page.url.searchParams.get('cita');
+    if (cita) agendaApi.get(cita).then(fillFromAppt, () => {});
   });
 
   const animal = $derived(subject === 'animal');
@@ -209,8 +234,20 @@
       saved = patient ? await api.patients.update(patient.id, body) : await api.patients.create(body);
     });
     if (!ok || !saved) return;
-    toast.show(editing ? 'Expediente actualizado' : 'Paciente registrado');
-    await goto(`/pacientes/${(saved as Patient).id}`);
+    const newId = (saved as Patient).id;
+    let linked = false;
+    if (fromAppt) {
+      try {
+        await agendaApi.linkPatient(fromAppt.id, newId);
+        linked = true;
+      } catch (e) {
+        toast.show(`Paciente registrado, pero no se pudo ligar a su cita: ${e instanceof Error ? e.message : 'inténtalo desde la agenda'}`, 'error');
+      }
+    }
+    if (!fromAppt || linked) toast.show(editing ? 'Expediente actualizado' : linked ? 'Paciente registrado y ligado a su cita' : 'Paciente registrado');
+    // a visit of today goes back to the home, where its next step («Iniciar consulta») is waiting
+    const todayLocal = new Date().toLocaleDateString('en-CA');
+    await goto(linked && fromAppt?.date === todayLocal ? '/' : `/pacientes/${newId}`);
   }
 
   const chip = (on: boolean) =>
@@ -227,6 +264,12 @@
   <div class="card"><LoadingRows /></div>
 {:else}
   <form id="patient-form" class="flex flex-col gap-5 pb-24" onsubmit={submit} novalidate>
+    {#if fromAppt}
+      <p class="order-first flex items-start gap-2 rounded-2xl bg-app-primary/10 px-4 py-3 text-sm text-app-primary" role="status">
+        <Icon name="info" size={17} class="mt-0.5 flex-none" />
+        <span>Datos tomados de la cita del {dateShort(fromAppt.date)} a las {fromAppt.startHour}. Completa lo que falte; al guardar, la cita queda ligada a este paciente.</span>
+      </p>
+    {/if}
     <!-- ¿Persona o animal? / expediente -->
     {#if mixed || editing}
       <div class="order-first">

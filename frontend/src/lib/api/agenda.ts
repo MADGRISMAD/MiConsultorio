@@ -10,6 +10,9 @@ function qs(params: Record<string, string | undefined>): string {
 
 export const agendaApi = {
   list: (f: ApptFilters = {}) => request<{ appointments: Appt[] }>('GET', `/appointments/${qs({ ...f })}`).then((r) => r.appointments),
+  get: (id: string) => request<{ appointment: Appt }>('GET', `/appointments/${seg(id)}`).then((r) => r.appointment),
+  /** ties a visit booked by name to the patient just registered from its data */
+  linkPatient: (id: string, patientId: string) => request<{ appointment: Appt }>('POST', `/appointments/${seg(id)}/patient`, { patient_id: patientId }).then((r) => r.appointment),
   create: (input: ApptInput) => request<{ appointment: Appt }>('POST', '/appointments/', input).then((r) => r.appointment),
   update: (id: string, input: ApptInput) => request<{ appointment: Appt }>('PUT', `/appointments/${seg(id)}`, input).then((r) => r.appointment),
   remove: (id: string) => request<void>('DELETE', `/appointments/${seg(id)}`),

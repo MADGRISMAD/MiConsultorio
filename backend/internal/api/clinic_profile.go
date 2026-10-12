@@ -38,13 +38,14 @@ type clinicProfile struct {
 	SurveyDelayHours int    `json:"survey_delay_hours"`
 	MapsMinRating    int    `json:"maps_min_rating"`
 	// Directorio
-	Listed         bool     `json:"listed"`
-	City           string   `json:"city"`
-	State          string   `json:"state"`
-	Neighborhood   string   `json:"neighborhood"`
-	Insurances     []string `json:"insurances"`
-	Languages      []string `json:"languages"`
-	PaymentMethods []string `json:"payment_methods"`
+	// DirectoryHidden: por defecto todos salen en el directorio; quien no quiera, lo oculta.
+	DirectoryHidden bool     `json:"directory_hidden"`
+	City            string   `json:"city"`
+	State           string   `json:"state"`
+	Neighborhood    string   `json:"neighborhood"`
+	Insurances      []string `json:"insurances"`
+	Languages       []string `json:"languages"`
+	PaymentMethods  []string `json:"payment_methods"`
 	// PublicServices son los servicios del catálogo que se muestran con su precio (nil = no cambiar).
 	PublicServices []string `json:"public_services,omitempty"`
 }
@@ -61,7 +62,7 @@ func defaultProfile() clinicProfile {
 }
 
 const profileCols = `enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating,
-	listed, city, state, neighborhood, insurances, languages, payment_methods`
+	directory_hidden, city, state, neighborhood, insurances, languages, payment_methods`
 
 func (s *Server) loadProfile(ctx context.Context, clinicID string) (clinicProfile, error) {
 	c := defaultProfile()
@@ -69,7 +70,7 @@ func (s *Server) loadProfile(ctx context.Context, clinicID string) (clinicProfil
 	var delay int32
 	err := s.db.QueryRow(ctx, `SELECT `+profileCols+` FROM clinic_profile WHERE clinic_id = $1`, clinicID).
 		Scan(&c.Enabled, &c.Tagline, &c.About, &c.HoursText, &c.WhatsApp, &c.ContactEmail, &c.Website, &c.MapsURL, &c.GooglePlaceID, &c.ShowReviews, &c.SurveyEnabled, &delay, &mr,
-			&c.Listed, &c.City, &c.State, &c.Neighborhood, &c.Insurances, &c.Languages, &c.PaymentMethods)
+			&c.DirectoryHidden, &c.City, &c.State, &c.Neighborhood, &c.Insurances, &c.Languages, &c.PaymentMethods)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return defaultProfile(), nil
 	}
@@ -109,8 +110,13 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) {
 		services = append(services, map[string]any{"id": id, "name": name, "price_cents": price, "public": pub})
 	}
 	rows.Close()
+	score, checklist, err := s.profileChecklist(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"profile": c, "slug": slug, "public_url": publicProfilePath(slug), "review_url": c.reviewURL(),
-		"services": services, "states": mxStates, "payment_methods": paymentMethods})
+		"services": services, "states": mxStates, "payment_methods": paymentMethods, "completeness": map[string]any{"score": score, "items": checklist}})
 }
 
 func publicProfilePath(slug string) string {
@@ -191,23 +197,19 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Formas de pago: "+msg)
 		return
 	}
-	if in.Listed && (!in.Enabled || in.City == "" || in.State == "") {
-		writeError(w, http.StatusBadRequest, "Para aparecer en el directorio, publica tu página e indica ciudad y estado.")
-		return
-	}
 	if (in.Enabled) && s.bookingSlugOf(r.Context(), p.ClinicID) == "" {
 		writeError(w, http.StatusBadRequest, "Primero define el enlace de tu página en Ajustes › Agenda (enlace de citas en línea).")
 		return
 	}
 	_, err := s.db.Exec(r.Context(), `
 		INSERT INTO clinic_profile (clinic_id, enabled, tagline, about, hours_text, whatsapp, contact_email, website, maps_url, google_place_id, show_reviews, survey_enabled, survey_delay_hours, maps_min_rating,
-			listed, city, state, neighborhood, insurances, languages, payment_methods, updated_at)
+			directory_hidden, city, state, neighborhood, insurances, languages, payment_methods, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $14, $7, $8, $9, $10, $11, $12, $13, $15, $16, $17, $18, $19, $20, $21, now())
 		ON CONFLICT (clinic_id) DO UPDATE SET enabled = $2, tagline = $3, about = $4, hours_text = $5, whatsapp = $6, contact_email = $14, website = $7, maps_url = $8,
 			google_place_id = $9, show_reviews = $10, survey_enabled = $11, survey_delay_hours = $12, maps_min_rating = $13,
-			listed = $15, city = $16, state = $17, neighborhood = $18, insurances = $19, languages = $20, payment_methods = $21, updated_at = now()`,
+			directory_hidden = $15, city = $16, state = $17, neighborhood = $18, insurances = $19, languages = $20, payment_methods = $21, updated_at = now()`,
 		p.ClinicID, in.Enabled, in.Tagline, in.About, in.HoursText, in.WhatsApp, in.Website, in.MapsURL, in.GooglePlaceID, in.ShowReviews, in.SurveyEnabled, in.SurveyDelayHours, in.MapsMinRating, in.ContactEmail,
-		in.Listed, in.City, in.State, in.Neighborhood, in.Insurances, in.Languages, in.PaymentMethods)
+		in.DirectoryHidden, in.City, in.State, in.Neighborhood, in.Insurances, in.Languages, in.PaymentMethods)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -359,7 +361,7 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		"tagline": prof.Tagline, "about": prof.About, "hours_text": prof.HoursText, "whatsapp": prof.WhatsApp, "website": prof.Website,
 		"maps_url": prof.MapsURL, "review_url": prof.reviewURL(), "booking_url": "", "slug": slug,
 		"email": prof.ContactEmail, "kinds": kinds, "profile_url": profileURL, "cover_url": coverURL, "gallery": galleryURLs,
-		"city": prof.City, "state": prof.State, "neighborhood": prof.Neighborhood, "listed": prof.Listed,
+		"city": prof.City, "state": prof.State, "neighborhood": prof.Neighborhood, "listed": !prof.DirectoryHidden,
 		"insurances": prof.Insurances, "languages": prof.Languages, "payment_methods": prof.PaymentMethods,
 	}
 	// servicios publicados con su precio

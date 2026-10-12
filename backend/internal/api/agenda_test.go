@@ -305,6 +305,32 @@ func TestAgendaEncounterLink(t *testing.T) {
 	}
 }
 
+// A visit booked by name is tied to the patient registered from its data, once, to a patient of its own clinic.
+func TestAgendaLinkPatient(t *testing.T) {
+	e := setup(t)
+	recep, doc, other := e.login("recep_a"), e.login("doc_a"), e.login("recep_b")
+	a := sub(recep.expect(201, "POST", "/api/appointments", apptBody(map[string]any{"professional_id": e.userID("doc_a")})), "appointment")
+	id := a["id"].(string)
+	if a["patient_id"] != nil {
+		t.Fatalf("the visit starts without a patient: %v", a["patient_id"])
+	}
+	pid := sub(recep.expect(201, "POST", "/api/patients/quick", map[string]any{"names": "Luis", "last_names": "Gómez"}), "patient")["id"].(string)
+	foreignPatient := sub(other.expect(201, "POST", "/api/patients/quick", map[string]any{"names": "Eva", "last_names": "Ruiz"}), "patient")["id"].(string)
+
+	recep.expect(400, "POST", "/api/appointments/"+id+"/patient", map[string]any{"patient_id": "no-es-un-id"})
+	recep.expect(400, "POST", "/api/appointments/"+id+"/patient", map[string]any{"patient_id": foreignPatient}) // another clinic's patient
+	other.expect(404, "POST", "/api/appointments/"+id+"/patient", map[string]any{"patient_id": foreignPatient}) // another clinic's visit
+
+	got := sub(recep.expect(200, "POST", "/api/appointments/"+id+"/patient", map[string]any{"patient_id": pid}), "appointment")
+	if got["patient_id"] != pid || got["status"] != "scheduled" || got["startHour"] != a["startHour"] {
+		t.Fatalf("link must only set the patient: %v", got)
+	}
+	recep.expect(409, "POST", "/api/appointments/"+id+"/patient", map[string]any{"patient_id": pid}) // already has one
+	// the assigned doctor may link too; another doctor's visit is off limits
+	b := sub(recep.expect(201, "POST", "/api/appointments", apptBody(map[string]any{"professional_id": e.userID("doc_a"), "startHour": "11:00", "endHour": "11:30"})), "appointment")
+	doc.expect(200, "POST", "/api/appointments/"+b["id"].(string)+"/patient", map[string]any{"patient_id": pid})
+}
+
 func TestAgendaSettings(t *testing.T) {
 	e := setup(t)
 	admin, recep := e.login("admin_a"), e.login("recep_a")

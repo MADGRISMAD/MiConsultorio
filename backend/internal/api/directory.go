@@ -17,8 +17,8 @@ import (
 
 // Directorio público, como el de Doctoralia: el paciente busca por especialidad, estado, ciudad o nombre; cada
 // resultado trae su calificación (de encuestas ligadas a citas reales, o sea verificadas), sus áreas y el próximo
-// horario libre; de ahí entra al perfil o agenda. Solo aparecen los consultorios que encienden su página y además
-// eligen salir en el directorio, con la suscripción vigente.
+// horario libre; de ahí entra al perfil o agenda. Aparecen todos los consultorios con la suscripción vigente (salvo
+// los que se ocultan); los que completan su perfil suben y los que tienen datos faltantes bajan (ver profileScoreSQL).
 
 // mxStates son los 32 estados; el perfil solo acepta uno de estos.
 var mxStates = []string{
@@ -139,13 +139,88 @@ type directoryHit struct {
 	NextSlot   *nextSlot   `json:"next_slot"`
 	PriceFrom  int         `json:"price_from_cents"` // el servicio público más barato (0 = no publica precios)
 	Insurances []string    `json:"insurances"`
+	// HasPage: tiene página pública a la que entrar; sin ella la tarjeta solo informa.
+	HasPage bool `json:"has_page"`
+	// Completeness (0–100): qué tanto llenó su perfil; ordena el directorio.
+	Completeness int `json:"completeness"`
 }
 
-// directoryBase es el filtro común de la búsqueda, los filtros y el mapa del sitio: solo lo publicado y vigente.
-const directoryBase = `
-	FROM clinic_profile cp JOIN clinics c ON c.id = cp.clinic_id JOIN agenda_settings a ON a.clinic_id = c.id
-	WHERE cp.enabled AND cp.listed AND a.booking_slug <> '' AND cp.city <> '' AND cp.state <> ''
-	  AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL`
+// Todos los consultorios con suscripción vigente están en el directorio, tengan o no perfil (por eso los LEFT JOIN):
+// directoryBase es ese conjunto; locatedBase los que indicaron ciudad y estado (los filtros por lugar); pageBase
+// los que además tienen página pública con enlace (el mapa del sitio solo lista esos).
+const (
+	directoryFrom = `
+	FROM clinics c LEFT JOIN clinic_profile cp ON cp.clinic_id = c.id LEFT JOIN agenda_settings a ON a.clinic_id = c.id`
+	directoryBase = directoryFrom + `
+	WHERE c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL AND cp.directory_hidden IS NOT TRUE`
+	locatedBase = directoryBase + ` AND cp.city <> '' AND cp.state <> ''`
+	pageBase    = locatedBase + ` AND cp.enabled AND a.booking_slug <> ''`
+)
+
+// profileCriteria es lo que puntúa el perfil (suman 100). Pesa más lo que le sirve al paciente para decidir y agendar
+// (página, reservas, ubicación, servicios con precio) que los detalles. Es la única fuente: de aquí salen el puntaje
+// con el que se ordena el directorio (profileScoreSQL) y la lista de pendientes que ve el consultorio.
+// ponytail: pesos fijos en código; si se quieren ajustar sin desplegar, pasarlos a una tabla de configuración.
+var profileCriteria = []struct {
+	Label  string
+	Points int
+	Cond   string // SQL sobre c (clinics), cp (clinic_profile) y a (agenda_settings)
+}{
+	{"Publica tu página del consultorio", 15, `cp.enabled`},
+	{"Activa las reservas en línea", 15, `a.booking_enabled AND a.booking_slug <> ''`},
+	{"Indica tu estado y ciudad", 15, `cp.city <> '' AND cp.state <> ''`},
+	{"Muestra al menos un servicio con su precio", 10, `EXISTS (SELECT 1 FROM catalog_items i WHERE i.clinic_id = c.id AND i.kind = 'service' AND i.public AND i.active AND i.price_cents > 0)`},
+	{"Cuenta sobre tu consultorio (40 letras o más)", 8, `length(cp.about) >= 40`},
+	{"Sube la foto de perfil", 8, `EXISTS (SELECT 1 FROM clinic_media m WHERE m.clinic_id = c.id AND m.slot = 'profile')`},
+	{"Agrega WhatsApp, correo o sitio web", 5, `cp.whatsapp <> '' OR cp.contact_email <> '' OR cp.website <> ''`},
+	{"Escribe una frase corta", 4, `cp.tagline <> ''`},
+	{"Escribe tu horario", 4, `cp.hours_text <> ''`},
+	{"Sube una imagen de portada", 4, `EXISTS (SELECT 1 FROM clinic_media m WHERE m.clinic_id = c.id AND m.slot = 'cover')`},
+	{"Indica tus formas de pago", 3, `cardinality(cp.payment_methods) > 0`},
+	{"Captura la cédula de un especialista", 3, `EXISTS (SELECT 1 FROM users u WHERE u.clinic_id = c.id AND u.role IN ('admin', 'doctor') AND NOT u.disabled AND NOT u.public_hidden AND u.cedula <> '')`},
+	{"Agrega fotos a la galería", 2, `EXISTS (SELECT 1 FROM clinic_media m WHERE m.clinic_id = c.id AND m.slot = 'gallery')`},
+	{"Indica las aseguradoras que aceptas", 2, `cardinality(cp.insurances) > 0`},
+	{"Escribe la semblanza de un especialista", 2, `EXISTS (SELECT 1 FROM users u WHERE u.clinic_id = c.id AND u.role IN ('admin', 'doctor') AND NOT u.disabled AND NOT u.public_hidden AND u.public_bio <> '')`},
+}
+
+// profileScoreSQL suma los puntos de los criterios cumplidos: entre más datos faltan, menos puntos. El directorio
+// ordena por tramos de 10 puntos y, dentro del tramo, por calificación.
+var profileScoreSQL = func() string {
+	parts := make([]string, len(profileCriteria))
+	for i, c := range profileCriteria {
+		parts[i] = "(CASE WHEN " + c.Cond + " THEN " + strconv.Itoa(c.Points) + " ELSE 0 END)"
+	}
+	return "(" + strings.Join(parts, " + ") + ")"
+}()
+
+type profileCheck struct {
+	Label  string `json:"label"`
+	Points int    `json:"points"`
+	Done   bool   `json:"done"`
+}
+
+// profileChecklist dice a un consultorio qué ha completado y qué le falta para subir en el directorio.
+func (s *Server) profileChecklist(ctx context.Context, clinicID string) (score int, items []profileCheck, err error) {
+	conds := make([]string, len(profileCriteria))
+	for i, c := range profileCriteria {
+		conds[i] = "coalesce((" + c.Cond + "), false)"
+	}
+	done := make([]bool, len(profileCriteria))
+	dest := make([]any, len(done))
+	for i := range done {
+		dest[i] = &done[i]
+	}
+	if err = s.db.QueryRow(ctx, `SELECT `+strings.Join(conds, ", ")+directoryFrom+` WHERE c.id = $1`, clinicID).Scan(dest...); err != nil {
+		return 0, nil, err
+	}
+	for i, c := range profileCriteria {
+		items = append(items, profileCheck{c.Label, c.Points, done[i]})
+		if done[i] {
+			score += c.Points
+		}
+	}
+	return score, items, nil
+}
 
 func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 	if !limit(w, s.reads, "directory|"+clientIP(r)) {
@@ -198,16 +273,18 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
-	// el promedio de calificaciones va en un LATERAL para poder ordenar por él
-	ranked := strings.Replace(where, "WHERE cp.enabled", `LEFT JOIN LATERAL (
+	// el promedio de calificaciones y el puntaje del perfil van en LATERAL para poder ordenar por ellos
+	ranked := directoryFrom + `
+	LEFT JOIN LATERAL (
 			SELECT count(*) AS n, avg(x.rating) AS avg FROM satisfaction_surveys x
 			WHERE x.clinic_id = c.id AND x.answered_at IS NOT NULL AND x.rating IS NOT NULL) st ON true
-	WHERE cp.enabled`, 1)
+	CROSS JOIN LATERAL (SELECT ` + profileScoreSQL + ` AS score) sc` + strings.TrimPrefix(where, directoryFrom)
 	rows, err := s.db.Query(ctx, `
-		SELECT c.id::text, lower(a.booking_slug), c.name, cp.tagline, cp.city, cp.state, a.booking_enabled, cp.insurances,
+		SELECT c.id::text, lower(coalesce(a.booking_slug, '')), c.name, coalesce(cp.tagline, ''), coalesce(cp.city, ''), coalesce(cp.state, ''),
+		       coalesce(a.booking_enabled, false), coalesce(cp.insurances, '{}'), coalesce(cp.enabled, false), sc.score,
 		       coalesce((SELECT min(i.price_cents) FROM catalog_items i WHERE i.clinic_id = c.id AND i.kind = 'service' AND i.public AND i.active AND i.price_cents > 0), 0)
 		`+ranked+`
-		ORDER BY (st.n > 0) DESC, st.avg DESC NULLS LAST, st.n DESC, c.name
+		ORDER BY sc.score / 10 DESC, (st.n > 0) DESC, st.avg DESC NULLS LAST, st.n DESC, sc.score DESC, c.name
 		LIMIT `+strconv.Itoa(directoryPageSize)+` OFFSET $`+strconv.Itoa(len(args)+1), append(args, (page-1)*directoryPageSize)...)
 	if err != nil {
 		serverError(w, r, err)
@@ -220,7 +297,7 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 	var list []row
 	for rows.Next() {
 		var x row
-		if err := rows.Scan(&x.id, &x.h.Slug, &x.h.Name, &x.h.Tagline, &x.h.City, &x.h.State, &x.h.Booking, &x.h.Insurances, &x.h.PriceFrom); err != nil {
+		if err := rows.Scan(&x.id, &x.h.Slug, &x.h.Name, &x.h.Tagline, &x.h.City, &x.h.State, &x.h.Booking, &x.h.Insurances, &x.h.HasPage, &x.h.Completeness, &x.h.PriceFrom); err != nil {
 			rows.Close()
 			serverError(w, r, err)
 			return
@@ -231,6 +308,7 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 	out := make([]directoryHit, 0, len(list))
 	for _, x := range list {
 		h := x.h
+		h.HasPage = h.HasPage && h.Slug != "" // sin enlace no hay a dónde entrar
 		if kinds, err := s.clinicKindsFor(ctx, x.id); err == nil {
 			for _, k := range kinds {
 				if l := areaLabels[k]; l != "" {
@@ -238,7 +316,10 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		if prof, cover, _, err := s.publicMedia(ctx, x.id); err == nil {
+		if !h.HasPage {
+			h.Slug = "" // sin página publicada no se expone nada de ella
+		}
+		if prof, cover, _, err := s.publicMedia(ctx, x.id); err == nil && h.HasPage {
 			if prof != nil {
 				h.PhotoURL = mediaURL(h.Slug, *prof)
 			}
@@ -249,7 +330,7 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 		if st, err := s.surveyStatsFor(ctx, x.id, nil, nil); err == nil {
 			h.Rating = st
 		}
-		if h.Booking {
+		if h.Booking && h.HasPage {
 			h.NextSlot = s.nextFreeSlot(ctx, x.id, h.Slug)
 		}
 		if h.Insurances == nil {
@@ -262,7 +343,7 @@ func (s *surveyPublic) directory(w http.ResponseWriter, r *http.Request) {
 
 // citiesForSlug devuelve los nombres de ciudad guardados que corresponden a una forma de URL.
 func (s *Server) citiesForSlug(ctx context.Context, slug string) ([]string, error) {
-	rows, err := s.db.Query(ctx, `SELECT DISTINCT cp.city `+directoryBase)
+	rows, err := s.db.Query(ctx, `SELECT DISTINCT cp.city `+locatedBase)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +371,7 @@ func (s *surveyPublic) directoryOptions(w http.ResponseWriter, r *http.Request) 
 		areas = append(areas, map[string]string{"code": code, "label": label, "slug": areaSlugs[code]})
 	}
 	sort.Slice(areas, func(i, j int) bool { return areas[i]["label"] < areas[j]["label"] })
-	rows, err := s.db.Query(r.Context(), `SELECT cp.state, cp.city, count(*) `+directoryBase+` GROUP BY 1, 2 ORDER BY 3 DESC, 2`)
+	rows, err := s.db.Query(r.Context(), `SELECT cp.state, cp.city, count(*) `+locatedBase+` GROUP BY 1, 2 ORDER BY 3 DESC, 2`)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -319,7 +400,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 		Loc string `xml:"loc"`
 	}
 	urls := []u{{base + "/directorio"}}
-	rows, err := s.db.Query(r.Context(), `SELECT lower(a.booking_slug), cp.city, c.kind, c.specialties `+directoryBase+` ORDER BY 1`)
+	rows, err := s.db.Query(r.Context(), `SELECT lower(a.booking_slug), cp.city, c.kind, c.specialties `+pageBase+` ORDER BY 1`)
 	if err != nil {
 		serverError(w, r, err)
 		return
