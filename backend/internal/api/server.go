@@ -231,6 +231,7 @@ func (s *Server) router() http.Handler {
 					s.mountPortalAdmin(r)
 					s.mountProfile(r)    // perfil público y encuesta de satisfacción
 					s.mountIndicators(r) // panel de indicadores
+					s.mountClinicAI(r)   // ayudas de IA de la clínica
 				})
 			})
 

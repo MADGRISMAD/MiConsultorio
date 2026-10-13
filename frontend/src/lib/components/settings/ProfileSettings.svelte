@@ -3,6 +3,7 @@
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
+  import { clinicAiApi } from '$lib/api/clinicAi';
   import { profileApi, type ClinicProfile, type ProfileCompleteness, type ProfileService, type SurveySummary } from '$lib/api/profile';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -73,6 +74,35 @@
       toast.show(e instanceof Error ? e.message : 'No se pudo guardar la respuesta.');
     }
     replying = '';
+  }
+  // la IA redacta un borrador de la respuesta; la clínica lo edita y decide si lo publica
+  const replyAi = new Op();
+  let replyAiFor = $state('');
+  async function draftReply(id: string) {
+    replyAiFor = id;
+    await replyAi.run(async () => {
+      replies[id] = (await clinicAiApi.reviewReply(id)).result.text;
+    });
+  }
+  // textos de la página: se rellenan solo los campos vacíos y quedan como borrador editable
+  const pageAi = new Op();
+  let pageAiNote = $state('');
+  async function suggestPageTexts() {
+    if (!p) return;
+    await pageAi.run(async () => {
+      const r = await clinicAiApi.publicPage();
+      if (!p) return;
+      const filled: string[] = [];
+      if (!p.tagline.trim() && r.result.title) ((p.tagline = r.result.title.slice(0, 120)), filled.push('lema'));
+      if (!p.about.trim() && r.result.text) ((p.about = r.result.text.slice(0, 1500)), filled.push('descripción'));
+      const reasons = r.result.sections[0]?.items ?? [];
+      const newReasons = reasons.filter((h) => !p!.highlights.includes(h)).slice(0, 6 - p.highlights.length);
+      if (newReasons.length) ((p.highlights = [...p.highlights, ...newReasons]), filled.push('motivos'));
+      const have = new Set(p.faqs.map((f) => f.q));
+      const newFaqs = r.result.lines.filter((l) => !have.has(l.name)).slice(0, 12 - p.faqs.length).map((l) => ({ q: l.name, a: l.detail }));
+      if (newFaqs.length) ((p.faqs = [...p.faqs, ...newFaqs]), filled.push('preguntas frecuentes'));
+      pageAiNote = filled.length ? `Borrador agregado (${filled.join(', ')}). Revísalo, edítalo y guarda solo lo que quieras publicar.` : 'Ya tenías todo escrito; no se cambió nada.';
+    });
   }
   let loadError = $state('');
   const saveOp = new Op();
@@ -151,6 +181,16 @@
       </label>
       {#if !mySlug}
         <p class="note">Primero escribe tu dirección en línea. <button type="button" class="font-medium underline" onclick={() => goto?.('reservas')}>Ir a «Reservas»</button></p>
+      {/if}
+      {#if session.magic}
+        <div class="rounded-xl border border-app-primary/25 bg-app-primary/5 p-3">
+          <p class="text-sm"><strong>Borrador con IA.</strong> Redacta el lema, la descripción, los motivos y las preguntas frecuentes con lo que ya capturaste. Solo llena lo que está vacío y no inventa datos: tú lo revisas y editas antes de guardar. Usa 1 uso de magia.</p>
+          <button type="button" class="btn-secondary mt-2" disabled={pageAi.phase === 'loading'} onclick={suggestPageTexts}>
+            {#if pageAi.phase === 'loading'}<span class="spin"></span>Redactando…{:else}<Icon name="sparkles" size={16} />Sugerir textos de la página{/if}
+          </button>
+          <OpError op={pageAi} class="mt-2" />
+          {#if pageAiNote}<p class="mt-2 text-sm" role="status">{pageAiNote}</p>{/if}
+        </div>
       {/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <div class="sm:col-span-2">
@@ -414,7 +454,11 @@
                   <div class="mt-2 grid gap-2">
                     <label class="sr-only" for="rp-{r.id}">Tu respuesta</label>
                     <textarea id="rp-{r.id}" class="field" rows="2" maxlength="600" placeholder="Responde en público (opcional)" bind:value={replies[r.id]}></textarea>
-                    <div><button type="button" class="btn-secondary" disabled={replying === r.id} onclick={() => sendReply(r.id)}>{#if replying === r.id}<span class="spin"></span>{/if}Guardar respuesta</button></div>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" class="btn-secondary" disabled={replying === r.id} onclick={() => sendReply(r.id)}>{#if replying === r.id}<span class="spin"></span>{/if}Guardar respuesta</button>
+                      {#if session.magic}<button type="button" class="btn-ghost" disabled={replyAi.phase === 'loading'} onclick={() => draftReply(r.id)}>{#if replyAi.phase === 'loading' && replyAiFor === r.id}<span class="spin"></span>Redactando…{:else}<Icon name="sparkles" size={16} />Redactar con IA{/if}</button>{/if}
+                    </div>
+                    {#if replyAiFor === r.id}<OpError op={replyAi} />{/if}
                   </div>
                 {/if}
               </li>

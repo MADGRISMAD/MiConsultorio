@@ -56,3 +56,19 @@ test('las ayudas con IA del paciente: un mensaje llega como borrador con aviso',
     await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeVisible();
   });
 });
+
+test('indicadores: el resumen con IA llega como sugerencia y sin pacientes que reconectar avisa', async ({ page }) => {
+  await page.goto('/indicadores');
+  await page.getByRole('button', { name: 'Resumir el periodo' }).click();
+  await expect(page.getByText('Semana tranquila con pocas citas.')).toBeVisible();
+  await expect(page.getByText('Solo es una sugerencia.').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Buscar y proponer mensajes' }).click();
+  await expect(page.getByText(/No hay pacientes que hayan dejado de venir/)).toBeVisible();
+});
+
+test('página pública: la IA redacta un borrador editable en los campos vacíos', async ({ page }) => {
+  await page.goto('/ajustes?s=enlinea&t=pagina');
+  await page.getByRole('button', { name: 'Sugerir textos de la página' }).click();
+  await expect(page.getByText(/Borrador agregado|Ya tenías todo escrito/)).toBeVisible();
+  await expect(page.getByLabel('Pregunta 1', { exact: true })).not.toHaveValue('');
+});

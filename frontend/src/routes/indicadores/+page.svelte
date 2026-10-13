@@ -6,6 +6,7 @@
   import LoadingRows from '$lib/components/ui/LoadingRows.svelte';
   import PageHeader from '$lib/components/ui/PageHeader.svelte';
   import Stars from '$lib/components/ui/Stars.svelte';
+  import IndicatorsAi from '$lib/components/reports/IndicatorsAi.svelte';
   import Kpi from '$lib/components/reports/Kpi.svelte';
   import Line from '$lib/components/reports/Line.svelte';
   import RangeBar from '$lib/components/reports/RangeBar.svelte';
@@ -111,4 +112,5 @@
       </section>
     {/if}
   {/if}
+  <IndicatorsAi />
 </Guard>

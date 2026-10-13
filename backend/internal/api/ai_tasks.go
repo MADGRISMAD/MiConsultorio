@@ -70,6 +70,7 @@ type aiOut struct {
 	Text     string      `json:"text"`
 	Lines    []aiLine    `json:"lines"`
 	Notices  []string    `json:"notices,omitempty"`
+	Extra    any         `json:"extra,omitempty"` // data only the server has (the patients to call back)
 }
 
 var aiOutSchema = map[string]any{
@@ -235,17 +236,31 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, plan.Problem)
 		return
 	}
-	disclaimer := aiDisclaimerSuggestion
-	if t.Draft {
-		disclaimer = aiDisclaimerDraft
-	}
-	prompt := "Eres un asistente para profesionales de la salud en México. Todo lo que escribes es una SUGERENCIA o un BORRADOR que el profesional revisará, corregirá y decidirá; nunca una orden ni un diagnóstico. " +
+	prompt := aiPrompt(plan.Instr, c.header(), plan.Data)
+	s.finishAI(w, r, c.p, c.id, t.Key, t.Label, t.Draft, prompt, plan.Computed, func(o *aiOut) {
+		if t.Post != nil {
+			t.Post(c, o)
+		}
+	})
+}
+
+// aiPrompt is the fixed frame of every AI task: a suggestion or draft for the professional, built only on the data.
+func aiPrompt(instr, header, data string) string {
+	return "Eres un asistente para profesionales de la salud en México. Todo lo que escribes es una SUGERENCIA o un BORRADOR que el profesional revisará, corregirá y decidirá; nunca una orden ni un diagnóstico. " +
 		"Usa SOLO los datos que siguen; no inventes cifras, fechas, diagnósticos ni dosis, y si algo no consta no lo menciones. Las cifras ya calculadas por el sistema se citan tal cual, sin recalcular. " +
 		"Con las sugerencias clínicas usa lenguaje de posibilidad (\"Podría considerarse…\", \"Los datos sugieren…\"). Español claro y conciso. " +
 		"Responde con el JSON pedido: title (título corto), summary (resumen breve), sections (listas con encabezado), text (solo si la tarea pide un texto para copiar o imprimir; si no, vacío) y lines (solo si la tarea pide líneas; si no, lista vacía).\n\n" +
-		"TAREA: " + plan.Instr + "\n\n" + c.header() + "\nDATOS:\n" + plan.Data
+		"TAREA: " + instr + "\n\n" + header + "\nDATOS:\n" + data
+}
 
-	if err := s.spendMagic(r.Context(), c.p); err != nil {
+// finishAI spends one magic use, asks the model, cleans the answer and writes it; the use is given back when it fails.
+// patientID may be empty for the tasks of the clinic.
+func (s *Server) finishAI(w http.ResponseWriter, r *http.Request, p *Principal, patientID, key, label string, draft bool, prompt, basis string, post func(*aiOut)) {
+	disclaimer := aiDisclaimerSuggestion
+	if draft {
+		disclaimer = aiDisclaimerDraft
+	}
+	if err := s.spendMagic(r.Context(), p); err != nil {
 		writeFailure(w, r, err)
 		return
 	}
@@ -256,19 +271,23 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == nil {
 		out.clean()
-		if t.Post != nil {
-			t.Post(c, &out)
+		if post != nil {
+			post(&out)
 		}
 		if out.empty() {
 			err = fmt.Errorf("respuesta vacía")
 		}
 	}
 	if err != nil {
-		s.refundMagic(r.Context(), c.p)
-		logf(r, "ai task %s: %v", t.Key, err)
+		s.refundMagic(r.Context(), p)
+		logf(r, "ai task %s: %v", key, err)
 		writeJSON(w, http.StatusBadGateway, errorBody{Code: "PROVIDER", Message: "La IA no pudo preparar esto. Intenta de nuevo en un momento."})
 		return
 	}
-	audit(r.Context(), s.db, c.p.ClinicID, c.p, "ai_task", "Usó la ayuda de IA «"+t.Label+"»", map[string]any{"patient_id": c.id, "task": t.Key})
-	writeJSON(w, http.StatusOK, map[string]any{"task": t.Key, "label": t.Label, "draft": t.Draft, "result": out, "basis": plan.Computed, "disclaimer": disclaimer, "generated_at": time.Now().UTC()})
+	meta := map[string]any{"task": key}
+	if patientID != "" {
+		meta["patient_id"] = patientID
+	}
+	audit(r.Context(), s.db, p.ClinicID, p, "ai_task", "Usó la ayuda de IA «"+label+"»", meta)
+	writeJSON(w, http.StatusOK, map[string]any{"task": key, "label": label, "draft": draft, "result": out, "basis": basis, "disclaimer": disclaimer, "generated_at": time.Now().UTC()})
 }
