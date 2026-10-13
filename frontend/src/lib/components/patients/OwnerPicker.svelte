@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ownersApi } from '$lib/api/owners';
   import type { OwnerListItem } from '$lib/types/owners';
+  import Combobox from '../ui/Combobox.svelte';
   import Icon from '../ui/Icon.svelte';
 
   interface Props {
@@ -15,8 +16,8 @@
 
   let q = $state('');
   let results = $state<OwnerListItem[]>([]);
-  let open = $state(false);
   let busy = $state(false);
+  let error = $state('');
   let seq = 0;
 
   $effect(() => {
@@ -27,12 +28,16 @@
     }
     const mine = ++seq;
     busy = true;
+    error = '';
     const t = setTimeout(async () => {
       try {
         const r = await ownersApi.search(text);
         if (mine === seq) results = r;
-      } catch {
-        if (mine === seq) results = [];
+      } catch (e) {
+        if (mine === seq) {
+          results = [];
+          error = e instanceof Error ? e.message : 'No se pudo buscar.';
+        }
       } finally {
         if (mine === seq) busy = false;
       }
@@ -43,7 +48,6 @@
   const petsText = (o: OwnerListItem) => (o.pets.length ? o.pets.map((p) => (p.species ? `${p.names} (${p.species})` : p.names)).join(', ') : 'Sin mascotas activas');
 
   function pick(o: OwnerListItem) {
-    open = false;
     q = '';
     onpick(o);
   }
@@ -61,37 +65,23 @@
     </div>
   </div>
 {:else}
-  <div class="relative">
-    <label class="label" for={id}>¿Ya está registrado el propietario?</label>
-    <div class="relative">
-      <Icon name="search" size={17} class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-app-muted" />
-      <input
-        {id}
-        type="search"
-        class="field pl-10"
-        placeholder="Busca por nombre o teléfono del propietario…"
-        autocomplete="off"
-        role="combobox"
-        aria-expanded={open && results.length > 0}
-        aria-controls="{id}-list"
-        bind:value={q}
-        onfocus={() => (open = true)}
-        onblur={() => setTimeout(() => (open = false), 150)}
-      />
-    </div>
-    {#if open && q.trim().length >= 2}
-      <ul id="{id}-list" role="listbox" class="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-app-ink/12 bg-app-panel p-1 shadow-app">
-        {#each results as o (o.id)}
-          <li role="option" aria-selected="false">
-            <button type="button" class="w-full rounded-lg px-3 py-2.5 text-left hover:bg-app-ink/5 focus-visible:bg-app-ink/5 focus-visible:outline-none" onmousedown={(e) => e.preventDefault()} onclick={() => pick(o)}>
-              <span class="block font-medium">{o.name} <span class="font-normal text-app-muted">· {o.phone || 'sin teléfono'}</span></span>
-              <span class="block text-xs text-app-muted">{o.pet_count === 1 ? '1 mascota' : `${o.pet_count} mascotas`}: {petsText(o)}</span>
-            </button>
-          </li>
-        {:else}
-          <li class="px-3 py-2.5 text-sm text-app-muted" role="status">{busy ? 'Buscando…' : 'No hay propietarios con ese dato: escribe sus datos abajo para registrarlo.'}</li>
-        {/each}
-      </ul>
-    {/if}
-  </div>
+  <Combobox
+    {id}
+    label="¿Ya está registrado el propietario?"
+    type="search"
+    placeholder="Busca por nombre o teléfono del propietario…"
+    bind:query={q}
+    options={results.map((o) => ({ key: o.id, value: o }))}
+    status={busy ? 'Buscando…' : error ? error : results.length === 0 ? 'No hay propietarios con ese dato: escribe sus datos abajo para registrarlo.' : ''}
+    statusTone={error ? 'danger' : 'muted'}
+    minChars={2}
+    onpick={(o) => pick(o.value)}
+  >
+    {#snippet option(o)}
+      <span class="block px-3 py-2.5">
+        <span class="block font-medium">{o.value.name} <span class="font-normal text-app-muted">· {o.value.phone || 'sin teléfono'}</span></span>
+        <span class="block text-xs text-app-muted">{o.value.pet_count === 1 ? '1 mascota' : `${o.value.pet_count} mascotas`}: {petsText(o.value)}</span>
+      </span>
+    {/snippet}
+  </Combobox>
 {/if}

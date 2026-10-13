@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { onMount } from 'svelte';
   import { moneyCents } from '$lib/format';
   import type { CatalogItem } from '$lib/types';
@@ -91,17 +92,7 @@
         enterkeyhint="search"
       />
     </div>
-    <div class="flex rounded-full bg-app-ink/5 p-1" role="tablist" aria-label="Tipo de concepto">
-      {#each tabs as t (t.id)}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === t.id}
-          class="min-h-10 rounded-full px-4 text-sm font-medium transition {tab === t.id ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}"
-          onclick={() => (tab = t.id)}>{t.label}</button
-        >
-      {/each}
-    </div>
+    <Segmented block label="Tipo de concepto" value={tab} options={tabs.map((t) => ({ value: t.id, label: t.label }))} onselect={(v) => (tab = v)} />
   </div>
 
   {#if shownCategories.length}

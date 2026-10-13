@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
   import { session } from '$lib/session.svelte';
@@ -26,7 +27,7 @@
   // 0..3 — length, mixed case/digits, symbols or long
   const strength = $derived.by(() => {
     let s = 0;
-    if (password.length >= 8) s++;
+    if (password.length >= PASSWORD_MIN) s++;
     if (/[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password)) s++;
     if (password.length >= 12 || /[^A-Za-z0-9]/.test(password)) s++;
     return password ? Math.max(1, s) : 0;
@@ -38,7 +39,7 @@
     email: !/^\S+@\S+\.\S+$/.test(email.trim()) ? 'Escribe un correo válido.' : '',
     personName: personName.trim().length < 2 ? 'Escribe tu nombre.' : '',
     username: !/^[A-Za-z0-9._-]{3,64}$/.test(username.trim()) ? 'Mínimo 3 caracteres: letras, números, punto, guion o guion bajo.' : '',
-    password: password.length < 8 ? 'Mínimo 8 caracteres.' : '',
+    password: password.length < PASSWORD_MIN ? `Mínimo ${PASSWORD_MIN} caracteres.` : '',
     confirm: confirm !== password ? 'Las contraseñas no coinciden.' : '',
     accepted: !accepted ? 'Debes aceptar los términos.' : ''
   });
@@ -108,7 +109,7 @@
         <div>
           <label class="label" for="r-pass">Contraseña</label>
           <div class="relative">
-            <input id="r-pass" class="field pr-12" type={showPass ? 'text' : 'password'} bind:value={password} placeholder="Mínimo 8 caracteres" autocomplete="new-password" maxlength="72" aria-invalid={touched && !!problems.password} />
+            <input id="r-pass" class="field pr-12" type={showPass ? 'text' : 'password'} bind:value={password} placeholder="Mínimo {PASSWORD_MIN} caracteres" autocomplete="new-password" maxlength={PASSWORD_MAX} aria-invalid={touched && !!problems.password} />
             <button type="button" class="icon-btn absolute right-1 top-1/2 -translate-y-1/2" aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPass} onclick={() => (showPass = !showPass)}>
               <Icon name={showPass ? 'eye-off' : 'eye'} size={20} />
             </button>
@@ -125,7 +126,7 @@
         </div>
         <div>
           <label class="label" for="r-confirm">Confirmar contraseña</label>
-          <input id="r-confirm" class="field" type={showPass ? 'text' : 'password'} bind:value={confirm} autocomplete="new-password" maxlength="72" aria-invalid={touched && !!problems.confirm} />
+          <input id="r-confirm" class="field" type={showPass ? 'text' : 'password'} bind:value={confirm} autocomplete="new-password" maxlength={PASSWORD_MAX} aria-invalid={touched && !!problems.confirm} />
           {@render err('confirm')}
         </div>
       </div>

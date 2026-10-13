@@ -420,6 +420,7 @@ func TestNutritionPlanAI(t *testing.T) {
 	e := setupWith(t, func(c *config.Config) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
+	e.exec(`UPDATE clinics SET kind = 'NUTRITION' WHERE id = $1`, e.clinicA)
 	doc, recep := e.login("doc_a"), e.login("recep_a")
 	magicUsed := func() int {
 		var n int
@@ -543,6 +544,7 @@ func TestNutritionPlanAIVariesFromPreviousPlans(t *testing.T) {
 	e := setupWith(t, func(c *config.Config) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
+	e.exec(`UPDATE clinics SET kind = 'NUTRITION' WHERE id = $1`, e.clinicA)
 	doc := e.login("doc_a")
 	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
@@ -664,6 +666,7 @@ func TestNutritionFragmentAI(t *testing.T) {
 	e := setupWith(t, func(c *config.Config) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
+	e.exec(`UPDATE clinics SET kind = 'NUTRITION' WHERE id = $1`, e.clinicA)
 	doc := e.login("doc_a")
 	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a")) // plans carry the cédula of whoever writes them
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
@@ -747,6 +750,7 @@ func TestNutritionShoppingList(t *testing.T) {
 	e := setupWith(t, func(c *config.Config) {
 		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", gem.URL
 	})
+	e.exec(`UPDATE clinics SET kind = 'NUTRITION' WHERE id = $1`, e.clinicA)
 	doc := e.login("doc_a")
 	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a"))
 	pid := newPerson(t, doc, "mejj700312hdfdrr04")
@@ -805,5 +809,20 @@ func TestPlanPaymentSchedule(t *testing.T) {
 	got := sub(doc.expect(200, "PUT", "/api/plans/"+id, body(nil)), "plan")
 	if got["payment_plan"] != nil {
 		t.Fatalf("removed: %v", got["payment_plan"])
+	}
+}
+
+// The AI helpers of nutrition are for clinics that practise nutrition.
+func TestNutritionAIRequiresTheGiro(t *testing.T) {
+	e := setupWith(t, func(c *config.Config) {
+		c.GeminiAPIKey, c.GeminiModel, c.GeminiAPIBase = "gem-key", "test-model", "http://127.0.0.1:1"
+	})
+	doc := e.login("doc_a")
+	e.exec(`UPDATE users SET cedula = '1234567' WHERE id = $1`, e.userID("doc_a"))
+	pid := newPerson(t, doc, "mejj700312hdfdrr04")
+	for _, path := range []string{"/nutrition-plan/ai", "/nutrition-plan/ai/fragment", "/nutrition-plan/shopping", "/nutrition-plan/calc"} {
+		if code := errCode(t, doc, "POST", "/api/patients/"+pid+path, map[string]any{}, 403); code != "GIRO_REQUIRED" {
+			t.Fatalf("%s in a general clinic: %q", path, code)
+		}
 	}
 }

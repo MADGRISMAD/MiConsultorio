@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { goto } from '$app/navigation';
   import { api } from '$lib/api';
@@ -149,7 +150,7 @@
             <div class="sm:col-span-2"><label class="label" for="w-name">Nombre completo</label><input id="w-name" class="field" bind:value={member.name} required minlength="2" autocomplete="off" /></div>
             <div><label class="label" for="w-email">Correo</label><input id="w-email" class="field" type="email" bind:value={member.email} required autocomplete="off" /></div>
             <div><label class="label" for="w-user">Usuario</label><input id="w-user" class="field" bind:value={member.username} required minlength="3" pattern="[A-Za-z0-9._\-]+" title="Letras, números, punto, guion y guion bajo" autocomplete="off" /></div>
-            <div><label class="label" for="w-pass">Contraseña inicial</label><input id="w-pass" class="field" type="password" bind:value={member.password} required minlength="8" maxlength="72" autocomplete="new-password" /></div>
+            <div><label class="label" for="w-pass">Contraseña inicial</label><input id="w-pass" class="field" type="password" bind:value={member.password} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" /></div>
             <div>
               <label class="label" for="w-role">Rol</label>
               <select id="w-role" class="field" bind:value={member.role}>{#each CLINIC_ROLES as r}<option value={r}>{ROLES[r].label}</option>{/each}</select>

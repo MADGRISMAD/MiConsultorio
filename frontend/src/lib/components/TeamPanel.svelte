@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -264,7 +265,7 @@
     </div>
     <div>
       <label class="label" for="m-pass">Contraseña inicial</label>
-      <input id="m-pass" class="field" type="password" bind:value={form.password} required minlength="8" maxlength="72" autocomplete="new-password" />
+      <input id="m-pass" class="field" type="password" bind:value={form.password} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" />
     </div>
     <fieldset class="sm:col-span-2">
       <legend class="label">Rol</legend>
@@ -330,7 +331,7 @@
   <form id="pw-member" class="text-left" onsubmit={submitPw}>
     <p class="mb-4 text-sm text-app-muted">Escribe una contraseña nueva para <strong class="text-app-ink">{pwFor?.name}</strong>. Su sesión actual se cerrará.</p>
     <label class="label" for="pw-new">Nueva contraseña</label>
-    <input id="pw-new" class="field" type="password" bind:value={newPassword} required minlength="8" maxlength="72" autocomplete="new-password" />
+    <input id="pw-new" class="field" type="password" bind:value={newPassword} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" />
     <p class="hint">Mínimo 8 caracteres.</p>
   </form>
   {#if pwOp.phase === 'error'}

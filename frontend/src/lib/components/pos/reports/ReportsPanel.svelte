@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
   import { dateShort, moneyCents } from '$lib/format';
@@ -116,11 +117,7 @@
 </PageHeader>
 
 <div class="mb-6 flex flex-wrap items-end gap-3">
-  <div class="flex gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1" role="group" aria-label="Periodo">
-    {#each PRESETS as p}
-      <button type="button" aria-pressed={preset === p.id} class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition {preset === p.id ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => pick(p.id)}>{p.label}</button>
-    {/each}
-  </div>
+  <Segmented scroll size="sm" label="Periodo" value={preset} options={PRESETS.map((p) => ({ value: p.id, label: p.label }))} onselect={pick} />
   {#if preset === 'custom'}
     <div class="flex items-end gap-2">
       <div><label class="label" for="rep-from">Desde</label><input id="rep-from" type="date" class="field" bind:value={from} max={to} /></div>

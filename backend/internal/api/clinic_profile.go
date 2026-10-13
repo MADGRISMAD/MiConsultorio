@@ -24,6 +24,12 @@ import (
 
 var placeIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{10,200}$`)
 
+// Limits of the public page. The editor of the frontend repeats them (frontend/src/lib/limits.ts): a test keeps both in step.
+const (
+	MaxHighlights = 6  // reasons to choose the clinic
+	MaxFAQs       = 12 // frequently asked questions
+)
+
 type clinicProfile struct {
 	Enabled          bool   `json:"enabled"`
 	Tagline          string `json:"tagline"`
@@ -264,7 +270,7 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 	if !in.AcceptsInsurance {
 		in.Insurances = []string{} // sin seguros no hay lista (tampoco en el directorio)
 	}
-	if in.Highlights, msg = profileList(in.Highlights, 6, 100, nil); msg != "" {
+	if in.Highlights, msg = profileList(in.Highlights, MaxHighlights, 100, nil); msg != "" {
 		writeError(w, http.StatusBadRequest, "Motivos para elegirte: "+msg)
 		return
 	}
@@ -280,7 +286,7 @@ func (s *Server) updateClinicProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		faqs = append(faqs, f)
 	}
-	if len(faqs) > 12 {
+	if len(faqs) > MaxFAQs {
 		writeError(w, http.StatusBadRequest, "Máximo 12 preguntas frecuentes.")
 		return
 	}

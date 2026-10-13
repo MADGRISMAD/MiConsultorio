@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api } from '$lib/api';
@@ -157,11 +158,7 @@
     {#if rows === null}
       <p class="text-sm text-app-muted">Pega la lista de lo que vendes o sube una foto de tu lista, factura o estantería. Nosotros armamos el catálogo y tú lo revisas antes de guardar.</p>
 
-      <div role="tablist" aria-label="Origen" class="inline-flex rounded-full bg-app-ink/6 p-1">
-        {#each [['text', 'Pegar lista'], ['photo', 'Subir foto']] as [m, label]}
-          <button type="button" role="tab" aria-selected={mode === m} class="rounded-full px-4 py-1.5 text-sm font-medium transition {mode === m ? 'bg-app-panel shadow-sm' : 'text-app-muted'}" onclick={() => (mode = m as 'text' | 'photo')}>{label}</button>
-        {/each}
-      </div>
+      <Segmented label="Origen" value={mode} options={[{ value: 'text', label: 'Pegar lista' }, { value: 'photo', label: 'Subir foto' }]} onselect={(v) => (mode = v)} />
 
       {#if mode === 'text'}
         <div>

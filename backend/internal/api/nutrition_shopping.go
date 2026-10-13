@@ -72,6 +72,9 @@ func (s *Server) nutritionShopping(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.requireGiro(w, r, "NUTRITION") {
+		return
+	}
 	if !s.requireCedula(w, r, "generar planes de alimentación") {
 		return
 	}

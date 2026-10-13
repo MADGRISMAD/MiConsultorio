@@ -41,8 +41,7 @@ func (s *Server) rehabGate(w http.ResponseWriter, r *http.Request) (id string, o
 		writeError(w, http.StatusBadRequest, "Esta ayuda es para pacientes personas.")
 		return "", false
 	}
-	if !s.isRehabClinic(r, principalFrom(r.Context())) {
-		writeError(w, http.StatusForbidden, "Esta ayuda es del área de rehabilitación.")
+	if !s.requireGiro(w, r, rehabGiros...) {
 		return "", false
 	}
 	if !s.aiReady(w) {

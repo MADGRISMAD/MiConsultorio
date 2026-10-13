@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { Op } from '$lib/op.svelte';
@@ -121,7 +122,7 @@
       </div>
       <div>
         <label class="label" for="pw-n1">Contraseña nueva</label>
-        <input id="pw-n1" class="field" type="password" bind:value={next} required minlength="8" maxlength="72" autocomplete="new-password" />
+        <input id="pw-n1" class="field" type="password" bind:value={next} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" />
         <p class="hint">Mínimo 8 caracteres; una frase sirve.</p>
       </div>
       <div>

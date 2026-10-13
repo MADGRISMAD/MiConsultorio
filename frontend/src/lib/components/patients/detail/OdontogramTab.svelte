@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -172,18 +173,7 @@
   <div class="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
     <p class="min-w-0 max-w-xl flex-1 basis-64 text-sm text-app-muted">Notación FDI. Elige un estado y toca la superficie o la pieza. Cada versión guardada se conserva en el historial.</p>
     <div class="flex flex-wrap gap-2">
-      <div role="radiogroup" aria-label="Dentición" class="inline-flex rounded-full bg-app-ink/5 p-1">
-        {#each offered as d (d.v)}
-          <button
-            type="button"
-            role="radio"
-            aria-checked={shown.dentition === d.v}
-            disabled={readonly}
-            class="min-h-9 rounded-full px-3.5 text-sm font-medium transition disabled:cursor-default {shown.dentition === d.v ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}"
-            onclick={() => setDentition(d.v)}>{d.label}</button
-          >
-        {/each}
-      </div>
+      <Segmented label="Dentición" value={shown.dentition} options={offered.map((d) => ({ value: d.v, label: d.label, disabled: readonly }))} onselect={setDentition} />
       <button type="button" class="btn-secondary" onclick={print}><Icon name="receipt" size={18} />Imprimir</button>
     </div>
   </div>

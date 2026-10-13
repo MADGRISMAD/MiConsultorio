@@ -1,6 +1,6 @@
-import { BASE, expect, mailbox, test, ui, uid, waitForMail } from '../support/app';
+import { ANON_STATE, BASE, expect, mailbox, test, ui, uid, waitForMail } from '../support/app';
 
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: ANON_STATE });
 
 // Uses its own account (created through the API) so the sample clinic's password never changes.
 test('recuperación de contraseña con correo', async ({ page, request }) => {

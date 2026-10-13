@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
@@ -256,11 +257,7 @@
 
     <!-- Period toggle -->
     <div class="mb-4 flex flex-wrap items-center gap-3">
-      <div class="flex gap-1 rounded-full bg-app-ink/5 p-1" role="group" aria-label="Periodo de pago">
-        {#each [['month', 'Mensual'], ['year', 'Anual']] as [id, label]}
-          <button type="button" aria-pressed={period === id} class="rounded-full px-4 py-1.5 text-sm font-medium transition {period === id ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => (period = id as 'month' | 'year')}>{label}</button>
-        {/each}
-      </div>
+      <Segmented label="Periodo de pago" value={period} options={[{ value: 'month', label: 'Mensual' }, { value: 'year', label: 'Anual' }]} onselect={(v) => (period = v)} />
       {#if anySaves}<span class="badge-soon">Anual: ahorras 2 meses</span>{/if}
       {#if sandbox}<span class="text-xs text-app-warning">Modo de pruebas: los pagos no son reales.</span>{/if}
     </div>

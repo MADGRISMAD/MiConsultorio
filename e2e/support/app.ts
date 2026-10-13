@@ -149,3 +149,6 @@ export async function createStartedApptApi(
     })
   );
 }
+
+/** A browser with no session, but with the cookie choice already made (the consent banner would cover buttons otherwise). */
+export const ANON_STATE = { cookies: [], origins: [{ origin: BASE, localStorage: [{ name: 'caresia-cookies', value: 'rechazadas' }] }] };

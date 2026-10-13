@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -168,21 +169,9 @@
     <input type="search" class="field pl-10" placeholder="Buscar por nombre, CURP, teléfono o número…" aria-label="Buscar pacientes" autocomplete="off" bind:value={search} />
   </div>
   {#if animals && tab !== 'pendientes'}
-    <div class="flex gap-1 rounded-full bg-app-ink/6 p-1" role="group" aria-label="Cómo ver la lista">
-      <button type="button" aria-pressed={view === 'owner'} class="min-h-9 rounded-full px-4 text-sm font-medium transition {view === 'owner' ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}" onclick={() => setView('owner')}>Por propietario</button>
-      <button type="button" aria-pressed={view === 'patient'} class="min-h-9 rounded-full px-4 text-sm font-medium transition {view === 'patient' ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}" onclick={() => setView('patient')}>Por mascota</button>
-    </div>
+    <Segmented label="Cómo ver la lista" value={view} options={[{ value: 'owner', label: 'Por propietario' }, { value: 'patient', label: 'Por mascota' }]} onselect={setView} />
   {/if}
-  <div class="flex gap-1 rounded-full bg-app-ink/6 p-1" role="tablist" aria-label="Filtrar expedientes">
-    {#each TABS as t (t.id)}
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === t.id}
-        class="min-h-9 rounded-full px-4 text-sm font-medium transition {tab === t.id ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}"
-        onclick={() => setTab(t.param)}>{t.label}</button>
-    {/each}
-  </div>
+  <Segmented label="Filtrar expedientes" value={tab} options={TABS.map((t) => ({ value: t.id, label: t.label }))} onselect={(id) => setTab(TABS.find((t) => t.id === id)!.param)} />
 </div>
 
 <div class="card overflow-hidden" aria-busy={loading}>

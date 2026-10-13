@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
@@ -138,11 +139,7 @@
   </p>
 {/if}
 
-<div class="mb-4 flex gap-1 overflow-x-auto rounded-full bg-app-ink/5 p-1 sm:w-fit" role="tablist" aria-label="Estado de la solicitud">
-  {#each TABS as t}
-    <button type="button" role="tab" aria-selected={tab === t.id} class="whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition {tab === t.id ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => (tab = t.id)}>{t.label}</button>
-  {/each}
-</div>
+<Segmented scroll class="mb-4" label="Estado de la solicitud" value={tab} options={TABS.map((t) => ({ value: t.id, label: t.label }))} onselect={(v) => (tab = v)} />
 
 <div class="card overflow-hidden">
   {#if ld.loading && !rows.length}

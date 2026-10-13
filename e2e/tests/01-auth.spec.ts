@@ -1,6 +1,6 @@
-import { CLINIC, expect, login, logout, test, ui, uid } from '../support/app';
+import { ANON_STATE, CLINIC, expect, login, logout, test, ui, uid } from '../support/app';
 
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: ANON_STATE });
 
 test('un consultorio nuevo se registra, cierra sesión y vuelve a entrar', async ({ page }) => {
   const id = uid();

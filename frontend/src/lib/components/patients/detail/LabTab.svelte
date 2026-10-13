@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -209,11 +210,7 @@
   <Alert>{ld.error}</Alert>
 {:else}
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-    <div role="group" aria-label="Vista de laboratorio" class="inline-flex rounded-full bg-app-ink/6 p-1">
-      {#each [['ordenes', 'Órdenes y resultados'], ['tendencias', 'Tendencias']] as [k, label] (k)}
-        <button type="button" aria-pressed={view === k} class="min-h-9 rounded-full px-4 text-sm font-medium transition {view === k ? 'bg-app-panel text-app-ink shadow-app' : 'text-app-muted hover:text-app-ink'}" onclick={() => (view = k as typeof view)}>{label}</button>
-      {/each}
-    </div>
+    <Segmented label="Vista de laboratorio" value={view} options={[{ value: 'ordenes', label: 'Órdenes y resultados' }, { value: 'tendencias', label: 'Tendencias' }]} onselect={(v) => (view = v)} />
     <div class="flex flex-wrap gap-2">
       <button type="button" class="btn-secondary" disabled={printing || orders.length === 0} onclick={print}><Icon name="receipt" size={18} />Imprimir resultados</button>
       {#if canWrite && !patient.archived_at}

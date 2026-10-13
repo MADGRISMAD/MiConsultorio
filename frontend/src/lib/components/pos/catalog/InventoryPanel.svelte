@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -167,11 +168,7 @@
 
 <div class="card overflow-hidden">
   <div class="flex flex-wrap items-center gap-3 border-b border-app-ink/10 p-4">
-    <div role="tablist" aria-label="Filtro" class="inline-flex rounded-full bg-app-ink/6 p-1">
-      {#each [['all', 'Todos'], ['low', 'Bajo mínimo'], ['out', 'Agotados']] as [k, label]}
-        <button type="button" role="tab" aria-selected={filter === k} class="rounded-full px-4 py-1.5 text-sm font-medium transition {filter === k ? 'bg-app-panel shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => (filter = k as typeof filter)}>{label}</button>
-      {/each}
-    </div>
+    <Segmented label="Filtro" value={filter} options={[{ value: 'all', label: 'Todos' }, { value: 'low', label: 'Bajo mínimo' }, { value: 'out', label: 'Agotados' }]} onselect={(v) => (filter = v)} />
     <div class="relative min-w-[14rem] flex-1">
       <label class="sr-only" for="inv-search">Buscar o escanear código de barras</label>
       <Icon name="search" size={17} class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-app-muted" />

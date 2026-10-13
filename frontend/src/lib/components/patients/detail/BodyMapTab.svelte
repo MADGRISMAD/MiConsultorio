@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -118,11 +119,7 @@
 
   <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
     <section class="card p-4 sm:p-5" aria-label="Figura corporal">
-      <div role="tablist" aria-label="Vista" class="mb-3 inline-flex rounded-full bg-app-ink/5 p-1 lg:hidden">
-        {#each [['front', 'Frente'], ['back', 'Espalda']] as [v, l]}
-          <button type="button" role="tab" aria-selected={view === v} class="min-h-9 rounded-full px-4 text-sm font-medium {view === v ? 'bg-app-panel shadow-sm' : 'text-app-muted'}" onclick={() => (view = v as BodyView)}>{l}</button>
-        {/each}
-      </div>
+      <Segmented class="mb-3 lg:hidden" label="Vista" value={view} options={[{ value: 'front', label: 'Frente' }, { value: 'back', label: 'Espalda' }]} onselect={(v) => (view = v)} />
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="{view === 'front' ? '' : 'hidden'} lg:block">
           <p class="section-title mb-1 text-center">Frente</p>

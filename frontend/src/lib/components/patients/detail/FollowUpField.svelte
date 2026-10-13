@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { todayStr } from '$lib/dates';
   import { onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
@@ -110,10 +111,7 @@
     </div>
   {/if}
 
-  <div class="mb-3 inline-flex gap-1 rounded-full bg-app-ink/5 p-1" role="group" aria-label="Cómo elegir la fecha">
-    <button type="button" aria-pressed={mode === 'days'} class="rounded-full px-3.5 py-1.5 text-sm font-medium transition {mode === 'days' ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => setMode('days')}>En tantos días</button>
-    <button type="button" aria-pressed={mode === 'date'} class="rounded-full px-3.5 py-1.5 text-sm font-medium transition {mode === 'date' ? 'bg-app-panel text-app-ink shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => setMode('date')}>Elegir fecha en el calendario</button>
-  </div>
+  <Segmented class="mb-3" size="sm" label="Cómo elegir la fecha" value={mode} options={[{ value: 'days', label: 'En tantos días' }, { value: 'date', label: 'Elegir fecha en el calendario' }]} onselect={setMode} />
 
   {#if mode === 'days'}
     <div class="flex flex-wrap items-end gap-2">

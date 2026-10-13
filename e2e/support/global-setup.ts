@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { request } from '@playwright/test';
 import { BASE, CLINIC } from './env.mjs';
 
@@ -31,6 +32,10 @@ export default async function globalSetup() {
     }),
     'legal data'
   );
-  await api.storageState({ path: '.tmp/state.json' });
+  // the consent banner of the public pages must not sit over a button during a test: the state carries a choice already made
+  const state = await api.storageState();
+  state.origins = [{ origin: BASE, localStorage: [{ name: 'caresia-cookies', value: 'rechazadas' }] }];
+  fs.mkdirSync('.tmp', { recursive: true });
+  fs.writeFileSync('.tmp/state.json', JSON.stringify(state));
   await api.dispose();
 }

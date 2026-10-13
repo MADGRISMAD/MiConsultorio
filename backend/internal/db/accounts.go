@@ -62,11 +62,17 @@ func ValidateUsername(u string) string {
 	return ""
 }
 
+// Password limits. The forms of the frontend repeat them (frontend/src/lib/limits.ts): a test keeps both in step.
+const (
+	PasswordMinRunes = 8
+	PasswordMaxBytes = 72 // bcrypt ignores everything past 72 bytes
+)
+
 func ValidatePassword(p string) string {
 	switch {
-	case utf8.RuneCountInString(p) < 8:
+	case utf8.RuneCountInString(p) < PasswordMinRunes:
 		return "La contraseña debe tener al menos 8 caracteres."
-	case len(p) > 72: // bcrypt ignores everything past 72 bytes
+	case len(p) > PasswordMaxBytes:
 		return "La contraseña es demasiado larga (máximo 72 bytes)."
 	}
 	return ""

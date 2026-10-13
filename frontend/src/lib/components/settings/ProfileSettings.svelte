@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MAX_FAQS, MAX_HIGHLIGHTS } from '$lib/limits';
   import { publicOrigin } from '$lib/site';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -116,11 +117,11 @@
     if (!p) return;
     const d = defaultsFor(myKinds);
     const have = new Set(p.faqs.map((f) => f.q));
-    p.faqs = [...p.faqs, ...d.faqs.filter((f) => !have.has(f.q))].slice(0, 12);
-    p.highlights = [...p.highlights, ...d.highlights.filter((h) => !p!.highlights.includes(h))].slice(0, 6);
+    p.faqs = [...p.faqs, ...d.faqs.filter((f) => !have.has(f.q))].slice(0, MAX_FAQS);
+    p.highlights = [...p.highlights, ...d.highlights.filter((h) => !p!.highlights.includes(h))].slice(0, MAX_HIGHLIGHTS);
   }
-  const addFaq = () => p && p.faqs.length < 12 && (p.faqs = [...p.faqs, { q: '', a: '' }]);
-  const addHighlight = () => p && p.highlights.length < 6 && (p.highlights = [...p.highlights, '']);
+  const addFaq = () => p && p.faqs.length < MAX_FAQS && (p.faqs = [...p.faqs, { q: '', a: '' }]);
+  const addHighlight = () => p && p.highlights.length < MAX_HIGHLIGHTS && (p.highlights = [...p.highlights, '']);
   const featuredCount = $derived(services.filter((x) => x.featured).length);
   function toggleInsurer(name: string, on: boolean) {
     insSel = on ? [...insSel.filter((x) => x !== name), name] : insSel.filter((x) => x !== name);
@@ -246,7 +247,7 @@
             </li>
           {/each}
         </ul>
-        {#if p.highlights.length < 6}<button type="button" class="btn-secondary mt-3" onclick={addHighlight}><Icon name="plus" size={16} />Agregar motivo</button>{/if}
+        {#if p.highlights.length < MAX_HIGHLIGHTS}<button type="button" class="btn-secondary mt-3" onclick={addHighlight}><Icon name="plus" size={16} />Agregar motivo</button>{/if}
         <p class="hint mt-2">Revisa que cada frase sea cierta para tu consultorio antes de guardar.</p>
       </div>
 
@@ -291,7 +292,7 @@
             </li>
           {/each}
         </ul>
-        {#if p.faqs.length < 12}<button type="button" class="btn-secondary mt-3" onclick={addFaq}><Icon name="plus" size={16} />Agregar pregunta</button>{/if}
+        {#if p.faqs.length < MAX_FAQS}<button type="button" class="btn-secondary mt-3" onclick={addFaq}><Icon name="plus" size={16} />Agregar pregunta</button>{/if}
         <p class="hint mt-2">Los ejemplos son un borrador: cámbialos para que reflejen cómo trabajas.</p>
       </div>
 

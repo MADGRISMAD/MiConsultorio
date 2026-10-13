@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -153,7 +154,7 @@
     <div class="sm:col-span-2"><label class="label" for="s-name">Nombre completo</label><input id="s-name" class="field" bind:value={form.name} required minlength="2" autocomplete="off" /></div>
     <div><label class="label" for="s-email">Correo</label><input id="s-email" class="field" type="email" bind:value={form.email} required autocomplete="off" /></div>
     <div><label class="label" for="s-user">Usuario</label><input id="s-user" class="field" bind:value={form.username} required minlength="3" pattern="[A-Za-z0-9._\-]+" autocomplete="off" /></div>
-    <div class="sm:col-span-2"><label class="label" for="s-pass">Contraseña inicial</label><input id="s-pass" class="field" type="password" bind:value={form.password} required minlength="8" maxlength="72" autocomplete="new-password" /></div>
+    <div class="sm:col-span-2"><label class="label" for="s-pass">Contraseña inicial</label><input id="s-pass" class="field" type="password" bind:value={form.password} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" /></div>
     <fieldset class="sm:col-span-2">
       <legend class="label">Rol</legend>
       <div class="grid gap-2">
@@ -185,7 +186,7 @@
   <form id="pw-staff" class="text-left" onsubmit={submitPw}>
     <p class="mb-4 text-sm text-app-muted">Contraseña nueva para <strong class="text-app-ink">{pwFor?.name}</strong>. Su sesión actual se cerrará.</p>
     <label class="label" for="spw">Nueva contraseña</label>
-    <input id="spw" class="field" type="password" bind:value={newPassword} required minlength="8" maxlength="72" autocomplete="new-password" />
+    <input id="spw" class="field" type="password" bind:value={newPassword} required minlength={PASSWORD_MIN} maxlength={PASSWORD_MAX} autocomplete="new-password" />
   </form>
   <OpError op={pwOp} class="mt-4" />
   {#snippet footer()}

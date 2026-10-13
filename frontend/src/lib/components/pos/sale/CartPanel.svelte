@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { moneyCents } from '$lib/format';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -235,16 +236,7 @@
             </div>
           {/if}
         </div>
-        <div class="inline-flex rounded-full bg-app-ink/5 p-1" role="group" aria-label="Tipo de descuento">
-          {#each [['amount', '$'], ['pct', '%']] as [m, label] (m)}
-            <button
-              type="button"
-              class="min-h-10 min-w-11 rounded-full text-sm font-medium {cart.discMode === m ? 'bg-app-panel shadow-sm' : 'text-app-muted'}"
-              aria-pressed={cart.discMode === m}
-              onclick={() => (cart.discMode = m as 'amount' | 'pct')}>{label}</button
-            >
-          {/each}
-        </div>
+        <Segmented label="Tipo de descuento" value={cart.discMode} options={[{ value: 'amount', label: '$' }, { value: 'pct', label: '%' }]} onselect={(v) => (cart.discMode = v)} />
       </div>
     {/if}
 

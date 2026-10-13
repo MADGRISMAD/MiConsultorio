@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -219,13 +220,7 @@
 <div class="card overflow-hidden">
   <div class="space-y-3 border-b border-app-ink/10 p-4">
     <div class="flex flex-wrap items-center gap-3">
-      <div role="tablist" aria-label="Tipo" class="inline-flex rounded-full bg-app-ink/6 p-1">
-        {#each [['all', 'Todo'], ['service', 'Servicios'], ['product', 'Productos']] as [k, label]}
-          <button type="button" role="tab" aria-selected={tab === k} class="rounded-full px-4 py-1.5 text-sm font-medium transition {tab === k ? 'bg-app-panel shadow-sm' : 'text-app-muted hover:text-app-ink'}" onclick={() => (tab = k as typeof tab)}>
-            {label} <span class="text-xs text-app-muted">{counts[k as keyof typeof counts]}</span>
-          </button>
-        {/each}
-      </div>
+      <Segmented label="Tipo" value={tab} options={[{ value: 'all', label: `Todo ${counts.all}` }, { value: 'service', label: `Servicios ${counts.service}` }, { value: 'product', label: `Productos ${counts.product}` }]} onselect={(v) => (tab = v)} />
       {#if archivedCount}
         <label class="ml-auto flex cursor-pointer items-center gap-2 text-sm text-app-muted">
           <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={showArchived} />Mostrar archivados ({archivedCount})

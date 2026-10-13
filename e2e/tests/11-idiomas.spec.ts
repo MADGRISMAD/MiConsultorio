@@ -1,7 +1,7 @@
-import { expect, test } from '../support/app';
+import { ANON_STATE, expect, test } from '../support/app';
 
 // Public pages follow the visitor: Spanish by default, English by browser language or by the selector.
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({ storageState: ANON_STATE });
 
 test('español por defecto, selector de idioma y <html lang>', async ({ page }) => {
   await page.goto('/verificar/token-que-no-existe');

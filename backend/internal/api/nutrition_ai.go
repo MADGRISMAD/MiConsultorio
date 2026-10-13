@@ -243,6 +243,9 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.requireGiro(w, r, "NUTRITION") {
+		return
+	}
 	if !s.requireCedula(w, r, "generar planes de alimentación") {
 		return
 	}
@@ -488,6 +491,9 @@ func validateNutritionPlanStruct(p nutritionPlanIn) (string, bool) {
 func (s *Server) nutritionCalc(w http.ResponseWriter, r *http.Request) {
 	id, subject, _, ok := s.patientForSpecialty(w, r)
 	if !ok {
+		return
+	}
+	if !s.requireGiro(w, r, "NUTRITION") {
 		return
 	}
 	var in nutritionAIReq

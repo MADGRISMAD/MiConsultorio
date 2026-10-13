@@ -245,6 +245,24 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// requireGiro answers 403 (and returns false) unless the clinic works in one of the giros and this person is not limited to
+// others: the help of a giro is not offered to a clinic that does not practise it.
+func (s *Server) requireGiro(w http.ResponseWriter, r *http.Request, giros ...string) bool {
+	p := principalFrom(r.Context())
+	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
+	if err != nil {
+		serverError(w, r, err)
+		return false
+	}
+	for _, k := range kinds {
+		if slices.Contains(giros, k) && p.worksIn(giros...) {
+			return true
+		}
+	}
+	writeJSON(w, http.StatusForbidden, errorBody{Code: "GIRO_REQUIRED", Message: "Esta ayuda es del área de " + areaNames(giros) + "."})
+	return false
+}
+
 // minNotesMsg says how many registered consultations a help needs, with the right plural.
 func minNotesMsg(n int) string {
 	if n == 1 {

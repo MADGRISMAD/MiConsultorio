@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { page } from '$app/state';
   import { api } from '$lib/api';
@@ -18,7 +19,7 @@
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    if (password.length < 8) return op.fail('La contraseña debe tener al menos 8 caracteres.');
+    if (password.length < PASSWORD_MIN) return op.fail(`La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`);
     if (password !== confirm) return op.fail('Las contraseñas no coinciden.');
     const ok = await op.run(() => api.resetPassword(token, password));
     if (ok) done = true;
@@ -54,7 +55,7 @@
         <div>
           <label class="label" for="rp-pass">Contraseña nueva</label>
           <div class="relative">
-            <input id="rp-pass" class="field pr-12" type={show ? 'text' : 'password'} bind:value={password} autocomplete="new-password" />
+            <input id="rp-pass" class="field pr-12" type={show ? 'text' : 'password'} bind:value={password} maxlength={PASSWORD_MAX} autocomplete="new-password" />
             <button type="button" class="icon-btn absolute right-1 top-1/2 -translate-y-1/2" aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={show} onclick={() => (show = !show)}>
               <Icon name={show ? 'eye-off' : 'eye'} size={20} />
             </button>
@@ -62,7 +63,7 @@
         </div>
         <div>
           <label class="label" for="rp-confirm">Repite la contraseña</label>
-          <input id="rp-confirm" class="field" type={show ? 'text' : 'password'} bind:value={confirm} autocomplete="new-password" />
+          <input id="rp-confirm" class="field" type={show ? 'text' : 'password'} bind:value={confirm} maxlength={PASSWORD_MAX} autocomplete="new-password" />
         </div>
         <button type="submit" class="btn-primary btn-lg" disabled={op.phase === 'loading'}>{#if op.phase === 'loading'}<span class="spin"></span>Guardando…{:else}Guardar contraseña{/if}</button>
       </form>

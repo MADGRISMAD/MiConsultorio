@@ -18,9 +18,9 @@ test('consulta con pre-cuenta, caja y cobro sin descontar dos veces el insumo', 
   await page.getByRole('button', { name: 'Nueva nota' }).first().click();
   await page.fill(ui.enc.reason, 'Curación de herida');
   await page.fill('#enc-form-charge-svc', service);
-  await page.locator('#enc-form-charge-svc-list').getByRole('button', { name: new RegExp(service) }).click();
+  await page.locator('#enc-form-charge-svc-list').getByRole('option', { name: new RegExp(service) }).click();
   await page.fill('#enc-form-charge-sup-pick', supply);
-  await page.locator('#enc-form-charge-sup-pick-list').getByRole('button', { name: new RegExp(supply) }).click();
+  await page.locator('#enc-form-charge-sup-pick-list').getByRole('option', { name: new RegExp(supply) }).click();
   await expect(page.getByText('Existencias vigentes: 10')).toBeVisible();
   await page.getByLabel(`Cantidad de ${supply}`).fill('3');
   await expect(page.getByText('$560.00').first()).toBeVisible();

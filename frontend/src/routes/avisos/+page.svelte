@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Segmented from '$lib/components/ui/Segmented.svelte';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -58,10 +59,7 @@
     {/snippet}
   </PageHeader>
 
-  <div class="mb-4 flex gap-1 rounded-full bg-app-ink/5 p-1 sm:inline-flex" role="group" aria-label="Filtro">
-    <button type="button" aria-pressed={!onlyUnread} class="rounded-full px-4 py-1.5 text-sm font-medium transition {!onlyUnread ? 'bg-app-panel shadow-sm' : 'text-app-muted'}" onclick={() => (onlyUnread = false)}>Todos</button>
-    <button type="button" aria-pressed={onlyUnread} class="rounded-full px-4 py-1.5 text-sm font-medium transition {onlyUnread ? 'bg-app-panel shadow-sm' : 'text-app-muted'}" onclick={() => (onlyUnread = true)}>Sin leer{unread ? ` (${unread})` : ''}</button>
-  </div>
+  <Segmented class="mb-4" label="Filtro" value={onlyUnread ? 'unread' : 'all'} options={[{ value: 'all', label: 'Todos' }, { value: 'unread', label: `Sin leer${unread ? ` (${unread})` : ''}` }]} onselect={(v) => (onlyUnread = v === 'unread')} />
 
   <OpError op={act} class="mb-4" />
 
