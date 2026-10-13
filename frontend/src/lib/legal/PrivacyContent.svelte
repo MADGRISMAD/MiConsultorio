@@ -2,6 +2,7 @@
   // BORRADOR: ver el comentario de routes/privacidad/+page.svelte. El cuerpo del aviso vive aquí para mostrarse
   // tanto en la página /privacidad como dentro de una ventana (reserva en línea).
   import Fill from './Fill.svelte';
+  import { cookieConsent } from '$lib/cookies.svelte';
   import { OPERATOR } from './operator';
 </script>
 
@@ -115,9 +116,9 @@
       <li><strong>Cookie de sesión (necesaria):</strong> mantiene abierta tu sesión al entrar a Caresia. No se usa para publicidad ni seguimiento.</li>
       <li><strong>Almacenamiento local del navegador:</strong> guarda preferencias de tu equipo, como el tema claro u oscuro o un borrador de venta.</li>
       <li><strong>Estadísticas propias sin cookies (Umami):</strong> contamos visitas al sitio público de forma agregada, sin cookies, sin perfiles personales y sin conservar los parámetros de la dirección.</li>
-      <li><strong>Google Analytics, mediante Google Tag Manager:</strong> solo en las páginas públicas (portada, registro, inicio de sesión, aviso y términos). Usa cookies de Google Analytics (por ejemplo <code>_ga</code> y <code>_ga_…</code>) que asignan un identificador aleatorio a tu navegador para contar visitas, saber desde qué sitio o campaña llegaste y cuánto tiempo pasaste en la página. Google puede recibir tu dirección IP y datos técnicos de tu navegador, y tratarlos en servidores fuera de México. No se usan para identificarte por tu nombre y no se cargan dentro de la plataforma.</li>
+      <li><strong>Google Analytics, mediante Google Tag Manager (solo con tu consentimiento):</strong> solo en las páginas públicas (portada, registro, inicio de sesión, aviso, términos y directorio), y solo si las aceptas en el aviso de cookies que aparece en tu primera visita. Mientras no las aceptes, Google Tag Manager no se carga. Usa cookies de Google Analytics (por ejemplo <code>_ga</code> y <code>_ga_…</code>) que asignan un identificador aleatorio a tu navegador para contar visitas, saber desde qué sitio o campaña llegaste y cuánto tiempo pasaste en la página. Google puede recibir tu dirección IP y datos técnicos de tu navegador, y tratarlos en servidores fuera de México. No se usan para identificarte por tu nombre y no se cargan dentro de la plataforma.</li>
     </ul>
-    <p><strong>Cómo desactivarlas:</strong> puedes bloquear o borrar las cookies desde la configuración de tu navegador, navegar en modo privado o instalar el complemento de inhabilitación de Google Analytics (<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">tools.google.com/dlpage/gaoptout</a>). Rechazarlas no te impide usar el sitio ni la plataforma; la cookie de sesión es la única necesaria para entrar.</p>
+    <p><strong>Cómo cambiar tu decisión:</strong> en cualquier momento desde <button type="button" class="underline underline-offset-4" onclick={() => cookieConsent.reopen()}>Preferencias de cookies</button> (también al pie de la portada). Si las rechazas después de haberlas aceptado, borramos las cookies de Google Analytics de este navegador. Además puedes bloquear o borrar las cookies desde la configuración de tu navegador, navegar en modo privado o instalar el complemento de inhabilitación de Google Analytics (<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">tools.google.com/dlpage/gaoptout</a>). Rechazarlas no te impide usar el sitio ni la plataforma; la cookie de sesión es la única necesaria para entrar.</p>
     <p>Hoy no usamos cookies publicitarias. Si agregamos alguna herramienta de publicidad o de medición de anuncios, actualizaremos este aviso antes de activarla.</p>
   </section>
 

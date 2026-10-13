@@ -15,15 +15,19 @@
     <meta name="description" content="Agenda, expedientes, recetas, cobros, reportes e inteligencia artificial en un solo lugar. Para clínicas dentales, consultorios médicos, nutriólogos, veterinarias y clínicas con varias especialidades." />
     <!-- Visitas sin cookies (Umami). Solo cuenta el dominio real y descarta los parámetros de la URL; alimenta hyperionmkt.com/trafico. -->
     <script defer src="https://stats.hyperionmkt.com/script.js" data-website-id="055800fe-8fa4-42a7-a6af-daca83ab9c81" data-domains="caresia.mx,www.caresia.mx,caresia.vercel.app" data-exclude-search="true"></script>
-    <!-- Google Tag Manager (GTM-58BL4GDW). Solo en páginas públicas: la app con datos de pacientes nunca lo carga.
-         Se inyecta cuando la página ya terminó de cargar, para no frenar el primer pintado. -->
+    <!-- Google Tag Manager (GTM-58BL4GDW). Solo en páginas públicas (la app con datos de pacientes nunca lo carga)
+         y solo si la persona aceptó las cookies (src/lib/cookies.svelte.ts; esta lista de rutas debe coincidir con la de ahí).
+         Con el consentimiento ya guardado se inyecta cuando la página terminó de cargar, para no frenar el primer pintado. -->
     <script>
       (function (w, d, s, l, i) {
         var publicas = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio'];
         if (publicas.indexOf(w.location.pathname) < 0) return;
-        w[l] = w[l] || [];
-        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        var cargado = false;
         function cargar() {
+          if (cargado) return;
+          cargado = true;
+          w[l] = w[l] || [];
+          w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
           var f = d.getElementsByTagName(s)[0],
             j = d.createElement(s),
             dl = l != 'dataLayer' ? '&l=' + l : '';
@@ -31,6 +35,11 @@
           j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
           f.parentNode.insertBefore(j, f);
         }
+        // El aviso de cookies lo llama al aceptar
+        w.caresiaCargarGTM = cargar;
+        var aceptadas = false;
+        try { aceptadas = w.localStorage.getItem('caresia-cookies') === 'aceptadas'; } catch (e) {}
+        if (!aceptadas) return;
         w.addEventListener('load', function () {
           if (w.requestIdleCallback) w.requestIdleCallback(cargar, { timeout: 3000 });
           else setTimeout(cargar, 1500);
@@ -41,9 +50,6 @@
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-58BL4GDW" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>
