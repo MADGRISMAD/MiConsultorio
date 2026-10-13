@@ -46,7 +46,7 @@ func (s *Server) sendSurveys(ctx context.Context, now time.Time) error {
 		            ELSE coalesce(nullif(p.email, ''), nullif(p.guardian_email, ''), '') END
 		FROM appointments a
 		JOIN clinic_profile cp ON cp.clinic_id = a.clinic_id AND cp.survey_enabled
-		JOIN clinics c ON c.id = a.clinic_id AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL
+		JOIN clinics c ON c.id = a.clinic_id AND `+clinicUsableSQL("c.")+`
 		JOIN patients p ON p.id = a.patient_id AND p.archived_at IS NULL
 		LEFT JOIN owners o ON o.id = p.owner_id
 		LEFT JOIN users u ON u.id = a.professional_id

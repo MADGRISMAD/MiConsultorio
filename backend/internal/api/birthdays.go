@@ -41,7 +41,7 @@ type birthdayRow struct {
 }
 
 func (s *Server) sendBirthdays(ctx context.Context, now time.Time) error {
-	rows, err := s.db.Query(ctx, `SELECT id::text, name, coalesce(settings->>'timezone', '') FROM clinics`)
+	rows, err := s.db.Query(ctx, `SELECT c.id::text, c.name, coalesce(c.settings->>'timezone', '') FROM clinics c WHERE `+clinicUsableSQL("c."))
 	if err != nil {
 		return err
 	}

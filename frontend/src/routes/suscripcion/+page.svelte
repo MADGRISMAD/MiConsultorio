@@ -211,6 +211,12 @@
       </p>
     {/if}
 
+    {#if session.locked}
+      <p class="mb-4 flex items-start gap-2.5 rounded-xl bg-app-warning/14 px-3.5 py-3 text-sm" role="status">
+        <Icon name="lock" size={18} /><span><strong>Tus funciones están limitadas.</strong> Elige un plan y paga para recuperar la agenda, los expedientes, la página pública y los cobros. Tus datos están a salvo: no se pierde nada.</span>
+      </p>
+    {/if}
+
     <!-- Current plan -->
     <section class="card mb-6 flex flex-wrap items-center justify-between gap-4 p-5">
       <div>

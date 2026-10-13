@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -90,6 +91,19 @@ func (b Billing) State(now time.Time) string {
 		}
 		return "active"
 	}
+}
+
+// clinicBillingUsableSQL is the SQL twin of Billing.Usable: the trial is still running, or the paid period (plus its grace
+// days) has not ended. A lapsed clinic stops serving the public (booking page, directory, calendar feed, portal, surveys)
+// and stops sending mail, the same way the app itself locks its screens. alias is the clinics alias with its dot ("c.").
+func clinicBillingUsableSQL(alias string) string {
+	return `(` + alias + `billing_status = 'trialing' AND ` + alias + `trial_ends_at > now()
+		OR ` + alias + `billing_status = 'active' AND (` + alias + `current_period_end IS NULL OR ` + alias + `current_period_end + make_interval(days => ` + strconv.Itoa(pastDueGraceDays) + `) >= now()))`
+}
+
+// clinicUsableSQL adds that the branch is not suspended.
+func clinicUsableSQL(alias string) string {
+	return `(` + clinicBillingUsableSQL(alias) + ` AND ` + alias + `branch_suspended_at IS NULL)`
 }
 
 // Usable reports whether the clinic may use the product right now.

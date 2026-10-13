@@ -214,7 +214,7 @@ func (s *surveyPublic) mediaPublic(w http.ResponseWriter, r *http.Request) {
 	var clinicID string
 	err := s.db.QueryRow(r.Context(), `
 		SELECT c.id::text FROM agenda_settings a JOIN clinics c ON c.id = a.clinic_id JOIN clinic_profile cp ON cp.clinic_id = c.id AND cp.enabled
-		WHERE lower(a.booking_slug) = $1 AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL`, slug).Scan(&clinicID)
+		WHERE lower(a.booking_slug) = $1 AND `+clinicUsableSQL("c.")+``, slug).Scan(&clinicID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "No encontramos la foto.")
 		return

@@ -50,7 +50,7 @@ const recallNotSent = `NOT EXISTS (SELECT 1 FROM recall_mail m WHERE m.kind = '%
 
 func (s *Server) sendRecalls(ctx context.Context, now time.Time) error {
 	rows, err := s.db.Query(ctx, `SELECT c.id::text, c.name, coalesce(c.settings->>'timezone', ''), CASE WHEN a.booking_enabled THEN coalesce(a.booking_slug, '') ELSE '' END, c.phone_number
-		FROM clinics c LEFT JOIN agenda_settings a ON a.clinic_id = c.id`)
+		FROM clinics c LEFT JOIN agenda_settings a ON a.clinic_id = c.id WHERE `+clinicUsableSQL("c."))
 	if err != nil {
 		return err
 	}

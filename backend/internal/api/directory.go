@@ -148,11 +148,11 @@ type directoryHit struct {
 // Todos los consultorios con suscripción vigente están en el directorio, tengan o no perfil (por eso los LEFT JOIN):
 // directoryBase es ese conjunto; locatedBase los que indicaron ciudad y estado (los filtros por lugar); pageBase
 // los que además tienen página pública con enlace (el mapa del sitio solo lista esos).
-const (
+var (
 	directoryFrom = `
 	FROM clinics c LEFT JOIN clinic_profile cp ON cp.clinic_id = c.id LEFT JOIN agenda_settings a ON a.clinic_id = c.id`
 	directoryBase = directoryFrom + `
-	WHERE c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL AND cp.directory_hidden IS NOT TRUE`
+	WHERE ` + clinicUsableSQL("c.") + ` AND cp.directory_hidden IS NOT TRUE`
 	locatedBase = directoryBase + ` AND cp.city <> '' AND cp.state <> ''`
 	pageBase    = locatedBase + ` AND cp.enabled AND a.booking_slug <> ''`
 )

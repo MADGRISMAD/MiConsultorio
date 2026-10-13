@@ -407,7 +407,7 @@ func (s *surveyPublic) profile(w http.ResponseWriter, r *http.Request) {
 		SELECT c.id::text, c.name, c.kind, c.address, c.phone_number, a.booking_enabled
 		FROM agenda_settings a JOIN clinics c ON c.id = a.clinic_id
 		JOIN clinic_profile cp ON cp.clinic_id = c.id AND cp.enabled
-		WHERE lower(a.booking_slug) = $1 AND c.billing_status IN ('active', 'trialing', 'past_due') AND c.branch_suspended_at IS NULL`, slug).
+		WHERE lower(a.booking_slug) = $1 AND `+clinicUsableSQL("c.")+``, slug).
 		Scan(&id, &name, &kind, &address, &phone, &bookingOn)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

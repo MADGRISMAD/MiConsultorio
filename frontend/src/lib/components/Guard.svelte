@@ -31,6 +31,14 @@
   $effect(() => {
     if (session.status === 'anonymous') goto('/login', { replaceState: true });
   });
+
+  // A clinic whose trial or subscription lapsed lands on the plans to pay: the administrator never sits in front of a locked page.
+  // The rest of the team sees the notice that asks them to tell the administrator.
+  $effect(() => {
+    if (session.status === 'authenticated' && session.locked && !allowLocked && session.user?.role === 'admin') {
+      goto('/suscripcion?vencida=1', { replaceState: true });
+    }
+  });
 </script>
 
 {#if session.status === 'authenticated'}

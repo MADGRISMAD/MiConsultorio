@@ -207,6 +207,7 @@ func (s *Server) processDueReminders(ctx context.Context) (int, error) {
 			SELECT id, clinic_id, appointment_id, channel, hours_before, attempts
 			FROM appointment_reminders
 			WHERE status = 'pending' AND send_at <= now()
+			  AND EXISTS (SELECT 1 FROM clinics c WHERE c.id = appointment_reminders.clinic_id AND `+clinicUsableSQL("c.")+`)
 			ORDER BY send_at
 			LIMIT $1
 			FOR UPDATE SKIP LOCKED`, reminderBatch)

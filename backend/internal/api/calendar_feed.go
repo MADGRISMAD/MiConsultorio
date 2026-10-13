@@ -108,7 +108,7 @@ func (f *feedAPI) serve(w http.ResponseWriter, r *http.Request) {
 	err := f.db.QueryRow(ctx, `
 		SELECT u.id::text, u.clinic_id::text, u.name, u.calendar_show_names, c.name, c.address, coalesce(c.settings->>'timezone', '')
 		FROM users u JOIN clinics c ON c.id = u.clinic_id
-		WHERE u.calendar_token = $1 AND NOT u.disabled AND c.billing_status IN ('active', 'trialing', 'past_due')`, tok).
+		WHERE u.calendar_token = $1 AND NOT u.disabled AND `+clinicUsableSQL("c.")+``, tok).
 		Scan(&userID, &clinicID, &proName, &names, &clinicName, &address, &tz)
 	if err != nil {
 		notFound()

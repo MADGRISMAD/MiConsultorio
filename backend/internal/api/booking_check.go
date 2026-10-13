@@ -12,11 +12,10 @@ func (s *Server) bookingCheck(w http.ResponseWriter, r *http.Request) {
 	slug := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("slug")))
 	var saved string
 	var enabled bool
-	var status string
-	var suspended bool
+	var billingOK, suspended bool
 	err := s.db.QueryRow(r.Context(), `
-		SELECT coalesce(a.booking_slug, ''), coalesce(a.booking_enabled, false), c.billing_status, c.branch_suspended_at IS NOT NULL
-		FROM clinics c LEFT JOIN agenda_settings a ON a.clinic_id = c.id WHERE c.id = $1`, p.ClinicID).Scan(&saved, &enabled, &status, &suspended)
+		SELECT coalesce(a.booking_slug, ''), coalesce(a.booking_enabled, false), `+clinicBillingUsableSQL("c.")+`, c.branch_suspended_at IS NOT NULL
+		FROM clinics c LEFT JOIN agenda_settings a ON a.clinic_id = c.id WHERE c.id = $1`, p.ClinicID).Scan(&saved, &enabled, &billingOK, &suspended)
 	if err != nil {
 		serverError(w, r, err)
 		return
@@ -31,7 +30,7 @@ func (s *Server) bookingCheck(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"problem": problem, "title": title, "text": text, "to": to, "action": action, "slug": saved})
 	}
 	switch {
-	case status != "active" && status != "trialing" && status != "past_due":
+	case !billingOK:
 		out("billing", "Tu suscripción no está activa", "Mientras la suscripción esté cancelada o vencida, tu página de citas no se muestra a los pacientes.", "/suscripcion", "Ir a Suscripción")
 	case suspended:
 		out("branch", "Esta sucursal está suspendida", "Una sucursal suspendida no muestra su página de citas. Revisa tu plan y tus sucursales.", "/suscripcion", "Ir a Suscripción")
