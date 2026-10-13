@@ -16,7 +16,7 @@
     { id: 'revocacion', label: 'Revocación del consentimiento y limitación del uso' },
     { id: 'seguridad', label: 'Medidas de seguridad' },
     { id: 'conservacion', label: 'Conservación de los datos' },
-    { id: 'cookies', label: 'Cookies y analítica' },
+    { id: 'cookies', label: 'Cookies y tecnologías de rastreo' },
     { id: 'menores', label: 'Menores de edad' },
     { id: 'cambios', label: 'Cambios a este aviso' },
     { id: 'autoridad', label: 'Autoridad y quejas' }
