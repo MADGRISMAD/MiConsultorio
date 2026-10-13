@@ -1,7 +1,8 @@
-// Genera build/landing.html: la misma página de entrada que index.html, pero con carga anticipada (modulepreload)
-// de todo lo que necesita la página de inicio. Sin esto, el navegador solo se entera de esos ~80 KB cuando arranca
-// la app, y los descarga en una segunda tanda en serie. Vercel sirve este archivo únicamente en "/" (ver vercel.json);
-// el resto de las rutas sigue usando index.html, y el servidor de Go no cambia.
+// Deja dos páginas de entrada: index.html (la que recibe "/") con carga anticipada (modulepreload) de todo lo que
+// necesita la página de inicio, y spa.html (la original, sin precarga) para el resto de las rutas.
+// Sin esto, el navegador solo se entera de esos ~80 KB cuando arranca la app, y los descarga en una segunda tanda
+// en serie. En Vercel, "/" se sirve desde el archivo que existe (index.html) y las demás rutas se reescriben a
+// spa.html (ver vercel.json). El servidor de Go sigue usando index.html como respaldo: solo precarga de más.
 import fs from 'node:fs';
 
 const manifest = JSON.parse(fs.readFileSync('.svelte-kit/output/client/.vite/manifest.json', 'utf8'));
@@ -36,5 +37,6 @@ const tags = [
   ...nuevosCss.map((f) => `<link href="/${f}" rel="stylesheet">`)
 ].join('\n\t\t');
 if (!html.includes('</head>')) throw new Error('index.html sin </head>');
-fs.writeFileSync('build/landing.html', html.replace('</head>', `\t\t${tags}\n  </head>`));
-console.log(`landing.html: ${nuevos.length} módulos, ${nuevosCss.length} estilos y ${fuentes.length} fuentes precargados (nodo ${node})`);
+fs.writeFileSync('build/spa.html', html);
+fs.writeFileSync('build/index.html', html.replace('</head>', `\t\t${tags}\n  </head>`));
+console.log(`index.html (landing) y spa.html: ${nuevos.length} módulos, ${nuevosCss.length} estilos y ${fuentes.length} fuentes precargados (nodo ${node})`);

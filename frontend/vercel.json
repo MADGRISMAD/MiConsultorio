@@ -12,12 +12,8 @@
       "destination": "https://miconsultorio.15-235-62-27.sslip.io/api/$1"
     },
     {
-      "source": "/",
-      "destination": "/landing.html"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/spa.html"
     }
   ],
   "headers": [
