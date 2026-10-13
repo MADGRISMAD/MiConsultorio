@@ -112,8 +112,7 @@ func (s *Server) scanLabResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "El archivo pesa demasiado (máximo 10 MB).")
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	p := principalFrom(r.Context())

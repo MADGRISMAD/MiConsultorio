@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"slices"
 	"sort"
@@ -16,8 +17,6 @@ import (
 // never by the model, and the model never sees the patient's name or contact data.
 
 var rehabGiros = []string{"PHYSIOTHERAPY", "CHIROPRACTIC", "ORTHOPEDICS"}
-
-const rehabDisclaimer = "Es solo una sugerencia generada con IA a partir de los datos registrados. No sustituye la valoración clínica: el especialista evalúa al paciente y decide."
 
 // isRehabClinic: the clinic works in a rehabilitation giro and this person is not limited to other areas.
 func (s *Server) isRehabClinic(r *http.Request, p *Principal) bool {
@@ -46,8 +45,7 @@ func (s *Server) rehabGate(w http.ResponseWriter, r *http.Request) (id string, o
 		writeError(w, http.StatusForbidden, "Esta ayuda es del área de rehabilitación.")
 		return "", false
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return "", false
 	}
 	return id, true
@@ -185,23 +183,16 @@ func (s *Server) exercisesAI(w http.ResponseWriter, r *http.Request) {
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "ai_exercises", "Pidió una sugerencia de ejercicios con IA", map[string]any{"patient_id": id})
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "frequency": truncateRunes(strings.TrimSpace(out.Frequency), 120),
-		"notes": truncateRunes(strings.TrimSpace(out.Notes), 600), "disclaimer": rehabDisclaimer})
+		"notes": truncateRunes(strings.TrimSpace(out.Notes), 600), "disclaimer": aiDisclaimerDraft})
 }
 
-// ---- 4 and 5. evolution trend (computed here) and the advance suggestion ----
+// ---- evolution trend (computed here) and the advance suggestion ----
 
 type rehabPoint struct {
 	Date string
 	EVA  *float64
 	ROM  *float64
 	Note string
-}
-
-func num(v any) *float64 {
-	if f, ok := v.(float64); ok {
-		return &f
-	}
-	return nil
 }
 
 // rehabSeries reads the pain/ROM measures of the encounters (any order) into a chronological series.
@@ -211,7 +202,7 @@ func rehabSeries(encs []encounter) []rehabPoint {
 		if e.Hidden || e.Private {
 			continue
 		}
-		pt := rehabPoint{Date: e.OccurredAt.Format("2006-01-02"), EVA: num(e.Measures["pain_eva"]), ROM: num(e.Measures["rom_deg"])}
+		pt := rehabPoint{Date: e.OccurredAt.Format("2006-01-02"), EVA: fnum(e.Measures["pain_eva"]), ROM: fnum(e.Measures["rom_deg"])}
 		pt.Note, _ = e.Measures["rom_note"].(string)
 		if pt.EVA != nil || pt.ROM != nil {
 			pts = append(pts, pt)
@@ -243,7 +234,7 @@ func rehabTrendText(sessions int, pts []rehabPoint) string {
 		case n == 1:
 			fmt.Fprintf(&b, "%s: una sola medición, %g%s (%s).\n", label, lv, unit, last.Date)
 		default:
-			fmt.Fprintf(&b, "%s: de %g%s (%s) a %g%s (%s); cambio %+g%s en %d mediciones.\n", label, fv, unit, first.Date, lv, unit, last.Date, lv-fv, unit, n)
+			fmt.Fprintf(&b, "%s: de %g%s (%s) a %g%s (%s); cambio %+g%s en %d mediciones.\n", label, fv, unit, first.Date, lv, unit, last.Date, math.Round((lv-fv)*100)/100, unit, n)
 		}
 	}
 	line("Dolor EVA (0 a 10)", "", func(p rehabPoint) *float64 { return p.EVA })
@@ -326,11 +317,13 @@ func (s *Server) rehabAdviceAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Se necesitan al menos 2 sesiones registradas para sugerir el avance.")
 		return
 	}
-	if len(notes) > 10 {
-		notes = notes[:10]
-	}
 	sort.SliceStable(notes, func(i, j int) bool { return notes[i].OccurredAt.Before(notes[j].OccurredAt) })
+	// the numbers come from every visible session; only the text sent to the model is capped to the latest ones
 	trend := rehabTrendText(len(notes), rehabSeries(notes))
+	recent := notes
+	if len(recent) > 10 {
+		recent = recent[len(recent)-10:]
+	}
 
 	var b strings.Builder
 	b.WriteString(trend)
@@ -338,7 +331,7 @@ func (s *Server) rehabAdviceAI(w http.ResponseWriter, r *http.Request) {
 		b.WriteString("Hoja de ejercicios vigente: " + ex + "\n")
 	}
 	b.WriteString("\nSESIONES (de la más antigua a la más reciente):\n")
-	for _, e := range notes {
+	for _, e := range recent {
 		fmt.Fprintf(&b, "[%s] Motivo: %s | Subjetivo: %s | Exploración: %s | Valoración: %s | Plan: %s\n", e.OccurredAt.Format("2006-01-02"),
 			truncateRunes(e.Reason, 150), truncateRunes(e.Subjective, 300), truncateRunes(e.Exam, 300), truncateRunes(e.Assessment, 300), truncateRunes(e.Plan, 300))
 	}
@@ -380,6 +373,6 @@ func (s *Server) rehabAdviceAI(w http.ResponseWriter, r *http.Request) {
 	audit(r.Context(), s.db, p.ClinicID, p, "ai_rehab_advice", "Pidió una sugerencia de avance con IA", map[string]any{"patient_id": id})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"suggestion": map[string]any{"stance": out.Stance, "summary": truncateRunes(strings.TrimSpace(out.Summary), 600), "reasons": cleanLines(out.Reasons, 4), "verify": verify},
-		"trend":      trend, "disclaimer": rehabDisclaimer, "generated_at": time.Now().UTC(), "based_on": len(notes),
+		"trend":      trend, "disclaimer": aiDisclaimerSuggestion, "generated_at": time.Now().UTC(), "based_on": len(recent),
 	})
 }

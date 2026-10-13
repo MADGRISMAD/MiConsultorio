@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"net/http"
 	"strings"
@@ -203,12 +201,6 @@ func (s *Server) isConsulting(ctx context.Context, q queryRower, clinicID, userI
 		AND coalesce((SELECT ps.consults FROM professional_settings ps WHERE ps.user_id = u.id), true))`, clinicID, userID).Scan(&ok) == nil && ok
 }
 
-func newConfirmToken() string {
-	b := make([]byte, 32)
-	_, _ = rand.Read(b)
-	return base64.RawURLEncoding.EncodeToString(b)
-}
-
 // lockSlotDay serializes everything that takes a time of one professional on one day (staff, online booking, the waiting
 // list, follow-ups) so two requests cannot take the same slot. It always takes the same two locks in the same order:
 // the professional's day first (empty when the visit has no professional), then the clinic's day.
@@ -369,7 +361,7 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 				professional_id, service_id, room, phone, email, confirm_token, reminders_consent, id, modality, video_url)
 			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,$11::uuid,$12,$13,$14,$15,$16,$17::uuid,$18,$19) RETURNING id::text`,
 			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, id, nilIfEmpty(modality), videoURL).Scan(&id)
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, mustToken(), f.RemindersConsent, id, nilIfEmpty(modality), videoURL).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -458,7 +450,7 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 				video_url = CASE WHEN $18 = 'videollamada' THEN coalesce(nullif(video_url, ''), $19) ELSE video_url END, updated_at=now()
 			WHERE clinic_id=$1 AND id=$2`,
 			p.ClinicID, id, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, f.PatientID,
-			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, newConfirmToken(), f.RemindersConsent, modality, videoURL); err != nil {
+			f.ProfessionalID, f.ServiceID, f.Room, f.Phone, f.Email, mustToken(), f.RemindersConsent, modality, videoURL); err != nil {
 			return err
 		}
 		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {

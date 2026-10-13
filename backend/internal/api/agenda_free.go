@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -43,7 +44,7 @@ func (s *Server) freeSlots(w http.ResponseWriter, r *http.Request) {
 	err = s.db.QueryRow(ctx, `
 		SELECT coalesce(ps.slot_minutes, 0), coalesce(ps.hours, '{}'::jsonb) FROM users u LEFT JOIN professional_settings ps ON ps.user_id = u.id
 		WHERE u.id = $1 AND u.clinic_id = $2 AND NOT u.disabled AND u.role IN ('admin', 'doctor')`, proID, p.ClinicID).Scan(&own, &raw)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Profesional no encontrado.")
 		return
 	}

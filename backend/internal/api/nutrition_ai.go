@@ -13,7 +13,7 @@ import (
 )
 
 // AI draft of a weekly nutrition plan. The numbers (calories, macronutrients, water, kcal per meal) are computed here
-// with Mifflin-St Jeor so they are right; Gemini only chooses the foods and portions of the 7 days, and the nutritionist
+// with Mifflin-St Jeor (Katch-McArdle when the body fat is known) so they are right; Gemini only chooses the foods and portions of the 7 days, and the nutritionist
 // reviews and edits everything before saving. Only what the plan needs leaves the server: age, sex, body measures and
 // the food-related history. Never the name or contact data.
 
@@ -272,8 +272,7 @@ func (s *Server) nutritionPlanAI(w http.ResponseWriter, r *http.Request) {
 	if in.Meals < 3 || in.Meals > 6 {
 		in.Meals = 5
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 

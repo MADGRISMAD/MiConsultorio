@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"html"
 	"log"
@@ -123,12 +121,11 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		reply()
 		return
 	}
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
+	token, err := newToken()
+	if err != nil {
 		serverError(w, r, err)
 		return
 	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
 	if err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(r.Context(), `DELETE FROM password_resets WHERE user_id = $1 AND (used_at IS NOT NULL OR expires_at < now())`, userID); err != nil {
 			return err

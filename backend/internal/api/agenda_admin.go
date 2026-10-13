@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	slugRe  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 	colorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 	dayKeys = []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}
 )
@@ -473,7 +472,7 @@ func (in *agendaSettings) validate() string {
 	if reservedSlugs[in.BookingSlug] {
 		return "Esa dirección está reservada por la plataforma: elige otra."
 	}
-	if in.BookingSlug != "" && !slugRe.MatchString(in.BookingSlug) {
+	if in.BookingSlug != "" && !slugShape.MatchString(in.BookingSlug) {
 		return "La dirección de reservas debe tener de 2 a 63 caracteres: letras minúsculas, números y guiones, y empezar con letra o número."
 	}
 	if in.BookingEnabled && in.BookingSlug == "" {

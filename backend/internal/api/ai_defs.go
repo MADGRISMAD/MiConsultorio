@@ -340,7 +340,7 @@ func init() {
 
 		// ---- rehabilitation (also see rehab_ai.go) ----
 		{
-			Key: "postop_rehab", Label: "Rehabilitación por etapas", Desc: "Propone las etapas de recuperación de una lesión o cirugía.", Giros: []string{"PHYSIOTHERAPY", "CHIROPRACTIC", "ORTHOPEDICS"}, Subject: "person",
+			Key: "postop_rehab", Label: "Rehabilitación por etapas", Desc: "Propone las etapas de recuperación de una lesión o cirugía.", Giros: rehabGiros, Subject: "person",
 			Param: &aiParam{Label: "Lesión o cirugía y fecha", Required: true, Hint: "Ej. reconstrucción de LCA rodilla derecha, 12 de agosto"},
 			Build: func(c *aiCtx, param string) aiPlan {
 				tr := c.measureTrends()

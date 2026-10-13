@@ -34,8 +34,7 @@ func (s *Server) encounterDraftAI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {
@@ -46,8 +45,12 @@ func (s *Server) encounterDraftAI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Notes, in.Reason = strings.TrimSpace(in.Notes), strings.TrimSpace(in.Reason)
-	if utf8.RuneCountInString(in.Notes) < 10 || utf8.RuneCountInString(in.Notes) > 3000 || utf8.RuneCountInString(in.Reason) > 300 {
+	if utf8.RuneCountInString(in.Notes) < 10 || utf8.RuneCountInString(in.Notes) > 3000 {
 		writeError(w, http.StatusBadRequest, "Escribe tus notas sueltas (de 10 a 3000 caracteres).")
+		return
+	}
+	if utf8.RuneCountInString(in.Reason) > 300 {
+		writeError(w, http.StatusBadRequest, "El motivo de consulta es demasiado largo (máximo 300 caracteres).")
 		return
 	}
 	out, ok := s.draftNote(w, c, in.Notes, in.Reason, nil)
@@ -159,8 +162,7 @@ func (s *Server) encounterDictationAI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {

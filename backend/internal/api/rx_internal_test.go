@@ -2,6 +2,7 @@ package api
 
 import (
 	"math"
+	"slices"
 	"testing"
 )
 
@@ -97,10 +98,10 @@ func TestCatalogIntegrity(t *testing.T) {
 			t.Fatalf("bad entry: %+v", m)
 		}
 		ids[m.ID] = true
-		if !contains(append([]string{}, rxRoutes...), m.Route) {
+		if !slices.Contains(rxRoutes, m.Route) {
 			t.Errorf("%s: unknown route %q", m.ID, m.Route)
 		}
-		if !contains(rxControl, m.Control) {
+		if !slices.Contains(rxControl, m.Control) {
 			t.Errorf("%s: unknown control %q", m.ID, m.Control)
 		}
 		if m.MaxMgPerKgDay > 0 && m.MgPerKg > m.MaxMgPerKgDay {

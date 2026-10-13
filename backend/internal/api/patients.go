@@ -74,6 +74,21 @@ func loadPatient(ctx context.Context, q queryRower, clinicID, id string) (patien
 	return scanPatient(q.QueryRow(ctx, `SELECT `+patientCols+` FROM patients WHERE clinic_id = $1 AND id = $2`, clinicID, id))
 }
 
+// patientOr404 loads a patient of the clinic and answers by itself when it cannot: 404 when it does not exist, and a server
+// error (which also audits a decryption failure) for anything else, instead of hiding a database problem as "not found".
+func (s *Server) patientOr404(w http.ResponseWriter, r *http.Request, clinicID, id string) (patient, bool) {
+	pat, err := loadPatient(r.Context(), s.db, clinicID, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
+		return pat, false
+	}
+	if err != nil {
+		serverError(w, r, err)
+		return pat, false
+	}
+	return pat, true
+}
+
 type patientIn struct {
 	Subject          string         `json:"subject"`
 	Names            string         `json:"names"`

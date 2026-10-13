@@ -14,10 +14,8 @@ import (
 // What an appointment's own time allows. A visit cannot be received, worked or closed before it is its time,
 // and it cannot be marked as missed before it has started.
 
-var monthsEs = []string{"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"}
-
 func humanWhen(t time.Time) string {
-	return fmt.Sprintf("las %s del %d de %s", t.Format("15:04"), t.Day(), monthsEs[t.Month()-1])
+	return fmt.Sprintf("las %s del %d de %s", t.Format("15:04"), t.Day(), monthsES[t.Month()-1])
 }
 
 // apptTimeGate checks, for the status the appointment is moving to, that its date and time allow it now.

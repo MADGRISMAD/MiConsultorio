@@ -1,4 +1,4 @@
-import { apiAsClinic, apiJson, createPersonApi, expect, test, uid } from '../support/app';
+import { expect, test, uid, ui, withSpecialty } from '../support/app';
 
 // The microphone is a fake device so the dictation can be tried without sound hardware.
 test.use({
@@ -8,18 +8,6 @@ test.use({
 
 // A 1x1 PNG: the comparison only needs two readable images.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
-
-async function withSpecialty(kind: string, run: (patientId: string, api: Awaited<ReturnType<typeof apiAsClinic>>) => Promise<void>) {
-  const api = await apiAsClinic();
-  const before = (await apiJson(await api.get('/api/clinic'))).clinic;
-  await apiJson(await api.put('/api/clinic', { data: { specialties: [kind] } }));
-  try {
-    await run(await createPersonApi(api, `Fo${uid()}`), api);
-  } finally {
-    await api.put('/api/clinic', { data: { specialties: before.specialties ?? [] } });
-    await api.dispose();
-  }
-}
 
 test('dermatología: la IA compara dos fotos y avisa que no diagnostica', async ({ page }) => {
   await withSpecialty('DERMATOLOGY', async (id, api) => {
@@ -46,9 +34,10 @@ test('la nota se dicta, se ordena en los campos vacíos y el audio no se guarda'
       await page.getByRole('button', { name: 'Ordenar mis notas con IA' }).click();
       await page.getByRole('button', { name: 'Dictar mi nota' }).click();
       await expect(page.getByText(/Grabando tu dictado/)).toBeVisible();
-      await page.waitForTimeout(2500); // the fake microphone needs a moment of sound
+      // the fake microphone needs a moment of sound: wait for the recording clock instead of a fixed pause
+      await expect(page.getByText(/Grabando tu dictado… [2-9] s/)).toBeVisible();
       await page.getByRole('button', { name: 'Terminar y ordenar' }).click();
-      await expect(page.locator('#enc-subj')).toHaveValue('Refiere dolor lumbar al sentarse');
+      await expect(page.locator(ui.enc.subjective)).toHaveValue('Refiere dolor lumbar al sentarse');
       await expect(page.getByText(/Borrador listo/).first()).toBeVisible();
     });
 });

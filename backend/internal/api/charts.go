@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// Odontogram and body-map snapshots. Each save is a new row (append-only); the history is the list.
+// Versioned charts of the patient (odontogram, body map, meal plans, scales and the rest). Each save is a new row (append-only); the history is the list.
 
 const maxChartBytes = 64 << 10
 

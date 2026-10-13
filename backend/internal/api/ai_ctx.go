@@ -24,6 +24,7 @@ type aiCtx struct {
 	notesOK  bool
 	chronicS string
 	chartMem map[string][]aiChart
+	chartAsk map[string]int // how many rows were asked for each kind: fewer rows in the cache then means there are no more
 }
 
 type aiChart struct {
@@ -136,10 +137,10 @@ func (c *aiCtx) header() string {
 // charts returns the latest n charts of a kind (newest first).
 func (c *aiCtx) charts(kind string, n int) []aiChart {
 	if c.chartMem == nil {
-		c.chartMem = map[string][]aiChart{}
+		c.chartMem, c.chartAsk = map[string][]aiChart{}, map[string]int{}
 	}
-	if v, ok := c.chartMem[kind]; ok && len(v) >= n {
-		return v[:n]
+	if v, ok := c.chartMem[kind]; ok && c.chartAsk[kind] >= n {
+		return v[:min(n, len(v))]
 	}
 	rows, err := c.s.db.Query(c.r.Context(), `SELECT data, created_at FROM patient_charts WHERE clinic_id=$1 AND patient_id=$2 AND kind=$3 ORDER BY created_at DESC LIMIT $4`, c.p.ClinicID, c.id, kind, max(n, 12))
 	if err != nil {
@@ -158,7 +159,7 @@ func (c *aiCtx) charts(kind string, n int) []aiChart {
 			out = append(out, aiChart{At: at, Data: m})
 		}
 	}
-	c.chartMem[kind] = out
+	c.chartMem[kind], c.chartAsk[kind] = out, max(n, 12)
 	if len(out) > n {
 		return out[:n]
 	}
@@ -171,10 +172,6 @@ func fnum(v any) *float64 {
 	switch x := v.(type) {
 	case float64:
 		return &x
-	case json.Number:
-		if f, err := x.Float64(); err == nil {
-			return &f
-		}
 	}
 	return nil
 }
@@ -394,7 +391,7 @@ func (c *aiCtx) therapyBlock() string {
 	}
 	d := cs[0].Data
 	var b strings.Builder
-	today := time.Now().Format("2006-01-02")
+	today := todayISO()
 	counts := map[string]int{}
 	goals, _ := d["goals"].([]any)
 	for _, g := range goals {
@@ -512,7 +509,7 @@ func (c *aiCtx) vaccineBlock() string {
 		}
 	}
 	species, _ := c.pat.Profile["species"].(string)
-	today := time.Now().Format("2006-01-02")
+	today := todayISO()
 	var b strings.Builder
 	for _, a := range apps {
 		fmt.Fprintf(&b, "- Aplicada: %s el %s", a.name, a.on)

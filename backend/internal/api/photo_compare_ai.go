@@ -41,8 +41,7 @@ func (s *Server) photoCompareAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Esta ayuda no está disponible para este paciente.")
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {

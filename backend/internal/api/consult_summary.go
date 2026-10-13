@@ -49,14 +49,12 @@ func (s *Server) consultSummaryAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	p := principalFrom(r.Context())
-	pat, err := loadPatient(r.Context(), s.db, p.ClinicID, id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
+	pat, ok := s.patientOr404(w, r, p.ClinicID, id)
+	if !ok {
 		return
 	}
 	encs, err := s.visibleEncounters(r.Context(), p, id)
@@ -74,6 +72,7 @@ func (s *Server) consultSummaryAI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Aún no hay consultas registradas que resumir.")
 		return
 	}
+	allNotes := notes
 	if len(notes) > 6 {
 		notes = notes[:6]
 	}
@@ -147,7 +146,7 @@ func (s *Server) consultSummaryAI(w http.ResponseWriter, r *http.Request) {
 		shown++
 	}
 
-	b.WriteString(s.rehabEvolutionBlock(r, p, id, notes))
+	b.WriteString(s.rehabEvolutionBlock(r, p, id, allNotes))
 
 	prompt := "Eres un asistente clínico para profesionales de la salud en México. Con el expediente que sigue, prepara un resumen breve para el especialista que va a atender al paciente hoy. " +
 		"Usa SOLO lo que está escrito; no inventes diagnósticos, dosis ni datos, y si algo no consta no lo menciones. Escribe en español claro y conciso.\n" +

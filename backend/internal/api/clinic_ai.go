@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,14 +21,6 @@ func (s *Server) mountClinicAI(r chi.Router) {
 	r.With(require(PermAdminAppointments, PermAdminUsers)).Post("/ai/clinic/at-risk", s.aiAtRisk)
 	r.With(admin).Post("/ai/clinic/review-reply", s.aiReviewReply)
 	r.With(admin).Post("/ai/clinic/public-page", s.aiPublicPage)
-}
-
-func (s *Server) clinicAIReady(w http.ResponseWriter) bool {
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
-		return false
-	}
-	return true
 }
 
 func (s *Server) clinicGiros(r *http.Request, p *Principal) string {
@@ -54,7 +47,7 @@ func pctChange(cur, prev float64) string {
 }
 
 func (s *Server) aiPeriodSummary(w http.ResponseWriter, r *http.Request) {
-	if !s.clinicAIReady(w) {
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {
@@ -142,7 +135,7 @@ type atRiskPatient struct {
 }
 
 func (s *Server) aiAtRisk(w http.ResponseWriter, r *http.Request) {
-	if !s.clinicAIReady(w) {
+	if !s.aiReady(w) {
 		return
 	}
 	p := principalFrom(r.Context())
@@ -190,7 +183,7 @@ func (s *Server) aiAtRisk(w http.ResponseWriter, r *http.Request) {
 // ---- reply to a survey ----
 
 func (s *Server) aiReviewReply(w http.ResponseWriter, r *http.Request) {
-	if !s.clinicAIReady(w) {
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {
@@ -207,7 +200,7 @@ func (s *Server) aiReviewReply(w http.ResponseWriter, r *http.Request) {
 	var rating int
 	var comment string
 	err := s.db.QueryRow(r.Context(), `SELECT rating, comment FROM satisfaction_surveys WHERE clinic_id=$1 AND id=$2 AND answered_at IS NOT NULL`, p.ClinicID, in.ID).Scan(&rating, &comment)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Respuesta no encontrada.")
 		return
 	}
@@ -228,7 +221,7 @@ func (s *Server) aiReviewReply(w http.ResponseWriter, r *http.Request) {
 // ---- texts of the public page ----
 
 func (s *Server) aiPublicPage(w http.ResponseWriter, r *http.Request) {
-	if !s.clinicAIReady(w) {
+	if !s.aiReady(w) {
 		return
 	}
 	p := principalFrom(r.Context())

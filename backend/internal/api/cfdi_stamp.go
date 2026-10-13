@@ -332,7 +332,7 @@ func (s *Server) cancelCFDI(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "El motivo de cancelación debe ser 01, 02, 03 o 04.")
 		return
 	}
-	if req.Motive == "01" && !uuidRe.MatchString(strings.ToLower(req.ReplacementUUID)) {
+	if req.Motive == "01" && !validUUID(req.ReplacementUUID) {
 		writeError(w, http.StatusBadRequest, "El motivo 01 requiere el folio fiscal (UUID) de la factura que sustituye.")
 		return
 	}
@@ -401,7 +401,7 @@ func (s *Server) downloadCFDI(ext string) http.HandlerFunc {
 			return
 		}
 		rel := cfdiRelPath(p.ClinicID, inv.FiscalUUID, ext)
-		if !uuidRe.MatchString(strings.ToLower(inv.FiscalUUID)) {
+		if !validUUID(inv.FiscalUUID) {
 			writeError(w, http.StatusNotFound, "Factura no encontrada.")
 			return
 		}

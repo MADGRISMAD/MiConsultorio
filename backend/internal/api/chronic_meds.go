@@ -122,9 +122,8 @@ func (s *Server) rxCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	pat, err := loadPatient(r.Context(), s.db, p.ClinicID, id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
+	pat, ok := s.patientOr404(w, r, p.ClinicID, id)
+	if !ok {
 		return
 	}
 	var items []rxItem
@@ -231,9 +230,8 @@ func (s *Server) createChronicMed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	pat, err := loadPatient(r.Context(), s.db, p.ClinicID, id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
+	pat, ok := s.patientOr404(w, r, p.ClinicID, id)
+	if !ok {
 		return
 	}
 	if pat.ArchivedAt != nil {

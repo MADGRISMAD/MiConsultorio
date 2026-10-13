@@ -202,15 +202,11 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The prescriber must be identifiable: name, title, cédula and school.
-	var title, license, institution, specLicense string
-	if err := s.db.QueryRow(r.Context(), `SELECT specialty_title, cedula, cedula_institution, cedula_specialty FROM users WHERE id = $1`, p.UserID).Scan(&title, &license, &institution, &specLicense); err != nil {
-		serverError(w, r, err)
+	creds, ok := s.requireSignerCredentials(w, r, "recetas")
+	if !ok {
 		return
 	}
-	if license == "" || institution == "" {
-		writeJSON(w, http.StatusConflict, errorBody{Code: "CEDULA_REQUIRED", Message: "Para emitir recetas registra tu cédula profesional y la institución que expidió tu título en Mi cuenta."})
-		return
-	}
+	title, license, institution, specLicense := creds.Title, creds.License, creds.Institution, creds.SpecLicense
 	if title == "" {
 		title = map[string]string{"medication": "Médico", "instructions": "Profesional de la salud"}[mode]
 	}

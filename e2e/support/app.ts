@@ -102,3 +102,50 @@ export async function waitForMail(match: RegExp, timeout = 15_000): Promise<stri
   }
   throw new Error(`no llegó el correo esperado (${match})`);
 }
+
+/**
+ * Gives the clinic one more specialty for the length of `run` (the plan allows three giros in all, so a test adds one) and puts
+ * the previous list back afterwards, checking that the restore worked. `run` receives a new person patient and the API context.
+ */
+export async function withSpecialty(kind: string, run: (patientId: string, api: APIRequestContext) => Promise<void>): Promise<void> {
+  const api = await apiAsClinic();
+  const before = (await apiJson(await api.get('/api/clinic'))).clinic;
+  await apiJson(await api.put('/api/clinic', { data: { specialties: [kind] } }));
+  try {
+    await run(await createPersonApi(api, `Esp${uid()}`), api);
+  } finally {
+    const res = await api.put('/api/clinic', { data: { specialties: before.specialties ?? [] } });
+    await api.dispose();
+    expect(res.ok(), 'the clinic must get its specialties back').toBe(true);
+  }
+}
+
+/** Fecha y hora actuales en la zona del consultorio de ejemplo (la misma que usa el navegador de las pruebas). */
+export function clinicNow() {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value])
+  );
+  return { date: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute) };
+}
+
+export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+/** Una cita de hoy que ya es «su hora» a cualquier hora del día (para poder iniciar la consulta). */
+export async function createStartedApptApi(
+  api: APIRequestContext,
+  a: { patientId: string | null; names: string; lastNames: string; details: string; phone?: string; email?: string }
+): Promise<void> {
+  const pros = (await apiJson(await api.get('/api/agenda/professionals'))).professionals as { id: string; consults: boolean }[];
+  const { date, minutes } = clinicNow();
+  const start = Math.min(Math.max(0, minutes - 30), 23 * 60);
+  await apiJson(
+    await api.post('/api/appointments/', {
+      data: {
+        patient_id: a.patientId, names: a.names, last_names: a.lastNames, CURP: '', date, startHour: hhmm(start), endHour: hhmm(start + 20), details: a.details,
+        professional_id: (pros.find((p) => p.consults) ?? pros[0]).id, service_id: null, room: '', phone: a.phone ?? '', email: a.email ?? '', reminders_consent: false, overbook: true
+      }
+    })
+  );
+}

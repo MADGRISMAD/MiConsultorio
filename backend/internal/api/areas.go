@@ -58,7 +58,7 @@ var chartGiros = map[string][]string{
 	"scale": {"PSYCHOLOGY"}, "therapy_plan": {"PSYCHOLOGY"},
 	"prenatal":   {"GYNECOLOGY"},
 	"milestones": {"PEDIATRICS"},
-	"exercises":  {"PHYSIOTHERAPY", "CHIROPRACTIC", "ORTHOPEDICS"},
+	"exercises":  rehabGiros,
 }
 
 // confidentialCharts are only for the professionals of the giro (psychotherapy notes are not shared with the rest of the team).

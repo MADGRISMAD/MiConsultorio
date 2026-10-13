@@ -1,18 +1,6 @@
-import { apiAsClinic, apiJson, createPersonApi, expect, test, uid } from '../support/app';
+import { expect, test, ui, withSpecialty } from '../support/app';
 
 // The AI helpers answer with drafts and suggestions that land in editable boxes (a fake Gemini answers in the stack).
-async function withSpecialty(kind: string, run: (patientId: string) => Promise<void>) {
-  const api = await apiAsClinic();
-  const before = (await apiJson(await api.get('/api/clinic'))).clinic;
-  await apiJson(await api.put('/api/clinic', { data: { specialties: [kind] } }));
-  try {
-    await run(await createPersonApi(api, `Ia${uid()}`));
-  } finally {
-    await api.put('/api/clinic', { data: { specialties: before.specialties ?? [] } });
-    await api.dispose();
-  }
-}
-
 test('fisioterapia: la IA sugiere ejercicios y el especialista los edita a mano', async ({ page }) => {
   await withSpecialty('PHYSIOTHERAPY', async (id) => {
     await page.goto(`/pacientes/${id}`);
@@ -38,8 +26,8 @@ test('la nota de consulta: la IA ordena las notas sueltas en los campos vacíos'
     await page.getByRole('button', { name: 'Ordenar mis notas con IA' }).click();
     await page.getByLabel('Tus notas sueltas').fill('Refiere dolor lumbar al sentarse, EVA 6, contractura. Calor y ejercicios.');
     await page.getByRole('button', { name: 'Ordenar en la nota' }).click();
-    await expect(page.locator('#enc-subj')).toHaveValue('Refiere dolor lumbar al sentarse');
-    await expect(page.locator('#enc-ass')).toHaveValue('Lumbalgia mecánica');
+    await expect(page.locator(ui.enc.subjective)).toHaveValue('Refiere dolor lumbar al sentarse');
+    await expect(page.locator(ui.enc.assessment)).toHaveValue('Lumbalgia mecánica');
     await expect(page.getByText(/Borrador listo/).first()).toBeVisible();
   });
 });

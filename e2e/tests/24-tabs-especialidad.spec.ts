@@ -1,18 +1,6 @@
-import { apiAsClinic, apiJson, createPersonApi, expect, test, uid } from '../support/app';
+import { expect, test, withSpecialty } from '../support/app';
 
 // Each giro adds one specialty to the clinic (the plan allows three in all), opens the patient and saves a version.
-async function withSpecialty(kind: string, run: (patientId: string) => Promise<void>) {
-  const api = await apiAsClinic();
-  const before = (await apiJson(await api.get('/api/clinic'))).clinic;
-  await apiJson(await api.put('/api/clinic', { data: { specialties: [kind] } }));
-  try {
-    await run(await createPersonApi(api, `Tabs${uid()}`));
-  } finally {
-    await api.put('/api/clinic', { data: { specialties: before.specialties ?? [] } });
-    await api.dispose();
-  }
-}
-
 test('odontología: el periodontograma marca las bolsas y se guarda', async ({ page }) => {
   await withSpecialty('DENTAL', async (id) => {
     await page.goto(`/pacientes/${id}`);

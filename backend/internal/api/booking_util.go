@@ -90,6 +90,15 @@ func newToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
+// mustToken is newToken for the places that build a row inline: the system's random source failing is not recoverable there.
+func mustToken() string {
+	t, err := newToken()
+	if err != nil {
+		panic("random source: " + err.Error())
+	}
+	return t
+}
+
 var tokenShape = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 
 func validToken(t string) bool { return tokenShape.MatchString(t) }

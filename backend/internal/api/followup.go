@@ -120,7 +120,7 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, patient_id,
 				professional_id, room, phone, email, confirm_token, reminders_consent, id)
 			VALUES ($1,$2,$3,$4,$5::date,$6::time,$7::time,$8,$9::uuid,$10::uuid,'',$11,$12,$13,$15,$14::uuid) RETURNING id::text`,
-			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, pid, f.ProfessionalID, f.Phone, f.Email, newConfirmToken(), id, f.Email != "" || f.Phone != "").Scan(&id); err != nil {
+			p.ClinicID, f.CURP, f.Names, f.LastNames, f.Date, f.StartHour, f.EndHour, sealed, pid, f.ProfessionalID, f.Phone, f.Email, mustToken(), id, f.Email != "" || f.Phone != "").Scan(&id); err != nil {
 			return err
 		}
 		if out, err = loadAppointment(r.Context(), tx, p.ClinicID, id); err != nil {

@@ -147,15 +147,11 @@ func (s *Server) createCertificate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "La vigencia máxima es de 365 días.")
 		return
 	}
-	var title, license, institution, specLicense string
-	if err := s.db.QueryRow(r.Context(), `SELECT specialty_title, cedula, cedula_institution, cedula_specialty FROM users WHERE id = $1`, p.UserID).Scan(&title, &license, &institution, &specLicense); err != nil {
-		serverError(w, r, err)
+	creds, ok := s.requireSignerCredentials(w, r, "certificados")
+	if !ok {
 		return
 	}
-	if license == "" || institution == "" {
-		writeJSON(w, http.StatusConflict, errorBody{Code: "CEDULA_REQUIRED", Message: "Para emitir certificados registra tu cédula profesional y la institución que expidió tu título en Mi cuenta."})
-		return
-	}
+	title, license, institution, specLicense := creds.Title, creds.License, creds.Institution, creds.SpecLicense
 	if title == "" {
 		title = map[string]string{"medical": "Médico", "veterinary": "Médico veterinario zootecnista"}[kind]
 	}

@@ -61,7 +61,7 @@ func (s *Server) slugCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	case reservedSlugs[raw]:
 		state = "reserved"
-	case !slugRe.MatchString(raw):
+	case !slugShape.MatchString(raw):
 		state = "invalid"
 	default:
 		t, err := taken([]string{raw})
@@ -99,7 +99,7 @@ func (s *Server) slugCheck(w http.ResponseWriter, r *http.Request) {
 		if len(c) > 63 {
 			return
 		}
-		if !seen[c] && slugRe.MatchString(c) && !reservedSlugs[c] {
+		if !seen[c] && slugShape.MatchString(c) && !reservedSlugs[c] {
 			seen[c] = true
 			cands = append(cands, c)
 		}

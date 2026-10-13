@@ -389,7 +389,7 @@ func (s *Server) updateInvoice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Estado inválido.")
 		return
 	}
-	if req.Status == "issued" && !uuidRe.MatchString(strings.ToLower(req.FiscalUUID)) {
+	if req.Status == "issued" && !validUUID(req.FiscalUUID) {
 		writeError(w, http.StatusBadRequest, "Escribe el folio fiscal (UUID) de la factura.")
 		return
 	}

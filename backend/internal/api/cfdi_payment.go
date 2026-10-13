@@ -413,7 +413,7 @@ func (s *Server) downloadPaymentComplement(ext string) http.HandlerFunc {
 		var uuid, providerID string
 		err := s.db.QueryRow(r.Context(), `SELECT fiscal_uuid, cfdi_id FROM invoice_payment_complements WHERE clinic_id = $1 AND invoice_id = $2 AND id = $3 AND state = 'stamped'`,
 			p.ClinicID, id, cid).Scan(&uuid, &providerID)
-		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !uuidRe.MatchString(strings.ToLower(uuid))) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !validUUID(uuid)) {
 			writeError(w, http.StatusNotFound, "Complemento no encontrado.")
 			return
 		}

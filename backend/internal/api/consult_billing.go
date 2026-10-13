@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -580,7 +579,7 @@ func (s *Server) cbSave(ctx context.Context, tx pgx.Tx, p *Principal, chargeID s
 			return "", nil, err
 		}
 		if low <= minStock {
-			warnings = append(warnings, "Quedan "+trimQty(low)+" de «"+name+"» (mínimo "+trimQty(minStock)+").")
+			warnings = append(warnings, "Quedan "+qtyStr(low)+" de «"+name+"» (mínimo "+qtyStr(minStock)+").")
 		}
 	}
 	if in.Send {
@@ -593,8 +592,6 @@ func (s *Server) cbSave(ctx context.Context, tx pgx.Tx, p *Principal, chargeID s
 	audit(ctx, tx, p.ClinicID, p, "consult_charge_save", "Guardó la pre-cuenta de una consulta ("+itoa(len(in.Items))+" conceptos)", map[string]any{"charge_id": chargeID, "patient_id": patientID})
 	return chargeID, warnings, nil
 }
-
-func trimQty(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
 // cbMarkSent moves a draft to the register's queue; a sent one stays as it is.
 func cbMarkSent(ctx context.Context, tx pgx.Tx, p *Principal, chargeID string) error {

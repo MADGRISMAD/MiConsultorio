@@ -1,5 +1,12 @@
 import { apiAsClinic, apiJson, expect, test, uid } from '../support/app';
 
+// this test changes the booking settings of the shared clinic: they are put back afterwards, pass or fail
+let restore: (() => Promise<void>) | null = null;
+test.afterEach(async () => {
+  await restore?.();
+  restore = null;
+});
+
 // «Reservas y página pública»: la dirección se define una vez, aquí mismo, y de ahí cuelgan las reservas,
 // la página, el directorio y el portal. Sin dar vueltas por otras secciones.
 test('de la dirección a la página publicada, sin salir de «Reservas y página pública»', async ({ page }) => {
@@ -7,6 +14,10 @@ test('de la dirección a la página publicada, sin salir de «Reservas y página
   // otras pruebas dejan una dirección puesta: se parte de una clínica que aún no tiene
   const api = await apiAsClinic();
   const st = (await apiJson(await api.get('/api/agenda/settings'))).settings;
+  restore = async () => {
+    await api.put('/api/agenda/settings', { data: st });
+    await api.dispose();
+  };
   await apiJson(await api.put('/api/agenda/settings', { data: { ...st, booking_enabled: false, booking_slug: '' } }));
   await page.goto('/ajustes?s=enlinea');
   const tab = (name: string) => page.getByRole('tab', { name: new RegExp(`^0\\d\\s.*${name}`) });

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -74,7 +75,7 @@ func (s *Server) changeAppointmentStatus(w http.ResponseWriter, r *http.Request)
 		if !hasPermission(p.Permissions, PermAdminAppointments) && !(p.Role == RoleDoctor && prof == p.UserID) {
 			return fail(http.StatusForbidden, "No tienes permiso para cambiar esta cita.")
 		}
-		if !contains(statusTransitions[cur], in.Status) {
+		if !slices.Contains(statusTransitions[cur], in.Status) {
 			e := fail(http.StatusConflict, "No se puede pasar una cita de «"+statusName(cur)+"» a «"+statusName(in.Status)+"».")
 			e.Code = "INVALID_TRANSITION"
 			return e
@@ -234,15 +235,6 @@ func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *P
 		s.tryAutoCharge(ctx, tx, p, apptID)
 	}
 	return nil
-}
-
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 func statusName(s string) string {

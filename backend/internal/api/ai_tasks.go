@@ -149,9 +149,8 @@ func (s *Server) newAICtx(w http.ResponseWriter, r *http.Request) (*aiCtx, bool)
 		return nil, false
 	}
 	p := principalFrom(r.Context())
-	pat, err := loadPatient(r.Context(), s.db, p.ClinicID, id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
+	pat, ok := s.patientOr404(w, r, p.ClinicID, id)
+	if !ok {
 		return nil, false
 	}
 	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
@@ -185,7 +184,7 @@ func (s *Server) aiTaskList(w http.ResponseWriter, r *http.Request) {
 		}
 		info := aiTaskInfo{Key: t.Key, Label: t.Label, Desc: t.Desc, Draft: t.Draft, Param: t.Param}
 		if t.MinNotes > 0 && len(c.visibleNotes()) < t.MinNotes {
-			info.Disabled = fmt.Sprintf("Necesita al menos %d consulta%s registrada%s.", t.MinNotes, map[bool]string{true: "s", false: ""}[t.MinNotes > 1], map[bool]string{true: "s", false: ""}[t.MinNotes > 1])
+			info.Disabled = minNotesMsg(t.MinNotes)
 		}
 		out = append(out, info)
 	}
@@ -205,8 +204,7 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Esta ayuda no está disponible para este paciente.")
 		return
 	}
-	if s.cfg.GeminiAPIKey == "" {
-		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+	if !s.aiReady(w) {
 		return
 	}
 	var in struct {
@@ -231,7 +229,7 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if t.MinNotes > 0 && len(c.visibleNotes()) < t.MinNotes {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("Se necesitan al menos %d consultas registradas para esta ayuda.", t.MinNotes))
+		writeError(w, http.StatusBadRequest, minNotesMsg(t.MinNotes))
 		return
 	}
 	plan := t.Build(c, in.Param)
@@ -245,6 +243,23 @@ func (s *Server) aiTaskRun(w http.ResponseWriter, r *http.Request) {
 			t.Post(c, o)
 		}
 	})
+}
+
+// minNotesMsg says how many registered consultations a help needs, with the right plural.
+func minNotesMsg(n int) string {
+	if n == 1 {
+		return "Necesita al menos 1 consulta registrada."
+	}
+	return fmt.Sprintf("Necesita al menos %d consultas registradas.", n)
+}
+
+// aiReady answers 503 (and returns false) when the server has no Gemini key.
+func (s *Server) aiReady(w http.ResponseWriter) bool {
+	if s.cfg.GeminiAPIKey == "" {
+		writeJSON(w, http.StatusServiceUnavailable, errorBody{Code: "NOT_CONFIGURED", Message: "La IA no está configurada en el servidor (GEMINI_API_KEY)."})
+		return false
+	}
+	return true
 }
 
 // aiPrompt is the fixed frame of every AI task: a suggestion or draft for the professional, built only on the data.
