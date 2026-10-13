@@ -2,7 +2,7 @@
 // GTM no se carga hasta que la persona acepta; la decisión se guarda en este navegador.
 // La carga real vive en src/app.html (window.caresiaCargarGTM); esta lista de rutas debe coincidir con la de ahí.
 
-export const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio'];
+export const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio', '/blog'];
 
 const KEY = 'caresia-cookies';
 type Choice = 'aceptadas' | 'rechazadas';

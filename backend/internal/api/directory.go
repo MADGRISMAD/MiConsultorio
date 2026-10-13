@@ -399,7 +399,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	type u struct {
 		Loc string `xml:"loc"`
 	}
-	urls := []u{{base + "/directorio"}}
+	urls := []u{{base + "/directorio"}, {base + "/blog"}}
 	rows, err := s.db.Query(r.Context(), `SELECT lower(a.booking_slug), cp.city, c.kind, c.specialties `+pageBase+` ORDER BY 1`)
 	if err != nil {
 		serverError(w, r, err)

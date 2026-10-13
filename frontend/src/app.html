@@ -20,7 +20,7 @@
          Con el consentimiento ya guardado se inyecta cuando la página terminó de cargar, para no frenar el primer pintado. -->
     <script>
       (function (w, d, s, l, i) {
-        var publicas = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio'];
+        var publicas = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio', '/blog'];
         if (publicas.indexOf(w.location.pathname) < 0) return;
         var cargado = false;
         function cargar() {
