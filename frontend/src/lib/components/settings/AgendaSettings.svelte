@@ -58,6 +58,30 @@
   const slugPreview = $derived((s?.booking_slug ?? '').trim().toLowerCase());
   const slugOk = $derived(/^[a-z0-9][a-z0-9-]{1,62}$/.test(slugPreview));
 
+  // Is the address free? Checked a moment after typing stops; when it is taken, free variants are offered.
+  type SlugState = { slug: string; state: 'checking' | 'ok' | 'taken' | 'reserved' | 'invalid' | 'error'; suggestions: string[] };
+  let slugInfo = $state<SlugState | null>(null);
+  $effect(() => {
+    const v = slugPreview;
+    if (!v) {
+      slugInfo = null;
+      return;
+    }
+    slugInfo = { slug: v, state: 'checking', suggestions: [] };
+    const t = setTimeout(async () => {
+      try {
+        const r = await agendaApi.slugCheck(v);
+        if (v === slugPreview) slugInfo = { slug: v, state: r.state, suggestions: r.suggestions };
+      } catch {
+        if (v === slugPreview) slugInfo = { slug: v, state: 'error', suggestions: [] };
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  });
+  const useSlug = (v: string) => {
+    if (s) s.booking_slug = v;
+  };
+
   function addRoom() {
     const r = newRoom.trim();
     if (s && r && !s.rooms.includes(r)) s.rooms.push(r);
@@ -171,6 +195,25 @@
           <span class="text-sm text-app-muted">{origin.replace(/^https?:\/\//, '')}/</span>
           <input id="ag-slug" type="text" class="field !w-auto min-w-0 flex-1 sm:max-w-xs" bind:value={s.booking_slug} maxlength="63" placeholder="mi-consultorio" autocomplete="off" aria-invalid={slugPreview !== '' && !slugOk} />
         </div>
+        {#if slugInfo && slugInfo.state === 'checking'}
+          <p class="mt-2 text-sm text-app-muted" role="status">Revisando si está disponible…</p>
+        {:else if slugInfo && slugInfo.state === 'ok'}
+          <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-app-accent" role="status"><Icon name="check" size={16} />Disponible</p>
+        {:else if slugInfo && (slugInfo.state === 'taken' || slugInfo.state === 'reserved' || slugInfo.state === 'invalid')}
+          <p class="mt-2 text-sm font-medium text-app-danger" role="alert">
+            {slugInfo.state === 'taken' ? 'Esa dirección ya la usa otro consultorio.' : slugInfo.state === 'reserved' ? 'Esa dirección está reservada por la plataforma.' : 'Usa letras minúsculas, números y guiones (2 a 63 caracteres), y empieza con letra o número.'}
+          </p>
+          {#if slugInfo.suggestions.length}
+            <div class="mt-2">
+              <p class="text-sm text-app-muted">Prueba con una de estas, que están libres:</p>
+              <div class="mt-1.5 flex flex-wrap gap-2">
+                {#each slugInfo.suggestions as sg (sg)}
+                  <button type="button" class="rounded-full border border-app-ink/15 bg-app-panel px-3 py-1.5 text-sm hover:border-app-primary hover:bg-app-primary/8" onclick={() => useSlug(sg)}>{sg}</button>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        {/if}
         {#if slugPreview && slugOk}
           <p class="mt-2 text-sm text-app-muted">Reservas: <strong class="break-all text-app-ink">{origin}/{slugPreview}/reservar</strong></p>
           {#if s.booking_enabled}

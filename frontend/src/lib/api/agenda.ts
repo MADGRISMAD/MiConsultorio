@@ -38,5 +38,8 @@ export const agendaApi = {
   deleteBlock: (id: string) => request<void>('DELETE', `/agenda/blocks/${seg(id)}`),
 
   settings: () => request<{ settings: AgendaSettings }>('GET', '/agenda/settings').then((r) => r.settings),
+  /** is this online address free? When it is not, a few free variants */
+  slugCheck: (slug: string) =>
+    request<{ slug: string; available: boolean; state: 'ok' | 'taken' | 'reserved' | 'invalid'; suggestions: string[] }>('GET', `/agenda/slug-check?slug=${encodeURIComponent(slug)}`),
   saveSettings: (s: AgendaSettings) => request<{ settings: AgendaSettings }>('PUT', '/agenda/settings', s).then((r) => r.settings)
 };
