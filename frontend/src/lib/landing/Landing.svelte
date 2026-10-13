@@ -1,20 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Lenis from 'lenis';
-  import Chaos from './Chaos.svelte';
-  import Cta from './Cta.svelte';
-  import Faq from './Faq.svelte';
-  import Features from './Features.svelte';
-  import Footer from './Footer.svelte';
   import Hero from './Hero.svelte';
-  import Marquee from './Marquee.svelte';
-  import Modules from './Modules.svelte';
+  import LazySection from './LazySection.svelte';
   import Nav from './Nav.svelte';
-  import Retention from './Retention.svelte';
-  import Pricing from './Pricing.svelte';
-  import Security from './Security.svelte';
-  import Specialties from './Specialties.svelte';
-  import Steps from './Steps.svelte';
   import { theme } from '$lib/theme.svelte';
   import { reducedMotion } from './motion';
 
@@ -37,19 +26,19 @@
   <Nav />
   <main>
   <Hero />
-  <Chaos />
-  <Features />
-  <Retention />
-  <Modules />
-  <Marquee />
-  <Specialties />
-  <Security />
-  <Steps />
+  <LazySection load={() => import('./Chaos.svelte')} height="90vh" />
+  <LazySection load={() => import('./Features.svelte')} id="funciones" height="120vh" />
+  <LazySection load={() => import('./Retention.svelte')} id="retencion" />
+  <LazySection load={() => import('./Modules.svelte')} id="incluye" height="100vh" />
+  <LazySection load={() => import('./Marquee.svelte')} height="20vh" />
+  <LazySection load={() => import('./Specialties.svelte')} id="especialidades" height="100vh" />
+  <LazySection load={() => import('./Security.svelte')} id="seguridad" />
+  <LazySection load={() => import('./Steps.svelte')} height="80vh" />
   <div class="relative z-10 -mt-9 rounded-t-[36px] bg-paper">
-    <Pricing />
-    <Faq />
+    <LazySection load={() => import('./Pricing.svelte')} id="precios" height="100vh" />
+    <LazySection load={() => import('./Faq.svelte')} id="preguntas" />
   </div>
-  <Cta />
+  <LazySection load={() => import('./Cta.svelte')} id="contacto" height="70vh" />
   </main>
-  <Footer />
+  <LazySection load={() => import('./Footer.svelte')} height="40vh" />
 </div>

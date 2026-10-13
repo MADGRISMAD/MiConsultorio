@@ -106,8 +106,9 @@
       text={'Menos papeleo,\n*más consulta.*'}
       class="mt-8 font-display text-[clamp(3.4rem,15vw,11rem)] font-normal leading-[0.88] tracking-[-0.035em] text-ink"
       accent="italic text-signal"
-      delay={0.15}
-      stagger={0.09}
+      delay={0}
+      stagger={0.05}
+      duration={0.7}
     />
 
     <div class="mt-10 grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-end">
