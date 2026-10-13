@@ -55,6 +55,8 @@ export const specialtyApi = {
   exercisesAI: (patientId: string, body: ExercisesAIInput) => request<ExercisesAIResult>('POST', `${p(patientId)}/exercises/ai`, body),
   encounterDraftAI: (patientId: string, body: { notes: string; reason?: string }) => request<EncounterDraftResult>('POST', `${p(patientId)}/encounter-draft/ai`, body),
   rehabAdviceAI: (patientId: string) => request<RehabAdviceResult>('POST', `${p(patientId)}/rehab-advice/ai`, {}),
+  encounterDictationAI: (patientId: string, body: { audio_base64: string; mime: string; reason?: string }) => request<EncounterDraftResult>('POST', `${p(patientId)}/encounter-dictation/ai`, body),
+  aiPhotoCompare: (patientId: string, body: { before: string; after: string; zone?: string }) => request<AiResult>('POST', `${p(patientId)}/ai/photo-compare`, body),
   aiTasks: (patientId: string) => request<{ tasks: AiTaskInfo[] }>('GET', `${p(patientId)}/ai/tasks`).then((r) => r.tasks),
   aiRun: (patientId: string, task: string, param = '') => request<AiResult>('POST', `${p(patientId)}/ai/${seg(task)}`, { param }),
   nutritionShopping: (patientId: string, body: { days: NutritionDay[]; persons: number }) =>

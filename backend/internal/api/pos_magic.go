@@ -62,9 +62,23 @@ type magicItem struct {
 
 // gemini asks the model for JSON that follows a schema. image may be nil.
 func (s *Server) gemini(ctx context.Context, prompt string, image []byte, mime string, schema map[string]any) ([]byte, error) {
+	if len(image) == 0 {
+		return s.geminiBlobs(ctx, prompt, nil, schema)
+	}
+	return s.geminiBlobs(ctx, prompt, []geminiBlob{{Data: image, Mime: mime}}, schema)
+}
+
+// geminiBlob is a file (image, audio) sent inline next to the prompt.
+type geminiBlob struct {
+	Data []byte
+	Mime string
+}
+
+// geminiBlobs is gemini with several files, in order, after the prompt.
+func (s *Server) geminiBlobs(ctx context.Context, prompt string, blobs []geminiBlob, schema map[string]any) ([]byte, error) {
 	parts := []map[string]any{{"text": prompt}}
-	if len(image) > 0 {
-		parts = append(parts, map[string]any{"inline_data": map[string]any{"mime_type": mime, "data": base64.StdEncoding.EncodeToString(image)}})
+	for _, b := range blobs {
+		parts = append(parts, map[string]any{"inline_data": map[string]any{"mime_type": b.Mime, "data": base64.StdEncoding.EncodeToString(b.Data)}})
 	}
 	body, _ := json.Marshal(map[string]any{
 		"contents":         []map[string]any{{"role": "user", "parts": parts}},

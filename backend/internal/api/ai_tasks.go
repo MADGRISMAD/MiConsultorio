@@ -189,6 +189,9 @@ func (s *Server) aiTaskList(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, info)
 	}
+	if c.hasKind("DERMATOLOGY") && c.p.worksIn("DERMATOLOGY") && !c.isAnimal() {
+		out = append(out, aiTaskInfo{Key: "photo_compare", Label: "Comparar fotos (antes y después)", Desc: "Describe en palabras neutrales qué cambió entre dos fotos de la piel. No diagnostica."})
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"tasks": out})
 }
 
@@ -256,6 +259,11 @@ func aiPrompt(instr, header, data string) string {
 // finishAI spends one magic use, asks the model, cleans the answer and writes it; the use is given back when it fails.
 // patientID may be empty for the tasks of the clinic.
 func (s *Server) finishAI(w http.ResponseWriter, r *http.Request, p *Principal, patientID, key, label string, draft bool, prompt, basis string, post func(*aiOut)) {
+	s.finishAIBlobs(w, r, p, patientID, key, label, draft, prompt, nil, basis, post)
+}
+
+// finishAIBlobs is finishAI with files (photos) sent next to the prompt.
+func (s *Server) finishAIBlobs(w http.ResponseWriter, r *http.Request, p *Principal, patientID, key, label string, draft bool, prompt string, blobs []geminiBlob, basis string, post func(*aiOut)) {
 	disclaimer := aiDisclaimerSuggestion
 	if draft {
 		disclaimer = aiDisclaimerDraft
@@ -264,7 +272,7 @@ func (s *Server) finishAI(w http.ResponseWriter, r *http.Request, p *Principal, 
 		writeFailure(w, r, err)
 		return
 	}
-	raw, err := s.gemini(r.Context(), prompt, nil, "", aiOutSchema)
+	raw, err := s.geminiBlobs(r.Context(), prompt, blobs, aiOutSchema)
 	var out aiOut
 	if err == nil && json.Unmarshal(raw, &out) != nil {
 		err = fmt.Errorf("respuesta inválida")

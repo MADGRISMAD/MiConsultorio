@@ -27,6 +27,8 @@ func (s *Server) mountSpecialty(r chi.Router) {
 	r.With(write).Post("/patients/{id}/exercises/ai", s.exercisesAI)
 	r.With(write).Post("/patients/{id}/encounter-draft/ai", s.encounterDraftAI)
 	r.With(clinical).Post("/patients/{id}/rehab-advice/ai", s.rehabAdviceAI)
+	r.With(write).Post("/patients/{id}/encounter-dictation/ai", s.encounterDictationAI)
+	r.With(clinical).Post("/patients/{id}/ai/photo-compare", s.photoCompareAI)
 	r.With(clinical).Get("/patients/{id}/ai/tasks", s.aiTaskList)
 	r.With(clinical).Post("/patients/{id}/ai/{task}", s.aiTaskRun)
 	r.With(write).Post("/patients/{id}/nutrition-plan/shopping", s.nutritionShopping)

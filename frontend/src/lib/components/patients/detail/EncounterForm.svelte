@@ -4,6 +4,8 @@
   import { api } from '$lib/api';
   import { consult } from '$lib/api/consult';
   import { specialtyApi } from '$lib/api/specialty';
+  import { MAX_DICTATION_SECONDS, micAvailable, Recorder } from '$lib/audio';
+  import type { EncounterDraftResult } from '$lib/types/specialty';
   import { Op } from '$lib/op.svelte';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
@@ -83,23 +85,57 @@
   let draftOpen = $state(false);
   let looseNotes = $state('');
   /** Fills only the boxes that are still empty, so nothing the specialist already wrote is lost. */
-  async function orderNotes() {
-    await draftOp.run(async () => {
-      const r = await specialtyApi.encounterDraftAI(patient.id, { notes: looseNotes, reason });
-      const filled: string[] = [];
-      if (!subjective.trim() && r.subjective) ((subjective = r.subjective), filled.push('lo que cuenta el paciente'));
-      if (!exam.trim() && r.exam) ((exam = r.exam), filled.push('exploración'));
-      if (!assessment.trim() && r.assessment) ((assessment = r.assessment), filled.push('valoración'));
-      if (!plan.trim() && r.plan) ((plan = r.plan), filled.push('plan'));
-      const next = { ...measures };
-      for (const [k, v] of Object.entries(r.measures)) {
-        if ((next[k] === undefined || next[k] === '' || next[k] === null) && measureDefs.some((d) => d.key === k)) ((next[k] = v as never), filled.push(k === 'pain_eva' ? 'dolor EVA' : k === 'rom_deg' ? 'grados de movilidad' : 'nota de movilidad'));
-      }
-      measures = next;
-      draftOpen = false;
-      toast.show(filled.length ? `Borrador listo (${filled.join(', ')}): revísalo antes de guardar` : 'Tus campos ya tenían contenido; no se cambió nada');
+  function applyDraft(r: EncounterDraftResult) {
+    const filled: string[] = [];
+    if (!subjective.trim() && r.subjective) ((subjective = r.subjective), filled.push('lo que cuenta el paciente'));
+    if (!exam.trim() && r.exam) ((exam = r.exam), filled.push('exploración'));
+    if (!assessment.trim() && r.assessment) ((assessment = r.assessment), filled.push('valoración'));
+    if (!plan.trim() && r.plan) ((plan = r.plan), filled.push('plan'));
+    const next = { ...measures };
+    for (const [k, v] of Object.entries(r.measures)) {
+      const def = measureDefs.find((d) => d.key === k);
+      if (def && (next[k] === undefined || next[k] === '' || next[k] === null)) ((next[k] = v as never), filled.push(def.label.toLowerCase()));
+    }
+    measures = next;
+    draftOpen = false;
+    toast.show(filled.length ? `Borrador listo (${filled.join(', ')}): revísalo antes de guardar` : 'Tus campos ya tenían contenido; no se cambió nada');
+  }
+  const orderNotes = () => draftOp.run(async () => applyDraft(await specialtyApi.encounterDraftAI(patient.id, { notes: looseNotes, reason })));
+
+  // dictation: the audio is recorded in memory, sent once to be ordered and never stored
+  const rec = new Recorder();
+  let recording = $state(false);
+  let recSeconds = $state(0);
+  let recTimer: ReturnType<typeof setInterval> | undefined;
+  const dictOp = new Op();
+  async function startDictation() {
+    await dictOp.run(async () => {
+      await rec.start();
+      recording = true;
+      recSeconds = 0;
+      recTimer = setInterval(() => {
+        recSeconds = rec.seconds;
+        if (recSeconds >= MAX_DICTATION_SECONDS) void stopDictation();
+      }, 500);
     });
   }
+  async function stopDictation() {
+    clearInterval(recTimer);
+    if (!recording) return;
+    recording = false;
+    await dictOp.run(async () => {
+      const a = await rec.stop();
+      applyDraft(await specialtyApi.encounterDictationAI(patient.id, { audio_base64: a.base64, mime: 'audio/wav', reason }));
+    });
+  }
+  const cancelDictation = () => {
+    clearInterval(recTimer);
+    rec.cancel();
+    recording = false;
+  };
+  $effect(() => {
+    if (!open) cancelDictation();
+  });
 
   $effect(() => {
     if (open && !wasOpen) {
@@ -241,6 +277,23 @@
           <button type="button" class="btn-primary mt-2" disabled={draftOp.phase === 'loading' || looseNotes.trim().length < 10} onclick={orderNotes}>
             {#if draftOp.phase === 'loading'}<span class="spin"></span>Ordenando…{:else}Ordenar en la nota{/if}
           </button>
+          {#if micAvailable()}
+            <div class="mt-3 border-t border-app-ink/10 pt-3">
+              {#if recording}
+                <p class="text-sm" role="status"><span class="inline-block size-2 animate-pulse rounded-full bg-red-600"></span> Grabando tu dictado… {recSeconds} s (máximo {MAX_DICTATION_SECONDS / 60} min)</p>
+                <div class="mt-2 flex gap-2">
+                  <button type="button" class="btn-primary" onclick={stopDictation}>Terminar y ordenar</button>
+                  <button type="button" class="btn-ghost" onclick={cancelDictation}>Descartar</button>
+                </div>
+              {:else}
+                <button type="button" class="btn-secondary" disabled={dictOp.phase === 'loading'} onclick={startDictation}>
+                  {#if dictOp.phase === 'loading'}<span class="spin"></span>Procesando…{:else}<Icon name="phone" size={16} />Dictar mi nota{/if}
+                </button>
+                <p class="hint">Dicta tus notas, no grabes la conversación con el paciente. El audio se envía a la IA para ordenarlo y no se guarda. Usa 1 uso de magia.</p>
+              {/if}
+              <OpError op={dictOp} class="mt-2" />
+            </div>
+          {/if}
         {/if}
       </div>
     {/if}

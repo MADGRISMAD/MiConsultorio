@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { filesApi } from '$lib/api/files';
   import { specialtyApi } from '$lib/api/specialty';
+  import type { Attachment } from '$lib/types/files';
   import { Op } from '$lib/op.svelte';
     import { printAiDoc } from '$lib/print';
   import { session } from '$lib/session.svelte';
@@ -33,12 +35,34 @@
     }
   });
 
+  // photo comparison: two pictures of the patient chosen by the professional
+  let photos = $state<Attachment[]>([]);
+  let before = $state('');
+  let after = $state('');
+  let zone = $state('');
+  async function loadPhotos() {
+    try {
+      photos = (await filesApi.list(patient.id)).files.filter((f) => ['image/jpeg', 'image/png', 'image/webp'].includes(f.mime) && f.size_bytes <= 4 << 20 && !f.archived_at);
+    } catch {
+      photos = [];
+    }
+  }
+  const photoLabel = (f: Attachment) => `${f.created_at.slice(0, 10)} · ${f.title || f.original_name}`;
+
   function pick(t: AiTaskInfo) {
     current = t;
     param = '';
     result = null;
     op.reset?.();
-    if (!t.param && !t.disabled) void run();
+    if (t.key === 'photo_compare') void loadPhotos();
+    else if (!t.param && !t.disabled) void run();
+  }
+
+  async function comparePhotos() {
+    if (!before || !after || before === after) return op.fail('Elige dos fotos distintas: antes y después.');
+    await op.run(async () => {
+      result = await specialtyApi.aiPhotoCompare(patient.id, { before, after, zone: zone.trim() });
+    });
   }
 
   async function run() {
@@ -95,6 +119,24 @@
           <p class="text-sm text-app-muted">{current.desc}</p>
           {#if current.disabled}
             <p class="mt-2 text-sm" role="status">{current.disabled}</p>
+          {:else if current.key === 'photo_compare'}
+            {#if photos.length < 2}
+              <p class="mt-2 text-sm" role="status">Sube al menos dos fotos del paciente en la pestaña de archivos para compararlas.</p>
+            {:else}
+              <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <label class="block"><span class="label">Foto de antes</span>
+                  <select class="field" bind:value={before}><option value="">Elige…</option>{#each photos as f (f.id)}<option value={f.id}>{photoLabel(f)}</option>{/each}</select>
+                </label>
+                <label class="block"><span class="label">Foto de después</span>
+                  <select class="field" bind:value={after}><option value="">Elige…</option>{#each photos as f (f.id)}<option value={f.id}>{photoLabel(f)}</option>{/each}</select>
+                </label>
+                <label class="block sm:col-span-2"><span class="label">Zona (opcional)</span><input class="field" maxlength="120" placeholder="Antebrazo derecho" bind:value={zone} /></label>
+              </div>
+              <p class="hint">Las dos fotos se envían a la IA solo para esta comparación y no se guardan en otro lugar. Describe cambios visibles; no diagnostica. Usa 1 uso de magia.</p>
+              <button type="button" class="btn-primary mt-3" disabled={op.phase === 'loading'} onclick={comparePhotos}>
+                {#if op.phase === 'loading'}<span class="spin"></span>Comparando…{:else}<Icon name="sparkles" size={18} />Comparar fotos{/if}
+              </button>
+            {/if}
           {:else}
             {#if current.param}
               <label class="mt-3 block">

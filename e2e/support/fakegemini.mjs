@@ -16,6 +16,8 @@ export function startFakeGemini({ port }) {
       out = { items: [{ name: 'Puente de glúteo', sets: '3', reps: '12', notes: 'Sin arquear la espalda' }, { name: 'Gato-camello', sets: '2', reps: '10', notes: '' }], frequency: '1 vez al día', notes: 'Suspende si aumenta el dolor.' };
     } else if (prompt.includes('Ordena las notas sueltas')) {
       out = { subjective: 'Refiere dolor lumbar al sentarse', exam: 'Contractura paravertebral', assessment: 'Lumbalgia mecánica', plan: 'Calor local y ejercicios', measures: [{ key: 'pain_eva', value: '6' }] };
+    } else if (prompt.includes('DOS fotos clínicas')) {
+      out = { title: 'Comparación', summary: 'No se observan cambios aparentes entre las fotos.', sections: [{ heading: 'Limitaciones de la comparación', items: ['La luz es distinta'] }], text: '', lines: [] };
     } else if (prompt.includes('textos de la página pública')) {
       out = { title: 'Cuidamos tu salud', summary: '', sections: [{ heading: 'Motivos para elegirnos', items: ['Atención cercana', 'Citas puntuales'] }], text: 'Somos un consultorio con atención cercana.', lines: [{ name: '¿Cómo agendo una cita?', detail: 'Desde nuestra página, en línea.', qty: 1 }] };
     } else if (prompt.includes('Resume cómo va el consultorio')) {

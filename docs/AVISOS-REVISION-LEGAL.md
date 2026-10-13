@@ -27,7 +27,7 @@ Otros pendientes que están marcados dentro del texto, en las propias páginas:
 
 1. **Roles:** que sea correcta la separación del aviso entre Caresia como **responsable** (datos de cuentas y uso) y como **encargado** (datos de pacientes, cuyo responsable es cada consultorio), y que los términos sirvan como contrato de encargo o si se necesita uno adicional.
 2. **Finalidades primarias y secundarias** y el mecanismo para negarse a las secundarias.
-3. **Transferencias y proveedores** listados (Mercado Pago, correo SMTP, WhatsApp/Meta, Facturama, Gemini para el inventario, estadísticas sin cookies, Google Fonts): que la lista sea completa y exacta para la operación real.
+3. **Transferencias y proveedores** listados (Mercado Pago, correo SMTP, WhatsApp/Meta, Facturama, Gemini (inventario y ayudas clínicas con IA: ver `docs/IA.md`), estadísticas sin cookies, Google Fonts): que la lista sea completa y exacta para la operación real.
 4. **Plazos ARCO** (20 días hábiles para responder y 15 para hacer efectiva la determinación) y su cómputo. El sistema los cuenta en días hábiles de lunes a viernes **sin calendario de festivos**; ver `backend/internal/api/arco_deadlines.go`.
 5. **Conservación y cancelación de expedientes** (NOM-004-SSA3-2012, 5 años): redacción del bloqueo de datos y de la supresión posterior.
 6. **Cookies y analítica:** que la descripción (cookie de sesión necesaria, almacenamiento local, estadísticas sin cookies, Google Fonts) coincida con lo que el sitio realmente carga en producción.
