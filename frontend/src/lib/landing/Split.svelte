@@ -8,12 +8,13 @@
     accent?: string;
     delay?: number;
     stagger?: number;
+    duration?: number;
   }
   /**
    * Headline that rises in word by word from behind a mask.
    * Wrap words in *asterisks* to set them in the italic accent; "\n" breaks the line.
    */
-  let { text, tag = 'h2', class: cls = '', accent = 'italic', delay = 0, stagger = 0.06 }: Props = $props();
+  let { text, tag = 'h2', class: cls = '', accent = 'italic', delay = 0, stagger = 0.06, duration = 1 }: Props = $props();
 
   const lines = $derived.by(() => {
     let n = 0;
@@ -48,7 +49,7 @@
           <span class="inline-block overflow-hidden pb-[0.12em] -mb-[0.12em] align-bottom"
             ><span
               class="inline-block will-change-transform {w.accent ? accent : ''}"
-              style="{shown ? visible : hidden}; transition: transform 1s {EASE} {delay + w.i * stagger}s, opacity 1s {EASE} {delay + w.i * stagger}s"
+              style="{shown ? visible : hidden}; transition: transform {duration}s {EASE} {delay + w.i * stagger}s, opacity {duration}s {EASE} {delay + w.i * stagger}s"
               >{w.word}</span
             ></span
           >{' '}
