@@ -69,11 +69,12 @@ func TestRehabAI(t *testing.T) {
 	fail = false
 
 	// loose notes -> note; measures only when explicit and in range
-	reply = map[string]any{"subjective": "Dolor lumbar al sentarse", "exam": "", "assessment": "Contractura", "plan": "Calor local", "pain_eva": 4, "rom_deg": 400, "rom_note": "Flexión lumbar"}
+	reply = map[string]any{"subjective": "Dolor lumbar al sentarse", "exam": "", "assessment": "Contractura", "plan": "Calor local", "measures": []any{
+		map[string]any{"key": "pain_eva", "value": "4"}, map[string]any{"key": "rom_deg", "value": "400"}, map[string]any{"key": "rom_note", "value": "Flexión lumbar"}, map[string]any{"key": "risk", "value": "Alto"}, map[string]any{"key": "inventada", "value": "1"}}}
 	doc.expect(400, "POST", base+"/encounter-draft/ai", map[string]any{"notes": "corto"})
 	out = doc.expect(200, "POST", base+"/encounter-draft/ai", map[string]any{"notes": "Refiere dolor lumbar al sentarse, EVA 4, flexión limitada."})
 	ms := out["measures"].(map[string]any)
-	if out["subjective"] != "Dolor lumbar al sentarse" || ms["pain_eva"].(float64) != 4 || ms["rom_deg"] != nil || ms["rom_note"] != "Flexión lumbar" {
+	if out["subjective"] != "Dolor lumbar al sentarse" || ms["pain_eva"].(float64) != 4 || ms["rom_deg"] != nil || ms["risk"] != nil || ms["inventada"] != nil || ms["rom_note"] != "Flexión lumbar" {
 		t.Fatalf("draft: %v", out)
 	}
 

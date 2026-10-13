@@ -402,3 +402,40 @@ export interface RehabAdviceResult {
   generated_at: string;
   based_on: number;
 }
+
+// ---- AI helpers per patient (always a draft or a suggestion for the professional) ----
+
+export interface AiParam {
+  label: string;
+  options?: string[];
+  required: boolean;
+  hint?: string;
+}
+export interface AiTaskInfo {
+  key: string;
+  label: string;
+  desc: string;
+  draft: boolean;
+  param?: AiParam;
+  /** why it cannot run yet */
+  disabled?: string;
+}
+export interface AiLine {
+  name: string;
+  detail: string;
+  qty: number;
+  catalog_item_id?: string;
+  unit_price_cents?: number;
+  tax_rate?: number;
+  alerts?: string[];
+}
+export interface AiResult {
+  task: string;
+  label: string;
+  draft: boolean;
+  result: { title: string; summary: string; sections: { heading: string; items: string[] }[]; text: string; lines: AiLine[]; notices?: string[] };
+  /** numbers computed by the system on which the answer is based */
+  basis: string;
+  disclaimer: string;
+  generated_at: string;
+}

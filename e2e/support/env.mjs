@@ -10,6 +10,7 @@ export const PORT = Number(process.env.E2E_PORT || 8099);
 export const BASE = `http://localhost:${PORT}`;
 export const SMTP_PORT = Number(process.env.E2E_SMTP_PORT || 2526);
 export const MP_PORT = Number(process.env.E2E_MP_PORT || 9199);
+export const GEMINI_PORT = Number(process.env.E2E_GEMINI_PORT || 9299);
 export const MAIL_FILE = process.env.E2E_MAIL_FILE || path.join(tmpDir, 'mails.txt');
 export const DATABASE_URL = process.env.E2E_DATABASE_URL || 'postgres://caresia:caresia@localhost:5432/caresia_e2e?sslmode=disable';
 export const STATIC_DIR = process.env.E2E_STATIC_DIR || path.join(repoDir, 'frontend', 'build');

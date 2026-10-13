@@ -3,6 +3,7 @@
   import Icon from '../../ui/Icon.svelte';
   import ConsultSummaryCard from './ConsultSummaryCard.svelte';
   import Evolution from './Evolution.svelte';
+  import AiAssistCard from './AiAssistCard.svelte';
   import RehabAdviceCard from './RehabAdviceCard.svelte';
   import OwnerCard from './OwnerCard.svelte';
   import { measureRows, show } from './util';
@@ -64,6 +65,7 @@
 <div class="space-y-4">
   {#if animal}<OwnerCard patientId={p.id} />{/if}
   <ConsultSummaryCard patientId={p.id} hasNotes={encounters.some((e) => !e.hidden && !e.private)} />
+  <AiAssistCard patient={p} />
   {#if !animal && (schema.kinds ?? []).some((k) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(k))}
     <RehabAdviceCard patientId={p.id} sessions={encounters.filter((e) => !e.hidden && !e.private).length} />
   {/if}

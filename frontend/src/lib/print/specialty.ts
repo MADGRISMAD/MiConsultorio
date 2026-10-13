@@ -263,3 +263,15 @@ ${sections.map((s) => `<h2>${e(s.name)}</h2><table class="grid-t nobreak"><tbody
 <div class="footer">${e(FOOTER_CONF)}</div>`;
   return doc('Lista del súper', body, GRID_CSS);
 }
+
+/** A text prepared with the AI helper (instructions, messages, notes), printed once the professional has reviewed it. */
+export function aiDocHtml(patient: Patient, doc_: { title: string; summary: string; sections: { heading: string; items: string[] }[]; text: string }, by: string, clinic: Issuer): string {
+  const body = `<div class="head">${issuerBlock(clinic)}<div class="doc"><h1>${e(doc_.title)}</h1><div class="small">${e(fmtDateTime(new Date().toISOString()))}</div></div></div>
+<div class="box nobreak">${patientBlock(patient)}</div>
+${doc_.summary ? `<p>${multiline(doc_.summary)}</p>` : ''}
+${doc_.sections.map((s) => `<h2>${e(s.heading)}</h2><ul>${s.items.map((i) => `<li>${e(i)}</li>`).join('')}</ul>`).join('')}
+${doc_.sections.length === 0 && doc_.text ? `<p>${multiline(doc_.text)}</p>` : ''}
+<div class="sig nobreak">${by ? e(by) + '<br>' : ''}Firma del profesional</div>
+<div class="footer">${e(FOOTER_CONF)}</div>`;
+  return doc(doc_.title, body, GRID_CSS);
+}

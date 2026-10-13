@@ -12,7 +12,7 @@ import { recetaHtml } from './receta';
 import { certificateHtml } from './certificate';
 import { certificatesApi } from '$lib/api/certificates';
 import { labOrderSheetHtml, labReportHtml } from './lab';
-import { carnetHtml, chartHtml, exercisesHtml, nutritionPlanHtml, periodontogramHtml, planHtml, shoppingHtml, signedConsentHtml, type ShoppingSection } from './specialty';
+import { aiDocHtml, carnetHtml, chartHtml, exercisesHtml, nutritionPlanHtml, periodontogramHtml, planHtml, shoppingHtml, signedConsentHtml, type ShoppingSection } from './specialty';
 
 export { escapeHtml } from './base';
 export { consentHtml, expedienteHtml, privacyNoticeHtml, recetaHtml };
@@ -85,6 +85,10 @@ export async function printPeriodontogram(patient: Patient, chart: { data: Perio
 
 export async function printExercises(patient: Patient, sheet: { data: ExercisesData; at: string; by: string }): Promise<void> {
   await printHtml(exercisesHtml(patient, sheet, await loadIssuer()));
+}
+
+export async function printAiDoc(patient: Patient, doc: { title: string; summary: string; sections: { heading: string; items: string[] }[]; text: string }, by = ''): Promise<void> {
+  await printHtml(aiDocHtml(patient, doc, by, await loadIssuer()));
 }
 
 export async function printShopping(patient: Patient, sections: ShoppingSection[], persons: number): Promise<void> {

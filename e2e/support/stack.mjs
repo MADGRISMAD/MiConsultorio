@@ -4,7 +4,8 @@
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { BASE, CLINIC, DATABASE_URL, MAIL_FILE, MP_PORT, PORT, SMTP_PORT, STATIC_DIR, repoDir, tmpDir } from './env.mjs';
+import { BASE, CLINIC, DATABASE_URL, GEMINI_PORT, MAIL_FILE, MP_PORT, PORT, SMTP_PORT, STATIC_DIR, repoDir, tmpDir } from './env.mjs';
+import { startFakeGemini } from './fakegemini.mjs';
 import { startFakeMp } from './fakemp.mjs';
 import { startFakeSmtp } from './fakesmtp.mjs';
 
@@ -24,6 +25,7 @@ if (reset.status !== 0) {
 
 const smtp = startFakeSmtp({ port: SMTP_PORT, file: MAIL_FILE });
 const mp = startFakeMp({ port: MP_PORT });
+const gemini = startFakeGemini({ port: GEMINI_PORT });
 
 let bin = process.env.E2E_SERVER_BIN;
 if (!bin) {
@@ -47,6 +49,9 @@ const server = spawn(bin, [], {
     SMTP_PORT: String(SMTP_PORT),
     MAIL_FROM: 'Caresia <no-reply@caresia.test>',
     MP_API_BASE: `http://localhost:${MP_PORT}`,
+    GEMINI_API_KEY: 'e2e-key',
+    GEMINI_MODEL: 'e2e-model',
+    GEMINI_API_BASE: `http://localhost:${GEMINI_PORT}`,
     MP_ACCESS_TOKEN: 'platform',
     MP_CLIENT_ID: 'cid',
     MP_CLIENT_SECRET: 'csec',
@@ -63,6 +68,7 @@ const stop = () => {
   server.kill('SIGTERM');
   smtp.close();
   mp.close();
+  gemini.close();
   setTimeout(() => process.exit(0), 300);
 };
 process.on('SIGINT', stop);
@@ -70,5 +76,6 @@ process.on('SIGTERM', stop);
 server.on('exit', (code) => {
   smtp.close();
   mp.close();
+  gemini.close();
   process.exit(code ?? 1);
 });

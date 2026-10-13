@@ -71,7 +71,14 @@
   const op = new Op();
   let wasOpen = false;
 
-  const rehab = $derived(patient.subject === 'person' && (schema.kinds ?? []).some((x) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(x)));
+  const codeAi = new Op();
+  let codeIdeas = $state<{ name: string; detail: string }[]>([]);
+  async function suggestCodes() {
+    await codeAi.run(async () => {
+      codeIdeas = (await specialtyApi.aiRun(patient.id, 'icd_suggest', assessment.trim().slice(0, 400))).result.lines;
+      if (!codeIdeas.length) toast.show('No hay códigos sugeridos en la lista de la clínica; búscalo a mano');
+    });
+  }
   const draftOp = new Op();
   let draftOpen = $state(false);
   let looseNotes = $state('');
@@ -107,6 +114,7 @@
       measures = {};
       codes = [];
       codeDraft = codeError = error = '';
+      codeIdeas = [];
       isPrivate = false;
       followDate = followTime = followPro = '';
       chargeLines = [];
@@ -223,7 +231,7 @@
       </div>
     </div>
 
-    {#if rehab && session.magic}
+    {#if session.magic}
       <div class="rounded-xl border border-app-primary/25 bg-app-primary/5 p-3">
         <button type="button" class="btn-secondary" aria-expanded={draftOpen} onclick={() => (draftOpen = !draftOpen)}><Icon name="sparkles" size={16} />Ordenar mis notas con IA</button>
         {#if draftOpen}
@@ -270,6 +278,22 @@
         <input id="enc-cie" class="min-w-24 flex-1 bg-transparent px-1.5 py-1 font-mono text-sm uppercase outline-none" bind:value={codeDraft} onkeydown={codeKey} onblur={() => codeDraft && addCode()} placeholder={codes.length ? '' : 'J06.9'} autocomplete="off" autocapitalize="characters" aria-describedby="enc-cie-h" />
       </div>
       <p id="enc-cie-h" class="hint {codeError ? 'text-app-danger' : ''}" role={codeError ? 'alert' : undefined}>{codeError || 'Escribe un código y pulsa Enter o coma. Opcional.'}</p>
+      {#if session.magic && patient.subject === 'person'}
+        <div class="mt-2">
+          <button type="button" class="btn-ghost" disabled={codeAi.phase === 'loading' || assessment.trim().length < 3} onclick={suggestCodes}>
+            {#if codeAi.phase === 'loading'}<span class="spin"></span>Buscando…{:else}<Icon name="sparkles" size={16} />Sugerir códigos con IA{/if}
+          </button>
+          <OpError op={codeAi} class="mt-1" />
+          {#if codeIdeas.length}
+            <p class="hint">Es solo una sugerencia: elige los que correspondan a tu valoración (usa 1 uso de magia).</p>
+            <div class="mt-1 flex flex-wrap gap-2">
+              {#each codeIdeas as c (c.name)}
+                <button type="button" class="chip" disabled={codes.includes(c.name)} title={c.detail} onclick={() => (codes = [...codes, c.name])}><span class="font-mono">{c.name}</span> · {c.detail}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
     </div>
     <div>
       <label class="label" for="enc-plan">Plan e indicaciones</label>
