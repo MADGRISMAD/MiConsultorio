@@ -119,6 +119,9 @@ func (s *Server) createCertificate(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	if s.refuseArchived(w, r, p.ClinicID, pid) {
+		return
+	}
 	kind := "medical"
 	if subject == "animal" {
 		kind = "veterinary"

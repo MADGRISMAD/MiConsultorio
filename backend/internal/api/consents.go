@@ -152,6 +152,9 @@ func (s *Server) createConsent(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if s.refuseArchived(w, r, principalFrom(r.Context()).ClinicID, id) {
+		return
+	}
 	var in consentIn
 	if !decode(w, r, &in) {
 		return

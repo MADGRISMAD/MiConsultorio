@@ -188,6 +188,9 @@ func (s *Server) createPrescription(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	if s.refuseArchived(w, r, p.ClinicID, id) {
+		return
+	}
 	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
 	if err != nil {
 		serverError(w, r, err)

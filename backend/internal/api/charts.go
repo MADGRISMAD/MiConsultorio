@@ -331,6 +331,9 @@ func (s *Server) createChart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if s.refuseArchived(w, r, principalFrom(r.Context()).ClinicID, id) {
+		return
+	}
 	var in struct {
 		Kind        string          `json:"kind"`
 		Data        json.RawMessage `json:"data"`

@@ -236,6 +236,10 @@ func (s *Server) createChronicMed(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Paciente no encontrado.")
 		return
 	}
+	if pat.ArchivedAt != nil {
+		writeArchived(w)
+		return
+	}
 	if pat.Subject != "person" {
 		writeError(w, http.StatusBadRequest, "La medicación crónica es para personas.")
 		return

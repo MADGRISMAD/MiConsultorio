@@ -354,6 +354,9 @@ func (s *Server) createPlan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if s.refuseArchived(w, r, principalFrom(r.Context()).ClinicID, id) {
+		return
+	}
 	var in planIn
 	if !decode(w, r, &in) {
 		return

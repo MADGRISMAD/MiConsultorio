@@ -83,6 +83,25 @@ func (s *Server) patientExists(ctx context.Context, clinicID, id string) (string
 	return subject, err
 }
 
+func writeArchived(w http.ResponseWriter) {
+	writeJSON(w, http.StatusConflict, errorBody{Code: "PATIENT_ARCHIVED", Message: "El expediente está archivado o bloqueado: no se pueden agregar registros nuevos. Restáuralo primero si corresponde."})
+}
+
+// refuseArchived answers 409 and returns true when the record is archived. An ARCO block also archives the record, so
+// nothing new is written to it; reading it is still allowed. Use it right after the patient is known to exist.
+func (s *Server) refuseArchived(w http.ResponseWriter, r *http.Request, clinicID, patientID string) bool {
+	var archived bool
+	if err := s.db.QueryRow(r.Context(), `SELECT archived_at IS NOT NULL FROM patients WHERE clinic_id = $1 AND id = $2`, clinicID, patientID).Scan(&archived); err != nil {
+		serverError(w, r, err)
+		return true
+	}
+	if archived {
+		writeArchived(w)
+		return true
+	}
+	return false
+}
+
 func (s *Server) listEncounters(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if !validUUID(id) {
@@ -157,6 +176,9 @@ func (s *Server) createEncounter(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		serverError(w, r, err)
+		return
+	}
+	if s.refuseArchived(w, r, p.ClinicID, id) {
 		return
 	}
 	kinds, err := s.clinicKindsFor(r.Context(), p.ClinicID)
