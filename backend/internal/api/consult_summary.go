@@ -147,6 +147,8 @@ func (s *Server) consultSummaryAI(w http.ResponseWriter, r *http.Request) {
 		shown++
 	}
 
+	b.WriteString(s.rehabEvolutionBlock(r, p, id, notes))
+
 	prompt := "Eres un asistente clínico para profesionales de la salud en México. Con el expediente que sigue, prepara un resumen breve para el especialista que va a atender al paciente hoy. " +
 		"Usa SOLO lo que está escrito; no inventes diagnósticos, dosis ni datos, y si algo no consta no lo menciones. Escribe en español claro y conciso.\n" +
 		"- overview: 2 o 3 oraciones con la historia y el estado actual.\n" +

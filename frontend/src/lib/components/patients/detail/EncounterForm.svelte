@@ -71,6 +71,29 @@
   const op = new Op();
   let wasOpen = false;
 
+  const rehab = $derived(patient.subject === 'person' && (schema.kinds ?? []).some((x) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(x)));
+  const draftOp = new Op();
+  let draftOpen = $state(false);
+  let looseNotes = $state('');
+  /** Fills only the boxes that are still empty, so nothing the specialist already wrote is lost. */
+  async function orderNotes() {
+    await draftOp.run(async () => {
+      const r = await specialtyApi.encounterDraftAI(patient.id, { notes: looseNotes, reason });
+      const filled: string[] = [];
+      if (!subjective.trim() && r.subjective) ((subjective = r.subjective), filled.push('lo que cuenta el paciente'));
+      if (!exam.trim() && r.exam) ((exam = r.exam), filled.push('exploración'));
+      if (!assessment.trim() && r.assessment) ((assessment = r.assessment), filled.push('valoración'));
+      if (!plan.trim() && r.plan) ((plan = r.plan), filled.push('plan'));
+      const next = { ...measures };
+      for (const [k, v] of Object.entries(r.measures)) {
+        if ((next[k] === undefined || next[k] === '' || next[k] === null) && measureDefs.some((d) => d.key === k)) ((next[k] = v as never), filled.push(k === 'pain_eva' ? 'dolor EVA' : k === 'rom_deg' ? 'grados de movilidad' : 'nota de movilidad'));
+      }
+      measures = next;
+      draftOpen = false;
+      toast.show(filled.length ? `Borrador listo (${filled.join(', ')}): revísalo antes de guardar` : 'Tus campos ya tenían contenido; no se cambió nada');
+    });
+  }
+
   $effect(() => {
     if (open && !wasOpen) {
       const now = new Date();
@@ -200,6 +223,19 @@
       </div>
     </div>
 
+    {#if rehab && session.magic}
+      <div class="rounded-xl border border-app-primary/25 bg-app-primary/5 p-3">
+        <button type="button" class="btn-secondary" aria-expanded={draftOpen} onclick={() => (draftOpen = !draftOpen)}><Icon name="sparkles" size={16} />Ordenar mis notas con IA</button>
+        {#if draftOpen}
+          <label class="mt-3 block"><span class="label">Tus notas sueltas</span><textarea class="field min-h-28" maxlength="3000" bind:value={looseNotes} placeholder="Refiere dolor lumbar al sentarse, EVA 6, flexión limitada a 40°; apliqué calor y ejercicios de estabilización…"></textarea></label>
+          <p class="hint">Es un borrador: la IA solo ordena lo que escribiste, sin inventar datos, y rellena únicamente los campos vacíos. Tú lo revisas y corriges. Usa 1 uso de magia.</p>
+          <OpError op={draftOp} class="mt-2" />
+          <button type="button" class="btn-primary mt-2" disabled={draftOp.phase === 'loading' || looseNotes.trim().length < 10} onclick={orderNotes}>
+            {#if draftOp.phase === 'loading'}<span class="spin"></span>Ordenando…{:else}Ordenar en la nota{/if}
+          </button>
+        {/if}
+      </div>
+    {/if}
     <div>
       <label class="label" for="enc-reason">Motivo de consulta</label>
       <input id="enc-reason" class="field" bind:value={reason} autocomplete="off" />

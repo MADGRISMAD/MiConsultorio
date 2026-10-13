@@ -374,3 +374,31 @@ export interface SignatureInput {
   witness1?: string;
   witness2?: string;
 }
+
+export interface ExercisesAIInput {
+  area: string;
+  diagnosis: string;
+  goal: string;
+  level: string;
+  equipment: string;
+  restrictions: string;
+  count: number;
+}
+export interface ExercisesAIResult extends ExercisesData {
+  disclaimer: string;
+}
+export interface EncounterDraftResult {
+  subjective: string;
+  exam: string;
+  assessment: string;
+  plan: string;
+  measures: { pain_eva?: number; rom_deg?: number; rom_note?: string };
+  disclaimer: string;
+}
+export interface RehabAdviceResult {
+  suggestion: { stance: 'continuar' | 'ajustar' | 'valorar_alta'; summary: string; reasons: string[]; verify: string[] };
+  trend: string;
+  disclaimer: string;
+  generated_at: string;
+  based_on: number;
+}

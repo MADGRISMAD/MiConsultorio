@@ -5,6 +5,10 @@ import type {
   Consent,
   ConsentInput,
   DueVaccination,
+  EncounterDraftResult,
+  ExercisesAIInput,
+  ExercisesAIResult,
+  RehabAdviceResult,
   NutritionDay,
   NutritionMeal,
   NutritionPlanData,
@@ -45,6 +49,10 @@ export const specialtyApi = {
     request<{ plan: NutritionPlanData; warnings?: string[] }>('POST', `${p(patientId)}/nutrition-plan/ai`, body),
 
   /** The week's menu added up into what to buy (1 magic use). Nothing is saved. */
+  /** Rehab AI helpers: every answer is a draft or a suggestion for the specialist to review; each costs one magic use. */
+  exercisesAI: (patientId: string, body: ExercisesAIInput) => request<ExercisesAIResult>('POST', `${p(patientId)}/exercises/ai`, body),
+  encounterDraftAI: (patientId: string, body: { notes: string; reason?: string }) => request<EncounterDraftResult>('POST', `${p(patientId)}/encounter-draft/ai`, body),
+  rehabAdviceAI: (patientId: string) => request<RehabAdviceResult>('POST', `${p(patientId)}/rehab-advice/ai`, {}),
   nutritionShopping: (patientId: string, body: { days: NutritionDay[]; persons: number }) =>
     request<{ sections: ShoppingSection[] }>('POST', `${p(patientId)}/nutrition-plan/shopping`, body).then((r) => r.sections),
 

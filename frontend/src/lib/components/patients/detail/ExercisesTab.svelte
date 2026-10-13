@@ -8,6 +8,7 @@
   import { Op } from '$lib/op.svelte';
   import { printExercises } from '$lib/print';
   import { toast } from '$lib/toast.svelte';
+  import { session } from '$lib/session.svelte';
   import type { Patient } from '$lib/types';
   import type { ExerciseItem, ExercisesData, PatientChart } from '$lib/types/specialty';
   import ViewedVersionBanner from '../../specialty/ViewedVersionBanner.svelte';
@@ -60,6 +61,29 @@
     [next[i], next[j]] = [next[j], next[i]];
     work.items = next;
   };
+
+  /** AI suggestion: lands in the editable sheet as a draft; the specialist keeps full control by hand. */
+  const aiOp = new Op();
+  let aiOpen = $state(false);
+  let aiDrafted = $state(false);
+  let ai = $state({ area: '', diagnosis: '', goal: '', level: '', equipment: '', restrictions: '', count: 6 });
+  const toggleAi = () => {
+    aiOpen = !aiOpen;
+    if (aiOpen && !ai.area) ai.area = String(patient.profile?.affected_area ?? '');
+  };
+  async function suggest() {
+    if (!ai.area.trim() && !ai.diagnosis.trim()) return aiOp.fail('Indica la zona a tratar o el diagnóstico.');
+    await aiOp.run(async () => {
+      const r = await specialtyApi.exercisesAI(patient.id, ai);
+      const room = 30 - work.items.length;
+      work.items = [...work.items, ...r.items.slice(0, room)];
+      if (!work.frequency.trim() && r.frequency) work.frequency = r.frequency;
+      if (!work.notes.trim() && r.notes) work.notes = r.notes;
+      aiDrafted = true;
+      aiOpen = false;
+      toast.show('Sugerencia agregada: revísala y edítala antes de guardar');
+    });
+  }
 
   async function save() {
     const clean: ExercisesData = {
@@ -123,7 +147,29 @@
     {#if !readonly}
       <div class="mt-3 flex flex-wrap gap-2">
         <button type="button" class="btn-secondary" onclick={() => add()} disabled={work.items.length >= 30}><Icon name="plus" size={16} />Agregar ejercicio</button>
+        {#if session.magic}
+          <button type="button" class="btn-secondary" aria-expanded={aiOpen} onclick={toggleAi}><Icon name="sparkles" size={16} />Sugerir ejercicios con IA</button>
+        {/if}
       </div>
+      {#if aiOpen}
+        <div class="mt-3 rounded-xl border border-app-primary/25 bg-app-primary/5 p-4">
+          <p class="text-sm"><strong>Es solo una sugerencia.</strong> La IA propone un borrador que se agrega a la hoja; tú lo revisas, lo editas a mano y decides qué se queda. No ve el nombre del paciente. Usa 1 uso de magia.</p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <label class="block"><span class="label">Zona a tratar</span><input class="field" maxlength="200" bind:value={ai.area} placeholder="Lumbar, hombro derecho…" /></label>
+            <label class="block"><span class="label">Diagnóstico o motivo</span><input class="field" maxlength="300" bind:value={ai.diagnosis} placeholder="Lumbalgia mecánica" /></label>
+            <label class="block"><span class="label">Objetivo</span><input class="field" maxlength="300" bind:value={ai.goal} placeholder="Reducir dolor y ganar movilidad" /></label>
+            <label class="block"><span class="label">Nivel del paciente</span><input class="field" maxlength="200" bind:value={ai.level} placeholder="Principiante, adulto mayor…" /></label>
+            <label class="block"><span class="label">Material disponible</span><input class="field" maxlength="300" bind:value={ai.equipment} placeholder="Banda elástica, pelota…" /></label>
+            <label class="block"><span class="label">Restricciones o precauciones</span><input class="field" maxlength="300" bind:value={ai.restrictions} placeholder="Evitar flexión con carga" /></label>
+            <label class="block"><span class="label">Cantidad de ejercicios</span><input class="field" type="number" min="3" max="8" bind:value={ai.count} /></label>
+          </div>
+          <OpError op={aiOp} class="mt-3" />
+          <button type="button" class="btn-primary mt-3" disabled={aiOp.phase === 'loading'} onclick={suggest}>
+            {#if aiOp.phase === 'loading'}<span class="spin"></span>Pensando…{:else}<Icon name="sparkles" size={18} />Sugerir ejercicios{/if}
+          </button>
+        </div>
+      {/if}
+      {#if aiDrafted}<p class="mt-3 text-sm text-app-muted" role="status">Parte de esta hoja es una sugerencia de la IA: revisa series, repeticiones y precauciones antes de guardar y entregar la hoja.</p>{/if}
     {/if}
 
     {#if readonly}

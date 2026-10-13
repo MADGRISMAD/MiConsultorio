@@ -3,6 +3,7 @@
   import Icon from '../../ui/Icon.svelte';
   import ConsultSummaryCard from './ConsultSummaryCard.svelte';
   import Evolution from './Evolution.svelte';
+  import RehabAdviceCard from './RehabAdviceCard.svelte';
   import OwnerCard from './OwnerCard.svelte';
   import { measureRows, show } from './util';
 
@@ -63,6 +64,9 @@
 <div class="space-y-4">
   {#if animal}<OwnerCard patientId={p.id} />{/if}
   <ConsultSummaryCard patientId={p.id} hasNotes={encounters.some((e) => !e.hidden && !e.private)} />
+  {#if !animal && (schema.kinds ?? []).some((k) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(k))}
+    <RehabAdviceCard patientId={p.id} sessions={encounters.filter((e) => !e.hidden && !e.private).length} />
+  {/if}
   {#if signs.length}
     <section class="card p-5" aria-label="Últimos signos">
       <p class="section-title flex items-center gap-2"><Icon name="activity" size={14} />Últimos signos · {new Date(last!.occurred_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
