@@ -56,7 +56,7 @@ func TestPublicDirectory(t *testing.T) {
 	}
 	admin.expect(200, "PUT", "/api/clinic/profile", with(map[string]any{
 		"city": "Tijuana", "state": "Baja California", "neighborhood": "Zona Río", "tagline": "Cuidamos tu sonrisa",
-		"insurances": []string{"GNP", "AXA", " GNP "}, "languages": []string{"Español", "Inglés"}, "payment_methods": []string{"Efectivo", "Tarjeta de crédito"},
+		"accepts_insurance": true, "insurances": []string{"GNP", "AXA", " GNP "}, "languages": []string{"Español", "Inglés"}, "payment_methods": []string{"Efectivo", "Tarjeta de crédito"},
 		"public_services": []string{svcID},
 	}))
 	// otra clínica con la página y la ciudad, pero nada más

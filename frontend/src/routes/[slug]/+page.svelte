@@ -6,6 +6,7 @@
   import PhotoCarousel from '$lib/components/clinic/PhotoCarousel.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Stars from '$lib/components/ui/Stars.svelte';
+  import InsurerBadge from '$lib/components/ui/InsurerBadge.svelte';
   import { dateShort, moneyCents } from '$lib/format';
   import { theme } from '$lib/theme.svelte';
   import ButtonLabel from '$lib/landing/ButtonLabel.svelte';
@@ -28,6 +29,8 @@
     }
   });
 
+  const featured = $derived((c?.services ?? []).filter((s) => s.featured).slice(0, 4));
+  const showInsurance = $derived(!!c?.accepts_insurance && (c?.insurances.length ?? 0) > 0);
   const wa = $derived(c?.whatsapp ? `https://wa.me/${c.whatsapp.replace(/\D/g, '')}` : '');
   const mapsHref = $derived(c?.maps_url || (c?.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}` : ''));
   const giros = $derived((c?.kinds ?? []).map((k) => CLINIC_KINDS[k as ClinicKind]).filter(Boolean));
@@ -68,7 +71,10 @@
         </a>
         <nav class="ml-auto hidden items-center gap-6 text-sm text-ink-soft md:flex" aria-label="Secciones">
           {#if giros.length}<a href="#servicios" class="hover:text-ink">Especialidades</a>{/if}
+          {#if featured.length}<a href="#destacados" class="hover:text-ink">Empieza aquí</a>{/if}
           {#if c.services.length}<a href="#precios" class="hover:text-ink">Precios</a>{/if}
+          {#if showInsurance}<a href="#seguros" class="hover:text-ink">Seguros</a>{/if}
+          {#if c.faqs?.length}<a href="#preguntas" class="hover:text-ink">Preguntas</a>{/if}
           {#if c.reviews?.length}<a href="#opiniones" class="hover:text-ink">Opiniones</a>{/if}
           {#if c.professionals.length}<a href="#equipo" class="hover:text-ink">Equipo</a>{/if}
           {#if c.address || c.phone || c.email || wa || c.hours_text || c.website}<a href="#contacto" class="hover:text-ink">Contacto</a>{/if}
@@ -114,10 +120,37 @@
       <section class="mx-auto mt-12 max-w-6xl px-5 sm:px-8" aria-label="Galería"><PhotoCarousel photos={c.gallery} label="Fotos de {c.name}" /></section>
     {/if}
 
-    {#if c.about}
+    {#if c.about || c.highlights?.length}
       <section class="mx-auto mt-20 max-w-6xl px-5 sm:px-8">
         <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Conócenos</h2>
-        <p class="mt-6 max-w-3xl whitespace-pre-line text-lg leading-relaxed text-ink-soft">{c.about}</p>
+        {#if c.about}<p class="mt-6 max-w-3xl whitespace-pre-line text-lg leading-relaxed text-ink-soft">{c.about}</p>{/if}
+        {#if c.highlights?.length}
+          <ul class="mt-8 grid max-w-4xl gap-3 sm:grid-cols-2" aria-label="Por qué elegirnos">
+            {#each c.highlights as h (h)}
+              <li class="flex items-start gap-3 text-[17px]"><span class="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full bg-signal-soft text-signal"><Icon name="check" size={14} stroke={2.6} /></span><span>{h}</span></li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
+
+    {#if featured.length}
+      <section id="destacados" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
+        <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Empieza por aquí</h2>
+        <p class="mt-4 max-w-2xl text-lg text-ink-soft">Si no sabes por dónde comenzar, estas son las mejores puertas de entrada.</p>
+        <ul class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {#each featured as sv (sv.id)}
+            <li class="flex flex-col rounded-[24px] bg-panel p-6 ring-1 ring-ink/10">
+              <div class="flex items-start justify-between gap-3">
+                <h3 class="font-display text-2xl leading-tight">{sv.name}</h3>
+                {#if sv.price_cents > 0}<span class="whitespace-nowrap font-mono text-sm font-semibold text-signal">{moneyCents(sv.price_cents)}</span>{/if}
+              </div>
+              {#if sv.description}<p class="mt-3 flex-1 text-[15px] leading-relaxed text-ink-soft">{sv.description}</p>{:else}<span class="flex-1"></span>{/if}
+              {#if c.booking_url && !sv.package_sessions}<a href="{c.booking_url}?servicio={sv.id}" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-signal hover:underline">Reservar este servicio <Icon name="arrow-right" size={16} /></a>
+              {:else if wa}<a href={wa} target="_blank" rel="noopener noreferrer" class="mt-5 inline-flex items-center gap-1.5 text-[15px] font-medium text-signal hover:underline">Preguntar por WhatsApp <Icon name="arrow-right" size={16} /></a>{/if}
+            </li>
+          {/each}
+        </ul>
       </section>
     {/if}
 
@@ -207,8 +240,37 @@
       </section>
     {/if}
 
+    {#if showInsurance}
+      <section id="seguros" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
+        <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Aceptamos seguros</h2>
+        <p class="mt-4 max-w-2xl text-lg text-ink-soft">Estas son las aseguradoras con las que trabajamos. Si tienes dudas sobre tu cobertura, escríbenos antes de tu cita.</p>
+        <ul class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {#each c.insurances as ins (ins)}
+            <li class="rounded-2xl bg-panel p-3.5 ring-1 ring-ink/10"><InsurerBadge name={ins} /></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+
+    {#if c.faqs?.length}
+      <section id="preguntas" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
+        <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Preguntas frecuentes</h2>
+        <div class="mt-8 grid max-w-3xl gap-3">
+          {#each c.faqs as f (f.q)}
+            <details class="group rounded-2xl bg-panel ring-1 ring-ink/10">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[17px] font-medium [&::-webkit-details-marker]:hidden">
+                {f.q}<Icon name="chevron-down" size={18} class="flex-none text-signal transition-transform group-open:rotate-180" />
+              </summary>
+              <p class="whitespace-pre-line px-5 pb-5 text-[16px] leading-relaxed text-ink-soft">{f.a}</p>
+            </details>
+          {/each}
+        </div>
+        {#if wa}<a href={wa} target="_blank" rel="noopener noreferrer" class="{btn} mt-6 bg-panel text-ink ring-1 ring-ink/15 hover:bg-ink hover:text-paper"><Icon name="whatsapp" size={18} />Preguntar por WhatsApp</a>{/if}
+      </section>
+    {/if}
+
     <!-- contact -->
-    {#if c.address || c.phone || c.email || wa || c.hours_text || c.website || c.insurances.length || c.payment_methods.length}
+    {#if c.address || c.phone || c.email || wa || c.hours_text || c.website || c.instagram_url || c.facebook_url || c.payment_methods.length}
     <section id="contacto" class="mx-auto mt-20 max-w-6xl scroll-mt-24 px-5 sm:px-8">
       <h2 class="font-display text-[clamp(2rem,4.5vw,3.2rem)] leading-[1]">Visítanos</h2>
       <dl class="mt-8 grid gap-4 rounded-[28px] bg-panel p-6 ring-1 ring-ink/10 sm:grid-cols-2 sm:p-8 lg:grid-cols-3">
@@ -217,9 +279,15 @@
         {#if c.email}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Correo</dt><dd class="mt-1 break-all"><a class="hover:text-signal" href="mailto:{c.email}">{c.email}</a></dd></div>{/if}
         {#if wa}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">WhatsApp</dt><dd class="mt-1"><a class="hover:text-signal" href={wa} target="_blank" rel="noopener noreferrer">{c.whatsapp}</a></dd></div>{/if}
         {#if c.hours_text}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Horario</dt><dd class="mt-1 whitespace-pre-line">{c.hours_text}</dd></div>{/if}
-        {#if c.insurances.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Aseguradoras</dt><dd class="mt-1">{c.insurances.join(', ')}</dd></div>{/if}
         {#if c.payment_methods.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Formas de pago</dt><dd class="mt-1">{c.payment_methods.join(', ')}</dd></div>{/if}
         {#if c.languages.length}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Idiomas</dt><dd class="mt-1">{c.languages.join(', ')}</dd></div>{/if}
+        {#if c.instagram_url || c.facebook_url}
+          <div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Redes</dt>
+            <dd class="mt-1 flex items-center gap-3">
+              {#if c.instagram_url}<a href={c.instagram_url} target="_blank" rel="noopener noreferrer" aria-label="Instagram de {c.name}" class="grid h-10 w-10 place-items-center rounded-full bg-signal-soft text-signal transition hover:bg-signal hover:text-white"><Icon name="instagram" size={20} /></a>{/if}
+              {#if c.facebook_url}<a href={c.facebook_url} target="_blank" rel="noopener noreferrer" aria-label="Facebook de {c.name}" class="grid h-10 w-10 place-items-center rounded-full bg-signal-soft text-signal transition hover:bg-signal hover:text-white"><Icon name="facebook" size={20} /></a>{/if}
+            </dd></div>
+        {/if}
         {#if c.website}<div><dt class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Sitio web</dt><dd class="mt-1 break-all"><a class="text-signal underline" href={c.website} target="_blank" rel="noopener noreferrer">{c.website.replace(/^https:\/\//, '')}</a></dd></div>{/if}
       </dl>
     </section>
@@ -241,6 +309,13 @@
           </div>
         </div>
       </section>
+    {/if}
+
+    {#if wa}
+      <a href={wa} target="_blank" rel="noopener noreferrer" aria-label="Escribir por WhatsApp a {c.name}"
+        class="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-[0_14px_30px_-8px_rgba(0,0,0,0.45)] transition hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#25D366]/40 sm:bottom-6 sm:right-6">
+        <Icon name="whatsapp" size={28} stroke={1.9} />
+      </a>
     {/if}
 
     <footer class="mx-auto mt-16 max-w-6xl px-5 pb-10 text-center text-xs text-ink-faint sm:px-8">

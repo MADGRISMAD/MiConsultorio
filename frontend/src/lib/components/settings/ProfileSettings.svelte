@@ -10,6 +10,11 @@
   import LoadingRows from '../ui/LoadingRows.svelte';
   import Stars from '../ui/Stars.svelte';
   import ProfileMedia from './ProfileMedia.svelte';
+  import { session } from '$lib/session.svelte';
+  import { INSURERS, insurerByName } from '$lib/specialty/insurers';
+  import { defaultsFor } from '$lib/specialty/pageDefaults';
+  import InsurerBadge from '../ui/InsurerBadge.svelte';
+  import Icon from '../ui/Icon.svelte';
 
   interface Props {
     /** Qué parte se ve: la página y sus fotos, el directorio, o las opiniones (Google Maps, encuesta y respuestas). */
@@ -30,7 +35,8 @@
   let states = $state<string[]>([]);
   let payMethods = $state<string[]>([]);
   // listas que se escriben separadas por comas
-  let insText = $state('');
+  let insSel = $state<string[]>([]);
+  let insOther = $state('');
   let langText = $state('');
   const toList = (t: string) => t.split(',').map((x) => x.trim()).filter(Boolean);
   function take(r: { profile: ClinicProfile; slug: string; review_url: string; services: ProfileService[]; states: string[]; payment_methods: string[]; completeness: ProfileCompleteness }) {
@@ -41,7 +47,14 @@
     services = r.services;
     states = r.states;
     payMethods = r.payment_methods;
-    insText = r.profile.insurances.join(', ');
+    insSel = [];
+    const others: string[] = [];
+    for (const n of r.profile.insurances) {
+      const k = insurerByName(n);
+      if (k) insSel.push(k.name);
+      else others.push(n);
+    }
+    insOther = others.join(', ');
     langText = r.profile.languages.join(', ');
   }
   function togglePay(m: string, on: boolean) {
@@ -64,6 +77,25 @@
   let loadError = $state('');
   const saveOp = new Op();
 
+  // ejemplos por giro: se cargan como borrador y la clínica decide qué publica
+  $effect(() => {
+    if (session.status === 'authenticated') void session.loadClinic();
+  });
+  const myKinds = $derived<string[]>([session.clinic?.kind, ...(session.clinic?.specialties ?? [])].filter(Boolean) as string[]);
+  function loadExamples() {
+    if (!p) return;
+    const d = defaultsFor(myKinds);
+    const have = new Set(p.faqs.map((f) => f.q));
+    p.faqs = [...p.faqs, ...d.faqs.filter((f) => !have.has(f.q))].slice(0, 12);
+    p.highlights = [...p.highlights, ...d.highlights.filter((h) => !p!.highlights.includes(h))].slice(0, 6);
+  }
+  const addFaq = () => p && p.faqs.length < 12 && (p.faqs = [...p.faqs, { q: '', a: '' }]);
+  const addHighlight = () => p && p.highlights.length < 6 && (p.highlights = [...p.highlights, '']);
+  const featuredCount = $derived(services.filter((x) => x.featured).length);
+  function toggleInsurer(name: string, on: boolean) {
+    insSel = on ? [...insSel.filter((x) => x !== name), name] : insSel.filter((x) => x !== name);
+  }
+
   onMount(async () => {
     try {
       const [r, s] = await Promise.all([profileApi.get(), profileApi.surveys()]);
@@ -84,8 +116,15 @@
   async function save(e: SubmitEvent) {
     e.preventDefault();
     if (!p) return;
+    const cur = $state.snapshot(p) as ClinicProfile;
     if (await saveOp.run(async () => {
-      const body = { ...($state.snapshot(p) as ClinicProfile), insurances: toList(insText), languages: toList(langText), public_services: services.filter((x) => x.public).map((x) => x.id) };
+      const body = {
+        ...cur,
+        insurances: cur.accepts_insurance ? [...insSel, ...toList(insOther)] : [],
+        languages: toList(langText),
+        public_services: services.filter((x) => x.public).map((x) => x.id),
+        service_details: services.map((x) => ({ id: x.id, description: (x.description ?? '').trim(), featured: !!x.featured }))
+      };
       take(await profileApi.save(body));
     })) toast.show('Perfil y encuesta guardados');
   }
@@ -140,7 +179,80 @@
             <label class="label" for="pf-web">Sitio web</label>
             <input id="pf-web" class="field" maxlength="200" bind:value={p.website} placeholder="https://" />
           </div>
+          <div>
+            <label class="label" for="pf-ig"><span class="inline-flex items-center gap-1.5"><Icon name="instagram" size={16} />Instagram</span></label>
+            <input id="pf-ig" class="field" maxlength="200" bind:value={p.instagram_url} placeholder="@tuconsultorio o https://instagram.com/…" />
+          </div>
+          <div>
+            <label class="label" for="pf-fb"><span class="inline-flex items-center gap-1.5"><Icon name="facebook" size={16} />Facebook</span></label>
+            <input id="pf-fb" class="field" maxlength="200" bind:value={p.facebook_url} placeholder="tuconsultorio o https://facebook.com/…" />
+          </div>
         </div>
+      </div>
+
+      <div class="rounded-2xl p-4 ring-1 ring-app-ink/12">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p class="font-medium">Por qué elegirnos</p>
+            <p class="text-sm text-app-muted">Hasta 6 frases cortas que aparecen con palomitas en tu página.</p>
+          </div>
+          <button type="button" class="btn-secondary" onclick={loadExamples}><Icon name="sparkles" size={16} />Usar ejemplos de mi giro</button>
+        </div>
+        <ul class="mt-3 grid gap-2">
+          {#each p.highlights as _, i}
+            <li class="flex items-center gap-2">
+              <input class="field" maxlength="100" aria-label="Motivo {i + 1}" bind:value={p.highlights[i]} placeholder="Ej. Atención para toda la familia" />
+              <button type="button" class="icon-btn danger" aria-label="Quitar el motivo {i + 1}" onclick={() => p && (p.highlights = p.highlights.filter((_, k) => k !== i))}><Icon name="x" size={14} /></button>
+            </li>
+          {/each}
+        </ul>
+        {#if p.highlights.length < 6}<button type="button" class="btn-secondary mt-3" onclick={addHighlight}><Icon name="plus" size={16} />Agregar motivo</button>{/if}
+        <p class="hint mt-2">Revisa que cada frase sea cierta para tu consultorio antes de guardar.</p>
+      </div>
+
+      <div class="rounded-2xl p-4 ring-1 ring-app-ink/12">
+        <p class="font-medium">Servicios destacados</p>
+        <p class="text-sm text-app-muted">Hasta 4 servicios con descripción, que aparecen primero en «Empieza por aquí». Los destacados salen con su precio del catálogo.</p>
+        {#if services.length}
+          <ul class="mt-3 grid gap-3">
+            {#each services as sv, i (sv.id)}
+              <li class="rounded-xl bg-app-ink/4 p-3">
+                <label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" checked={!!sv.featured} disabled={!sv.featured && featuredCount >= 4}
+                    onchange={(e) => { sv.featured = e.currentTarget.checked; if (sv.featured) sv.public = true; }} />
+                  {sv.name} <span class="font-normal text-app-muted">· {moneyCents(sv.price_cents)}</span>
+                </label>
+                <label class="mt-2 block"><span class="sr-only">Descripción de {sv.name}</span>
+                  <input class="field" maxlength="200" bind:value={services[i].description} placeholder="Qué incluye, para quién es o qué obtienes (hasta 200 caracteres)" /></label>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="hint mt-2">Agrega servicios con precio en el catálogo para destacarlos.</p>
+        {/if}
+      </div>
+
+      <div class="rounded-2xl p-4 ring-1 ring-app-ink/12">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p class="font-medium">Preguntas frecuentes</p>
+            <p class="text-sm text-app-muted">Resuelven dudas antes de que te escriban. Hasta 12.</p>
+          </div>
+          <button type="button" class="btn-secondary" onclick={loadExamples}><Icon name="sparkles" size={16} />Usar ejemplos de mi giro</button>
+        </div>
+        <ul class="mt-3 grid gap-3">
+          {#each p.faqs as _, i}
+            <li class="rounded-xl bg-app-ink/4 p-3">
+              <div class="flex items-center gap-2">
+                <input class="field" maxlength="150" aria-label="Pregunta {i + 1}" bind:value={p.faqs[i].q} placeholder="Pregunta" />
+                <button type="button" class="icon-btn danger" aria-label="Quitar la pregunta {i + 1}" onclick={() => p && (p.faqs = p.faqs.filter((_, k) => k !== i))}><Icon name="x" size={14} /></button>
+              </div>
+              <textarea class="field mt-2" rows="2" maxlength="800" aria-label="Respuesta {i + 1}" bind:value={p.faqs[i].a} placeholder="Respuesta"></textarea>
+            </li>
+          {/each}
+        </ul>
+        {#if p.faqs.length < 12}<button type="button" class="btn-secondary mt-3" onclick={addFaq}><Icon name="plus" size={16} />Agregar pregunta</button>{/if}
+        <p class="hint mt-2">Los ejemplos son un borrador: cámbialos para que reflejen cómo trabajas.</p>
       </div>
 
       </div>
@@ -186,10 +298,26 @@
             <label class="label" for="pf-col">Colonia (opcional)</label>
             <input id="pf-col" class="field" maxlength="80" bind:value={p.neighborhood} placeholder="Ej. Zona Río" />
           </div>
-          <div class="sm:col-span-2">
-            <label class="label" for="pf-ins">Aseguradoras que aceptas</label>
-            <input id="pf-ins" class="field" bind:value={insText} placeholder="GNP, AXA, MetLife" />
-            <p class="hint">Sepáralas con comas.</p>
+          <div class="sm:col-span-3">
+            <label class="flex cursor-pointer items-start gap-3 text-sm">
+              <input type="checkbox" class="mt-0.5 h-4 w-4 accent-[rgb(var(--app-primary))]" bind:checked={p.accepts_insurance} />
+              <span><span class="font-medium">Acepto seguros médicos o dentales</span><span class="block text-app-muted">Aparece una sección con las aseguradoras que elijas, en tu página y en el directorio.</span></span>
+            </label>
+            {#if p.accepts_insurance}
+              <fieldset class="mt-3">
+                <legend class="label">Aseguradoras que aceptas</legend>
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {#each INSURERS as ins (ins.id)}
+                    <label class="flex cursor-pointer items-center gap-3 rounded-xl p-2 ring-1 ring-app-ink/12 has-[:checked]:bg-app-primary/8 has-[:checked]:ring-app-primary">
+                      <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--app-primary))]" checked={insSel.includes(ins.name)} onchange={(e) => toggleInsurer(ins.name, e.currentTarget.checked)} />
+                      <InsurerBadge name={ins.name} size="sm" />
+                    </label>
+                  {/each}
+                </div>
+                <label class="label mt-3" for="pf-ins-o">Otras aseguradoras</label>
+                <input id="pf-ins-o" class="field" bind:value={insOther} placeholder="Separadas por comas" />
+              </fieldset>
+            {/if}
           </div>
           <div>
             <label class="label" for="pf-lang">Idiomas</label>

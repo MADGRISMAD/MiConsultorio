@@ -22,8 +22,17 @@ export interface ClinicProfile {
   insurances: string[];
   languages: string[];
   payment_methods: string[];
+  /** acepta seguros: la lista de aseguradoras solo cuenta cuando es true */
+  accepts_insurance: boolean;
+  /** por qué elegir el consultorio (hasta 6) */
+  highlights: string[];
+  faqs: { q: string; a: string }[];
+  facebook_url: string;
+  instagram_url: string;
   /** ids de los servicios que se muestran con precio (solo al guardar) */
   public_services?: string[];
+  /** descripción y «destacado» de los servicios (solo al guardar) */
+  service_details?: { id: string; description: string; featured: boolean }[];
 }
 
 export interface ProfileCompleteness {
@@ -36,6 +45,8 @@ export interface ProfileService {
   name: string;
   price_cents: number;
   public: boolean;
+  description?: string;
+  featured?: boolean;
 }
 
 export interface SurveyStats {
@@ -80,7 +91,12 @@ export interface PublicClinic {
   insurances: string[];
   languages: string[];
   payment_methods: string[];
-  services: { id: string; name: string; price_cents: number; duration_minutes: number | null; modality: 'presencial' | 'videollamada' | 'ambas'; package_sessions?: number | null }[];
+  accepts_insurance: boolean;
+  highlights: string[];
+  faqs: { q: string; a: string }[];
+  facebook_url: string;
+  instagram_url: string;
+  services: { id: string; name: string; price_cents: number; duration_minutes: number | null; modality: 'presencial' | 'videollamada' | 'ambas'; package_sessions?: number | null; description?: string; featured?: boolean }[];
 }
 
 export interface DirectoryHit {
