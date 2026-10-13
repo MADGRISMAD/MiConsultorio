@@ -92,7 +92,7 @@ func (s *Server) recommendFollowUp(w http.ResponseWriter, r *http.Request) {
 
 	var out appointment
 	err = inTx(r.Context(), s.db, func(tx pgx.Tx) error {
-		if err := lockAgendaDay(r.Context(), tx, p.ClinicID, f.Date); err != nil {
+		if err := lockSlotDay(r.Context(), tx, p.ClinicID, deref(f.ProfessionalID), f.Date); err != nil {
 			return err
 		}
 		if f.StartHour == "" {

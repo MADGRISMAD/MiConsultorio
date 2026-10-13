@@ -227,7 +227,7 @@ func (s *Server) loadSlotBusy(ctx context.Context, clinicID string, pros []strin
 	if err := scan(`
 		SELECT professional_id::text, to_char(date, 'YYYY-MM-DD'), to_char(start_hour, 'HH24:MI'), to_char(end_hour, 'HH24:MI')
 		FROM appointments WHERE clinic_id = $1 AND professional_id = ANY($2::uuid[]) AND date BETWEEN $3::date AND $4::date
-		  AND status NOT IN ('cancelled', 'no_show')`, b.appts); err != nil {
+		  AND `+apptHoldsTime("")+``, b.appts); err != nil {
 		return nil, err
 	}
 	if err := scan(`
@@ -449,7 +449,7 @@ func (s *Server) agendaMonthLoad(w http.ResponseWriter, r *http.Request) {
 	count := map[string][2]int{}
 	arows, err := s.db.Query(ctx, `
 		SELECT to_char(date, 'YYYY-MM-DD'), count(*)::int, coalesce(sum(extract(epoch FROM end_hour - start_hour) / 60), 0)::int
-		FROM appointments WHERE clinic_id = $1 AND date BETWEEN $2::date AND $3::date AND status NOT IN ('cancelled', 'no_show')
+		FROM appointments WHERE clinic_id = $1 AND date BETWEEN $2::date AND $3::date AND `+apptHoldsTime("")+`
 		  AND ($4 = '' OR professional_id::text = $4)
 		GROUP BY 1`, p.ClinicID, from, to, onlyPro)
 	if err != nil {

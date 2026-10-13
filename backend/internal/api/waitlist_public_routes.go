@@ -393,10 +393,7 @@ func (s *Server) wlAccept(ctx context.Context, token string, v *wlView, clinicID
 	}
 	var apptID string
 	err = inTx(ctx, s.db, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+clinicID+"|"+proID+"|"+date); err != nil {
-			return err
-		}
-		if err := lockAgendaDay(ctx, tx, clinicID, date); err != nil {
+		if err := lockSlotDay(ctx, tx, clinicID, proID, date); err != nil {
 			return err
 		}
 		var entryID, offerID, name, phone, email, via string

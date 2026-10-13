@@ -259,7 +259,7 @@
               <label class="block">
                 <span class="label">Anticipo al reservar en línea (% del precio)</span>
                 <input type="number" min="0" max="100" class="field" bind:value={s.deposit_percent} />
-                <span class="hint">0 = no se cobra. Se paga con tu Mercado Pago conectado y solo aplica a servicios con precio; cada servicio puede tener el suyo (Servicios en la agenda). Si no pagan en 30 min, el horario se libera.</span>
+                <span class="hint">0 = no se cobra. Se paga con tu Mercado Pago conectado y solo aplica a servicios con precio; cada servicio puede tener el suyo (Servicios en la agenda). Si no pagan en 15 min, el horario se libera.</span>
               </label>
             {/if}
             <label class="flex cursor-pointer items-start gap-3 text-sm sm:pt-7">

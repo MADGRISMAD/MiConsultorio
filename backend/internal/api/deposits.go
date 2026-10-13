@@ -19,7 +19,7 @@ import (
 // Cobro anticipado: a priced service booked online can be held with a percentage paid up front through the
 // clinic's own Mercado Pago account. The appointment waits as pending_payment (it already holds the time) and
 // becomes a normal scheduled one when the payment is approved; unpaid ones are released after depositHold.
-const depositHold = 30 * time.Minute
+const depositHold = 15 * time.Minute
 
 // depositFor is the amount to charge up front for a booking of this service, or 0 when none applies: the service has
 // no price, the percentage is 0, the plan has no cobros or the clinic has not connected Mercado Pago.
@@ -192,6 +192,11 @@ func (s *Server) refundDeposit(ctx context.Context, clinicID, apptID string) err
 	if chargeID == nil || (state != "paid" && state != "pending") {
 		return nil
 	}
+	if state == "pending" { // it may have been paid a moment ago without our being told: ask before deciding it was not
+		if ch, ref, err := s.loadCharge(ctx, clinicID, *chargeID); err == nil {
+			_, _ = s.syncCharge(ctx, clinicID, ch, ref)
+		}
+	}
 	var pay string
 	var refunded *time.Time
 	var status string
@@ -215,8 +220,11 @@ func (s *Server) refundDeposit(ctx context.Context, clinicID, apptID string) err
 		_, err = s.db.Exec(ctx, `UPDATE appointments SET deposit_state = 'refunded' WHERE clinic_id = $1 AND id = $2`, clinicID, apptID)
 		return err
 	}
-	if status != "approved" { // nothing was ever paid
-		_, err := s.db.Exec(ctx, `UPDATE appointments SET deposit_state = 'none' WHERE clinic_id = $1 AND id = $2 AND deposit_state = 'pending'`, clinicID, apptID)
+	if status != "approved" { // nothing paid so far
+		// The payment link stays open until the hold ends: while it does, the mark stays 'pending' so a payment that still
+		// lands is found by settleDeposit and returned; depositPass closes it afterwards.
+		_, err := s.db.Exec(ctx, `UPDATE appointments SET deposit_state = 'none' WHERE clinic_id = $1 AND id = $2 AND deposit_state = 'pending'
+			AND (deposit_expires_at IS NULL OR deposit_expires_at < now())`, clinicID, apptID)
 		return err
 	}
 	return nil
@@ -225,6 +233,7 @@ func (s *Server) refundDeposit(ctx context.Context, clinicID, apptID string) err
 // depositPass releases the time of appointments whose deposit was not paid in time. A payment that landed
 // but whose notice did not is found first.
 func (s *Server) depositPass(ctx context.Context) {
+	s.closeStaleDeposits(ctx)
 	rows, err := s.db.Query(ctx, `SELECT clinic_id::text, id::text FROM appointments WHERE status = 'pending_payment' AND deposit_expires_at < now() + interval '1 minute' LIMIT 100`)
 	if err != nil {
 		return
@@ -249,6 +258,27 @@ func (s *Server) depositPass(ctx context.Context) {
 			WHERE clinic_id = $1 AND id = $2 AND status = 'pending_payment'`, a.clinic, a.id); err == nil && tag.RowsAffected() == 1 {
 			waitlistWake()
 		}
+	}
+}
+
+// closeStaleDeposits ends the 'pending' mark of appointments that were cancelled while their payment link was still open,
+// once the link has expired: a payment that landed in the meantime is returned first.
+func (s *Server) closeStaleDeposits(ctx context.Context) {
+	rows, err := s.db.Query(ctx, `SELECT id::text FROM appointments WHERE deposit_state = 'pending' AND status <> 'pending_payment' AND deposit_expires_at < now() LIMIT 100`)
+	if err != nil {
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+	for _, id := range ids {
+		s.settleDeposit(ctx, id)
+		_, _ = s.db.Exec(ctx, `UPDATE appointments SET deposit_state = 'none' WHERE id = $1 AND deposit_state = 'pending' AND status <> 'pending_payment'`, id)
 	}
 }
 

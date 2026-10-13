@@ -355,11 +355,8 @@ func (s *Server) wlOffer(ctx context.Context, c *bookingClinic, e wlEntry, pro b
 	var expires time.Time
 	ok := false
 	err := inTx(ctx, s.db, func(tx pgx.Tx) error {
-		// Same locks, same order, as an online booking and as accepting an offer.
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+c.ID+"|"+pro.ID+"|"+date); err != nil {
-			return err
-		}
-		if err := lockAgendaDay(ctx, tx, c.ID, date); err != nil {
+		// Same locks, same order, as an online booking, a staff booking and accepting an offer.
+		if err := lockSlotDay(ctx, tx, c.ID, pro.ID, date); err != nil {
 			return err
 		}
 		var status string

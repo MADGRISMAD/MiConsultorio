@@ -53,7 +53,7 @@ func (s *Server) findOpenInSameArea(ctx context.Context, q queryRower, clinicID,
 		FROM appointments ap
 		JOIN users u ON u.id = ap.professional_id
 		JOIN clinics c ON c.id = ap.clinic_id
-		WHERE ap.clinic_id = $1 AND ap.status IN ('scheduled', 'confirmed')
+		WHERE ap.clinic_id = $1 AND `+apptOpen("ap.")+`
 		  AND (ap.date + ap.start_hour) > (now() AT TIME ZONE $2)
 		  AND ($3 = '' OR ap.id::text <> $3)
 		  AND (ap.patient_id = nullif($4, '')::uuid OR ($5 <> '' AND lower(ap.email) = $5) OR ($6 <> '' AND ap.phone = $6))

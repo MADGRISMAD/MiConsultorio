@@ -2,6 +2,20 @@ package api
 
 import "context"
 
+// apptHoldsTime and apptOpen are the two sets of appointment statuses used by SQL, in one place.
+//   - holds time: every visit except cancelled or missed ones, and except one waiting for its online deposit once the 15
+//     minutes of the hold ran out (the time is free again even before the sweep cancels it).
+//   - open: a visit still to be attended (scheduled, confirmed, or a deposit still inside its hold).
+//
+// alias is the table alias with its dot ("a."), or empty.
+func apptHoldsTime(alias string) string {
+	return alias + `status NOT IN ('cancelled', 'no_show') AND NOT (` + alias + `status = 'pending_payment' AND ` + alias + `deposit_expires_at < now())`
+}
+
+func apptOpen(alias string) string {
+	return `(` + alias + `status IN ('scheduled', 'confirmed') OR (` + alias + `status = 'pending_payment' AND ` + alias + `deposit_expires_at >= now()))`
+}
+
 // Codes returned by slotConflict.
 const (
 	SlotFree    = ""
@@ -31,7 +45,7 @@ func (s *Server) slotConflict(ctx context.Context, q queryRower, clinicID string
 	if err := q.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM appointments a
-			WHERE a.clinic_id = $1 AND a.date = $2::date AND a.status NOT IN ('cancelled', 'no_show')
+			WHERE a.clinic_id = $1 AND a.date = $2::date AND `+apptHoldsTime("a.")+`
 			  AND a.start_hour < $5::time AND a.end_hour > $4::time
 			  AND ($6 = '' OR a.id <> NULLIF($6, '')::uuid)
 			  AND ((a.professional_id IS NOT DISTINCT FROM $3::uuid AND $3::uuid IS NOT NULL) OR ($7 <> '' AND a.room = $7)))`,

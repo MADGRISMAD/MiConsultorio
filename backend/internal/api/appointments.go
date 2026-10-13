@@ -209,8 +209,15 @@ func newConfirmToken() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// lockAgendaDay serializes bookings for one clinic and day so two requests cannot take the same slot.
-func lockAgendaDay(ctx context.Context, tx pgx.Tx, clinicID, date string) error {
+// lockSlotDay serializes everything that takes a time of one professional on one day (staff, online booking, the waiting
+// list, follow-ups) so two requests cannot take the same slot. It always takes the same two locks in the same order:
+// the professional's day first (empty when the visit has no professional), then the clinic's day.
+func lockSlotDay(ctx context.Context, tx pgx.Tx, clinicID, professionalID, date string) error {
+	if professionalID != "" {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+clinicID+"|"+professionalID+"|"+date); err != nil {
+			return err
+		}
+	}
 	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "agenda:"+clinicID+":"+date)
 	return err
 }
@@ -343,7 +350,7 @@ func (s *Server) createAppointment(w http.ResponseWriter, r *http.Request) {
 	}
 	var out appointment
 	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
-		if err := lockAgendaDay(r.Context(), tx, p.ClinicID, f.Date); err != nil {
+		if err := lockSlotDay(r.Context(), tx, p.ClinicID, deref(f.ProfessionalID), f.Date); err != nil {
 			return err
 		}
 		if err := s.checkSlot(r.Context(), tx, p.ClinicID, &f, ""); err != nil {
@@ -426,7 +433,7 @@ func (s *Server) updateAppointment(w http.ResponseWriter, r *http.Request) {
 			e.Code = "APPOINTMENT_CLOSED"
 			return e
 		}
-		if err := lockAgendaDay(r.Context(), tx, p.ClinicID, f.Date); err != nil {
+		if err := lockSlotDay(r.Context(), tx, p.ClinicID, deref(f.ProfessionalID), f.Date); err != nil {
 			return err
 		}
 		sameSlot := cur.Date == f.Date && cur.StartHour == f.StartHour && cur.EndHour == f.EndHour && cur.Room == f.Room &&

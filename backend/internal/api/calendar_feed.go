@@ -120,7 +120,7 @@ func (f *feedAPI) serve(w http.ResponseWriter, r *http.Request) {
 		SELECT a.id::text, to_char(a.date, 'YYYY-MM-DD'), to_char(a.start_hour, 'HH24:MI'), to_char(a.end_hour, 'HH24:MI'), a.names, a.last_names, a.status,
 		       coalesce(ci.name, ''), a.room, a.updated_at
 		FROM appointments a LEFT JOIN catalog_items ci ON ci.id = a.service_id
-		WHERE a.clinic_id = $1 AND a.professional_id = $2 AND a.status NOT IN ('cancelled', 'no_show')
+		WHERE a.clinic_id = $1 AND a.professional_id = $2 AND `+apptHoldsTime("a.")+`
 		  AND a.date BETWEEN $3::date AND $4::date ORDER BY a.date, a.start_hour LIMIT 3000`,
 		clinicID, userID, now.Add(-feedPast).In(loc).Format("2006-01-02"), now.Add(feedFuture).In(loc).Format("2006-01-02"))
 	if err != nil {

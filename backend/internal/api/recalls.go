@@ -43,7 +43,9 @@ const recallWho = `CASE WHEN p.subject = 'animal' THEN coalesce(nullif(o.name, '
 	     ELSE coalesce(nullif(p.email, ''), nullif(p.guardian_email, ''), '') END`
 const recallSelect = `p.id::text, p.subject, p.names, ` + recallWho
 const recallReachable = `p.archived_at IS NULL AND (p.reminders_ok OR (p.owner_id IS NOT NULL AND EXISTS (SELECT 1 FROM patients q WHERE q.owner_id = p.owner_id AND q.reminders_ok)))`
-const recallNoFutureVisit = `NOT EXISTS (SELECT 1 FROM appointments a WHERE a.clinic_id = p.clinic_id AND a.patient_id = p.id AND a.date >= $2::date AND a.status IN ('scheduled', 'confirmed'))`
+
+var recallNoFutureVisit = `NOT EXISTS (SELECT 1 FROM appointments a WHERE a.clinic_id = p.clinic_id AND a.patient_id = p.id AND a.date >= $2::date AND ` + apptOpen("a.") + `)`
+
 const recallNotSent = `NOT EXISTS (SELECT 1 FROM recall_mail m WHERE m.kind = '%s' AND m.ref = %s AND m.due = %s AND (m.sent_at IS NOT NULL OR m.attempts >= 3))`
 
 func (s *Server) sendRecalls(ctx context.Context, now time.Time) error {

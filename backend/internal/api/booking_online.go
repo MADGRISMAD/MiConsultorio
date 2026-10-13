@@ -510,8 +510,8 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 	taken, tooManyOpen := false, false
 	var sameArea error
 	err = inTx(ctx, b.db, func(tx pgx.Tx) error {
-		// One booking at a time per professional and day: the check and the insert are atomic.
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+c.ID+"|"+pro.ID+"|"+req.Date); err != nil {
+		// One booking at a time per professional and day (also against staff and the waiting list): the check and the insert are atomic.
+		if err := lockSlotDay(ctx, tx, c.ID, pro.ID, req.Date); err != nil {
 			return err
 		}
 		code, err := b.slotConflict(ctx, tx, c.ID, &pro.ID, "", req.Date, req.Start, end, "")
@@ -534,7 +534,7 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		var open int
 		if err := tx.QueryRow(ctx, `
 			SELECT count(*) FROM appointments
-			WHERE clinic_id = $1 AND source = 'online' AND status IN ('pending_payment', 'scheduled', 'confirmed') AND date >= current_date - 1
+			WHERE clinic_id = $1 AND source = 'online' AND `+apptOpen("")+` AND date >= current_date - 1
 			  AND (($2 <> '' AND lower(email) = $2) OR ($3 <> '' AND phone = $3))`, c.ID, req.Email, phone).Scan(&open); err != nil {
 			return err
 		}
@@ -858,7 +858,7 @@ func (b *bookingAPI) bookingHold(w http.ResponseWriter, r *http.Request) {
 	taken := false
 	var expires time.Time
 	err = inTx(ctx, b.db, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "booking|"+c.ID+"|"+pro.ID+"|"+req.Date); err != nil {
+		if err := lockSlotDay(ctx, tx, c.ID, pro.ID, req.Date); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM booking_holds WHERE expires_at < now() OR (clinic_id = $1 AND holder = $2)`, c.ID, req.Holder); err != nil {

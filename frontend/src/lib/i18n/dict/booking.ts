@@ -131,7 +131,7 @@ export const es = {
   'appt.status.no_show': 'No asististe',
   'appt.status.cancelled': 'Cancelada',
   'deposit.title': 'Paga tu anticipo para apartar la cita',
-  'deposit.text': 'Tu horario está apartado por 30 minutos. En cuanto se acredite el pago de {amount} te confirmamos la cita; si no se paga a tiempo, el horario se libera.',
+  'deposit.text': 'Tu horario está apartado por 15 minutos. En cuanto se acredite el pago de {amount} te confirmamos la cita; si no se paga a tiempo, el horario se libera.',
   'deposit.pay': 'Pagar {amount} con Mercado Pago',
   'deposit.paid': 'Anticipo pagado: {amount}',
   'deposit.refunded': 'Anticipo devuelto: {amount}',
