@@ -213,8 +213,10 @@ func (s *Server) linkEncounterToAppointment(ctx context.Context, tx pgx.Tx, p *P
 	if apptPatient != nil && *apptPatient != patientID {
 		return fail(http.StatusBadRequest, "La cita pertenece a otro paciente.")
 	}
-	if apptTimeGate(clinicLocation(ctx, tx, p.ClinicID), date, start, "in_progress", apptNow()) != nil {
-		// A note written before the visit's time is kept with the appointment, but does not close it.
+	// A visit that was cancelled, missed or never paid is not reopened or charged because a note was written: the note only
+	// stays linked to it.
+	if cur == "cancelled" || cur == "no_show" || cur == "pending_payment" || apptTimeGate(clinicLocation(ctx, tx, p.ClinicID), date, start, "in_progress", apptNow()) != nil {
+		// A note written before the visit's time (or on a closed visit) is kept with the appointment, but does not close it.
 		_, err := tx.Exec(ctx, `UPDATE appointments SET encounter_id = coalesce(encounter_id, $3::uuid), updated_at = now() WHERE clinic_id = $1 AND id = $2`, p.ClinicID, apptID, encounterID)
 		return err
 	}

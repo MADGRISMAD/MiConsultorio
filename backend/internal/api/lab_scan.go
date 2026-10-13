@@ -165,7 +165,7 @@ func (s *Server) scanLabResults(w http.ResponseWriter, r *http.Request) {
 	seen := map[string]bool{}
 	for _, x := range parsed.Results {
 		analyte, value := strings.TrimSpace(x.Analyte), strings.TrimSpace(x.Value)
-		if analyte == "" || value == "" || len(rows) >= 300 {
+		if analyte == "" || value == "" || len(rows) >= 120 {
 			continue
 		}
 		row := labScanRow{Section: truncateRunes(strings.TrimSpace(x.Section), 120), Analyte: truncateRunes(analyte, 120), Unit: truncateRunes(strings.TrimSpace(x.Unit), 30)}

@@ -580,12 +580,17 @@ func menuHistoryPrompt(history [][]nutritionDayIn) string {
 	return b.String()
 }
 
+// truncateRunes shortens s to at most n runes, closing with "…" when it had to cut: the result never exceeds n, so a
+// value cut here still passes the length checks of the screens and the validators that save it.
 func truncateRunes(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {
 		return s
 	}
-	return string(r[:n]) + "…"
+	if n <= 1 {
+		return string(r[:max(n, 0)])
+	}
+	return string(r[:n-1]) + "…"
 }
 
 var mealStop = map[string]bool{"taza": true, "tazas": true, "pieza": true, "piezas": true, "cucharada": true, "cucharadas": true, "cucharadita": true, "cucharaditas": true,

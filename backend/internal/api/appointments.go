@@ -486,13 +486,31 @@ func (s *Server) deleteAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := principalFrom(r.Context())
-	tag, err := s.db.Exec(r.Context(), `DELETE FROM appointments WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id)
-	if err != nil {
+	// A deposit paid online goes back to the patient before the appointment disappears (its charge is found through the
+	// appointment), and the session taken from a package is given back: deleting must not leave either one behind.
+	var exists bool
+	if err := s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM appointments WHERE clinic_id = $1 AND id = $2)`, p.ClinicID, id).Scan(&exists); err != nil {
 		serverError(w, r, err)
 		return
 	}
-	if tag.RowsAffected() == 0 {
+	if !exists {
 		writeError(w, http.StatusNotFound, "Cita no encontrada.")
+		return
+	}
+	if err := s.refundDeposit(r.Context(), p.ClinicID, id); err != nil {
+		logf(r, "deposit refund on delete %s: %v", id, err)
+		writeError(w, http.StatusBadGateway, "No se pudo reembolsar el anticipo de esta cita. Cancélala para reintentarlo o avisa al paciente; la cita no se eliminó.")
+		return
+	}
+	err := inTx(r.Context(), s.db, func(tx pgx.Tx) error {
+		if err := releasePackage(r.Context(), tx, p.ClinicID, id); err != nil {
+			return err
+		}
+		_, err := tx.Exec(r.Context(), `DELETE FROM appointments WHERE clinic_id = $1 AND id = $2`, p.ClinicID, id)
+		return err
+	})
+	if err != nil {
+		serverError(w, r, err)
 		return
 	}
 	audit(r.Context(), s.db, p.ClinicID, p, "appointment_delete", "Eliminó una cita", map[string]any{"appointment": id})
