@@ -9,6 +9,7 @@
   import { onMount } from 'svelte';
   import { session } from '$lib/session.svelte';
   import { pwa } from '$lib/pwa/pwa.svelte';
+  import CookieBanner from '$lib/components/CookieBanner.svelte';
 
   let { children } = $props();
 
@@ -23,3 +24,5 @@
 </svelte:head>
 
 {@render children()}
+
+<CookieBanner />

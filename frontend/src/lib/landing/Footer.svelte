@@ -3,6 +3,7 @@
   import Wordmark from './Wordmark.svelte';
   import { contactEmail, demoHref, loginPath } from './data';
   import { interp, reducedMotion, track } from './motion';
+  import { cookieConsent } from '$lib/cookies.svelte';
 
   /** home="/" fuera de la portada: las anclas apuntan a la portada. */
   let { home = '' }: { home?: string } = $props();
@@ -43,7 +44,7 @@
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="flex flex-wrap justify-between gap-3 border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
       <span>© {new Date().getFullYear()} Caresia · Todos los derechos reservados</span>
-      <span class="flex gap-5"><a href="/privacidad" class="transition-colors hover:text-signal">Aviso de privacidad</a><a href="/terminos" class="transition-colors hover:text-signal">Términos de uso</a></span>
+      <span class="flex flex-wrap gap-x-5 gap-y-2"><a href="/privacidad" class="transition-colors hover:text-signal">Aviso de privacidad</a><a href="/terminos" class="transition-colors hover:text-signal">Términos de uso</a><button type="button" onclick={() => cookieConsent.reopen()} class="uppercase tracking-[0.12em] transition-colors hover:text-signal">Preferencias de cookies</button></span>
     </div>
   </div>
   <div aria-hidden="true" class="overflow-hidden">

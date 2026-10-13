@@ -18,3 +18,7 @@ npm-debug.log*
 *.tsbuildinfo
 .vercel
 .env*
+
+# restos del frontend anterior (Next.js)
+.next/
+next-env.d.ts
