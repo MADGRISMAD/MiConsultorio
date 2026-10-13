@@ -1,6 +1,14 @@
 # Aviso de privacidad y términos: borrador pendiente de revisión legal
 
-Las páginas públicas `/privacidad` (aviso de privacidad de Caresia) y `/terminos` (términos de uso) son un **BORRADOR** redactado para un software de salud en México. **No son asesoría legal y no deben presentarse como definitivas hasta que las revise un abogado** con experiencia en protección de datos personales (LFPDPPP) y en servicios de salud. Las páginas muestran un aviso visible de «Borrador pendiente de revisión legal» y resaltan cada dato que aún falta.
+Las páginas públicas `/privacidad` (aviso de privacidad de Caresia) y `/terminos` (términos de uso) están redactadas para un software de salud en México y usan el mismo diseño que la portada (`LegalPage.svelte` con el menú y el pie de la landing). **No son asesoría legal: conviene que las revise un abogado** con experiencia en protección de datos personales (LFPDPPP) y en servicios de salud. Mientras falte algún dato del operador, las páginas lo dicen arriba y resaltan cada dato pendiente.
+
+### Actualización del 13 de octubre de 2026
+
+- Datos del operador completados: domicilio (Calle 20, Privada Fresnos, interior 12, Casas Beta, C.P. 22245, Tijuana, B.C.), correo de privacidad (`caresia-info@caresia.mx`) y jurisdicción (Tijuana, B.C.). **Siguen pendientes la razón social de la empresa y el teléfono.**
+- Proveedores reales: Vercel (sitio, EE. UU.), OVHcloud (servidor y base de datos, Canadá), Namecheap Private Email (correo), Meta/WhatsApp Business, Mercado Pago, Facturama, Google Gemini y Google Tag Manager/Analytics. Se mencionan las transferencias fuera de México.
+- Cookies: se agregó Google Analytics vía Google Tag Manager (solo páginas públicas: `/`, `/login`, `/register`, `/forgot`, `/privacidad`, `/terminos`, `/directorio`; ver `src/app.html`), con cómo desactivarlas. Se quitó Google Fonts: las tipografías se sirven desde el mismo dominio.
+- Autoridad: Secretaría Anticorrupción y Buen Gobierno (asumió la materia tras la reforma de 2025 de la LFPDPPP). Confirmar con el abogado.
+- Si se agregan etiquetas de publicidad en Google Tag Manager (Google Ads, Meta Pixel…), actualizar la sección 11 **antes** de activarlas.
 
 > No se inventó ningún dato legal. Todo lo que depende de quien opera Caresia está marcado entre corchetes.
 

@@ -25,6 +25,7 @@
     <h2 id="datos" class="display text-2xl">3. Datos que tratamos</h2>
     <p><strong>De las personas que usan la plataforma:</strong> nombre, correo, usuario, contraseña (guardada de forma cifrada irreversible), rol, cédula profesional e institución cuando el profesional las registra, datos del consultorio (nombre, domicilio, teléfono, datos legales y fiscales), datos de suscripción y cobro, y registros técnicos de uso y seguridad (por ejemplo fecha y hora de acceso y dirección IP).</p>
     <p><strong>Por cuenta de los consultorios:</strong> datos de identificación y contacto de pacientes (nombre, fecha de nacimiento, sexo, CURP, teléfono, correo, domicilio, datos de su tutor o representante), citas, expediente clínico, recetas, archivos adjuntos, ventas y cobros, y, tratándose de animales, datos del propietario y del animal.</p>
+    <p><strong>De quien visita el sitio público o nos escribe:</strong> datos técnicos de navegación (dirección IP, tipo de navegador y de dispositivo, páginas visitadas y desde dónde llegaste) mediante las cookies y tecnologías descritas en la sección 11; y, si solicitas una demostración o nos contactas, tu nombre, correo, teléfono, el nombre de tu consultorio y el contenido de tu mensaje.</p>
     <p><strong>De quien envía una solicitud ARCO</strong> desde el formulario público de un consultorio: nombre, correo, teléfono opcional y el contenido de la solicitud, que se entregan al consultorio correspondiente para que la atienda.</p>
   </section>
 
@@ -42,26 +43,31 @@
       <li>Gestionar suscripciones, pagos y facturación.</li>
       <li>Garantizar la seguridad, prevenir fraudes y abusos, y mantener bitácoras de actividad y de acceso.</li>
       <li>Dar soporte, atender solicitudes y cumplir obligaciones legales.</li>
+      <li>Atender tu solicitud de demostración o de información y darle seguimiento.</li>
     </ul>
     <p><strong>Finalidades secundarias (opcionales):</strong></p>
     <ul>
       <li>Enviarte novedades del producto, mejoras y recomendaciones de uso.</li>
-      <li>Medir el uso del sitio de forma agregada para mejorar la plataforma.</li>
+      <li>Medir las visitas al sitio público y el resultado de nuestras campañas (Google Analytics), y mejorar la plataforma con estadísticas de uso agregadas.</li>
     </ul>
     <p>Si no quieres que tus datos se usen para las finalidades secundarias, escríbenos a <Fill v={OPERATOR.correoPrivacidad} />; negarte no afecta el servicio. Los datos de pacientes no se usan por Caresia para mercadotecnia.</p>
+    <p><strong>Tu consentimiento:</strong> al crear tu cuenta y marcar la casilla de aceptación, consientes el tratamiento de tus datos conforme a este aviso. El consentimiento expreso para los datos sensibles de cada paciente lo recaba su consultorio, que es el responsable de esos datos.</p>
   </section>
 
   <section aria-labelledby="transferencias">
     <h2 id="transferencias" class="display text-2xl">6. Transferencias y proveedores</h2>
     <p>Caresia no vende datos personales. Para operar el servicio se apoya en proveedores que tratan datos por nuestra cuenta (encargados) bajo obligaciones de confidencialidad y seguridad:</p>
     <ul>
-      <li><strong>Infraestructura y alojamiento</strong> del sitio y de la base de datos: <Fill v="[PROVEEDORES DE HOSPEDAJE A CONFIRMAR]" />.</li>
+      <li><strong>Infraestructura y alojamiento:</strong> Vercel Inc. (Estados Unidos), que entrega el sitio web, y OVHcloud (Canadá), donde operan el servidor de la plataforma y la base de datos con sus respaldos.</li>
       <li><strong>Mercado Pago</strong>, para cobrar la suscripción y, si el consultorio lo activa, los pagos con terminal o enlace de pago.</li>
-      <li><strong>Proveedor de correo electrónico (SMTP)</strong>, para enviar mensajes de la plataforma (recuperación de contraseña, avisos y confirmaciones de citas).</li>
+      <li><strong>Namecheap, Inc. (Private Email)</strong>, proveedor de correo electrónico, para enviar los mensajes de la plataforma (recuperación de contraseña, avisos y confirmaciones de citas) y responder a quien nos escribe.</li>
+      <li><strong>Meta Platforms (WhatsApp Business)</strong>, solo si el consultorio activa los mensajes por WhatsApp, por ejemplo para confirmaciones o recordatorios de citas.</li>
       <li><strong>Facturama</strong> u otro proveedor autorizado de timbrado de CFDI, solo si el consultorio activa la facturación.</li>
       <li><strong>Google (Gemini)</strong>, solo si el consultorio usa las funciones de inteligencia artificial. En el inventario se envían las listas o fotos de productos. En las ayudas clínicas (resúmenes, borradores de notas, indicaciones, lecturas de estudios) se envían datos del expediente <strong>sin el nombre ni los datos de contacto del paciente</strong>: edad, sexo, alergias, medicación, notas y mediciones; con el dictado por voz, el audio que dicta el profesional, y con la comparación de fotos, las dos fotos elegidas. Esta información se envía solo en el momento de la solicitud; Caresia no guarda el audio. Lo que genera la IA es siempre un borrador o una sugerencia que el profesional revisa y decide.</li>
-      <li><strong>Herramienta de estadísticas de visitas sin cookies</strong> y <strong>Google Fonts</strong> (tipografías) para el sitio público.</li>
+      <li><strong>Google LLC (Google Tag Manager y Google Analytics)</strong>, solo en las páginas públicas del sitio (portada, registro, inicio de sesión, aviso y términos), para medir visitas y campañas. Nunca se carga dentro de la plataforma ni recibe datos de pacientes.</li>
+      <li><strong>Estadísticas de visitas propias y sin cookies (Umami)</strong>, alojadas en nuestro propio servidor.</li>
     </ul>
+    <p>Algunos de estos proveedores tienen servidores fuera de México, principalmente en Estados Unidos y Canadá. En esos casos los datos se les envían solo para prestar el servicio, por nuestra cuenta, y con obligaciones de confidencialidad y seguridad.</p>
     <p>Además, los datos pueden comunicarse a autoridades competentes cuando una ley o una orden fundada y motivada lo exija. Estas transferencias no requieren tu consentimiento adicional. Si se prevé otra transferencia, se solicitará tu consentimiento.</p>
   </section>
 
@@ -104,14 +110,15 @@
   </section>
 
   <section aria-labelledby="cookies">
-    <h2 id="cookies" class="display text-2xl">11. Cookies y analítica</h2>
+    <h2 id="cookies" class="display text-2xl">11. Cookies y tecnologías de rastreo</h2>
     <ul>
       <li><strong>Cookie de sesión (necesaria):</strong> mantiene abierta tu sesión al entrar a Caresia. No se usa para publicidad ni seguimiento.</li>
       <li><strong>Almacenamiento local del navegador:</strong> guarda preferencias de tu equipo, como el tema claro u oscuro o un borrador de venta.</li>
-      <li><strong>Estadísticas de visitas sin cookies:</strong> contamos visitas al sitio público de forma agregada, sin cookies, sin perfiles personales y sin conservar los parámetros de la dirección.</li>
-      <li><strong>Tipografías de Google Fonts:</strong> al cargar la página, tu navegador las solicita a Google, que puede ver tu dirección IP.</li>
+      <li><strong>Estadísticas propias sin cookies (Umami):</strong> contamos visitas al sitio público de forma agregada, sin cookies, sin perfiles personales y sin conservar los parámetros de la dirección.</li>
+      <li><strong>Google Analytics, mediante Google Tag Manager:</strong> solo en las páginas públicas (portada, registro, inicio de sesión, aviso y términos). Usa cookies de Google Analytics (por ejemplo <code>_ga</code> y <code>_ga_…</code>) que asignan un identificador aleatorio a tu navegador para contar visitas, saber desde qué sitio o campaña llegaste y cuánto tiempo pasaste en la página. Google puede recibir tu dirección IP y datos técnicos de tu navegador, y tratarlos en servidores fuera de México. No se usan para identificarte por tu nombre y no se cargan dentro de la plataforma.</li>
     </ul>
-    <p>Caresia no usa cookies publicitarias ni de terceros para perfilarte.</p>
+    <p><strong>Cómo desactivarlas:</strong> puedes bloquear o borrar las cookies desde la configuración de tu navegador, navegar en modo privado o instalar el complemento de inhabilitación de Google Analytics (<a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">tools.google.com/dlpage/gaoptout</a>). Rechazarlas no te impide usar el sitio ni la plataforma; la cookie de sesión es la única necesaria para entrar.</p>
+    <p>Hoy no usamos cookies publicitarias. Si agregamos alguna herramienta de publicidad o de medición de anuncios, actualizaremos este aviso antes de activarla.</p>
   </section>
 
   <section aria-labelledby="menores">
@@ -126,7 +133,7 @@
 
   <section aria-labelledby="autoridad">
     <h2 id="autoridad" class="display text-2xl">14. Autoridad y quejas</h2>
-    <p>Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, puedes acudir primero con nosotros y, si no quedas conforme, presentar tu queja o denuncia ante la autoridad de protección de datos personales competente conforme a la ley vigente <Fill v="[DENOMINACIÓN VIGENTE DE LA AUTORIDAD, A CONFIRMAR POR EL ABOGADO]" />.</p>
+    <p>Si consideras que tu derecho a la protección de datos personales ha sido vulnerado, escríbenos primero a <Fill v={OPERATOR.correoPrivacidad} /> para resolverlo. Si no quedas conforme, puedes presentar tu queja o denuncia ante la <strong>Secretaría Anticorrupción y Buen Gobierno</strong>, autoridad en materia de protección de datos personales en posesión de los particulares conforme a la ley vigente.</p>
   </section>
 </div>
 

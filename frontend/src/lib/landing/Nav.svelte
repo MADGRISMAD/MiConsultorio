@@ -8,12 +8,14 @@
   import { btn, EASE, onFrame, pageProgress, reducedMotion, Spring } from './motion';
 
   // Solo lo básico; el resto de secciones (todo incluido, especialidades, seguridad, preguntas) se descubre con scroll y desde el pie.
-  const links = [
-    ['#funciones', 'Funciones'],
-    ['#precios', 'Precios'],
+  /** home="/" cuando el menú se usa fuera de la portada (páginas legales): las anclas apuntan a la portada. */
+  let { home = '' }: { home?: string } = $props();
+  const links = $derived([
+    [`${home}#funciones`, 'Funciones'],
+    [`${home}#precios`, 'Precios'],
     ['/directorio', 'Buscar especialista']
-  ];
-  const mobileLinks = [...links, [loginPath, 'Iniciar sesión']];
+  ]);
+  const mobileLinks = $derived([...links, [loginPath, 'Iniciar sesión']]);
 
   let hidden = $state(false);
   let solid = $state(false);
@@ -52,7 +54,7 @@
       : ''}"
   >
     <div class="flex items-center">
-      <a href="#inicio" aria-label="Caresia, inicio" class="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
+      <a href={home ? '/' : '#inicio'} aria-label="Caresia, inicio" class="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal">
         <Wordmark />
       </a>
       <div class="ml-5 hidden items-center md:flex">

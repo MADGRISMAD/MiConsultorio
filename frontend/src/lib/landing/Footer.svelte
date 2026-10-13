@@ -4,12 +4,14 @@
   import { contactEmail, demoHref, loginPath } from './data';
   import { interp, reducedMotion, track } from './motion';
 
-  const cols: [string, [string, string][]][] = [
-    ['Producto', [['#funciones', 'Funciones'], ['#incluye', 'Todo incluido'], ['#especialidades', 'Especialidades'], ['#precios', 'Precios']]],
+  /** home="/" fuera de la portada: las anclas apuntan a la portada. */
+  let { home = '' }: { home?: string } = $props();
+  const cols: [string, [string, string][]][] = $derived([
+    ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#incluye`, 'Todo incluido'], [`${home}#especialidades`, 'Especialidades'], [`${home}#precios`, 'Precios']]],
     ['Pacientes', [['/directorio', 'Buscar especialista'], ['/directorio/dentistas', 'Dentistas'], ['/directorio/psicologos', 'Psicólogos'], ['/directorio/nutriologos', 'Nutriólogos']]],
-    ['Soporte', [['#preguntas', 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
+    ['Soporte', [[`${home}#preguntas`, 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
-  ];
+  ]);
 
   let footer: HTMLElement;
   let big: HTMLParagraphElement;
@@ -39,9 +41,9 @@
     {/each}
   </div>
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
-    <div class="flex justify-between border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
-      <span>© {new Date().getFullYear()} Caresia</span>
-      <span>Todos los derechos reservados</span>
+    <div class="flex flex-wrap justify-between gap-3 border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
+      <span>© {new Date().getFullYear()} Caresia · Todos los derechos reservados</span>
+      <span class="flex gap-5"><a href="/privacidad" class="transition-colors hover:text-signal">Aviso de privacidad</a><a href="/terminos" class="transition-colors hover:text-signal">Términos de uso</a></span>
     </div>
   </div>
   <div aria-hidden="true" class="overflow-hidden">
