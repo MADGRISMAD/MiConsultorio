@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { patientAge } from '$lib/format';
   import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -56,7 +57,7 @@
       const owner = patient.guardian_name ? `, propiedad de ${patient.guardian_name}` : '';
       return `Por medio de la presente certifico que el animal «${patient.names}»${species ? ` (${species})` : ''}${owner}, fue examinado el día ${today()} en ${clinic}. Al momento de la exploración se encuentra clínicamente ${form.findings ? 'con los hallazgos descritos' : 'sano, sin signos aparentes de enfermedad infectocontagiosa'}. Se extiende el presente certificado a petición del propietario para fines de ${purpose}.`;
     }
-    const age = patient.age != null ? `, de ${patient.age} ${patient.age === 1 ? 'año' : 'años'} de edad` : '';
+    const age = patient.age != null ? `, de ${patientAge(patient)} de edad` : '';
     const fit = { apto: 'Se encuentra apto(a) para la actividad solicitada.', no_apto: 'No se encuentra apto(a) para la actividad solicitada.', restricciones: `Se encuentra apto(a) con las siguientes restricciones: ${form.restrictions || '(indicar)'}.` }[form.aptitude as 'apto'] ?? '';
     return `Por medio de la presente certifico que ${who}${age}, fue valorado(a) el día ${today()} en ${clinic}. ${form.findings ? 'A la exploración física: ' + form.findings.trim() + '. ' : 'A la exploración física se encuentra clínicamente sano(a). '}${fit} Se extiende el presente certificado a petición del interesado para fines ${purpose}.`.replace(/\s+/g, ' ');
   }

@@ -1,5 +1,6 @@
 
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { arcoApi } from '$lib/api/arco';
@@ -49,12 +50,7 @@
 
   async function copyLink() {
     if (!settings) return;
-    try {
-      await navigator.clipboard.writeText(settings.url);
-      toast.show('Enlace copiado');
-    } catch {
-      toast.show('No se pudo copiar: selecciónalo y cópialo a mano', 'error');
-    }
+    await copyText(settings.url, { ok: 'Enlace copiado', fail: 'No se pudo copiar: selecciónalo y cópialo a mano.' });
   }
 
   function created(r: ArcoRequest) {

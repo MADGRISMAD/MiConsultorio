@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onDestroy, untrack } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -255,12 +256,9 @@
 
   async function copyUrl() {
     if (!charge?.url) return;
-    try {
-      await navigator.clipboard.writeText(charge.url);
+    if (await copyText(charge.url, { fail: 'No se pudo copiar. Selecciona la liga y cópiala manualmente.' })) {
       copied = true;
       setTimeout(() => (copied = false), 2000);
-    } catch {
-      toast.show('No se pudo copiar. Selecciona la liga y cópiala manualmente.', 'error');
     }
   }
 

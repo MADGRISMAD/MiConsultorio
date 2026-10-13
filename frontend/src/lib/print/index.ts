@@ -14,8 +14,8 @@ import { certificatesApi } from '$lib/api/certificates';
 import { labOrderSheetHtml, labReportHtml } from './lab';
 import { aiDocHtml, carnetHtml, chartHtml, exercisesHtml, nutritionPlanHtml, periodontogramHtml, planHtml, shoppingHtml, signedConsentHtml, type ShoppingSection } from './specialty';
 
-export { escapeHtml } from './base';
-export { consentHtml, expedienteHtml, privacyNoticeHtml, recetaHtml };
+
+export { privacyNoticeHtml };
 
 export async function printReceta(prescriptionId: string): Promise<void> {
   const r = await rxApi.printData(prescriptionId);

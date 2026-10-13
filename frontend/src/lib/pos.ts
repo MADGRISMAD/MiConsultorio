@@ -16,5 +16,6 @@ export const POS_LINKS: PosLink[] = [
   { slug: 'servicios', title: 'Servicios y precios', icon: 'tag', summary: 'Tu catálogo de servicios', perm: PERMISSIONS.pos },
   { slug: 'inventario', title: 'Inventario', icon: 'box', summary: 'Existencias y movimientos', perm: PERMISSIONS.pos },
   { slug: 'facturacion', title: 'Facturación', icon: 'receipt', summary: 'Solicitudes de factura', perm: PERMISSIONS.pos },
+  { slug: 'cuentas', title: 'Cuentas por cobrar', icon: 'receipt', summary: 'Saldos pendientes de pacientes', perm: PERMISSIONS.pos },
   { slug: 'reportes', title: 'Reportes', icon: 'chart', summary: 'Ventas, márgenes y existencias', perm: PERMISSIONS.posReports }
 ];

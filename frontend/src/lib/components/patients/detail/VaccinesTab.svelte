@@ -14,7 +14,7 @@
   import EmptyState from '../../ui/EmptyState.svelte';
   import Icon from '../../ui/Icon.svelte';
   import Pill from '../../ui/Pill.svelte';
-  import WeightChart from '../../specialty/WeightChart.svelte';
+  import MetricChart from '../../specialty/MetricChart.svelte';
 
   let { patient, canWrite }: { patient: Patient; schema: PatientSchema | null; canWrite: boolean; isAdmin: boolean } = $props();
 
@@ -207,7 +207,7 @@
 
   <section class="card mt-6 p-4 sm:p-5" aria-labelledby="weights-h">
     <h3 id="weights-h" class="display mb-2 text-xl">Peso</h3>
-    <WeightChart points={weights} />
+    <MetricChart title="Peso" unit="kg" series={[{ label: 'Peso', points: weights.map((w) => ({ date: w.date, value: w.weight_kg })) }]} />
   </section>
 {/if}
 

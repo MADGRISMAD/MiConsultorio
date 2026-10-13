@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { downloadBlob } from '$lib/download';
   import { ApiError } from '$lib/api';
   import { securityApi } from '$lib/api/security';
   import { Op } from '$lib/op.svelte';
@@ -21,12 +22,7 @@
         const data = await res.json().catch(() => null);
         throw new ApiError(data?.message ?? 'No se pudo exportar el expediente.', res.status, data?.code ?? '');
       }
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `expediente-${fileNumber ?? patientId}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(await res.blob(), `expediente-${fileNumber ?? patientId}.json`);
     });
     if (ok) toast.show('Expediente exportado. La descarga quedó registrada en los accesos.');
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import { onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
   import { session } from '$lib/session.svelte';
@@ -19,7 +20,7 @@
     id?: string;
   }
   let { date = $bindable(), time = $bindable(), professionalId = $bindable(''), patientId = '', blocked = $bindable(false), hint = '', id = 'followup' }: Props = $props();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
 
   let team = $state<Professional[]>([]);
   onMount(async () => {

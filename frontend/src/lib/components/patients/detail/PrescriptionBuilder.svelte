@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { api, ApiError } from '$lib/api';
   import { Op } from '$lib/op.svelte';
@@ -116,7 +117,7 @@
     wasOpen = open;
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
 
   // Weight of the latest consultation that recorded one; the prescriber can change it.
   async function loadWeight() {

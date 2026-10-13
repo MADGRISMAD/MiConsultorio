@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { downloadBlob } from '$lib/download';
+  import { copyText } from '$lib/clipboard';
   import { toast } from '$lib/toast.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
@@ -10,21 +12,11 @@
   );
 
   function download() {
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'caresia-codigos-de-recuperacion.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), 'caresia-codigos-de-recuperacion.txt');
   }
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(codes.join('\n'));
-      toast.show('Códigos copiados');
-    } catch {
-      toast.show('No se pudo copiar; descárgalos o imprímelos.');
-    }
+    await copyText(codes.join('\n'), { ok: 'Códigos copiados', fail: 'No se pudo copiar; descárgalos o imprímelos.' });
   }
 
   /** Prints from a hidden frame so no popup blocker gets in the way. */

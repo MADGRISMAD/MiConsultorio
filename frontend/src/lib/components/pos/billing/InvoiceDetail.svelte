@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import { dateShort, moneyCents } from '$lib/format';
   import { pos2 } from '$lib/api/pos2';
   import { toast } from '$lib/toast.svelte';
@@ -27,12 +28,7 @@
 
   async function copy() {
     if (!invoice) return;
-    try {
-      await navigator.clipboard.writeText(invoiceText(invoice));
-      toast.show('Datos copiados');
-    } catch {
-      toast.show('No se pudo copiar. Selecciona el texto y cópialo.', 'error');
-    }
+    await copyText(invoiceText(invoice), { ok: 'Datos copiados', fail: 'No se pudo copiar. Selecciona el texto y cópialo.' });
   }
 
   const rows = $derived(

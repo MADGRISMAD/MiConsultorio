@@ -10,7 +10,7 @@
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
   import type { ChargeDraftLine } from '$lib/types/consult';
-  import { ENCOUNTER_KINDS, type Encounter, type EncounterKind, type FieldValues, type Patient, type PatientSchema } from '$lib/types';
+  import { ENCOUNTER_KINDS, REHAB_KINDS, type Encounter, type EncounterKind, type FieldValues, type Patient, type PatientSchema } from '$lib/types';
   import DynamicFields from '../../DynamicFields.svelte';
   import Modal from '../../Modal.svelte';
   import Icon from '../../ui/Icon.svelte';
@@ -37,7 +37,7 @@
     const k = schema.kinds ?? [];
     if (k.length && k.every((x) => x === 'DENTAL')) return 'Exploración clínica (dientes, encía, tejidos blandos)';
     if (k.length && k.every((x) => x === 'PSYCHOLOGY')) return 'Observación clínica (apariencia, ánimo, discurso)';
-    if (k.length && k.every((x) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(x))) return 'Exploración física (movilidad, fuerza, dolor)';
+    if (k.length && k.every((x) => (REHAB_KINDS as string[]).includes(x))) return 'Exploración física (movilidad, fuerza, dolor)';
     if (k.length && k.every((x) => x === 'NUTRITION')) return 'Evaluación (dieta, antropometría)';
     return 'Exploración';
   });

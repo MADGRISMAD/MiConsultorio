@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -20,7 +21,7 @@
     if (session.status === 'authenticated') void session.loadClinic();
   });
   let saving = $state('');
-  const load = new Op();
+  const load = new Loader('No se pudieron cargar los servicios.');
   const op = new Op();
 
   onMount(() =>
@@ -58,10 +59,10 @@
   <p class="mt-1 text-sm text-app-muted">Cuánto tiempo reserva cada servicio (si lo dejas vacío se usa el intervalo del profesional){#if videoOk}, y si se da en persona, por videollamada o de las dos formas. La videollamada solo la dan los profesionales de psicología, nutrición, medicina general o interna, dermatología y pediatría, y nunca a mascotas{/if}.</p>
   {#if session.cobros}<p id="{uid}-dep" class="mt-1 text-xs text-app-muted">Anticipo: el porcentaje que se paga al reservar en línea; vacío usa el de los ajustes de la agenda.</p>{/if}
   <OpError op={op} class="mt-4" />
-  {#if load.phase === 'loading'}
+  {#if load.loading}
     <LoadingRows />
-  {:else if load.phase === 'error'}
-    <Alert class="mt-4">{load.message}</Alert>
+  {:else if load.error}
+    <Alert class="mt-4">{load.error}</Alert>
   {:else if rows.length === 0}
     <p class="mt-4 text-sm text-app-muted">Aún no hay servicios en el catálogo.</p>
   {:else}

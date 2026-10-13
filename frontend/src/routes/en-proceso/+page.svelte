@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { canChangeStatus } from '$lib/components/agenda/util';
+  import { ymd } from '$lib/dates';
   import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
   import { AGENDA_TABS } from '$lib/components/nav/tabs';
   import { Loader } from '$lib/loader.svelte';
@@ -23,7 +25,6 @@
   let timer: ReturnType<typeof setInterval> | undefined;
   let tick: ReturnType<typeof setInterval> | undefined;
 
-  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   async function load() {
     const d = new Date();
@@ -60,7 +61,7 @@
     return `${Math.floor(m / 60)} h ${m % 60} min`;
   }
   const name = (a: Appt) => `${a.names} ${a.last_names}`.trim();
-  const canAct = $derived(session.has('navAppointments') || session.has('adminAppointments'));
+  const canExpedient = $derived(session.has('navHistorials') || session.has('adminHistorials'));
 
   async function move(a: Appt, to: ApptStatus) {
     busy = a.id;
@@ -103,8 +104,8 @@
                     <span class="whitespace-nowrap rounded-full bg-app-warning/14 px-2.5 py-0.5 text-xs font-medium">{since(a[col.time as 'arrived_at' | 'started_at'])}</span>
                   </div>
                   <div class="mt-2.5 flex flex-wrap gap-2">
-                    {#if a.patient_id}<a class="btn-secondary !min-h-9" href="/pacientes/{a.patient_id}">Expediente</a>{/if}
-                    {#if canAct}<button type="button" class="btn-primary !min-h-9" disabled={busy === a.id} onclick={() => move(a, col.to)}>{col.action}</button>{/if}
+                    {#if a.patient_id && canExpedient}<a class="btn-secondary !min-h-9" href="/pacientes/{a.patient_id}">Expediente</a>{/if}
+                    {#if canChangeStatus(a)}<button type="button" class="btn-primary !min-h-9" disabled={busy === a.id} onclick={() => move(a, col.to)}>{col.action}</button>{/if}
                   </div>
                 </li>
               {/each}
@@ -122,7 +123,7 @@
         <ul class="mt-3 divide-y divide-app-ink/8">
           {#each next as a (a.id)}
             <li class="flex items-center justify-between gap-3 py-2 text-sm"><span class="min-w-0 truncate"><strong class="font-mono">{a.startHour}</strong> · {name(a)}</span>
-              {#if canAct}<button type="button" class="btn-ghost !min-h-8 whitespace-nowrap" disabled={busy === a.id} onclick={() => move(a, 'arrived')}>Ya llegó</button>{/if}</li>
+              {#if canChangeStatus(a)}<button type="button" class="btn-ghost !min-h-8 whitespace-nowrap" disabled={busy === a.id} onclick={() => move(a, 'arrived')}>Ya llegó</button>{/if}</li>
           {/each}
         </ul>
       {/if}

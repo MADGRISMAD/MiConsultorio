@@ -9,7 +9,6 @@ export const PERMISSIONS = {
   posManage: 'posManage'
 } as const;
 
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export type ClinicRole = 'admin' | 'doctor' | 'reception' | 'cashier';
 export type PlatformRole = 'platform_admin' | 'platform_support';
@@ -221,6 +220,10 @@ export const CLINIC_KINDS = {
 export type ClinicKind = keyof typeof CLINIC_KINDS;
 export const CLINIC_KIND_KEYS = Object.keys(CLINIC_KINDS) as ClinicKind[];
 
+/** The giros of rehabilitation: they share the pain and range-of-motion measures, the exercise sheet and the body map. */
+export const REHAB_KINDS: ClinicKind[] = ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'];
+export const isRehab = (kinds: readonly string[] | undefined) => (kinds ?? []).some((k) => (REHAB_KINDS as string[]).includes(k));
+
 export const WEEKDAYS = [
   ['mon', 'Lunes'],
   ['tue', 'Martes'],
@@ -254,27 +257,6 @@ export interface Clinic {
   image_url: string;
   settings: ClinicSettings;
   setup_completed: boolean;
-}
-
-export interface User {
-  username: string;
-  permissions: string[];
-}
-
-export interface AppointmentInput {
-  /** registered patient (a person or an animal); empty for someone not registered yet */
-  patient_id?: string | null;
-  names: string;
-  last_names: string;
-  CURP: string;
-  date: string;
-  startHour: string;
-  endHour: string;
-  details: string;
-}
-
-export interface Appointment extends AppointmentInput {
-  id: string;
 }
 
 /** What each clinic role can do, for the "who can do what" table (the server decides for real). */
@@ -828,15 +810,6 @@ export interface Prescription {
   void_reason: string;
   area?: string;
   complementary?: boolean;
-}
-
-export interface PrescriptionInput {
-  encounter_id?: string;
-  diagnosis: string;
-  items: RxItem[];
-  instructions: string;
-  next_visit?: string;
-  valid_days?: number;
 }
 
 export interface Legal {

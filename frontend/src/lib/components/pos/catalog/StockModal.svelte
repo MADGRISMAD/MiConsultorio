@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { api } from '$lib/api';
   import { pos2 } from '$lib/api/pos2';
@@ -72,7 +73,7 @@
       error = mode === 'count' ? 'Escribe la cantidad contada (0 o más).' : 'Escribe una cantidad mayor a 0.';
       return;
     }
-    if (mode === 'in' && expires && expires < new Date().toISOString().slice(0, 10)) {
+    if (mode === 'in' && expires && expires < todayStr()) {
       error = 'Ese lote ya caducó; no se puede dar entrada.';
       return;
     }

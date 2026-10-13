@@ -1,5 +1,5 @@
-/** Local calendar day as YYYY-MM-DD (what the API expects). */
-export const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+import { ymd } from '$lib/dates';
+export { ymd };
 
 export type Preset = 'today' | 'yesterday' | '7d' | 'month' | 'lastmonth' | 'custom';
 

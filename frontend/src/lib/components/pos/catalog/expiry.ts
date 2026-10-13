@@ -1,5 +1,5 @@
 /** A date-only value (YYYY-MM-DD) in local time, without the day shift Date.parse would cause. */
-export function ymd(s: string): Date {
+function ymd(s: string): Date {
   const [y, m, d] = s.split('-').map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 }

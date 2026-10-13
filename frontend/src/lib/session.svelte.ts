@@ -114,11 +114,6 @@ class SessionStore {
     this.setUser(await api.register(r));
   }
 
-  async login(identifier: string, password: string) {
-    this.clinic = null;
-    this.setUser(await api.login(identifier, password));
-  }
-
   async logout() {
     try {
       await api.logout();

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import { publicOrigin } from '$lib/site';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { onMount } from 'svelte';
@@ -31,12 +32,7 @@
     })) toast.show(action === 'disable' ? 'Calendario desactivado' : action === 'rotate' ? 'Dirección nueva generada' : 'Calendario actualizado');
   }
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.show('Dirección copiada');
-    } catch {
-      toast.show('No se pudo copiar. Selecciona la dirección y cópiala a mano.', 'error');
-    }
+    await copyText(url, { ok: 'Dirección copiada', fail: 'No se pudo copiar. Selecciona la dirección y cópiala a mano.' });
   }
 </script>
 

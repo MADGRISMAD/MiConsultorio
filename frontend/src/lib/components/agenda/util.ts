@@ -1,24 +1,13 @@
-import type { ClinicSettings } from '$lib/types';
+import { session } from '$lib/session.svelte';
+import { PERMISSIONS, type ClinicSettings } from '$lib/types';
 import type { Appt, DayKey, Professional } from '$lib/types/agenda';
 import { PRO_COLORS } from '$lib/types/agenda';
 
+export { addDays, addMonths, parseDay, todayStr } from '$lib/dates';
+import { addDays, parseDay, ymd } from '$lib/dates';
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Local date as YYYY-MM-DD (never through UTC, which shifts the day at night in Mexico). */
-export const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-export const parseDay = (s: string) => new Date(s + 'T12:00:00');
-export const todayStr = () => ymd(new Date());
-export function addDays(s: string, n: number): string {
-  const d = parseDay(s);
-  d.setDate(d.getDate() + n);
-  return ymd(d);
-}
-export function addMonths(s: string, n: number): string {
-  const d = parseDay(s);
-  d.setDate(1);
-  d.setMonth(d.getMonth() + n);
-  return ymd(d);
-}
 export function weekStart(s: string): string {
   const d = parseDay(s);
   return addDays(s, -((d.getDay() + 6) % 7));
@@ -113,3 +102,7 @@ export function layoutLanes(items: Appt[]): Map<string, [number, number]> {
   if (group.length) flush();
   return out;
 }
+
+/** Who may change the status of a visit: whoever manages the agenda, or a doctor on their own visit (the server decides for real). */
+export const canChangeStatus = (a: { professional_id: string | null }) =>
+  session.has(PERMISSIONS.adminAppointments) || (session.user?.role === 'doctor' && !!a.professional_id && a.professional_id === session.user.userId);

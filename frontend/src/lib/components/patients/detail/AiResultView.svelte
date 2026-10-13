@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import type { Snippet } from 'svelte';
   import { dateTime, moneyCents } from '$lib/format';
   import { toast } from '$lib/toast.svelte';
@@ -10,12 +11,7 @@
 
   async function copy() {
     const text = r.text || [r.title, r.summary, ...r.sections.flatMap((s) => [s.heading, ...s.items.map((i) => `• ${i}`)])].filter(Boolean).join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.show('Copiado');
-    } catch {
-      toast.show('No se pudo copiar; selecciona el texto a mano');
-    }
+    await copyText(text, { ok: 'Copiado', fail: 'No se pudo copiar; selecciona el texto a mano.' });
   }
 </script>
 
@@ -23,7 +19,7 @@
   <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note"><strong>{result.draft ? 'Borrador.' : 'Solo es una sugerencia.'}</strong> {result.disclaimer}</p>
   {#if r.title}<h3 class="display text-xl">{r.title}</h3>{/if}
   {#if r.summary}<p class="text-[15px] leading-relaxed">{r.summary}</p>{/if}
-  {#each r.sections as s (s.heading)}
+  {#each r.sections as s, i (i)}
     <div>
       <p class="section-title mb-1">{s.heading}</p>
       <ul class="list-disc space-y-0.5 pl-5 text-sm">{#each s.items as it}<li>{it}</li>{/each}</ul>

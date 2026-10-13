@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -43,7 +44,7 @@
     return [...map.values()];
   });
   const fmt = (iso: string) => fmtDate(iso.length === 10 ? `${iso}T12:00:00` : iso, { day: 'numeric', month: 'long', year: 'numeric' });
-  const expired = (r: PortalPrescription) => !!r.valid_until && r.valid_until < new Date().toISOString().slice(0, 10);
+  const expired = (r: PortalPrescription) => !!r.valid_until && r.valid_until < todayStr();
 
   function print(r: PortalPrescription) {
     const animal = patients.find((p) => p.id === r.patient_id)?.subject === 'animal';

@@ -1,16 +1,18 @@
 <script lang="ts">
-  import { api } from '$lib/api';
+  import { agendaApi } from '$lib/api/agenda';
+  import { addDays, todayStr } from '$lib/dates';
   import { goto } from '$app/navigation';
   import { session, maybeSignedIn } from '$lib/session.svelte';
   import { POS_LINKS } from '$lib/pos';
-  import { CLINIC_KINDS, PERMISSIONS, type Appointment } from '$lib/types';
+  import { CLINIC_KINDS, PERMISSIONS } from '$lib/types';
+  import type { Appt } from '$lib/types/agenda';
   import Guard from '$lib/components/Guard.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import Landing from '$lib/landing/Landing.svelte';
   import TodayPanel from '$lib/components/home/TodayPanel.svelte';
 
-  let appointments = $state<Appointment[]>([]);
+  let appointments = $state<Appt[]>([]);
 
   const canAppointments = $derived(session.has(PERMISSIONS.navAppointments) || session.has(PERMISSIONS.adminAppointments));
 
@@ -23,17 +25,20 @@
 
   $effect(() => {
     if (session.status !== 'authenticated' || session.isPlatform || session.locked) return;
-    if (canAppointments) api.appointments().then((a) => (appointments = a), () => {});
+    // the next two weeks only (never the whole history), without the visits that were cancelled or missed
+    if (canAppointments) agendaApi.list({ from: addDays(todayStr(), 1), to: addDays(todayStr(), 14) }).then((a) => (appointments = a.filter((x) => x.status !== 'cancelled' && x.status !== 'no_show')), () => {});
   });
 
-  const today = new Date().toISOString().slice(0, 10);
   // hoy lo atiende el panel de arriba; aquí, los días que vienen
-  const upcoming = $derived(appointments.filter((a) => a.date > today).slice(0, 5));
+  const upcoming = $derived(appointments.slice(0, 5));
   const greeting = (() => {
     const h = new Date().getHours();
     return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
   })();
   const longDate = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  // the windows of cobros this person may open (a doctor without the till gets no empty card)
+  const posLinks = $derived(POS_LINKS.filter((l) => session.has(l.perm)));
 
   const quick = $derived(
     [
@@ -105,13 +110,13 @@
         </section>
       {/if}
 
-      {#if session.cobros}
+      {#if session.cobros && posLinks.length}
       <section class="card p-5 sm:p-6 {canAppointments ? '' : 'lg:col-span-2'}">
         <div class="mb-4 flex items-center gap-2">
           <h2 class="display text-3xl">Cobros</h2>
         </div>
         <ul class="grid gap-1.5 {canAppointments ? '' : 'sm:grid-cols-2 lg:grid-cols-3'}">
-          {#each POS_LINKS.filter((l) => session.has(l.perm)) as w}
+          {#each posLinks as w}
             <li>
               <a href="/pos/{w.slug}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-app-muted transition hover:bg-app-ink/5 hover:text-app-ink">
                 <Icon name={w.icon} size={19} />{w.title}

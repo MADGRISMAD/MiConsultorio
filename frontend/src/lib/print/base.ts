@@ -1,6 +1,6 @@
 import type { FieldDef, FieldValues, Issuer, Patient } from '$lib/types';
 
-export function escapeHtml(v: unknown): string {
+function escapeHtml(v: unknown): string {
   return String(v ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -19,18 +19,8 @@ export const fmtDateTime = (iso: string | null | undefined) =>
     ? new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) + ' h'
     : '';
 
-import { fullName } from '$lib/format';
+import { fullName, patientAge as ageText } from '$lib/format';
 export { fullName };
-
-export function ageText(p: Patient): string {
-  if (p.age == null) return '';
-  if (p.age < 1 && p.birth_date) {
-    const b = new Date(p.birth_date);
-    const m = Math.max(0, (new Date().getFullYear() - b.getFullYear()) * 12 + new Date().getMonth() - b.getMonth());
-    return `${m} ${m === 1 ? 'mes' : 'meses'}`;
-  }
-  return `${p.age} ${p.age === 1 ? 'año' : 'años'}`;
-}
 
 /** Display value of a field (empty string when nothing was captured). */
 export function fieldValue(f: FieldDef, values: FieldValues | undefined): string {
@@ -42,7 +32,7 @@ export function fieldValue(f: FieldDef, values: FieldValues | undefined): string
   return String(v) + (f.unit ? ` ${f.unit}` : '');
 }
 
-export const CSS = `
+const CSS = `
 @page { size: letter; margin: 0; }
 .pg { width: 100%; border-collapse: collapse; } /* The browser's own margins stay at 0 (that is what hides its date / title / address header and footer); the sheet's margins are made here, equal on the four sides and repeated on every page. */
 .pg > thead > tr > td { height: 10mm; padding: 0; } .pg > tfoot > tr > td { height: 10mm; padding: 0; } .pg > tbody > tr > td { padding: 0 10mm; vertical-align: top; }

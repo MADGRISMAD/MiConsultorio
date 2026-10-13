@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import AddToCalendar from '$lib/components/ui/AddToCalendar.svelte';
   import { page } from '$app/state';
+  import { ApiError } from '$lib/api';
   import { bookingApi } from '$lib/api/booking';
   import { Op } from '$lib/op.svelte';
   import type { PublicAppointment } from '$lib/types/booking';
@@ -16,7 +18,7 @@
   let reason = $state('');
   let askCancel = $state(false);
   let askOptout = $state(false);
-  const load = new Op();
+  const load = new Loader(''); // the page tells the visitor what failed in its own words
   const act = new Op();
 
   const STATUS: Record<string, string> = {
@@ -37,7 +39,7 @@
         try {
           appt = await bookingApi.appointment(token);
         } catch (e) {
-          if (e && typeof e === 'object' && 'status' in e && e.status === 404) {
+          if (e instanceof ApiError && e.status === 404) {
             missing = true;
             return;
           }
@@ -75,7 +77,7 @@
   };
 </script>
 
-{#if load.phase === 'loading' || (load.phase === 'idle' && !appt && !missing)}
+{#if load.loading}
   <div class="card-empty" role="status">{t('appt.loading')}</div>
 {:else if missing}
   <section class="card px-6 py-9">
@@ -83,9 +85,9 @@
     <h1 class="display mt-4 text-3xl leading-tight">{t('appt.missingTitle')}</h1>
     <p class="mt-3 text-app-muted">{t('appt.missingText')}</p>
   </section>
-{:else if load.phase === 'error' || !appt}
+{:else if load.error || !appt}
   <section class="card px-6 py-9" role="alert">
-    <p class="alert"><Icon name="alert" size={18} />{load.message || t('appt.loadError')}</p>
+    <p class="alert"><Icon name="alert" size={18} />{load.error || t('appt.loadError')}</p>
     <button class="btn-secondary mt-5" onclick={() => location.reload()}>{t('common.retry')}</button>
   </section>
 {:else}

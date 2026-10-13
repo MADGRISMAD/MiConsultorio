@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ymd } from '$lib/dates';
   import { goto } from '$app/navigation';
   import { onDestroy, onMount } from 'svelte';
   import { agendaApi } from '$lib/api/agenda';
@@ -25,7 +26,6 @@
   let timer: ReturnType<typeof setInterval> | undefined;
   let tick: ReturnType<typeof setInterval> | undefined;
 
-  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   async function load() {
     const today = ymd(new Date());

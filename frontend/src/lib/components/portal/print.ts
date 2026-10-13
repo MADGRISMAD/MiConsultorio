@@ -12,7 +12,7 @@ const stubPatient = (name: string, animal: boolean) =>
 const stubIssuer = (c: ClinicBlock) => ({ name: c.name, address: c.address, phone: c.phone, kind: 'GENERAL_MEDICAL', legal: {} }) as unknown as Issuer;
 
 /** The patient's own copy of a receta, with the same design as the clinic's. The signed original stays with the clinic. */
-export function portalRecetaHtml(rx: PortalPrescription, clinic: ClinicBlock, animal: boolean): string {
+function portalRecetaHtml(rx: PortalPrescription, clinic: ClinicBlock, animal: boolean): string {
   const full = {
     ...rx,
     encounter_id: null,
@@ -32,7 +32,7 @@ export async function printPortalReceta(rx: PortalPrescription, clinic: ClinicBl
 
 type CarnetRow = { name: string; applied_on: string; next_due: string | null; lot: string; dose: string; administered_by_name: string; kind?: string };
 
-export function portalCarnetHtml(patientName: string, clinicName: string, rows: CarnetRow[]): string {
+function portalCarnetHtml(patientName: string, clinicName: string, rows: CarnetRow[]): string {
   const list = rows.map((r) => ({ ...r, kind: r.kind ?? 'vaccine', notes: '', voided_at: null })) as unknown as Vaccination[];
   const issuer = { name: clinicName, address: '', phone: '', kind: 'GENERAL_MEDICAL', legal: {} } as unknown as Issuer;
   return carnetHtml(stubPatient(patientName, list.some((v) => v.kind.startsWith('deworming'))), list, [], issuer, `Copia para el paciente descargada del portal de ${clinicName}.`);

@@ -4,9 +4,9 @@ import type { Tab } from './SectionTabs.svelte';
 /** One sidebar entry, "Agenda", with its views as tabs. */
 export const AGENDA_TABS: Tab[] = [
   { label: 'Citas', href: '/admin/navegar-citas', also: ['/admin/admin-citas'], perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments] },
-  { label: 'En proceso', href: '/en-proceso', perms: [PERMISSIONS.navAppointments] },
-  { label: 'Lista de espera', href: '/agenda/espera', perms: [PERMISSIONS.navAppointments] },
-  { label: 'Paquetes', href: '/agenda/paquetes', perms: [PERMISSIONS.navAppointments], cobros: true }
+  { label: 'En proceso', href: '/en-proceso', perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments] },
+  { label: 'Lista de espera', href: '/agenda/espera', perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments] },
+  { label: 'Paquetes', href: '/agenda/paquetes', perms: [PERMISSIONS.navAppointments, PERMISSIONS.adminAppointments], cobros: true }
 ];
 
 /** One sidebar entry, "Cobros", with the till, the catalog and the back office as tabs. Commissions live in Ajustes. */

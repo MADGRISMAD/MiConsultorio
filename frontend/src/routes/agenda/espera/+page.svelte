@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
   import { AGENDA_TABS } from '$lib/components/nav/tabs';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -33,7 +34,7 @@
   let formOpen = $state(false);
   let editing = $state<WaitlistEntry | null>(null);
   let removing = $state<WaitlistEntry | null>(null);
-  const load = new Op();
+  const load = new Loader('No se pudo cargar la lista de espera.');
   const act = new Op();
   const delOp = new Op();
 
@@ -116,10 +117,10 @@
     {/snippet}
   </PageHeader>
 
-  {#if load.phase === 'loading' && entries.length === 0}
+  {#if load.loading && entries.length === 0}
     <div class="card"><LoadingRows /></div>
-  {:else if load.phase === 'error'}
-    <Alert>{load.message}</Alert>
+  {:else if load.error}
+    <Alert>{load.error}</Alert>
   {:else if entries.length === 0}
     <div class="card">
       <EmptyState icon="clock-plus" title="Nadie en espera" text="Aquí aparecen quienes se anotan desde la reserva en línea cuando no hay lugar, y a quienes agregues tú.">

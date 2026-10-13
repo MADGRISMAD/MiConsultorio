@@ -13,7 +13,7 @@
   import Modal from '../Modal.svelte';
   import Icon from '../ui/Icon.svelte';
   import Pill from '../ui/Pill.svelte';
-  import { fmtLong, fullName } from './util';
+  import { canChangeStatus, fmtLong, fullName } from './util';
 
   interface Props {
     appt: Appt | null;
@@ -86,7 +86,7 @@
     return '';
   });
 
-  const canStatus = $derived(!!appt && (session.has(PERMISSIONS.adminAppointments) || (session.user?.role === 'doctor' && appt.professional_id === session.user.userId)));
+  const canStatus = $derived(!!appt && canChangeStatus(appt));
   const canExpedient = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
   const canCharge = $derived(session.cobros && session.has(PERMISSIONS.pos));
   const open = $derived(!!appt && ['scheduled', 'confirmed', 'arrived', 'in_progress'].includes(appt.status));

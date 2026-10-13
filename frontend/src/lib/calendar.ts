@@ -1,4 +1,5 @@
 /** Adding a visit to the patient's own calendar (Google Calendar link and .ics download). Times are the clinic's local ones. */
+import { downloadBlob } from '$lib/download';
 export interface CalendarEvent {
   title: string;
   date: string; // YYYY-MM-DD
@@ -20,7 +21,7 @@ export function googleCalendarUrl(e: CalendarEvent): string {
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 
-export function icsContent(e: CalendarEvent): string {
+function icsContent(e: CalendarEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -52,12 +53,5 @@ function hash(s: string): number {
 }
 
 export function downloadIcs(e: CalendarEvent) {
-  const url = URL.createObjectURL(new Blob([icsContent(e)], { type: 'text/calendar;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'cita.ics';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadBlob(new Blob([icsContent(e)], { type: 'text/calendar;charset=utf-8' }), 'cita.ics');
 }

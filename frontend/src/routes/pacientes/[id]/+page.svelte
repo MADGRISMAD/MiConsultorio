@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { patientAge } from '$lib/format';
   import { Loader } from '$lib/loader.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -47,7 +48,7 @@
   import { printConsent, printExpediente, printPrivacyNotice } from '$lib/print';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
-  import type { AccessEntry, Encounter, Patient, PatientSchema, Prescription } from '$lib/types';
+  import { isRehab, REHAB_KINDS, type AccessEntry, type Encounter, type Patient, type PatientSchema, type Prescription } from '$lib/types';
 
   type Tab = 'resumen' | 'bitacora' | 'recetas' | 'cronicos' | 'certificados' | 'arco' | 'archivos' | 'laboratorio' | 'crecimiento' | 'vacunas' | 'odontograma' | 'periodontograma' | 'ejercicios' | 'recordatorio' | 'esquema' | 'nutricion' | 'psico' | 'planes' | 'accesos';
 
@@ -126,9 +127,9 @@
       ...(k.includes('DENTAL') ? [set('odontograma', chartCount('odontogram'))] : []),
       ...(k.includes('DENTAL') ? [set('periodontograma', chartCount('periodontogram'))] : []),
       ...(k.includes('NUTRITION') ? [set('nutricion', chartCount('nutrition_plan')), set('recordatorio', chartCount('food_recall'))] : []),
-      ...(k.some((x) => ['CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS'].includes(x)) ? [set('ejercicios', chartCount('exercises'))] : []),
+      ...(isRehab(k) ? [set('ejercicios', chartCount('exercises'))] : []),
       ...(k.includes('PSYCHOLOGY') ? [set('psico', chartCount('scale'))] : []),
-      ...(k.some((x) => ['CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS'].includes(x)) ? [set('esquema', chartCount('bodymap'))] : [])
+      ...(isRehab(k) ? [set('esquema', chartCount('bodymap'))] : [])
     ]);
   }
   $effect(() => {
@@ -161,7 +162,7 @@
   const fullName = $derived(patient ? `${patient.names} ${patient.last_names}`.trim() : '');
   const animal = $derived(patient?.subject === 'animal');
   const species = $derived(animal && patient ? [patient.profile?.species ?? patient.profile?.especie, patient.profile?.breed ?? patient.profile?.raza].filter(Boolean).join(' · ') : '');
-  const ageText = $derived(patient?.age == null ? '' : `${patient.age} ${patient.age === 1 ? 'año' : 'años'}`);
+  const ageText = $derived(patient ? patientAge(patient) : '');
 
   let docsOpen = $state(false);
   let busy = $state('');
@@ -222,7 +223,7 @@
     ...(isPerson && hasKind('DENTAL') && inMyAreas('DENTAL') ? [{ key: 'periodontograma' as Tab, label: 'Periodontograma', count: counts.periodontograma }] : []),
     ...(isPerson && hasKind('NUTRITION') && inMyAreas('NUTRITION') ? [{ key: 'nutricion' as Tab, label: 'Plan nutricional', count: counts.nutricion }, { key: 'recordatorio' as Tab, label: 'Recordatorio 24 h', count: counts.recordatorio }] : []),
     ...(isPerson && hasKind('PSYCHOLOGY') && inMyAreas('PSYCHOLOGY') ? [{ key: 'psico' as Tab, label: 'Escalas y objetivos', count: counts.psico }] : []),
-    ...(isPerson && hasKind('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') && inMyAreas('CHIROPRACTIC', 'PHYSIOTHERAPY', 'ORTHOPEDICS') ? [{ key: 'esquema' as Tab, label: 'Esquema corporal', count: counts.esquema }, { key: 'ejercicios' as Tab, label: 'Hoja de ejercicios', count: counts.ejercicios }] : []),
+    ...(isPerson && hasKind(...REHAB_KINDS) && inMyAreas(...REHAB_KINDS) ? [{ key: 'esquema' as Tab, label: 'Esquema corporal', count: counts.esquema }, { key: 'ejercicios' as Tab, label: 'Hoja de ejercicios', count: counts.ejercicios }] : []),
     ...(planGiro ? [{ key: 'planes' as Tab, label: 'Planes de tratamiento', count: counts.planes }] : hasKind('PSYCHOLOGY') ? [{ key: 'planes' as Tab, label: 'Consentimientos' }] : []),
     ...(labGiro || hasLabData ? [{ key: 'laboratorio' as Tab, label: 'Laboratorio', count: counts.laboratorio }] : []),
     ...(showGrowth ? [{ key: 'crecimiento' as Tab, label: 'Crecimiento', count: encounters.filter((e) => !e.hidden && ['weight_kg', 'height_cm'].some((k) => e.measures?.[k] != null && e.measures[k] !== '')).length }] : []),
@@ -328,7 +329,7 @@
 
     <div role="tabpanel" id="panel-{tab}" aria-labelledby="tab-{tab}" tabindex="-1">
       {#if tab === 'resumen'}
-        <SummaryTab {patient} {schema} {encounters} />
+        <SummaryTab {patient} {schema} {encounters} onchanged={loadCounts} />
       {:else if tab === 'bitacora'}
         <EncountersTab {patient} {schema} {encounters} {canWrite} onnew={openForm} onaddendum={(e) => (addendumFor = e)} />
       {:else if tab === 'recetas'}

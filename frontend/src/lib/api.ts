@@ -1,8 +1,6 @@
 import { toast } from './toast.svelte';
 import type {
   ActivityItem,
-  Appointment,
-  AppointmentInput,
   AccessEntry,
   CashSession,
   CatalogInput,
@@ -33,7 +31,6 @@ import type {
   PosReport,
   PosSettings,
   Prescription,
-  PrescriptionInput,
   QuickPatientInput,
   Issuer,
   ProviderStatus,
@@ -86,8 +83,6 @@ function noteReused(r: { patient: Patient; reused?: boolean }): Patient {
 }
 
 export const api = {
-  login: (identifier: string, password: string) =>
-    request<{ session: SessionInfo }>('POST', '/login', { identifier, password }).then((r) => r.session),
   register: (r: { clinic_name: string; phone: string; name: string; email: string; username: string; password: string }) =>
     request<{ session: SessionInfo }>('POST', '/register', r).then((x) => x.session),
   logout: () => request<void>('POST', '/logout'),
@@ -118,12 +113,6 @@ export const api = {
   deactivateMember: (id: string) => request<void>('POST', `/team/${seg(id)}/deactivate`),
   reactivateMember: (id: string) => request<void>('POST', `/team/${seg(id)}/reactivate`),
 
-  appointments: () => request<{ appointments: Appointment[] }>('GET', '/appointments/').then((r) => r.appointments),
-  appointment: (id: string) => request<{ appointment: Appointment }>('GET', `/appointments/${seg(id)}`).then((r) => r.appointment),
-  createAppointment: (a: AppointmentInput) => request<unknown>('POST', '/appointments/', a),
-  updateAppointment: (id: string, a: AppointmentInput) => request<unknown>('PUT', `/appointments/${seg(id)}`, a),
-  deleteAppointment: (id: string) => request<void>('DELETE', `/appointments/${seg(id)}`),
-
   // pacientes (personas y animales), bitácora y recetas
   patients: {
     schema: () => request<PatientSchema>('GET', '/patients/schema'),
@@ -149,13 +138,10 @@ export const api = {
     addendum: (encounterId: string, a: { reason: string; text: string }) =>
       request<{ encounter: Encounter }>('POST', `/encounters/${seg(encounterId)}/addendum`, a).then((r) => r.encounter),
     prescriptions: (id: string) => request<{ prescriptions: Prescription[] }>('GET', `/patients/${seg(id)}/prescriptions`).then((r) => r.prescriptions),
-    createPrescription: (id: string, p: PrescriptionInput) => request<{ prescription: Prescription }>('POST', `/patients/${seg(id)}/prescriptions`, p).then((r) => r.prescription),
     /** everything for printing the expediente (logs the access) */
     record: (id: string) => request<PatientRecord>('GET', `/patients/${seg(id)}/record`)
   },
   prescriptions: {
-    /** receta + patient + establishment, ready to print (logs the access) */
-    print: (id: string) => request<{ prescription: Prescription; patient: Patient; clinic: Issuer }>('GET', `/prescriptions/${seg(id)}`),
     void: (id: string, reason: string) => request<unknown>('POST', `/prescriptions/${seg(id)}/void`, { reason })
   },
   legal: {

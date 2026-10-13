@@ -79,13 +79,6 @@ export function t(key: string, params?: Record<string, string | number>): string
   return fill(DICTS[i18n.locale][key] ?? es[key] ?? key, params);
 }
 
-/** Picks the singular or plural key by count and passes {n}. */
-export function tn(key: string, n: number, params: Record<string, string | number> = {}): string {
-  return t(`${key}.${n === 1 ? 'one' : 'other'}`, { ...params, n });
-}
-
-export const dictionaries = DICTS;
-
 // Dates and money follow the active locale.
 export function fmtDate(value: string | Date, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string {
   const d = typeof value === 'string' ? new Date(value) : value;
@@ -98,15 +91,7 @@ export function fmtDay(ymd: string, opts: Intl.DateTimeFormatOptions = { weekday
   return new Date(y, m - 1, d).toLocaleDateString(i18n.intl, opts);
 }
 
-export function fmtDateTime(value: string | Date, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }): string {
-  const d = typeof value === 'string' ? new Date(value) : value;
-  return d.toLocaleString(i18n.intl, opts);
-}
-
 export function fmtMoneyCents(cents: number, currency = 'MXN'): string {
   return (cents / 100).toLocaleString(i18n.intl, { style: 'currency', currency });
 }
 
-export function fmtMoney(amount: number, currency = 'MXN'): string {
-  return amount.toLocaleString(i18n.intl, { style: 'currency', currency });
-}

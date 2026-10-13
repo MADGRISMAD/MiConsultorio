@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { portalApi } from '$lib/api/portal';
@@ -22,7 +23,7 @@
   const KINDS = ['vaccine', 'deworming_internal', 'deworming_external', 'other'];
   const kindLabel = (k: string) => (KINDS.includes(k) ? t(`portal.vac.${k}`) : k);
   const fmt = (iso: string) => fmtDate(`${iso}T12:00:00`);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
 
   const shown = $derived(list.filter((v) => !patientId || v.patient_id === patientId));
   // one card per patient

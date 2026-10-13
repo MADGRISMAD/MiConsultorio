@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
   import { AGENDA_TABS } from '$lib/components/nav/tabs';
   import Alert from '$lib/components/ui/Alert.svelte';
@@ -22,7 +23,7 @@
   let list = $state<SessionPackage[]>([]);
   let enabled = $state(true);
   let services = $state<ServiceDuration[]>([]);
-  const load = new Op();
+  const load = new Loader('No se pudieron cargar los paquetes.');
   const op = new Op();
 
   const canWrite = $derived(session.user?.role === 'admin' || session.user?.role === 'doctor');
@@ -89,10 +90,10 @@
     {/snippet}
   </PageHeader>
 
-  {#if load.phase === 'loading' && list.length === 0}
+  {#if load.loading && list.length === 0}
     <div class="card"><LoadingRows /></div>
-  {:else if load.phase === 'error'}
-    <Alert>{load.message}</Alert>
+  {:else if load.error}
+    <Alert>{load.error}</Alert>
   {:else if !enabled}
     <div class="card"><EmptyState icon="info" title="Tu consultorio no usa paquetes" text="Los paquetes de sesiones están disponibles cuando atiendes psicología, nutrición, fisioterapia, quiropráctica o dermatología." /></div>
   {:else if list.length === 0}

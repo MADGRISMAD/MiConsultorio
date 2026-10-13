@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { copyText } from '$lib/clipboard';
   import { session } from '$lib/session.svelte';
   import { publicOrigin } from '$lib/site';
   import OpError from '$lib/components/ui/OpError.svelte';
@@ -47,12 +48,10 @@
   const origin = publicOrigin();
   let copied = $state(false);
   async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(`${origin}/${slugPreview}/reservar`);
+    // sin portapapeles el enlace sigue visible para copiarlo a mano
+    if (await copyText(`${origin}/${slugPreview}/reservar`, { fail: 'No se pudo copiar. Selecciona el enlace y cópialo a mano.' })) {
       copied = true;
       setTimeout(() => (copied = false), 1800);
-    } catch {
-      /* sin portapapeles: el enlace sigue visible para copiarlo a mano */
     }
   }
   const slugPreview = $derived((s?.booking_slug ?? '').trim().toLowerCase());

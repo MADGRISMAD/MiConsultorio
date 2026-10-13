@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount } from 'svelte';
@@ -21,7 +22,7 @@
   let branch = $state('');
   let newOpen = $state(false);
   let toggle = $state<{ b: OrgBranch; off: boolean } | null>(null);
-  const load = new Op();
+  const load = new Loader('No se pudo cargar la organización.');
   const act = new Op();
   const toggleOp = new Op();
 
@@ -65,8 +66,8 @@
     {/snippet}
   </PageHeader>
 
-  {#if load.phase === 'error'}
-    <Alert>{load.message}</Alert>
+  {#if load.error}
+    <Alert>{load.error}</Alert>
   {:else if !ov}
     <div class="card"><LoadingRows /></div>
   {:else if !ov.organization}

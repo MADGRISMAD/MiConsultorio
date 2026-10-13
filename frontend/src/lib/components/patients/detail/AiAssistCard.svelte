@@ -53,7 +53,7 @@
     current = t;
     param = '';
     result = null;
-    op.reset?.();
+    op.reset();
     if (t.key === 'photo_compare') void loadPhotos();
     else if (!t.param && !t.disabled) void run();
   }

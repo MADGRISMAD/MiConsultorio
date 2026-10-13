@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import OpError from '$lib/components/ui/OpError.svelte';
   import { untrack } from 'svelte';
   import { api } from '$lib/api';
@@ -107,7 +108,7 @@
     if (satUnit.trim() && !/^[A-Za-z0-9]{2,3}$/.test(satUnit.trim())) e.satUnit = 'La unidad del SAT tiene 2 o 3 caracteres (E48, H87…).';
     const dur = durStr.trim() === '' ? null : Number(durStr);
     if (!isProduct && dur !== null && !(Number.isInteger(dur) && dur >= 5 && dur <= 480)) e.dur = 'La duración debe estar entre 5 y 480 minutos.';
-    if (expires && expires < new Date().toISOString().slice(0, 10)) e.expires = 'Ese lote ya caducó.';
+    if (expires && expires < todayStr()) e.expires = 'Ese lote ya caducó.';
     errors = e;
     if (Object.keys(e).length) return null;
     const input: CatalogInput = {

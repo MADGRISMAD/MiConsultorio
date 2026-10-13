@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { todayStr } from '$lib/dates';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
@@ -25,7 +26,7 @@
 
   /* svelte-ignore state_referenced_locally */
   const editing = !!patient;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
 
   let schema = $state<PatientSchema | null>(null);
   let loadError = $state('');

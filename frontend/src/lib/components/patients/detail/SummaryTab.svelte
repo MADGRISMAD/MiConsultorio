@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Encounter, Patient, PatientSchema } from '$lib/types';
+  import { patientAge } from '$lib/format';
+  import { isRehab, type Encounter, type Patient, type PatientSchema } from '$lib/types';
   import Icon from '../../ui/Icon.svelte';
   import ConsultSummaryCard from './ConsultSummaryCard.svelte';
   import Evolution from './Evolution.svelte';
@@ -12,8 +13,10 @@
     patient: Patient;
     schema: PatientSchema;
     encounters: Encounter[];
+    /** something was created from this tab (a budget), so the counters of the other tabs must be refreshed */
+    onchanged?: () => void;
   }
-  let { patient: p, schema, encounters }: Props = $props();
+  let { patient: p, schema, encounters, onchanged }: Props = $props();
   const animal = $derived(p.subject === 'animal');
 
   const dateOf = (iso: string | null) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
@@ -22,7 +25,7 @@
     [
       ['Sexo', p.sex],
       ['Fecha de nacimiento', dateOf(p.birth_date)],
-      ['Edad', p.age != null ? `${p.age} ${p.age === 1 ? 'año' : 'años'}` : ''],
+      ['Edad', patientAge(p)],
       ...(animal ? [] : [['CURP', p.curp]]),
       ['Domicilio', p.address]
     ].filter(([, v]) => v)
@@ -65,8 +68,8 @@
 <div class="space-y-4">
   {#if animal}<OwnerCard patientId={p.id} />{/if}
   <ConsultSummaryCard patientId={p.id} hasNotes={encounters.some((e) => !e.hidden && !e.private)} />
-  <AiAssistCard patient={p} />
-  {#if !animal && (schema.kinds ?? []).some((k) => ['PHYSIOTHERAPY', 'CHIROPRACTIC', 'ORTHOPEDICS'].includes(k))}
+  <AiAssistCard patient={p} oncreated={onchanged} />
+  {#if !animal && isRehab(schema.kinds)}
     <RehabAdviceCard patientId={p.id} sessions={encounters.filter((e) => !e.hidden && !e.private).length} />
   {/if}
   {#if signs.length}

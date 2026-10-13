@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Loader } from '$lib/loader.svelte';
   import OpError from '$lib/components/ui/OpError.svelte';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
@@ -16,7 +17,7 @@
   let items = $state<AppNotification[]>([]);
   let unread = $state(0);
   let onlyUnread = $state(false);
-  const load = new Op();
+  const load = new Loader('No se pudieron cargar los avisos.');
   const act = new Op();
 
   const shown = $derived(onlyUnread ? items.filter((n) => !n.read) : items);
@@ -64,10 +65,10 @@
 
   <OpError op={act} class="mb-4" />
 
-  {#if load.phase === 'loading' && items.length === 0}
+  {#if load.loading && items.length === 0}
     <LoadingRows />
-  {:else if load.phase === 'error'}
-    <Alert>{load.message}</Alert>
+  {:else if load.error}
+    <Alert>{load.error}</Alert>
   {:else if shown.length === 0}
     <div class="card"><EmptyState icon="check" title={onlyUnread ? 'Estás al día' : 'Sin avisos'} text="Cuando algo requiera tu atención aparecerá aquí." /></div>
   {:else}
