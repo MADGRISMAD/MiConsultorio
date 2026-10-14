@@ -27,6 +27,8 @@ type Server struct {
 	mailLimiter *rateLimiter // tickets e-mailed per user
 
 	portal *portalLimits // patient portal: code requests and failed sign-ins
+
+	blog *blogState // AI writer of the public blog
 }
 
 // NewRouter builds the API with the SMTP sender described by cfg.
@@ -49,7 +51,7 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server {
 	installVault(db, cfg.TokenEncKey)
 	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
-		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour), portal: newPortalLimits()}
+		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour), portal: newPortalLimits(), blog: &blogState{}}
 }
 
 func (s *Server) router() http.Handler {
@@ -242,6 +244,8 @@ func (s *Server) router() http.Handler {
 				r.Get("/plans", s.platformPlans)
 				r.Get("/clinics", s.platformClinics)
 				r.Get("/clinics/{id}", s.platformClinic)
+				r.Get("/blog", s.platformBlog)
+				r.Get("/blog/{id}", s.platformBlogPost)
 
 				r.Group(func(r chi.Router) {
 					r.Use(requireRoles(RolePlatformAdmin))
@@ -258,6 +262,10 @@ func (s *Server) router() http.Handler {
 					r.Post("/staff/{id}/password", s.setStaffPassword)
 					r.Post("/staff/{id}/deactivate", s.setStaffDisabled(true))
 					r.Post("/staff/{id}/reactivate", s.setStaffDisabled(false))
+
+					r.Post("/blog/generate", s.platformBlogGenerate)
+					r.Patch("/blog/{id}", s.platformBlogUpdate)
+					r.Delete("/blog/{id}", s.platformBlogDelete)
 				})
 			})
 		})

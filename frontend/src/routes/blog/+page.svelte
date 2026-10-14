@@ -5,6 +5,8 @@
   import { theme } from '$lib/theme.svelte';
   import Footer from '$lib/landing/Footer.svelte';
   import Nav from '$lib/landing/Nav.svelte';
+  import PostCard from '$lib/blog/PostCard.svelte';
+  import { blogApi, type BlogCard } from '$lib/api/blog';
 
   const SORO_KEY = 'f89f47a2-4b3e-4fd4-8dbc-e856c6ebb5a6';
   const SORO_SRC = `https://app.trysoro.com/api/embed/${SORO_KEY}`;
@@ -23,6 +25,12 @@
 
   let box: HTMLDivElement;
   let roots = $state<ShadowRoot[]>([]);
+
+  // Artículos propios (escritos con IA y revisados desde el panel de plataforma)
+  let posts = $state<BlogCard[] | null>(null);
+  onMount(() => {
+    blogApi.list().then((p) => (posts = p)).catch(() => (posts = []));
+  });
 
   onMount(() => {
     // La app es de una sola página: el script se inyecta al entrar a /blog (también al llegar navegando desde
@@ -79,6 +87,20 @@
     <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft [text-wrap:pretty]">{description}</p>
 
     <div class="mt-14 border-t border-ink/10 pt-12">
+      {#if posts === null}
+        <div class="grid gap-4 md:grid-cols-2" aria-hidden="true">
+          {#each [0, 1, 2] as i}<div class="h-64 animate-pulse rounded-[26px] bg-ink/5 {i === 0 ? 'md:col-span-2' : ''}"></div>{/each}
+        </div>
+      {:else if posts.length}
+        <ul class="grid gap-4 md:grid-cols-2">
+          {#each posts as post, i (post.id)}
+            <li class={i === 0 ? 'md:col-span-2' : ''}><PostCard {post} featured={i === 0} /></li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+
+    <div class="mt-12">
       <div id="soro-blog" bind:this={box} class="scroll-mt-28"></div>
       <noscript><p class="text-ink-soft">Activa JavaScript para leer el blog.</p></noscript>
     </div>

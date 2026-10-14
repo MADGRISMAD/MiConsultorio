@@ -11,4 +11,5 @@ func (s *Server) mountPublic(r chi.Router) {
 	s.mountPublicWaitlist(r) // waitlist sign-up and offers
 	s.mountPublicSurvey(r)   // clinic public page and satisfaction survey
 	s.mountPublicCalendar(r) // private appointment feed of each professional
+	s.mountPublicBlog(r)     // artículos del blog
 }

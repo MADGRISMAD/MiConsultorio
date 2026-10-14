@@ -76,22 +76,34 @@ type geminiBlob struct {
 
 // geminiBlobs is gemini with several files, in order, after the prompt.
 func (s *Server) geminiBlobs(ctx context.Context, prompt string, blobs []geminiBlob, schema map[string]any) ([]byte, error) {
+	return s.geminiCall(ctx, geminiOpts{Model: s.cfg.GeminiModel, Temperature: 0.2, Timeout: 60 * time.Second}, prompt, blobs, schema)
+}
+
+// geminiOpts tunes one call: model, creativity and how long to wait.
+type geminiOpts struct {
+	Model       string
+	Temperature float64
+	Timeout     time.Duration
+}
+
+// geminiCall asks the model for JSON that follows schema, with the prompt and then the files.
+func (s *Server) geminiCall(ctx context.Context, o geminiOpts, prompt string, blobs []geminiBlob, schema map[string]any) ([]byte, error) {
 	parts := []map[string]any{{"text": prompt}}
 	for _, b := range blobs {
 		parts = append(parts, map[string]any{"inline_data": map[string]any{"mime_type": b.Mime, "data": base64.StdEncoding.EncodeToString(b.Data)}})
 	}
 	body, _ := json.Marshal(map[string]any{
 		"contents":         []map[string]any{{"role": "user", "parts": parts}},
-		"generationConfig": map[string]any{"responseMimeType": "application/json", "responseSchema": schema, "temperature": 0.2},
+		"generationConfig": map[string]any{"responseMimeType": "application/json", "responseSchema": schema, "temperature": o.Temperature},
 	})
-	endpoint := s.cfg.GeminiAPIBase + "/v1beta/models/" + url.PathEscape(s.cfg.GeminiModel) + ":generateContent"
+	endpoint := s.cfg.GeminiAPIBase + "/v1beta/models/" + url.PathEscape(o.Model) + ":generateContent"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", s.cfg.GeminiAPIKey)
-	res, err := (&http.Client{Timeout: 60 * time.Second}).Do(req)
+	res, err := (&http.Client{Timeout: o.Timeout}).Do(req)
 	if err != nil {
 		return nil, err
 	}

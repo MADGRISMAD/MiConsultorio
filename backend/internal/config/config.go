@@ -50,6 +50,9 @@ type Config struct {
 
 	// Magic inventory / pricing (Gemini).
 	GeminiAPIKey, GeminiModel, GeminiAPIBase string
+	// Blog: modelo para escribir artículos, piloto automático (lunes y jueves) y si se publican solos o quedan en borrador.
+	BlogModel                      string
+	BlogAutopilot, BlogAutoPublish bool
 
 	// Attachments (radiografías, laboratorio, consentimientos): files live on disk under UploadsDir.
 	UploadsDir     string
@@ -129,6 +132,9 @@ func Load() (*Config, error) {
 	}
 	c.GeminiAPIKey, c.GeminiModel = os.Getenv("GEMINI_API_KEY"), env("GEMINI_MODEL", "gemini-2.5-flash-lite")
 	c.GeminiAPIBase = strings.TrimRight(env("GEMINI_API_BASE", "https://generativelanguage.googleapis.com"), "/")
+	c.BlogModel = env("BLOG_GEMINI_MODEL", "gemini-2.5-flash")
+	c.BlogAutopilot = env("BLOG_AUTOPILOT", "on") != "off"
+	c.BlogAutoPublish = env("BLOG_AUTO_PUBLISH", "on") != "off"
 	c.UploadsDir = env("UPLOADS_DIR", "data/uploads")
 	c.MaxUploadBytes = 15 << 20
 	if n, ok := envInt("MAX_UPLOAD_MB"); ok && n > 0 && n <= 200 {

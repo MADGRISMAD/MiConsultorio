@@ -54,7 +54,8 @@
       title: 'Plataforma',
       items: [
         { label: 'Resumen', href: '/plataforma', icon: 'home' },
-        { label: 'Negocios', href: '/plataforma/negocios', icon: 'building' }
+        { label: 'Negocios', href: '/plataforma/negocios', icon: 'building' },
+        { label: 'Blog', href: '/plataforma/blog', icon: 'file' }
       ]
     },
     {

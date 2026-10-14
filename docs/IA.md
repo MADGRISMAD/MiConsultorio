@@ -32,6 +32,16 @@ Todas usan Google Gemini (`GEMINI_API_KEY`, `GEMINI_MODEL`) y **1 uso de magia**
 
 Resumen del periodo y pacientes que dejaron de venir (en Indicadores; solo administración y recepción para el segundo), respuesta a una calificación y textos de la página pública (en Ajustes › Perfil).
 
+## Blog (`blog.go`, `blog_prompt.go`, `blog_topics.go`)
+
+La IA escribe un artículo para el blog público (`/blog`) cada **lunes y jueves a las 9:00** (hora del centro de México). No usa datos de pacientes ni de clínicas.
+
+- **Temas:** sigue el calendario de `blog_topics.go` en orden (palabra clave, enfoque y categoría). Cuando se acaba, la IA propone temas nuevos sin repetir los títulos que ya existen. Para sumar temas basta con agregar líneas.
+- **Instrucciones:** `blog_prompt.go` le dice a quién escribe, qué hace Caresia (solo funciones reales), estructura, tono, extensión (1,200 a 1,800 palabras), reglas de SEO y reglas de contenido de salud: nada de consejos clínicos, estadísticas inventadas, promesas, competidores ni ligas.
+- **Revisión:** en *Plataforma › Blog* se ve cada artículo antes de que salga, se publica, se oculta o se borra, y se puede pedir uno al momento con un tema propio.
+- **Variables:** `BLOG_GEMINI_MODEL` (por defecto `gemini-2.5-flash`), `BLOG_AUTOPILOT=off` para apagar la escritura automática y `BLOG_AUTO_PUBLISH=off` para que los automáticos queden en borrador.
+- Cada artículo publicado entra al mapa del sitio (`/sitemap.xml`) con datos estructurados de artículo y de preguntas frecuentes.
+
 ## Antes de producción
 
 - Configurar `GEMINI_API_KEY` y `GEMINI_MODEL`.

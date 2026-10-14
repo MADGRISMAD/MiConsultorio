@@ -400,6 +400,14 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 		Loc string `xml:"loc"`
 	}
 	urls := []u{{base + "/directorio"}, {base + "/blog"}}
+	posts, err := s.blogSitemapURLs(r.Context(), base)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	for _, p := range posts {
+		urls = append(urls, u{p})
+	}
 	rows, err := s.db.Query(r.Context(), `SELECT lower(a.booking_slug), cp.city, c.kind, c.specialties `+pageBase+` ORDER BY 1`)
 	if err != nil {
 		serverError(w, r, err)
