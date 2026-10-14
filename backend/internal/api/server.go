@@ -295,7 +295,15 @@ func spaHandler(dir string) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, filepath.Join(dir, "index.html"))
+		// index.html lleva lo propio de la portada (precarga, dirección canónica, datos de la organización);
+		// el resto de las rutas usa spa.html cuando existe, como en Vercel
+		page := filepath.Join(dir, "index.html")
+		if r.URL.Path != "/" {
+			if _, err := os.Stat(filepath.Join(dir, "spa.html")); err == nil {
+				page = filepath.Join(dir, "spa.html")
+			}
+		}
+		http.ServeFile(w, r, page)
 	}
 }
 

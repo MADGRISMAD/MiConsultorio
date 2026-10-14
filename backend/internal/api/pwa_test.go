@@ -46,6 +46,16 @@ func TestPWAHeaders(t *testing.T) {
 	if res.StatusCode != 200 || body != "<html>shell</html>" || res.Header.Get("Cache-Control") != "no-cache" {
 		t.Fatalf("offline fallback: %d %q %v", res.StatusCode, body, res.Header)
 	}
+	// with spa.html, only the home page gets index.html (its canonical and organization data); other routes get spa.html
+	if err := os.WriteFile(filepath.Join(dir, "spa.html"), []byte("<html>spa</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, body := get("/"); body != "<html>shell</html>" {
+		t.Fatalf("home must be index.html: %q", body)
+	}
+	if _, body := get("/blog/un-articulo"); body != "<html>spa</html>" {
+		t.Fatalf("other routes must be spa.html: %q", body)
+	}
 	// the API keeps its own 404 and is never answered with the shell
 	res, body = get("/api/nope")
 	if res.StatusCode != 404 || body == "<html>shell</html>" {
