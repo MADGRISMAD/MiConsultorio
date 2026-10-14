@@ -25,8 +25,8 @@
   }
   let { id, canEdit, plans, onchanged }: Props = $props();
 
-  type Tab = 'resumen' | 'licencia' | 'personas' | 'pagos' | 'actividad';
-  const tabs: [Tab, string][] = [
+  type Tab = 'resumen' | 'sucursales' | 'licencia' | 'personas' | 'pagos' | 'actividad';
+  const baseTabs: [Tab, string][] = [
     ['resumen', 'Resumen'],
     ['licencia', 'Licencia'],
     ['personas', 'Personas'],
@@ -34,8 +34,13 @@
     ['actividad', 'Actividad']
   ];
   let tab = $state<Tab>('resumen');
+  let branches = $state<ClinicRow[]>([]);
 
   let clinic = $state<ClinicRow | null>(null);
+  // a matrix gets its own submenu with the branches created from it
+  const tabs = $derived<[Tab, string][]>(
+    clinic?.is_matrix ? [baseTabs[0], ['sucursales', `Sucursales (${branches.length})`], ...baseTabs.slice(1)] : baseTabs
+  );
   let people = $state<Person[]>([]);
   let seats = $state<Seats | null>(null);
   let activity = $state<ActivityItem[]>([]);
@@ -49,6 +54,7 @@
       const d = await api.platform.clinic(target);
       if (target !== id || !current()) return;
       ({ clinic, people, seats, activity, payments } = d);
+      branches = d.branches ?? [];
       fill();
       loadedId = target;
     });
@@ -150,7 +156,7 @@
           <StatePill state={clinic.state} /><Pill tone="info">{clinic.plan_name}</Pill><Pill tone={plans.find((x) => x.id === clinic?.plan)?.cobros ? 'ok' : 'muted'}>{plans.find((x) => x.id === clinic?.plan)?.cobros ? 'Con cobros' : 'Sin cobros'}</Pill><span>{kindLabel}</span>
         </p>
       </div>
-      {#if canEdit}
+      {#if canEdit && !clinic.matrix_id}
         {#if clinic.state === 'suspended'}
           <button type="button" class="btn-primary" onclick={() => { reactivateOp.reset(); reactivateOpen = true; }}><Icon name="refresh" size={17} />Reactivar</button>
         {:else}
@@ -169,6 +175,9 @@
       {#if tab === 'resumen'}
         {#if clinic.state === 'suspended' && clinic.suspended_reason}
           <p class="alert mb-5"><Icon name="ban" size={18} />Suspendido: {clinic.suspended_reason}</p>
+        {/if}
+        {#if clinic.matrix_id}
+          <p class="mb-5 text-sm text-app-muted">Sucursal de <a class="font-semibold text-app-primary hover:underline" href="/plataforma/negocios/{clinic.matrix_id}">{clinic.matrix_name}</a>.{#if clinic.state === 'branch_suspended'} El dueño la suspendió desde el panel de la matriz{#if clinic.branch_suspended_at} el {dateShort(clinic.branch_suspended_at)}{/if}; solo él puede reactivarla.{/if}</p>
         {/if}
         <dl class="grid gap-x-8 gap-y-5 text-sm sm:grid-cols-2">
           <div><dt class="section-title">Dueño</dt><dd class="mt-1 font-semibold">{clinic.owner_name || '—'}</dd></div>
@@ -192,6 +201,25 @@
             </div>
           {/if}
         </dl>
+      {:else if tab === 'sucursales'}
+        {#if branches.length === 0}
+          <p class="rounded-xl bg-app-ink/5 px-4 py-6 text-center text-sm text-app-muted">Esta matriz aún no tiene sucursales.</p>
+        {:else}
+          <ul class="divide-y divide-app-ink/8" aria-label="Sucursales de {clinic.name}">
+            {#each branches as b (b.id)}
+              <li>
+                <a href="/plataforma/negocios/{b.id}" class="flex items-center gap-3 rounded-lg py-3 transition hover:bg-app-ink/[0.03]">
+                  <Avatar name={b.name} size={38} />
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate font-semibold">{b.name}</span>
+                    <span class="block truncate text-sm text-app-muted">{b.address || 'Sin dirección'} · {b.users} {b.users === 1 ? 'persona' : 'personas'} · alta {dateShort(b.created_at)}</span>
+                  </span>
+                  <StatePill state={b.state} />
+                </a>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       {:else if tab === 'licencia'}
         {#if !canEdit}
           <p class="mb-5 flex items-start gap-2 note"><Icon name="info" size={17} class="mt-0.5 flex-none" />Estás en modo soporte: puedes ver los datos, pero solo un administrador cambia el plan, el estado o los datos del negocio.</p>

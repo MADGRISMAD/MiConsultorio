@@ -27,14 +27,16 @@ export const ROLES: Record<Role, { label: string; short: string; about: string; 
 export const CLINIC_ROLES: ClinicRole[] = ['admin', 'doctor', 'reception', 'cashier'];
 export const PLATFORM_ROLES: PlatformRole[] = ['platform_admin', 'platform_support'];
 
-export type BillingState = 'trialing' | 'trial_expired' | 'active' | 'past_due' | 'suspended';
+/** `branch_suspended`: el dueño de la matriz apagó la sucursal desde su panel (no es un estado de cobro). */
+export type BillingState = 'trialing' | 'trial_expired' | 'active' | 'past_due' | 'suspended' | 'branch_suspended';
 
 export const BILLING_STATES: Record<BillingState, { label: string; tone: 'ok' | 'info' | 'warn' | 'bad' }> = {
   trialing: { label: 'En prueba', tone: 'info' },
   trial_expired: { label: 'Prueba vencida', tone: 'warn' },
   active: { label: 'Activo', tone: 'ok' },
   past_due: { label: 'Pago atrasado', tone: 'warn' },
-  suspended: { label: 'Suspendido', tone: 'bad' }
+  suspended: { label: 'Suspendido', tone: 'bad' },
+  branch_suspended: { label: 'Sucursal suspendida', tone: 'bad' }
 };
 
 export interface Billing {
@@ -154,6 +156,13 @@ export interface ClinicRow {
   owner_name: string;
   owner_email: string;
   last_seen: string | null;
+  /** sucursales (Plan Pro): la matriz lista las suyas; cada sucursal apunta a su matriz */
+  organization_id: string | null;
+  is_matrix: boolean;
+  matrix_id: string | null;
+  matrix_name: string;
+  branch_count: number;
+  branch_suspended_at: string | null;
 }
 
 export interface ActivityItem {

@@ -41,8 +41,17 @@ type clinicRow struct {
 	OwnerEmail       string     `json:"owner_email" db:"owner_email"`
 	LastSeen         *time.Time `json:"last_seen" db:"last_seen"`
 
+	// Organization: a clinic with branches is the matrix; each branch is an independent clinic that points at it.
+	OrganizationID    *string    `json:"organization_id" db:"organization_id"`
+	IsMatrix          bool       `json:"is_matrix" db:"is_matrix"`
+	MatrixID          *string    `json:"matrix_id" db:"matrix_id"`       // of a branch: its matrix
+	MatrixName        string     `json:"matrix_name" db:"matrix_name"`   // of a branch: its matrix
+	BranchCount       int        `json:"branch_count" db:"branch_count"` // of a matrix: how many branches hang from it
+	BranchSuspendedAt *time.Time `json:"branch_suspended_at" db:"branch_suspended_at"`
+
 	PlanName      string `json:"plan_name" db:"-"`
-	State         string `json:"state" db:"-"` // trialing | trial_expired | active | past_due | suspended
+	State         string `json:"state" db:"-"`         // trialing | trial_expired | active | past_due | suspended | branch_suspended
+	BillingState  string `json:"billing_state" db:"-"` // the same without the branch's own suspension
 	TrialDaysLeft *int   `json:"trial_days_left" db:"-"`
 }
 
@@ -51,7 +60,13 @@ const clinicCols = `c.id, c.name, c.kind, c.email, c.phone_number, c.address, c.
 	(SELECT count(*) FROM users u WHERE u.clinic_id = c.id AND NOT u.disabled) AS users,
 	coalesce((SELECT u.name FROM users u WHERE u.clinic_id = c.id AND u.role = 'admin' ORDER BY u.created_at LIMIT 1), '') AS owner_name,
 	coalesce((SELECT u.email FROM users u WHERE u.clinic_id = c.id AND u.role = 'admin' ORDER BY u.created_at LIMIT 1), '') AS owner_email,
-	(SELECT max(u.last_login_at) FROM users u WHERE u.clinic_id = c.id) AS last_seen`
+	(SELECT max(u.last_login_at) FROM users u WHERE u.clinic_id = c.id) AS last_seen,
+	c.organization_id::text AS organization_id,
+	EXISTS (SELECT 1 FROM organizations o WHERE o.matrix_clinic_id = c.id) AS is_matrix,
+	(SELECT o.matrix_clinic_id::text FROM organizations o WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id) AS matrix_id,
+	coalesce((SELECT m.name FROM organizations o JOIN clinics m ON m.id = o.matrix_clinic_id WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id), '') AS matrix_name,
+	(SELECT count(*) FROM clinics b WHERE b.organization_id = c.organization_id AND b.id <> c.id AND EXISTS (SELECT 1 FROM organizations o WHERE o.matrix_clinic_id = c.id))::int AS branch_count,
+	c.branch_suspended_at`
 
 func (c *clinicRow) billing() Billing {
 	return Billing{Plan: c.Plan, Status: c.BillingStatus, TrialEndsAt: c.TrialEndsAt, CurrentPeriodEnd: c.CurrentPeriodEnd, SuspendedReason: c.SuspendedReason}
@@ -60,7 +75,12 @@ func (c *clinicRow) billing() Billing {
 func (c *clinicRow) finish(now time.Time) {
 	b := c.billing()
 	plan, _ := planByID(c.Plan)
-	c.PlanName, c.State, c.TrialDaysLeft = plan.Name, b.State(now), b.TrialDaysLeft(now)
+	c.PlanName, c.BillingState, c.TrialDaysLeft = plan.Name, b.State(now), b.TrialDaysLeft(now)
+	// a branch its owner switched off is shown as such, whatever the shared subscription says
+	c.State = c.BillingState
+	if c.BranchSuspendedAt != nil {
+		c.State = "branch_suspended"
+	}
 }
 
 func loadClinics(ctx context.Context, q interface {
@@ -187,8 +207,16 @@ func (s *Server) platformClinic(w http.ResponseWriter, r *http.Request) {
 		serverError(w, r, err)
 		return
 	}
+	// the branches of a matrix, to see all of its records together
+	branches := []clinicRow{}
+	if list[0].IsMatrix {
+		if branches, err = loadClinics(r.Context(), s.db, "WHERE c.organization_id = $1::uuid AND c.id <> $2::uuid", *list[0].OrganizationID, id); err != nil {
+			serverError(w, r, err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"clinic": list[0], "people": withLabels(people), "seats": st, "activity": activity, "payments": pays,
+		"clinic": list[0], "people": withLabels(people), "seats": st, "activity": activity, "payments": pays, "branches": branches,
 	})
 }
 
@@ -537,10 +565,15 @@ func (s *Server) platformOverview(w http.ResponseWriter, r *http.Request) {
 	counts := map[string]int{"total": len(list), "trialing": 0, "trial_expired": 0, "active": 0, "past_due": 0, "suspended": 0}
 	mrr := 0
 	var attention []attentionItem
+	counts["branch_suspended"] = 0
 	for _, c := range list {
-		counts[c.State]++
+		// the subscription is judged by its own state; a branch switched off is counted apart, in addition
+		counts[c.BillingState]++
+		if c.BranchSuspendedAt != nil {
+			counts["branch_suspended"]++
+		}
 		plan, _ := planByID(c.Plan)
-		switch c.State {
+		switch c.BillingState {
 		case "active":
 			mrr += plan.PriceMonth
 		case "past_due":

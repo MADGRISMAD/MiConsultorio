@@ -25,7 +25,8 @@
     ['active', 'Activos'],
     ['past_due', 'Pago atrasado'],
     ['trial_expired', 'Prueba vencida'],
-    ['suspended', 'Suspendidos']
+    ['suspended', 'Suspendidos'],
+    ['branch_suspended', 'Sucursal suspendida']
   ];
 
   let clinics = $state<ClinicRow[]>([]);
@@ -56,6 +57,15 @@
     return () => clearTimeout(timer);
   });
 
+  // without a filter or search, branches sit under their matrix; otherwise the list is flat
+  const rows = $derived.by(() => {
+    if (filter !== 'all' || query.trim()) return clinics;
+    const byMatrix = new Map<string, ClinicRow[]>();
+    for (const c of clinics) if (c.matrix_id) byMatrix.set(c.matrix_id, [...(byMatrix.get(c.matrix_id) ?? []), c]);
+    const ids = new Set(clinics.map((c) => c.id));
+    return clinics.filter((c) => !c.matrix_id || !ids.has(c.matrix_id)).flatMap((c) => [c, ...(byMatrix.get(c.id) ?? [])]);
+  });
+  const nested = (c: ClinicRow) => !!c.matrix_id && rows.some((r) => r.id === c.matrix_id) && filter === 'all' && !query.trim();
   const open = (cid: string) => goto(`/plataforma/negocios/${cid}${filter !== 'all' ? `?state=${filter}` : ''}`, { keepFocus: true });
   const kind = (c: ClinicRow) => CLINIC_KINDS[c.kind]?.label ?? c.kind;
 </script>
@@ -86,15 +96,15 @@
       <EmptyState icon="building" title={counts.all ? 'Ningún negocio coincide' : 'Aún no hay negocios'} text={counts.all ? 'Cambia el filtro o la búsqueda.' : 'Cuando alguien cree su consultorio aparecerá aquí.'} />
     {:else}
       <ul class="max-h-[70vh] divide-y divide-app-ink/8 overflow-y-auto">
-        {#each clinics as c (c.id)}
+        {#each rows as c (c.id)}
           <li>
-            <button type="button" class="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-app-ink/[0.03] {id === c.id ? 'bg-app-primary/8' : ''}" aria-current={id === c.id ? 'true' : undefined} onclick={() => open(c.id)}>
+            <button type="button" class="flex w-full items-center gap-3 py-3.5 pr-4 text-left {nested(c) ? 'pl-10' : 'pl-4'} transition hover:bg-app-ink/[0.03] {id === c.id ? 'bg-app-primary/8' : ''}" aria-current={id === c.id ? 'true' : undefined} onclick={() => open(c.id)}>
               <Avatar name={c.name} size={42} />
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-semibold">{c.name}</span>
-                <span class="block truncate text-sm text-app-muted">{c.owner_name || 'Sin dueño'}</span>
+                <span class="block truncate text-sm text-app-muted">{#if c.matrix_id}Sucursal de {c.matrix_name}{:else}{c.owner_name || 'Sin dueño'}{/if}</span>
                 <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill>{#if plans.find((x) => x.id === c.plan)?.cobros}<Pill tone="ok">Cobros</Pill>{/if}<Pill>{kind(c)}</Pill>
+                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill>{#if plans.find((x) => x.id === c.plan)?.cobros}<Pill tone="ok">Cobros</Pill>{/if}<Pill>{kind(c)}</Pill>{#if c.is_matrix}<Pill tone="info">Matriz · {c.branch_count} {c.branch_count === 1 ? 'sucursal' : 'sucursales'}</Pill>{/if}
                   <span class="text-xs text-app-muted">{c.last_seen ? ago(c.last_seen) : 'sin entrar'}</span>
                 </span>
               </span>

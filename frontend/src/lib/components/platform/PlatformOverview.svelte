@@ -41,7 +41,7 @@
       { label: 'Negocios activos', value: c.active ?? 0, hint: `${c.total} en total`, state: 'active' },
       { label: 'En prueba', value: c.trialing ?? 0, hint: `${data.signups_30d} ${data.signups_30d === 1 ? 'alta' : 'altas'} en 30 días`, state: 'trialing' },
       { label: 'Requieren pago', value: (c.past_due ?? 0) + (c.trial_expired ?? 0), hint: `${c.trial_expired ?? 0} con prueba vencida`, state: 'past_due' },
-      { label: 'Suspendidos', value: c.suspended ?? 0, hint: 'sin acceso', state: 'suspended' }
+      { label: 'Suspendidos', value: c.suspended ?? 0, hint: c.branch_suspended ? `${c.branch_suspended} ${c.branch_suspended === 1 ? 'sucursal apagada' : 'sucursales apagadas'} por su dueño` : 'sin acceso', state: 'suspended' }
     ] as k}
       <a href="/plataforma/negocios?state={k.state}" class="card p-5 transition hover:-translate-y-0.5 hover:ring-1 hover:ring-app-primary/30">
         <p class="section-title">{k.label}</p>

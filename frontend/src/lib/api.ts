@@ -231,7 +231,7 @@ export const api = {
     clinics: (q = '', state = '') =>
       request<{ clinics: ClinicRow[]; counts: Record<string, number> }>('GET', `/platform/clinics?q=${encodeURIComponent(q)}&state=${encodeURIComponent(state)}`),
     clinic: (id: string) =>
-      request<{ clinic: ClinicRow; people: Person[]; seats: Seats; activity: ActivityItem[]; payments: Payment[] }>('GET', `/platform/clinics/${seg(id)}`),
+      request<{ clinic: ClinicRow; branches?: ClinicRow[]; people: Person[]; seats: Seats; activity: ActivityItem[]; payments: Payment[] }>('GET', `/platform/clinics/${seg(id)}`),
     updateClinic: (id: string, patch: Record<string, unknown>) => request<{ clinic: ClinicRow }>('PATCH', `/platform/clinics/${seg(id)}`, patch).then((r) => r.clinic),
     suspend: (id: string, reason: string) => request<{ clinic: ClinicRow }>('POST', `/platform/clinics/${seg(id)}/suspend`, { reason }).then((r) => r.clinic),
     reactivate: (id: string) => request<{ clinic: ClinicRow }>('POST', `/platform/clinics/${seg(id)}/reactivate`).then((r) => r.clinic),
