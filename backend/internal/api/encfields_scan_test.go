@@ -30,6 +30,7 @@ func TestEncryptedColumnsOnlyThroughHelpers(t *testing.T) {
 		"org_core.go": true, "org_reports.go": true, "org_routes.go": true, // read clinics.plan only
 		"directory.go":     true, // clinic_profile y el slot 'profile' de clinic_media, no expedientes
 		"subscriptions.go": true, // clinics.plan y billing_checkouts.plan de la suscripción
+		"blog_prompt.go":   true, // instrucciones para la IA del blog ("plan nutricional"): texto, no SQL
 	}
 	// Files allowed to export whole rows (to_jsonb / SELECT *) of the sealed tables.
 	wholeRow := map[string]bool{"patients_export.go": true, "vaccinations.go": true}

@@ -6,7 +6,7 @@
   import { PUBLIC_PATHS, cookieConsent } from '$lib/cookies.svelte';
 
   let ready = $state(false);
-  const isPublic = $derived(PUBLIC_PATHS.includes(page.url.pathname));
+  const isPublic = $derived(PUBLIC_PATHS.includes(page.url.pathname) || page.url.pathname.startsWith('/blog/'));
 
   onMount(() => {
     cookieConsent.init();

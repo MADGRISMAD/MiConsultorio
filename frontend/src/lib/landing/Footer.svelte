@@ -10,7 +10,7 @@
   const cols: [string, [string, string][]][] = $derived([
     ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#incluye`, 'Todo incluido'], [`${home}#especialidades`, 'Especialidades'], [`${home}#precios`, 'Precios']]],
     ['Pacientes', [['/directorio', 'Buscar especialista'], ['/directorio/dentistas', 'Dentistas'], ['/directorio/psicologos', 'Psicólogos'], ['/directorio/nutriologos', 'Nutriólogos']]],
-    ['Soporte', [[`${home}#preguntas`, 'Preguntas frecuentes'], [`mailto:${contactEmail}`, 'Contacto']]],
+    ['Soporte', [[`${home}#preguntas`, 'Preguntas frecuentes'], ['/blog', 'Blog'], [`mailto:${contactEmail}`, 'Contacto']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
   ]);
 

@@ -37,6 +37,31 @@ const tags = [
   ...nuevosCss.map((f) => `<link href="/${f}" rel="stylesheet">`)
 ].join('\n\t\t');
 if (!html.includes('</head>')) throw new Error('index.html sin </head>');
+
+// Solo en la portada (index.html): dirección canónica con https, vista previa al compartir y datos de la
+// organización con su logo. Van en el HTML para que Google y las redes los lean sin ejecutar JavaScript.
+const SITE = 'https://caresia.mx';
+const description = /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '';
+const title = 'Caresia · Software para clínicas dentales y consultorios médicos';
+const org = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png`, email: 'caresia-info@caresia.mx' },
+    { '@type': 'WebSite', '@id': `${SITE}/#web`, name: 'Caresia', url: `${SITE}/`, inLanguage: 'es-MX', publisher: { '@id': `${SITE}/#org` } }
+  ]
+};
+const seo = [
+  `<link rel="canonical" href="${SITE}/">`,
+  `<meta property="og:type" content="website">`,
+  `<meta property="og:site_name" content="Caresia">`,
+  `<meta property="og:locale" content="es_MX">`,
+  `<meta property="og:url" content="${SITE}/">`,
+  `<meta property="og:title" content="${title}">`,
+  `<meta property="og:description" content="${description}">`,
+  `<meta property="og:image" content="${SITE}/icons/icon-512.png">`,
+  `<meta name="twitter:card" content="summary">`,
+  `<script type="application/ld+json">${JSON.stringify(org).replace(/</g, '\\u003c')}</script>`
+].join('\n\t\t');
 fs.writeFileSync('build/spa.html', html);
-fs.writeFileSync('build/index.html', html.replace('</head>', `\t\t${tags}\n  </head>`));
+fs.writeFileSync('build/index.html', html.replace('</head>', `\t\t${seo}\n\t\t${tags}\n  </head>`));
 console.log(`index.html (landing) y spa.html: ${nuevos.length} módulos, ${nuevosCss.length} estilos y ${fuentes.length} fuentes precargados (nodo ${node})`);
