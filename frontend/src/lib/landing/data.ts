@@ -4,7 +4,10 @@
 
 export const loginPath = '/login';
 export const contactEmail = 'caresia-info@caresia.mx';
-export const demoHref = `mailto:${contactEmail}?subject=${encodeURIComponent('Quiero una demo de Caresia')}`;
+/** Página con el formulario de demo: el aviso le llega al equipo por correo (con copia a quien corresponda). */
+export const demoHref = '/demo';
+/** Plan B si el formulario no está disponible. */
+export const demoMailto = `mailto:${contactEmail}?subject=${encodeURIComponent('Quiero una demo de Caresia')}`;
 
 export const plans = [
   {

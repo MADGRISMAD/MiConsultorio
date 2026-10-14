@@ -21,7 +21,7 @@
          Con el consentimiento ya guardado se inyecta cuando la página terminó de cargar, para no frenar el primer pintado. -->
     <script>
       (function (w, d, s, l, i) {
-        var publicas = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio', '/blog'];
+        var publicas = ['/', '/login', '/register', '/forgot', '/privacidad', '/terminos', '/directorio', '/blog', '/demo'];
         if (publicas.indexOf(w.location.pathname) < 0 && w.location.pathname.indexOf('/blog/') !== 0) return;
         var cargado = false;
         function cargar() {

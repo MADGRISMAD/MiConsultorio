@@ -93,6 +93,41 @@ func TestSendBuildsMultipartUTF8(t *testing.T) {
 	}
 }
 
+func TestSendCopiesAndReplyTo(t *testing.T) {
+	port, got := fakeSMTP(t)
+	s := &SMTP{Host: "127.0.0.1", Port: port, From: "Caresia <no-reply@caresia.test>"}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := s.Send(ctx, Message{
+		To: []string{"info@caresia.test"}, Cc: []string{"Uno <uno@x.mx>", "dos@x.mx"}, ReplyTo: "Ana Ruiz <ana@clinica.mx>\r\nBcc: evil@x.mx",
+		Subject: "Solicitud de demo", Text: "Hola",
+	})
+	if err == nil {
+		t.Fatal("un Reply-To con salto de línea debe rechazarse, no enviarse")
+	}
+	err = s.Send(ctx, Message{To: []string{"info@caresia.test"}, Cc: []string{"Uno <uno@x.mx>", "dos@x.mx"}, ReplyTo: "Ana Ruiz <ana@clinica.mx>", Subject: "Solicitud de demo", Text: "Hola"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := <-got
+	envelope, msg, _ := strings.Cut(raw, "\n")
+	for _, rcpt := range []string{"info@caresia.test", "uno@x.mx", "dos@x.mx"} {
+		if !strings.Contains(envelope, rcpt) {
+			t.Fatalf("%s debe ser destinatario del sobre: %q", rcpt, envelope)
+		}
+	}
+	m, err := readMessage(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(m.header.Get("Cc"), "uno@x.mx") || !strings.Contains(m.header.Get("Cc"), "dos@x.mx") {
+		t.Fatalf("Cc: %q", m.header.Get("Cc"))
+	}
+	if !strings.Contains(m.header.Get("Reply-To"), "ana@clinica.mx") {
+		t.Fatalf("Reply-To: %q", m.header.Get("Reply-To"))
+	}
+}
+
 func TestDisabledAndRefusesPlainAuth(t *testing.T) {
 	if (&SMTP{}).Enabled() {
 		t.Fatal("empty config must be disabled")

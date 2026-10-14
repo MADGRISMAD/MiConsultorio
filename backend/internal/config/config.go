@@ -30,6 +30,9 @@ type Config struct {
 
 	// Public addresses: the web app (return pages) and this API (webhooks, OAuth callbacks).
 	AppURL, APIPublicURL string
+	// DemoTo recibe el aviso de cada solicitud de demo del sitio y DemoCC las copias (DEMO_TO, DEMO_CC separados por comas).
+	DemoTo string
+	DemoCC []string
 
 	// Mercado Pago. Subscriptions are charged to the platform's own account (MPAccessToken);
 	// each clinic connects its own account with OAuth to charge its patients.
@@ -129,6 +132,12 @@ func Load() (*Config, error) {
 	c.MailFrom = os.Getenv("MAIL_FROM")
 	if c.MailFrom == "" && c.SMTPUser != "" {
 		c.MailFrom = "Caresia <" + c.SMTPUser + ">"
+	}
+	c.DemoTo = strings.TrimSpace(os.Getenv("DEMO_TO"))
+	for _, a := range strings.Split(os.Getenv("DEMO_CC"), ",") {
+		if a = strings.TrimSpace(a); a != "" {
+			c.DemoCC = append(c.DemoCC, a)
+		}
 	}
 	c.GeminiAPIKey, c.GeminiModel = os.Getenv("GEMINI_API_KEY"), env("GEMINI_MODEL", "gemini-2.5-flash-lite")
 	c.GeminiAPIBase = strings.TrimRight(env("GEMINI_API_BASE", "https://generativelanguage.googleapis.com"), "/")

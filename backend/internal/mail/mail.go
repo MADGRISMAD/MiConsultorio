@@ -19,7 +19,10 @@ import (
 
 // Message is one e-mail with a plain-text and an HTML body.
 type Message struct {
-	To      []string
+	To []string
+	// Cc recibe copia visible; ReplyTo es a quién contesta quien lea el mensaje (por ejemplo, el visitante que pidió una demo).
+	Cc      []string
+	ReplyTo string
 	Subject string
 	Text    string
 	HTML    string
@@ -66,7 +69,7 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 		return fmt.Errorf("mail: remitente inválido: %w", err)
 	}
 	var rcpts []string
-	var toHdr []string
+	var toHdr, ccHdr []string
 	for _, t := range m.To {
 		a, err := mail.ParseAddress(clean(t))
 		if err != nil {
@@ -75,10 +78,26 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 		rcpts = append(rcpts, a.Address)
 		toHdr = append(toHdr, a.String())
 	}
-	if len(rcpts) == 0 {
+	for _, t := range m.Cc {
+		a, err := mail.ParseAddress(clean(t))
+		if err != nil {
+			return fmt.Errorf("mail: copia inválida: %w", err)
+		}
+		rcpts = append(rcpts, a.Address)
+		ccHdr = append(ccHdr, a.String())
+	}
+	if len(toHdr) == 0 {
 		return errors.New("mail: sin destinatarios")
 	}
-	raw := build(from.String(), toHdr, m)
+	replyTo := ""
+	if m.ReplyTo != "" {
+		a, err := mail.ParseAddress(clean(m.ReplyTo))
+		if err != nil {
+			return fmt.Errorf("mail: responder a inválido: %w", err)
+		}
+		replyTo = a.String()
+	}
+	raw := build(from.String(), toHdr, ccHdr, replyTo, m)
 
 	port := s.Port
 	if port == 0 {
@@ -146,7 +165,7 @@ func (s *SMTP) Send(ctx context.Context, m Message) error {
 
 // build makes a multipart/alternative message with quoted-printable parts, wrapped in multipart/mixed
 // when there are attachments.
-func build(from string, to []string, m Message) []byte {
+func build(from string, to, cc []string, replyTo string, m Message) []byte {
 	stamp := time.Now().UnixNano()
 	boundary := fmt.Sprintf("caresia-%d", stamp)
 	mixed := fmt.Sprintf("caresia-mixed-%d", stamp)
@@ -154,6 +173,12 @@ func build(from string, to []string, m Message) []byte {
 	h := func(k, v string) { fmt.Fprintf(&b, "%s: %s\r\n", k, v) }
 	h("From", from)
 	h("To", strings.Join(to, ", "))
+	if len(cc) > 0 {
+		h("Cc", strings.Join(cc, ", "))
+	}
+	if replyTo != "" {
+		h("Reply-To", replyTo)
+	}
 	h("Subject", mime.QEncoding.Encode("utf-8", clean(m.Subject)))
 	h("Date", time.Now().Format(time.RFC1123Z))
 	h("MIME-Version", "1.0")
