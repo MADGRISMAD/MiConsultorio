@@ -50,6 +50,8 @@
   const cancelOp = new Op();
 
   async function load() {
+    // the list is for whoever reviews and issues invoices; the till only captures requests
+    if (!canManage) return;
     await ld.run(
       async (current) => {
         const r = await pos2.invoices(tab);
@@ -117,12 +119,19 @@
   }
 </script>
 
-<PageHeader title="Facturación" subtitle="Solicitudes de factura de tus ventas.">
+<PageHeader title="Facturación" subtitle={canManage ? 'Solicitudes de factura de tus ventas.' : 'Captura los datos fiscales de una venta para que se emita su factura.'}>
   {#snippet actions()}
     <button type="button" class="btn-primary" onclick={openNew}><Icon name="plus" size={18} />Nueva solicitud</button>
   {/snippet}
 </PageHeader>
 
+{#if !canManage}
+  <div class="card">
+    <EmptyState icon="receipt" title="Solicita la factura de una venta" text="Captura los datos fiscales de quien la pide. Quien administra la caja revisa la solicitud y emite la factura.">
+      <button type="button" class="btn-primary min-h-12" onclick={openNew}><Icon name="plus" size={18} />Nueva solicitud</button>
+    </EmptyState>
+  </div>
+{:else}
 <p class="mb-5 flex items-start gap-2.5 rounded-xl bg-app-primary/10 px-3.5 py-3 text-sm text-app-primary">
   <Icon name="info" size={18} />
     {#if stampEnabled}
@@ -185,6 +194,8 @@
     </div>
   {/if}
 </div>
+
+{/if}
 
 <InvoiceRequestForm open={formOpen} saleId={formSale} onclose={() => (formOpen = false)} onsaved={() => { tab = 'pending'; void load(); }} />
 <InvoiceDetail
