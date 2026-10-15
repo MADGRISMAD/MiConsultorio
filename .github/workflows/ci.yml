@@ -49,6 +49,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npm run knip # archivos y dependencias sin usar (los tipos exportados no se vigilan)
       - run: npm run build
 
   # Pruebas de punta a punta (Playwright, ver e2e/README.md). Informativo: no está en `needs` del deploy y

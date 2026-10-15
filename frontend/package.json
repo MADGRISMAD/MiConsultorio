@@ -8,7 +8,8 @@
     "build": "vite build && node scripts/landing-html.mjs",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test:i18n": "node --experimental-strip-types scripts/check-i18n.mjs"
+    "test:i18n": "node --experimental-strip-types scripts/check-i18n.mjs",
+    "knip": "knip"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "^5.3.0",
@@ -27,6 +28,7 @@
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/node": "^22.20.5",
     "autoprefixer": "^10.4.0",
+    "knip": "^6.41.0",
     "postcss": "^8.4.0",
     "svelte": "^5.57.1",
     "svelte-check": "^4.7.6",
