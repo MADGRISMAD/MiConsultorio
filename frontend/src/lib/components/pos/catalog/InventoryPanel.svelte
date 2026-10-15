@@ -150,11 +150,10 @@
         <button type="button" class="btn-secondary" onclick={startCount}><Icon name="check" size={16} />Conteo físico</button>
       {/if}
     {/if}
-    <a class="btn-secondary" href="/pos/servicios"><Icon name="tag" size={16} />Catálogo</a>
   {/snippet}
 </PageHeader>
 
-{#if !ld.loading && !ld.error}
+{#if !ld.loading && !ld.error && tracked.length}
   <AlertsPanel refresh={alertsKey} onitem={(id) => (search = all.find((x) => x.id === id)?.name ?? '')} />
   <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
     {#each [['Artículos controlados', String(tracked.length), ''], ['Bajo mínimo', String(lowCount), lowCount ? 'text-app-danger' : ''], ['Valor al costo', moneyCents(costValue), ''], ['Valor a precio público', moneyCents(retailValue), '']] as [label, val, cls]}
@@ -167,6 +166,7 @@
 {/if}
 
 <div class="card overflow-hidden">
+  {#if tracked.length}
   <div class="flex flex-wrap items-center gap-3 border-b border-app-ink/10 p-4">
     <Segmented label="Filtro" value={filter} options={[{ value: 'all', label: 'Todos' }, { value: 'low', label: 'Bajo mínimo' }, { value: 'out', label: 'Agotados' }]} onselect={(v) => (filter = v)} />
     <div class="relative min-w-[14rem] flex-1">
@@ -175,6 +175,7 @@
       <input id="inv-search" type="search" class="field pl-10" placeholder="Buscar o escanear código de barras" bind:value={search} onkeydown={onSearchKey} autocomplete="off" />
     </div>
   </div>
+  {/if}
 
   {#if counting}
     <p class="flex items-center gap-2 bg-app-primary/8 px-4 py-2.5 text-sm text-app-primary" role="status"><Icon name="info" size={16} />Escribe la cantidad contada de cada producto. Deja en blanco lo que no cuentes; solo se guardan las diferencias.</p>

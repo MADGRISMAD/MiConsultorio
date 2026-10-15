@@ -209,10 +209,15 @@
 <PageHeader title="Servicios y precios" subtitle="Lo que cobras en tu consultorio: servicios, productos y su precio.">
   {#snippet actions()}
     {#if canManage}
-      <button type="button" class="btn-secondary" onclick={() => (magicInvOpen = true)}><Icon name="sparkles" size={16} />Inventario Mágico</button>
-      <button type="button" class="btn-secondary" onclick={() => (magicPriceOpen = true)}><Icon name="sparkles" size={16} />Precio Mágico</button>
-      <button type="button" class="btn-secondary" onclick={() => (importOpen = true)}><Icon name="receipt" size={16} />Importar</button>
-      <button type="button" class="btn-primary" onclick={openCreate}><Icon name="plus" size={16} />Nuevo</button>
+      <details class="relative">
+        <summary class="btn-secondary cursor-pointer list-none [&::-webkit-details-marker]:hidden">Más acciones</summary>
+        <div class="absolute right-0 z-20 mt-2 grid w-56 gap-1 rounded-2xl border border-app-ink/10 bg-app-panel p-2 shadow-app">
+          <button type="button" class="btn-ghost justify-start" onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); magicInvOpen = true; }}><Icon name="sparkles" size={16} />Inventario Mágico</button>
+          <button type="button" class="btn-ghost justify-start" onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); magicPriceOpen = true; }}><Icon name="sparkles" size={16} />Precio Mágico</button>
+          <button type="button" class="btn-ghost justify-start" onclick={(e) => { e.currentTarget.closest('details')?.removeAttribute('open'); importOpen = true; }}><Icon name="receipt" size={16} />Importar</button>
+        </div>
+      </details>
+      <button type="button" class="btn-primary" onclick={openCreate}><Icon name="plus" size={16} />Nuevo concepto</button>
     {/if}
   {/snippet}
 </PageHeader>
