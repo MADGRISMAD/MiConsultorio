@@ -300,7 +300,7 @@
       {/if}
 
       {#if payments.length}
-        <ul class="divide-y divide-app-ink/10 rounded-2xl ring-1 ring-inset ring-app-ink/10" aria-label="Pagos registrados">
+        <ul class="divide-y divide-app-ink/10 rounded-2xl ring-1 ring-inset ring-app-ink/10" aria-label="Pagos agregados">
           {#each payments as p (p.id)}
             <li class="flex items-center justify-between gap-3 px-3.5 py-2.5">
               <div class="min-w-0 text-sm">

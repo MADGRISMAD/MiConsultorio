@@ -8,6 +8,7 @@
   import { consult } from '$lib/api/consult';
   import { pos2 } from '$lib/api/pos2';
   import type { Charge } from '$lib/types/consult';
+  import type { Appt } from '$lib/types/agenda';
   import type { PlanPrefill, PlanPrefillItem, Professional as PosProfessional } from '$lib/types/pos2';
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
@@ -24,6 +25,7 @@
   import CatalogBrowser from './CatalogBrowser.svelte';
   import CartPanel from './CartPanel.svelte';
   import ConsultChargesPanel from './ConsultChargesPanel.svelte';
+  import TodayAppointments from './TodayAppointments.svelte';
   import FreeLineModal from './FreeLineModal.svelte';
   import PaymentModal from './PaymentModal.svelte';
   import SaleDone from './SaleDone.svelte';
@@ -141,6 +143,32 @@
     void loadCharge(c.id);
   }
 
+  /** Loads a visit into the cart: the patient comes from the agenda, so no expedient is browsed. */
+  async function loadAppointment(cita: string) {
+    try {
+      const a = await pos2.appointment(cita);
+      cart.appointmentId = a.id;
+      cart.patientId = a.patient_id ?? '';
+      cart.customer = `${a.names} ${a.last_names}`.trim();
+      cart.professionalId = a.professional_id ?? '';
+      cart.origin = `Cobro de la cita de ${cart.customer}. Al cobrar, la cita se marca como completada.`;
+      if (a.sale_id) toast.show('Esta cita ya tiene una venta registrada.', 'error');
+      else if (a.package_id) toast.show('Esta cita ya se pagó con una sesión de paquete: no la cobres otra vez.', 'error');
+      const svc = a.service_id ? items.find((i) => i.id === a.service_id) : undefined;
+      if (svc) add(svc);
+      else toast.show('La cita no tiene un servicio del catálogo: agrega los conceptos a cobrar.');
+    } catch (e) {
+      toast.show(e instanceof ApiError && e.status === 404 ? 'No encontramos esa cita.' : 'No se pudo cargar la cita.', 'error');
+    }
+  }
+  function openAppointment(a: Appt) {
+    if (!cart.empty) {
+      toast.show('Hay una cuenta en curso: termínala o vacíala antes de abrir la cita.', 'error');
+      return;
+    }
+    void loadAppointment(a.id);
+  }
+
   /** ?cita=<id>, ?plan=<id> and ?precuenta=<id> load a visit, a treatment plan or a consultation's pre-account into the cart. */
   async function prefill() {
     const cita = page.url.searchParams.get('cita');
@@ -157,23 +185,7 @@
       await loadCharge(pre);
       return;
     }
-    if (cita) {
-      try {
-        const a = await pos2.appointment(cita);
-        cart.appointmentId = a.id;
-        cart.patientId = a.patient_id ?? '';
-        cart.customer = `${a.names} ${a.last_names}`.trim();
-        cart.professionalId = a.professional_id ?? '';
-        cart.origin = `Cobro de la cita de ${cart.customer}. Al cobrar, la cita se marca como completada.`;
-        if (a.sale_id) toast.show('Esta cita ya tiene una venta registrada.', 'error');
-        else if (a.package_id) toast.show('Esta cita ya se pagó con una sesión de paquete: no la cobres otra vez.', 'error');
-        const svc = a.service_id ? items.find((i) => i.id === a.service_id) : undefined;
-        if (svc) add(svc);
-        else toast.show('La cita no tiene un servicio del catálogo: agrega los conceptos a cobrar.');
-      } catch (e) {
-        toast.show(e instanceof ApiError && e.status === 404 ? 'No encontramos esa cita.' : 'No se pudo cargar la cita.', 'error');
-      }
-    }
+    if (cita) await loadAppointment(cita);
     if (plan) {
       try {
         planOpen = await pos2.plan(plan);
@@ -323,6 +335,7 @@
 {:else}
   {#if !ld.loading}<AlertsSummary />{/if}
   {#if !ld.loading && settings}<ConsultChargesPanel activeId={cart.consultChargeId} refreshKey={chargesKey} onopen={openCharge} />{/if}
+  {#if !ld.loading && settings}<TodayAppointments activeId={cart.appointmentId} refreshKey={chargesKey} onopen={openAppointment} />{/if}
   {#if needsCash && !ld.loading}
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 border-app-warning/40 bg-app-warning/10 px-4 py-3" role="status">
       <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />Caja cerrada. Puedes preparar la cuenta; se abre al cobrar.</p>
