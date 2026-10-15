@@ -62,7 +62,7 @@
   let cashOpen = $state(false);
   /** What to do once the register has been opened from here. */
   let afterCash = $state<'pay' | 'retry' | null>(null);
-  let retry: SalePaymentInput[] | null = null;
+  let retry: { payments: SalePaymentInput[]; onAccount: boolean } | null = null;
 
   let done = $state<{ sale: Sale; change: number } | null>(null);
   let printing = $state(false);
@@ -249,7 +249,7 @@
         payOpen = false;
         expiredAsk = { payments, onAccount, message: e.message };
       } else if (e instanceof ApiError && e.code === 'CASH_CLOSED') {
-        retry = payments;
+        retry = { payments, onAccount };
         afterCash = 'retry';
         payOpen = false;
         cash = null;
@@ -270,9 +270,9 @@
     afterCash = null;
     if (next === 'retry' && retry) {
       payOpen = true;
-      const p = retry;
+      const r = retry;
       retry = null;
-      submit(p);
+      submit(r.payments, r.onAccount);
     } else if (next === 'pay') payOpen = true;
   }
   function cashDismissed() {
@@ -303,7 +303,6 @@
 
 <PageHeader title="Punto de venta" subtitle="Cobra servicios y productos, divide el pago y entrega el ticket.">
   {#snippet actions()}
-    <a href="/pos/cuentas" class="btn-secondary min-h-9 px-3.5 text-[13px]"><Icon name="wallet" size={15} />Cuentas por cobrar</a>
     {#if cash}
       <a href="/pos/caja" class="pill pill-ok min-h-9 px-3.5 text-[13px]" title="Ver caja">
         <Icon name="cash" size={15} />Caja abierta · desde {sinceText(cash.opened_at)} · {cash.sales} {cash.sales === 1 ? 'venta' : 'ventas'}
@@ -326,7 +325,7 @@
   {#if !ld.loading && settings}<ConsultChargesPanel activeId={cart.consultChargeId} refreshKey={chargesKey} onopen={openCharge} />{/if}
   {#if needsCash && !ld.loading}
     <div class="card mb-5 flex flex-wrap items-center justify-between gap-3 border-app-warning/40 bg-app-warning/10 px-4 py-3" role="status">
-      <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />La caja está cerrada. Ábrela para poder cobrar.</p>
+      <p class="flex items-center gap-2 text-sm font-medium text-app-warning"><Icon name="lock" size={18} />Caja cerrada. Puedes preparar la cuenta; se abre al cobrar.</p>
       <button type="button" class="btn-primary min-h-11" onclick={() => ((afterCash = null), (cashOpen = true))}>Abrir caja</button>
     </div>
   {/if}

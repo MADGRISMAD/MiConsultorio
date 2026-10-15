@@ -30,6 +30,9 @@
   let moveKind = $state<'in' | 'out' | null>(null);
   let closeOpen = $state(false);
   let detailId = $state<string | null>(null);
+  // the past is secondary: the five latest cortes, the rest on demand
+  const RECENT = 5;
+  let allHistory = $state(false);
   let justClosed = false;
 
   const canHistory = $derived(session.has(PERMISSIONS.posReports));
@@ -139,7 +142,7 @@
 
   {#if canHistory}
     <section class="mt-8" aria-label="Historial de cortes">
-      <h2 class="display mb-3 text-3xl">Historial de cortes</h2>
+      <h2 class="display mb-3 text-3xl">Cortes anteriores</h2>
       <div class="card overflow-hidden">
         {#if history.length === 0}
           <EmptyState icon="receipt" title="Aún no hay cortes" text="Cuando cierres una caja, el corte aparecerá aquí." />
@@ -158,7 +161,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-app-ink/10">
-                {#each history as h (h.id)}
+                {#each allHistory ? history : history.slice(0, RECENT) as h (h.id)}
                   {@const d = h.diff_cents ?? 0}
                   <tr class="cursor-pointer hover:bg-app-elevated" onclick={() => (detailId = h.id)}>
                     <td class="td">
@@ -185,6 +188,11 @@
               </tbody>
             </table>
           </div>
+          {#if history.length > RECENT}
+            <div class="border-t border-app-ink/10 px-4 py-2">
+              <button type="button" class="btn-ghost min-h-11 px-3 text-sm" onclick={() => (allHistory = !allHistory)}>{allHistory ? 'Ver solo los más recientes' : `Mostrar todos (${history.length})`}</button>
+            </div>
+          {/if}
         {/if}
       </div>
     </section>

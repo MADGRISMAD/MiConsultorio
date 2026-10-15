@@ -19,6 +19,7 @@
   let charges = $state<Charge[]>([]);
   const ld = new Loader('No se pudieron cargar las pre-cuentas.');
   let updatedAt = $state<Date | null>(null);
+  let showAll = $state(false);
   let timer: ReturnType<typeof setInterval> | undefined;
 
   async function load() {
@@ -60,24 +61,25 @@
   const hhmm = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 </script>
 
-{#if !ld.loading && !ld.error}
-  <section class="card mb-5 p-4" aria-labelledby="precuentas-title" data-testid="consult-charges-panel">
+{#if !ld.loading || charges.length}
+  <section class="card mb-5 {charges.length ? 'p-4 sm:p-5' : 'px-4 py-2.5'}" aria-labelledby="precuentas-title" data-testid="consult-charges-panel">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h2 id="precuentas-title" class="flex items-center gap-2 text-sm font-semibold">
-        <Icon name="receipt" size={16} />Pre-cuentas enviadas por consulta
+      <h2 id="precuentas-title" class="section-title flex items-center gap-2">
+        <Icon name="receipt" size={14} />{charges.length ? 'Por cobrar de consulta' : 'Sin pre-cuentas pendientes'}
         {#if charges.length}<span class="pill pill-info">{charges.length}</span>{/if}
       </h2>
       <p class="flex items-center gap-2 text-xs text-app-muted">
-        {#if updatedAt}Actualizado {hhmm(updatedAt)}{/if}
-        <button type="button" class="btn-ghost min-h-8 px-2 text-xs" onclick={load} aria-label="Actualizar pre-cuentas"><Icon name="refresh" size={14} />Actualizar</button>
+        {#if updatedAt && charges.length}Actualizado {hhmm(updatedAt)}{/if}
+        <button type="button" class="btn-ghost min-h-9 px-2 text-xs" onclick={load} aria-label="Actualizar pre-cuentas"><Icon name="refresh" size={14} />Actualizar</button>
       </p>
     </div>
+    {#if ld.error}
+      <p class="mt-2 text-sm text-app-warning" role="alert">No pudimos actualizar las pre-cuentas{charges.length ? '; lo que ves puede estar desactualizado' : ''}. Usa «Actualizar» para reintentar.</p>
+    {/if}
     <div aria-live="polite">
-      {#if charges.length === 0}
-        <p class="mt-2 text-sm text-app-muted">No hay pre-cuentas pendientes. Cuando un profesional envíe una desde la consulta, aparecerá aquí.</p>
-      {:else}
+      {#if charges.length}
         <ul class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {#each charges as c (c.id)}
+          {#each charges.slice(0, showAll ? charges.length : 3) as c (c.id)}
             <li class="flex items-center justify-between gap-3 rounded-xl border border-app-ink/10 px-3 py-2.5 {activeId === c.id ? 'bg-app-primary/10' : ''}">
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium">{c.patient_name}</p>
@@ -90,6 +92,9 @@
             </li>
           {/each}
         </ul>
+        {#if charges.length > 3}
+          <button type="button" class="btn-ghost mt-2 min-h-11 px-3 text-sm" onclick={() => (showAll = !showAll)}>{showAll ? 'Ver menos' : `Ver todas (${charges.length})`}</button>
+        {/if}
       {/if}
     </div>
   </section>

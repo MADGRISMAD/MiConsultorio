@@ -70,9 +70,9 @@
   }
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: 'all', label: 'Todos' },
     { id: 'service', label: 'Servicios' },
-    { id: 'product', label: 'Productos' },
-    { id: 'all', label: 'Todo' }
+    { id: 'product', label: 'Productos' }
   ];
 </script>
 
@@ -96,7 +96,8 @@
   </div>
 
   {#if shownCategories.length}
-    <div class="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Categorías">
+    <div class="-mx-1 mt-3 flex items-center gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Categorías">
+      <span class="section-title flex-none pr-1" aria-hidden="true">Categoría</span>
       <button type="button" class="chip {category === '' ? 'chip-on' : ''}" aria-pressed={category === ''} onclick={() => (category = '')}>Todas</button>
       {#each shownCategories as c (c)}
         <button type="button" class="chip {category === c ? 'chip-on' : ''}" aria-pressed={category === c} onclick={() => (category = category === c ? '' : c)}>{c}</button>

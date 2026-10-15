@@ -26,6 +26,11 @@
   let editing = $state<string | null>(null);
   let sugOpen = $state(false);
   let sugIndex = $state(0);
+  // optional data stays folded until it is needed or already has a value
+  let moreOpen = $state(false);
+  let discOpen = $state(false);
+  const hasMore = $derived(!!cart.professionalId || !!cart.note.trim());
+  const discHas = $derived((cart.discAmount ?? 0) > 0 || (cart.discPct ?? 0) > 0);
   const uid = $props.id();
 
   const isPiece = (l: CartLine) => !l.unit || l.unit.toLowerCase().startsWith('pz');
@@ -157,16 +162,17 @@
       </ul>
     {/if}
 
+    {#if !cart.empty || cart.origin || cart.customer}
     <div class="mt-3 space-y-3 border-t border-app-ink/10 py-4">
       <div class="relative">
-        <label class="label" for="{uid}-cust">Paciente (opcional)</label>
+        <label class="label" for="{uid}-cust">Paciente</label>
         <input
           id="{uid}-cust"
           class="field"
           bind:value={cart.customer}
           maxlength="120"
           autocomplete="off"
-          placeholder="Nombre de quien paga"
+          placeholder="Busca un paciente o escribe un nombre"
           role={people.length ? 'combobox' : undefined}
           aria-expanded={people.length ? sugOpen && suggestions.length > 0 : undefined}
           aria-controls={people.length ? `${uid}-sug` : undefined}
@@ -190,30 +196,40 @@
             {/each}
           </ul>
         {/if}
+        {#if cart.customer.trim()}
+          <p class="hint">{cart.patientId ? 'Paciente vinculado a su expediente.' : 'Solo es el nombre del ticket: no se vincula a un expediente.'}</p>
+        {/if}
       </div>
-      {#if professionals.length}
-        <div>
-          <label class="label" for="{uid}-pro">Profesional (opcional)</label>
-          <select id="{uid}-pro" class="field" bind:value={cart.professionalId}>
-            <option value="">Sin profesional</option>
-            {#each professionals as pr (pr.id)}<option value={pr.id}>{pr.name}</option>{/each}
-          </select>
-        </div>
-      {/if}
       {#if cart.origin}
         <p class="flex items-center gap-2 rounded-xl bg-app-primary/10 px-3 py-2 text-xs text-app-primary" data-testid="cart-origin">
           <Icon name="info" size={14} />{cart.origin}
         </p>
       {/if}
-      <div>
-        <label class="label" for="{uid}-note">Nota (opcional)</label>
-        <input id="{uid}-note" class="field" bind:value={cart.note} maxlength="200" autocomplete="off" placeholder="Ej. Pago de tratamiento" />
-      </div>
+      {#if moreOpen || hasMore}
+        {#if professionals.length}
+          <div>
+            <label class="label" for="{uid}-pro">Profesional</label>
+            <select id="{uid}-pro" class="field" bind:value={cart.professionalId}>
+              <option value="">Sin profesional</option>
+              {#each professionals as pr (pr.id)}<option value={pr.id}>{pr.name}</option>{/each}
+            </select>
+          </div>
+        {/if}
+        <div>
+          <label class="label" for="{uid}-note">Nota</label>
+          <input id="{uid}-note" class="field" bind:value={cart.note} maxlength="200" autocomplete="off" placeholder="Ej. Pago de tratamiento" />
+        </div>
+      {:else}
+        <button type="button" class="btn-ghost min-h-11 px-3" onclick={() => (moreOpen = true)}><Icon name="plus" size={16} />{professionals.length ? 'Profesional y nota' : 'Agregar nota'}</button>
+      {/if}
     </div>
+    {/if}
   </div>
 
   <div class="border-t border-app-ink/10 bg-app-elevated/50 px-4 py-4">
-    {#if cart.allowDiscounts && !cart.empty}
+    {#if cart.allowDiscounts && !cart.empty && !discOpen && !discHas}
+      <button type="button" class="btn-ghost -ml-3 mb-1 min-h-11 px-3" onclick={() => (discOpen = true)}><Icon name="tag" size={16} />Agregar descuento</button>
+    {:else if cart.allowDiscounts && !cart.empty}
       <div class="mb-3 flex flex-wrap items-end gap-2">
         <div class="min-w-0 flex-1">
           <span class="label" id="{uid}-dl">Descuento general</span>
