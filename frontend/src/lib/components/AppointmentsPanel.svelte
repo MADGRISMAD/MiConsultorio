@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { onMount, untrack } from 'svelte';
   import { ApiError } from '$lib/api';
@@ -158,6 +159,15 @@
 
   // ----- details / create / edit -----
   let viewing = $state<Appt | null>(null);
+  $effect(() => {
+    const id = page.url.searchParams.get('cita');
+    let current = true;
+    if (id) agendaApi.get(id).then((a) => {
+      if (current) { viewing = a; cursor = a.date; }
+    }, () => { if (current) toast.show('No pudimos abrir la cita.', 'error'); });
+    return () => { current = false; };
+  });
+
   let formOpen = $state(false);
   let editingId = $state<string | null>(null);
   let form = $state<ApptInput>(emptyApptInput());

@@ -9,7 +9,7 @@ test('registrar al paciente de una cita: el formulario ya trae sus datos y la ci
 
   // el inicio avisa que aún no es paciente y ofrece registrarlo
   await page.goto('/');
-  const row = page.getByRole('listitem').filter({ hasText: names });
+  const row = page.getByRole('region', { name: 'Ahora', exact: true });
   await expect(row).toBeVisible();
   await row.getByRole('button', { name: 'Registrar paciente' }).click();
 
@@ -30,6 +30,6 @@ test('registrar al paciente de una cita: el formulario ya trae sus datos y la ci
 
   // vuelve al inicio y la cita ya tiene paciente: su siguiente paso es iniciar la consulta
   await page.waitForURL((u) => u.pathname === '/');
-  await expect(page.getByRole('listitem').filter({ hasText: names }).getByRole('button', { name: 'Iniciar consulta' })).toBeVisible();
-  await expect(page.getByRole('listitem').filter({ hasText: names }).getByRole('button', { name: 'Registrar paciente' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Ahora', exact: true }).getByRole('button', { name: 'Iniciar consulta' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Ahora', exact: true }).getByRole('button', { name: 'Registrar paciente' })).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { session } from '$lib/session.svelte';
   import { onMount } from 'svelte';
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -16,7 +17,7 @@
   const reduce = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 </script>
 
-{#if ready && cookieConsent.open && (isPublic || cookieConsent.manual)}
+{#if ready && session.status === 'anonymous' && cookieConsent.open && (isPublic || cookieConsent.manual)}
   <div
     role="dialog"
     aria-labelledby="cookies-title"
