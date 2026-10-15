@@ -6,7 +6,7 @@
   import { ago, dateShort, moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { CLINIC_KINDS, ROLES, type ActivityItem, type ClinicKind, type ClinicRow, type Payment, type Person, type Plan, type Seats } from '$lib/types';
+  import { CLINIC_KINDS, ROLES, type ActivityItem, type AiMonth, type ClinicKind, type ClinicRow, type Payment, type Person, type Plan, type Seats } from '$lib/types';
   import ConfirmModal from '../ConfirmModal.svelte';
   import Modal from '../Modal.svelte';
   import Avatar from '../ui/Avatar.svelte';
@@ -35,6 +35,7 @@
   ];
   let tab = $state<Tab>('resumen');
   let branches = $state<ClinicRow[]>([]);
+  let aiUsage = $state<AiMonth[]>([]);
 
   let clinic = $state<ClinicRow | null>(null);
   // a matrix gets its own submenu with the branches created from it
@@ -55,6 +56,7 @@
       if (target !== id || !current()) return;
       ({ clinic, people, seats, activity, payments } = d);
       branches = d.branches ?? [];
+      aiUsage = d.ai_usage ?? [];
       fill();
       loadedId = target;
     });
@@ -194,6 +196,12 @@
               {:else}{dateShort(clinic.current_period_end)}{/if}
             </dd>
           </div>
+          {#if aiUsage.length}
+            <div>
+              <dt class="section-title">IA ({aiUsage[0].month})</dt>
+              <dd class="mt-1">{aiUsage[0].used} usos · {aiUsage[0].prompt_tokens.toLocaleString('es-MX')} tokens de entrada · {aiUsage[0].output_tokens.toLocaleString('es-MX')} de salida{#if aiUsage.length > 1}<span class="text-app-muted"> (mes previo: {aiUsage[1].used} usos, {(aiUsage[1].prompt_tokens + aiUsage[1].output_tokens).toLocaleString('es-MX')} tokens)</span>{/if}</dd>
+            </div>
+          {/if}
           {#if seats}
             <div>
               <dt class="section-title">Cuentas del plan</dt>

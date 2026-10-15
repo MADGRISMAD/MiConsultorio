@@ -16,6 +16,8 @@ type registerRequest struct {
 	Email      string `json:"email"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`
+	// AcceptedTerms is the box ticked on the form: it is recorded with the version of the texts, not enforced here.
+	AcceptedTerms bool `json:"accepted_terms"`
 }
 
 // register creates a clinic (14-day trial) with its first administrator and signs them in.
@@ -84,6 +86,9 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	audit(r.Context(), s.db, clinicID, p, "clinic_created", "Creó el consultorio "+req.ClinicName, map[string]any{"kind": req.Kind})
 	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)
+	if req.AcceptedTerms {
+		_, _ = s.db.Exec(r.Context(), `UPDATE users SET terms_accepted_at = now(), terms_version = $2 WHERE id = $1`, id, NoticeVersion)
+	}
 	s.welcomeEmail(req.Email, req.Name, req.ClinicName)
 	s.startSession(w, r, p)
 }

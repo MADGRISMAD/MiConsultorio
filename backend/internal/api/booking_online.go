@@ -573,11 +573,11 @@ func (b *bookingAPI) bookingCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO appointments (clinic_id, curp, names, last_names, date, start_hour, end_hour, details, professional_id, status, source,
-			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, id, patient_id, modality, video_url)
-			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, $18, 'online', $9, $10, $11, $12, $13, now(), $14::uuid, $15::uuid, $16, $17)
+			                          service_id, phone, email, confirm_token, reminders_consent, privacy_accepted_at, privacy_version, id, patient_id, modality, video_url)
+			VALUES ($1, '', $2, $3, $4, $5, $6, $7, $8, $18, 'online', $9, $10, $11, $12, $13, now(), $19, $14::uuid, $15::uuid, $16, $17)
 			RETURNING id`,
 			c.ID, req.Names, req.LastNames, req.Date, req.Start, end, sealedReason, pro.ID, svc, phone, req.Email, token, req.AcceptReminders, newID, patientID, modality, videoURL,
-			map[bool]string{true: "pending_payment", false: "scheduled"}[depCents > 0]).Scan(&apptID); err != nil {
+			map[bool]string{true: "pending_payment", false: "scheduled"}[depCents > 0], NoticeVersion).Scan(&apptID); err != nil {
 			return err
 		}
 		if depCents > 0 { // the time is held, not confirmed: nobody is told until the deposit is paid

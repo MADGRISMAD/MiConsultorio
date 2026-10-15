@@ -4,7 +4,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { BASE, CLINIC, DATABASE_URL, GEMINI_PORT, MAIL_FILE, MP_PORT, PORT, SMTP_PORT, STATIC_DIR, repoDir, tmpDir } from './env.mjs';
+import { BASE, CLINIC, DATABASE_URL, GEMINI_PORT, MAIL_FILE, MP_PORT, PLATFORM, PORT, SMTP_PORT, STATIC_DIR, repoDir, tmpDir } from './env.mjs';
 import { startFakeGemini } from './fakegemini.mjs';
 import { startFakeMp } from './fakemp.mjs';
 import { startFakeSmtp } from './fakesmtp.mjs';
@@ -60,6 +60,10 @@ const server = spawn(bin, [], {
     CLINIC_ADMIN_EMAIL: CLINIC.email,
     CLINIC_ADMIN_USERNAME: CLINIC.username,
     CLINIC_ADMIN_PASSWORD: CLINIC.password,
+    PLATFORM_ADMIN_NAME: PLATFORM.name,
+    PLATFORM_ADMIN_EMAIL: PLATFORM.email,
+    PLATFORM_ADMIN_USERNAME: PLATFORM.username,
+    PLATFORM_ADMIN_PASSWORD: PLATFORM.password,
     TZ: 'America/Mexico_City'
   }
 });

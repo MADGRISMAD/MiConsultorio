@@ -165,6 +165,14 @@ export interface ClinicRow {
   branch_suspended_at: string | null;
 }
 
+/** usos de IA de un mes y los tokens que cobró el modelo (solo conteos) */
+export interface AiMonth {
+  month: string;
+  used: number;
+  prompt_tokens: number;
+  output_tokens: number;
+}
+
 export interface ActivityItem {
   id: number;
   clinic_id: string | null;

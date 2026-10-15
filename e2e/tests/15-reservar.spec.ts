@@ -17,7 +17,8 @@ test('un paciente agenda desde el enlace público: fecha, especialista, horario 
   await expect(page.getByText('Completa tus datos para elegir la fecha.')).toBeVisible();
   const id = uid();
   await page.getByLabel('Nombre completo').fill(`Visitante${id} Enlace`);
-  await page.getByLabel(/Teléfono/).fill('5512345678');
+  // a phone of its own: the booking recognizes a returning patient by phone, so a fixed one breaks reruns
+  await page.getByLabel(/Teléfono/).fill(`55${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`);
   await page.getByLabel('Correo').fill(`v${id}@correo.mx`);
   // a clinic with several areas asks which one the visit is for
   await page.getByRole('radio', { name: 'Medicina general' }).check({ force: true });

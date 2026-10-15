@@ -113,6 +113,10 @@ func (s *Server) geminiCall(ctx context.Context, o geminiOpts, prompt string, bl
 		return nil, errors.New("gemini: " + res.Status)
 	}
 	var out struct {
+		UsageMetadata struct {
+			PromptTokenCount     int64 `json:"promptTokenCount"`
+			CandidatesTokenCount int64 `json:"candidatesTokenCount"`
+		} `json:"usageMetadata"`
 		Candidates []struct {
 			Content struct {
 				Parts []struct {
@@ -124,7 +128,21 @@ func (s *Server) geminiCall(ctx context.Context, o geminiOpts, prompt string, bl
 	if err := json.Unmarshal(data, &out); err != nil || len(out.Candidates) == 0 || len(out.Candidates[0].Content.Parts) == 0 {
 		return nil, errors.New("gemini: respuesta vacía")
 	}
+	s.recordTokens(ctx, out.UsageMetadata.PromptTokenCount, out.UsageMetadata.CandidatesTokenCount)
 	return []byte(out.Candidates[0].Content.Parts[0].Text), nil
+}
+
+// recordTokens adds what the model billed for one call to the clinic's month (audio and photos count in the prompt).
+// It never fails the call, and calls made outside a clinic session (the blog) are not attributed to anyone.
+func (s *Server) recordTokens(ctx context.Context, in, out int64) {
+	p := principalFrom(ctx)
+	if p == nil || p.ClinicID == "" || in+out <= 0 {
+		return
+	}
+	_, _ = s.db.Exec(context.WithoutCancel(ctx), `
+		INSERT INTO magic_usage (clinic_id, month, used, prompt_tokens, output_tokens) VALUES ($1,$2,0,$3,$4)
+		ON CONFLICT (clinic_id, month) DO UPDATE SET prompt_tokens = magic_usage.prompt_tokens + $3, output_tokens = magic_usage.output_tokens + $4`,
+		p.ClinicID, magicMonth(), in, out)
 }
 
 var magicItemSchema = map[string]any{

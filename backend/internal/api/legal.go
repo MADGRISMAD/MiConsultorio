@@ -8,6 +8,10 @@ import (
 	"unicode/utf8"
 )
 
+// NoticeVersion names the current text of /privacidad and /terminos. Change it whenever either text changes in substance:
+// from then on new acceptances are recorded with it, and the history shows who accepted which version.
+const NoticeVersion = "2026-10"
+
 // Legal is the data of the establishment that Mexican rules ask to see on prescriptions and in the aviso de privacidad.
 type Legal struct {
 	ResponsibleName        string `json:"responsible_name"`        // responsable sanitario

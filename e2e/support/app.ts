@@ -2,10 +2,10 @@
 // markup lives in `ui` so it can be adjusted in one place.
 import fs from 'node:fs';
 import { expect, request as pwRequest, type APIRequestContext, type Page } from '@playwright/test';
-import { BASE, CLINIC, MAIL_FILE } from './env.mjs';
+import { BASE, CLINIC, MAIL_FILE, PLATFORM } from './env.mjs';
 
 export { expect, test } from '@playwright/test';
-export { CLINIC, BASE };
+export { CLINIC, BASE, PLATFORM };
 
 export const ui = {
   // sign in / registration
@@ -55,6 +55,16 @@ export const uid = () => Date.now().toString(36) + Math.random().toString(36).sl
 
 export async function apiAsClinic(): Promise<APIRequestContext> {
   const api = await pwRequest.newContext({ baseURL: BASE, storageState: '.tmp/state.json' });
+  return api;
+}
+
+/** An API context with no session (to register a clinic of its own). */
+export const apiAnon = () => pwRequest.newContext({ baseURL: BASE });
+
+/** An API session signed in with the given account (the platform administrator, a clinic registered by the test...). */
+export async function apiLogin(identifier: string, password: string): Promise<APIRequestContext> {
+  const api = await apiAnon();
+  await apiJson(await api.post('/api/login', { data: { identifier, password } }));
   return api;
 }
 

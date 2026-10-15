@@ -17,3 +17,6 @@ export const STATIC_DIR = process.env.E2E_STATIC_DIR || path.join(repoDir, 'fron
 
 // The clinic created by the server at start-up (CLINIC_ADMIN_*): plan Crecimiento, setup done.
 export const CLINIC = { username: 'dra', password: 'clave-segura-1', email: 'dra@e2e.test', name: 'Dra. Ejemplo' };
+
+// The platform administrator the server creates at start-up (PLATFORM_ADMIN_*): the panel of whoever runs Caresia.
+export const PLATFORM = { username: 'plataforma', password: 'plataforma-segura-1', email: 'plataforma@e2e.test', name: 'Plataforma E2E' };

@@ -53,7 +53,7 @@
       return;
     }
     await op.run(() =>
-      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password })
+      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password, accepted_terms: accepted })
     );
   }
 </script>

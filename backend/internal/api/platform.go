@@ -215,8 +215,25 @@ func (s *Server) platformClinic(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// the AI allowance and what the model really billed, by month (tokens only: no text is kept)
+	type aiMonth struct {
+		Month        string `json:"month"`
+		Used         int    `json:"used"`
+		PromptTokens int64  `json:"prompt_tokens"`
+		OutputTokens int64  `json:"output_tokens"`
+	}
+	aiUsage := []aiMonth{}
+	rows, err := s.db.Query(r.Context(), `SELECT month, used, prompt_tokens, output_tokens FROM magic_usage WHERE clinic_id = $1 ORDER BY month DESC LIMIT 6`, id)
+	if err != nil {
+		serverError(w, r, err)
+		return
+	}
+	if aiUsage, err = pgx.CollectRows(rows, pgx.RowToStructByPos[aiMonth]); err != nil {
+		serverError(w, r, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"clinic": list[0], "people": withLabels(people), "seats": st, "activity": activity, "payments": pays, "branches": branches,
+		"clinic": list[0], "people": withLabels(people), "seats": st, "activity": activity, "payments": pays, "branches": branches, "ai_usage": aiUsage,
 	})
 }
 

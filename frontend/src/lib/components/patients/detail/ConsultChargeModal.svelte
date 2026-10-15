@@ -119,12 +119,12 @@
     {/if}
     <OpError op={op} class="mt-4" />
     {#if confirmCancel}
-      <p class="alert mt-4" role="alertdialog">
+      <div class="alert mt-4" role="alertdialog" aria-label="Confirmar cancelación">
         <Icon name="alert" size={18} />
         <span>¿Cancelar esta pre-cuenta? Caja ya no la verá. Los insumos que ya se descontaron siguen fuera del inventario.</span>
         <button type="button" class="btn-ghost ml-auto min-h-9 text-app-danger" onclick={cancel}>Sí, cancelar</button>
         <button type="button" class="btn-ghost min-h-9" onclick={() => (confirmCancel = false)}>No</button>
-      </p>
+      </div>
     {/if}
   {/if}
   {#snippet footer()}

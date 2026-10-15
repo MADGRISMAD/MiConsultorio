@@ -23,7 +23,7 @@
 
   // who the visit is for: clinics that see both people and pets let the visitor choose
   const bothKinds = $derived(!!info.animals && !!info.people);
-  let forPet = $state(!!info.animals && !info.people);
+  let forPet = $state(untrack(() => !!info.animals && !info.people));
   let serviceId = $state(untrack(() => (info.services.some((s) => s.id === presetService) ? presetService : '')));
   /** how the visit is given, when the service allows both */
   let modalityPick = $state<'presencial' | 'videollamada'>('presencial');
