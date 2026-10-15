@@ -76,6 +76,16 @@
   ];
 </script>
 
+<svelte:window
+  onkeydown={(e) => {
+    // «/» jumps to the search unless something else is being typed or a dialog is open
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !(e.target as HTMLElement)?.closest('input, textarea, select, [contenteditable="true"]') && !document.querySelector('[role="dialog"]')) {
+      e.preventDefault();
+      search?.focus();
+    }
+  }}
+/>
+
 <section aria-label="Catálogo" class="min-w-0">
   <div class="flex flex-wrap items-center gap-3">
     <div class="relative min-w-[14rem] flex-1">
@@ -88,6 +98,7 @@
         class="field pl-10"
         placeholder="Buscar o escanear código de barras"
         aria-label="Buscar en el catálogo o escanear código de barras"
+        aria-keyshortcuts="/"
         autocomplete="off"
         enterkeyhint="search"
       />

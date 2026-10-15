@@ -13,6 +13,8 @@
   import { moneyCents } from '$lib/format';
   import { session } from '$lib/session.svelte';
   import { toast } from '$lib/toast.svelte';
+  import { Op } from '$lib/op.svelte';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import { printSale } from '$lib/printer/connection.svelte';
   import { PERMISSIONS, type CashSession, type CatalogItem, type PosSettings, type Sale, type SalePaymentInput } from '$lib/types';
   import AlertsSummary from './AlertsSummary.svelte';
@@ -45,6 +47,21 @@
   let chargesKey = $state(0);
   /** a sale refused because of expired lots, waiting for an administrator's reason */
   let expiredAsk = $state<{ payments: SalePaymentInput[]; onAccount: boolean; message: string } | null>(null);
+
+  /** an account is in progress and another one was asked for: confirm before discarding it */
+  let replaceAsk = $state<{ who: string; open: () => void } | null>(null);
+  const replaceOp = new Op();
+  function askReplace(who: string, open: () => void) {
+    replaceOp.reset();
+    replaceAsk = { who, open };
+  }
+  function confirmReplace() {
+    const r = replaceAsk;
+    replaceAsk = null;
+    if (!r) return;
+    cart.clear();
+    r.open();
+  }
 
   let payOpen = $state(false);
   let payKey = $state(0);
@@ -109,11 +126,8 @@
   }
 
   /** Loads a consultation's pre-account (services and supplies) into the cart. */
-  async function loadCharge(id: string) {
-    if (!cart.empty) {
-      toast.show('Hay una cuenta en curso: termínala o vacíala antes de abrir la pre-cuenta.', 'error');
-      return;
-    }
+  async function loadCharge(id: string, who = 'esa pre-cuenta') {
+    if (!cart.empty) return askReplace(who, () => void loadCharge(id, who));
     try {
       const c = await consult.get(id);
       if (c.status !== 'sent' && c.status !== 'draft') {
@@ -140,7 +154,7 @@
     }
   }
   function openCharge(c: Charge) {
-    void loadCharge(c.id);
+    void loadCharge(c.id, `la pre-cuenta de ${c.patient_name}`);
   }
 
   /** Loads a visit into the cart: the patient comes from the agenda, so no expedient is browsed. */
@@ -162,10 +176,7 @@
     }
   }
   function openAppointment(a: Appt) {
-    if (!cart.empty) {
-      toast.show('Hay una cuenta en curso: termínala o vacíala antes de abrir la cita.', 'error');
-      return;
-    }
+    if (!cart.empty) return askReplace(`la cita de ${a.names} ${a.last_names}`.trim(), () => void loadAppointment(a.id));
     void loadAppointment(a.id);
   }
 
@@ -177,8 +188,12 @@
     if (!cita && !plan && !pre) return;
     void goto('/pos/cobros', { replaceState: true, noScroll: true, keepFocus: true });
     if (pre && cart.consultChargeId === pre) return; // the draft already holds it
+    if (!cart.empty && (pre || cita)) {
+      if (pre) return askReplace('esa pre-cuenta', () => void loadCharge(pre));
+      return askReplace('esa cita', () => void loadAppointment(cita!));
+    }
     if (!cart.empty) {
-      toast.show('Hay una cuenta en curso: termínala o vacíala antes de cargar la cita o el plan.', 'error');
+      toast.show('Hay una cuenta en curso: termínala o vacíala antes de cargar el plan.', 'error');
       return;
     }
     if (pre) {
@@ -310,8 +325,19 @@
     }
   }
 
+  // Ctrl/⌘+Enter opens the payment of a valid account (it never registers money by itself)
+  function shortcuts(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !e.defaultPrevented && !document.querySelector('[role="dialog"]')) {
+      if (cart.empty || cart.problem || ld.loading || done) return;
+      e.preventDefault();
+      checkoutClicked();
+    }
+  }
+
   const sinceText = (iso: string) => new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 </script>
+
+<svelte:window onkeydown={shortcuts} />
 
 <PageHeader title="Punto de venta" subtitle="Cobra servicios y productos, divide el pago y entrega el ticket.">
   {#snippet actions()}
@@ -347,7 +373,7 @@
   <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_27rem]">
     <CatalogBrowser {items} loading={ld.loading} allowNegative={settings?.allow_negative_stock ?? false} {inCart} onadd={add} />
 
-    <aside class="min-w-0 lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col">
+    <aside class="min-w-0 {cart.empty ? 'hidden lg:flex' : ''} lg:sticky lg:top-4 lg:flex lg:max-h-[calc(100dvh-2rem)] lg:flex-col">
       <CartPanel {cart} {canEditPrice} {people} {professionals} showTax={settings?.show_tax_line ?? true} busy={ld.loading || !settings} onfree={() => (freeOpen = true)} oncheckout={checkoutClicked} />
     </aside>
   </div>
@@ -389,4 +415,7 @@
   <PlanPicker plan={planOpen} onclose={() => (planOpen = null)} onadd={addPlanItems} />
   <FreeLineModal open={freeOpen} defaultTax={settings.default_tax_rate} onclose={() => (freeOpen = false)} onadd={(n, p, t) => cart.addFree(n, p, t)} />
 {/if}
+<ConfirmModal open={!!replaceAsk} title="Cuenta en curso" op={replaceOp} confirmLabel="Descartar y abrir" onconfirm={confirmReplace} onclose={() => (replaceAsk = null)}>
+  Tienes una cuenta sin cobrar. Si abres {replaceAsk?.who}, la cuenta actual se descarta.
+</ConfirmModal>
 <OpenCashModal open={cashOpen} onclose={cashDismissed} onopened={cashOpened} />

@@ -22,11 +22,15 @@
     const h = new Date().getHours();
     return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
   })();
-  // first name with the professional title when there is one («Dra. Ana»); never the username if there is a name
+  // «Dra. Ana» / «Lic. Luis»: the first name with its honorific; never the username when there is a name
+  const HONORIFIC = /^(dr|dra|lic|ing|mtro|mtra|c|q\.?f\.?b|nut|psic|fis|odont)\.?$/i;
   const displayName = $derived.by(() => {
-    const first = (session.user?.name?.trim().split(/\s+/)[0] || session.user?.username || '').replace(/\.$/, '');
+    const words = (session.user?.name?.trim() ?? '').split(/\s+/).filter(Boolean);
+    if (!words.length) return (session.user?.username ?? '').replace(/\.$/, '');
+    if (HONORIFIC.test(words[0]) && words[1]) return `${words[0].replace(/\.?$/, '.')} ${words[1]}`;
     const title = session.user?.professional?.title?.trim();
-    return title && !first.toLocaleLowerCase('es-MX').startsWith(title.toLocaleLowerCase('es-MX')) ? `${title} ${first}` : first;
+    const first = words[0].replace(/\.$/, '');
+    return title && title.length <= 6 && !first.toLocaleLowerCase('es-MX').startsWith(title.toLocaleLowerCase('es-MX')) ? `${title} ${first}` : first;
   });
 </script>
 
