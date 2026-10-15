@@ -13,10 +13,10 @@ export const AGENDA_TABS: Tab[] = [
 export const COBROS_TABS: Tab[] = [
   { label: 'Punto de venta', href: '/pos/cobros', perms: [PERMISSIONS.pos] },
   { label: 'Caja', href: '/pos/caja', perms: [PERMISSIONS.pos] },
-  { label: 'Servicios y precios', href: '/pos/servicios', perms: [PERMISSIONS.pos] },
-  { label: 'Inventario', href: '/pos/inventario', perms: [PERMISSIONS.pos] },
-  { label: 'Facturación', href: '/pos/facturacion', perms: [PERMISSIONS.pos] },
+  { label: 'Ventas', href: '/pos/ventas', perms: [PERMISSIONS.pos] },
   { label: 'Cuentas por cobrar', href: '/pos/cuentas', perms: [PERMISSIONS.pos] },
+  { label: 'Facturación', href: '/pos/facturacion', perms: [PERMISSIONS.pos] },
+  { label: 'Catálogo', href: '/pos/servicios', also: ['/pos/inventario'], perms: [PERMISSIONS.pos] },
   { label: 'Reportes de ventas', href: '/pos/reportes', perms: [PERMISSIONS.posReports] }
 ];
 

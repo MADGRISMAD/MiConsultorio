@@ -2,6 +2,7 @@
   import SectionTabs from '$lib/components/nav/SectionTabs.svelte';
   import { COBROS_TABS } from '$lib/components/nav/tabs';
   import Guard from '$lib/components/Guard.svelte';
+  import CatalogSwitch from '$lib/components/pos/catalog/CatalogSwitch.svelte';
   import InventoryPanel from '$lib/components/pos/catalog/InventoryPanel.svelte';
 </script>
 
@@ -9,5 +10,6 @@
 
 <Guard title="Inventario" permissions={['pos']} cobros>
   <SectionTabs tabs={COBROS_TABS} label="Cobros" />
+  <CatalogSwitch />
   <InventoryPanel />
 </Guard>

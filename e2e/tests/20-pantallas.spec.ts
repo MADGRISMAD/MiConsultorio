@@ -9,6 +9,7 @@ const ROUTES = [
   '/pos/facturacion',
   '/pos/cuentas',
   '/pos/reportes',
+  '/pos/ventas',
   '/pos/servicios',
   '/equipo',
   '/arco-solicitudes',

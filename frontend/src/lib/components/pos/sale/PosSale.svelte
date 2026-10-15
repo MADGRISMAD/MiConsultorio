@@ -315,6 +315,7 @@
 
 <PageHeader title="Punto de venta" subtitle="Cobra servicios y productos, divide el pago y entrega el ticket.">
   {#snippet actions()}
+    <a href="/pos/ventas" class="btn-secondary min-h-9 px-3.5 text-[13px]"><Icon name="receipt" size={15} />Ventas anteriores</a>
     {#if cash}
       <a href="/pos/caja" class="pill pill-ok min-h-9 px-3.5 text-[13px]" title="Ver caja">
         <Icon name="cash" size={15} />Caja abierta · desde {sinceText(cash.opened_at)} · {cash.sales} {cash.sales === 1 ? 'venta' : 'ventas'}
