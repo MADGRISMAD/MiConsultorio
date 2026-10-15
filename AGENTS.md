@@ -8,3 +8,6 @@ El conocimiento de este proyecto vive en el vault `/Users/manuelsabino/Desktop/h
 - Decisiones de arquitectura: `Plantillas/Decision.md`, también en `Caresia/`.
 - Respeta las reglas del vault: no muevas ni borres notas, sin secretos ni datos de pacientes, enlaces `[[Caresia/...]]` a notas que existan, fechas ISO.
 - El repo manda sobre el vault: si una nota contradice el código, deja la contradicción visible, no la "corrijas" en silencio.
+
+## Diseño
+Antes de tocar cualquier interfaz de `frontend/`, lee `DESIGN.md` (raíz del repo) y sigue su sistema y su lista de verificación. No inventes estilos: reutiliza los tokens `app-*`, las clases `card`, `btn-*`, `display`, `section-title` y los componentes de `frontend/src/lib/components/ui/`.

@@ -115,7 +115,8 @@
   }
 
   const closed = $derived(mine.filter((a) => !isActive(a) || a.status === 'completed'));
-  const remaining = $derived(open.filter((a) => a.id !== focus?.id));
+  // the open day in time order; the current one is marked, not repeated with its own button
+  const agenda = $derived(open);
   const canReadPatient = $derived(session.has(PERMISSIONS.navHistorials) || canConsult);
   const href = (a: Appt) => a.patient_id && canReadPatient ? `/pacientes/${encodeURIComponent(a.patient_id)}` : `/admin/navegar-citas?cita=${encodeURIComponent(a.id)}`;
   const done = $derived(mine.filter((a) => a.status === 'completed').length);
@@ -141,77 +142,92 @@
       <button type="button" class="btn-secondary min-h-11" onclick={load}>Reintentar</button>
     </div>
   {:else}
-    <section aria-label="Ahora" class="card border-app-primary/25 p-4 sm:p-6">
-      <p class="section-title">Ahora{focus ? focus.status === 'in_progress' ? ' · En consulta' : focus.status === 'arrived' ? ' · En espera' : ' · Siguiente cita' : ''}</p>
+    <section aria-label="Ahora" class="card relative overflow-hidden p-6 sm:p-8">
+      <p class="section-title flex items-center gap-2">
+        {#if focus?.status === 'in_progress'}<span class="h-2 w-2 rounded-full bg-app-accent"></span>En consulta ahora
+        {:else if focus?.status === 'arrived'}<span class="h-2 w-2 rounded-full bg-app-warning"></span>Esperando
+        {:else if focus}Siguiente cita
+        {:else}Ahora{/if}
+      </p>
       {#if focus}
-        <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
+        <div class="mt-3 flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
           <div class="min-w-0 flex-1 basis-48">
-            <h2 class="display break-words text-3xl leading-tight sm:text-4xl">{name(focus)}</h2>
-            <p class="mt-1 text-sm text-app-muted">
-              {#if focus.status === 'in_progress'}Empezó {since(focus.started_at)}
-              {:else if focus.status === 'arrived'}Llegó {since(focus.arrived_at)}
-              {:else}<span class="font-semibold tabular-nums text-app-ink">{focus.startHour}</span>{/if}
-              · {what(focus)}{focus.professional_name && session.user?.role !== 'doctor' ? ` · ${focus.professional_name}` : ''}
+            <h2 class="display break-words text-4xl leading-none sm:text-5xl">{name(focus)}</h2>
+            <p class="mt-3 text-[15px] text-app-muted">
+              {#if focus.status === 'in_progress'}{what(focus)} · empezó {since(focus.started_at)}
+              {:else if focus.status === 'arrived'}Llegó {since(focus.arrived_at)} · {what(focus)}
+              {:else}<span class="font-medium tabular-nums text-app-ink">{focus.startHour}</span> · {what(focus)}{/if}{focus.professional_name && session.user?.role !== 'doctor' ? ` · ${focus.professional_name}` : ''}
             </p>
             {#if !focus.patient_id}<p class="mt-1 text-sm text-app-warning">Aún no está registrado como paciente.</p>{/if}
           </div>
           <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {#if focusStep?.disabled}
-              <p class="flex min-h-12 items-center gap-2 rounded-xl bg-app-primary/10 px-4 text-sm font-medium text-app-primary"><Icon name="clock" size={18} />{focusStep.hint}</p>
+              <p class="inline-flex min-h-12 items-center gap-2 rounded-full bg-app-primary/10 px-5 text-sm font-medium text-app-primary"><Icon name="clock" size={18} />{focusStep.hint}</p>
             {:else if focusStep}
-              <button type="button" class="btn-primary min-h-12 w-full px-5 sm:w-auto" disabled={busy === focus.id} onclick={focusStep.run}><Icon name={focusStep.icon} size={20} />{focusStep.label}</button>
+              <button type="button" class="btn-primary min-h-12 w-full px-6 text-base sm:w-auto" disabled={busy === focus.id} onclick={focusStep.run}><Icon name={focusStep.icon} size={20} />{focusStep.label}</button>
             {/if}
-            {#if focus.patient_id && canReadPatient && focus.status !== 'in_progress'}<a class="btn-secondary min-h-11" href="/pacientes/{focus.patient_id}">Expediente</a>{/if}
+            {#if focus.patient_id && canReadPatient && focus.status !== 'in_progress'}<a class="btn-secondary min-h-12" href="/pacientes/{focus.patient_id}">Expediente</a>{/if}
           </div>
         </div>
       {:else}
-        <h2 class="display mt-2 text-3xl">{mine.length ? 'No quedan citas pendientes.' : 'No hay citas hoy.'}</h2>
-        <p class="mt-2 text-sm text-app-muted">Tu agenda está libre por ahora.</p>
+        <h2 class="display mt-3 text-3xl leading-tight sm:text-4xl">{mine.length ? 'No quedan citas pendientes.' : 'No hay citas hoy.'}</h2>
+        <p class="mt-2 text-[15px] text-app-muted">Tu agenda está libre por ahora.</p>
       {/if}
     </section>
 
     <AttentionStrip today={mine} {tomorrow} {now} />
 
-    <section aria-label="Agenda de hoy" class="card p-4 sm:p-6">
+    <section aria-label="Agenda de hoy" class="card p-5 sm:p-6">
       <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 class="display text-2xl">Agenda de hoy</h2>
+        <h2 class="display text-3xl">Agenda de hoy</h2>
         <span class="text-sm text-app-muted" aria-live="polite">{summary}</span>
       </div>
-      {#if focus}
-        <a href={href(focus)} class="mb-2 flex min-h-11 items-center justify-between gap-3 rounded-lg bg-app-primary/8 px-3 text-sm text-app-primary">
-          <span class="font-semibold tabular-nums">{focus.startHour}</span><span>{focus.status === 'scheduled' || focus.status === 'confirmed' ? 'Siguiente' : 'Ahora'}</span>
-        </a>
-      {/if}
-      <ul class="divide-y divide-app-ink/8 border-l border-app-ink/15 pl-3">
-        {#each remaining as a (a.id)}
+      <ul class="divide-y divide-app-ink/8">
+        {#each agenda as a (a.id)}
           {@const step = stepFor(a)}
-          <li class="flex flex-wrap items-center gap-2 py-1">
-            <a href={href(a)} class="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-lg py-2 hover:bg-app-ink/5">
-              <span class="w-12 flex-none text-sm font-semibold tabular-nums">{a.startHour}</span>
-              <span class="min-w-0 flex-1"><span class="block truncate font-semibold">{name(a)}</span><span class="block truncate text-sm text-app-muted">{what(a)}{a.professional_name && session.user?.role !== 'doctor' ? ` · ${a.professional_name}` : ''}</span><Pill tone={STATUS_META[a.status].tone}>{STATUS_META[a.status].label}</Pill></span>
+          {@const isFocus = a.id === focus?.id}
+          <li class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+            <a href={href(a)} class="flex min-w-0 flex-1 basis-40 items-center gap-4 rounded-lg hover:opacity-80">
+              <span class="w-14 flex-none text-lg font-semibold tabular-nums">{a.startHour}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-semibold {isFocus ? 'text-app-primary' : ''}">{name(a)}</span>
+                <span class="block truncate text-sm text-app-muted">{what(a)}{a.professional_name && session.user?.role !== 'doctor' ? ` · ${a.professional_name}` : ''}</span>
+              </span>
             </a>
-            {#if step && !step.disabled && (a.status === 'in_progress' || a.status === 'arrived')}
-              <button type="button" class="btn-secondary min-h-11" disabled={busy === a.id} onclick={step.run}>{step.label}</button>
-            {/if}
+            <span class="ml-[4.5rem] flex items-center gap-2 sm:ml-0">
+              <Pill tone={STATUS_META[a.status].tone}>{isFocus && a.status !== 'in_progress' && a.status !== 'arrived' ? 'Siguiente' : STATUS_META[a.status].label}</Pill>
+              {#if step && !step.disabled && !isFocus && (a.status === 'in_progress' || a.status === 'arrived')}
+                <button type="button" class="btn-secondary !min-h-9 whitespace-nowrap" disabled={busy === a.id} onclick={step.run}>{step.label}</button>
+              {/if}
+            </span>
           </li>
         {/each}
       </ul>
-      {#if !mine.length}<p class="py-4 text-sm text-app-muted">No hay citas programadas.</p>{/if}
+      {#if !mine.length}<p class="rounded-xl bg-app-ink/5 px-4 py-8 text-center text-sm text-app-muted">No hay citas programadas.</p>{/if}
       {#if closed.length}
         <details class="mt-3 border-t border-app-ink/10 pt-2">
           <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-app-muted">Atendidas ({closed.length})</summary>
           <ul class="divide-y divide-app-ink/8">
             {#each closed as a (a.id)}
-              <li><a href={href(a)} class="flex min-h-14 items-center gap-3 rounded-lg py-2 text-sm hover:bg-app-ink/5"><span class="tabular-nums">{a.startHour}</span><span class="min-w-0 flex-1 truncate">{name(a)}</span><Pill tone={STATUS_META[a.status].tone}>{STATUS_META[a.status].label}</Pill></a></li>
+              <li><a href={href(a)} class="flex min-h-14 items-center gap-4 py-2 hover:opacity-80"><span class="w-14 flex-none text-lg font-semibold tabular-nums">{a.startHour}</span><span class="min-w-0 flex-1 truncate font-semibold">{name(a)}</span><Pill tone={STATUS_META[a.status].tone}>{STATUS_META[a.status].label}</Pill></a></li>
             {/each}
           </ul>
         </details>
       {/if}
     </section>
+
     {#if tomorrow.length}
-      <section aria-label="Mañana" class="px-1 py-2">
-        <div class="flex items-center justify-between"><h2 class="text-sm font-semibold text-app-muted">Mañana · {tomorrow.length} citas</h2><a class="flex min-h-11 items-center text-sm font-semibold text-app-primary" href="/admin/navegar-citas">Ver agenda</a></div>
-        <ul>{#each tomorrow.slice(0, 3) as a (a.id)}<li><a href={href(a)} class="flex min-h-11 items-center gap-3 rounded-lg text-sm hover:bg-app-ink/5"><span class="tabular-nums text-app-muted">{a.startHour}</span><span class="truncate">{name(a)}</span></a></li>{/each}</ul>
+      <section aria-label="Mañana" class="card p-5 sm:p-6">
+        <div class="mb-3 flex items-baseline justify-between gap-2">
+          <h2 class="display text-3xl">Mañana</h2>
+          <a class="text-sm font-semibold text-app-primary hover:underline" href="/admin/navegar-citas">Ver agenda</a>
+        </div>
+        <ul class="divide-y divide-app-ink/8">
+          {#each tomorrow.slice(0, 3) as a (a.id)}
+            <li><a href={href(a)} class="flex min-h-14 items-center gap-4 py-2 hover:opacity-80"><span class="w-14 flex-none text-lg font-semibold tabular-nums">{a.startHour}</span><span class="min-w-0 flex-1"><span class="block truncate font-semibold">{name(a)}</span><span class="block truncate text-sm text-app-muted">{what(a)}</span></span></a></li>
+          {/each}
+        </ul>
+        {#if tomorrow.length > 3}<p class="mt-2 text-sm text-app-muted">y {tomorrow.length - 3} más</p>{/if}
       </section>
     {/if}
   {/if}

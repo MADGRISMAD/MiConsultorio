@@ -24,11 +24,15 @@
 </script>
 
 {#if items.length}
-  <section aria-label="Requiere atención" class="rounded-xl border border-app-warning/25 bg-app-warning/5 px-4 py-2">
-    <h2 class="text-sm font-semibold">Requiere atención</h2>
+  <section aria-label="Requiere atención" class="card flex flex-wrap items-center gap-x-5 gap-y-1 px-5 py-3 sm:px-6">
+    <p class="section-title flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-app-warning"></span>Requiere atención</p>
     <ul class="flex flex-wrap gap-x-5" aria-live="polite">
       {#each items as item}
-        <li><a href={item.href} class="flex min-h-11 items-center gap-2 text-sm text-app-primary underline underline-offset-4"><strong>{item.count}</strong> {item.label}</a></li>
+        <li>
+          <a href={item.href} class="flex min-h-11 items-center gap-2 text-sm font-medium text-app-ink hover:underline">
+            <span class="pill pill-warn tabular-nums">{item.count}</span>{item.label}
+          </a>
+        </li>
       {/each}
     </ul>
   </section>
