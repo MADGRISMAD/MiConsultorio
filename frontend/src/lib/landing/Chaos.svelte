@@ -32,7 +32,7 @@
   };
 
   let section: HTMLElement;
-  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement, desk: HTMLElement, hint: HTMLElement;
+  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement, desk: HTMLElement, hint: HTMLElement, ul: HTMLElement, scan: HTMLElement;
   const items: HTMLElement[] = [];
   const messyEls: HTMLElement[] = [];
   const cleanEls: HTMLElement[] = [];
@@ -122,6 +122,16 @@
       el.addEventListener('pointercancel', up);
     };
     items.forEach((el, i) => el.addEventListener('pointerdown', (e) => grab(e, i)));
+    // A luminous scan line sweeps the desk left to right; every paper it crosses becomes a tidy record.
+    let slotX: number[] = [];
+    let width = 1;
+    const measure = () => {
+      width = ul.offsetWidth || 1;
+      slotX = items.map((li) => (li.offsetLeft + li.offsetWidth / 2) / width);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(ul);
     const stopTrack = track(
       section,
       ['start start', 'end end'],
@@ -134,22 +144,26 @@
         before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -12])}%)`;
         after.style.opacity = String(interp(p, [0.42, 0.55], [0, 1]));
         after.style.transform = `translateY(${interp(p, [0.42, 0.55], [12, 0])}%)`;
-        count.textContent = String(Math.round(interp(p, [0.12, 0.75], [scraps.length, 0]))).padStart(2, '0');
         bar.style.transform = `scaleX(${interp(p, [0.12, 0.75], [0, 1])})`;
 
-        scraps.forEach((s, i) => {
-          const a = 0.12 + i * 0.025;
-          const e = 0.55 + i * 0.025;
-          const t = 1 - clamp((p - a) / (e - a), 0, 1); // 1 = scattered, 0 = tidy
-          scatter[i] = t;
+        const f = interp(p, [0.12, 0.6], [-0.1, 1.12]); // scan position across the desk (0..1)
+        let tidy = 0;
+        scraps.forEach((_, i) => {
+          const u = clamp((f - slotX[i] + 0.04) / 0.22, 0, 1);
+          tidy += u;
+          scatter[i] = (1 - u) ** 3; // eased: papers settle fast right behind the line
           paint(i);
-          messyEls[i].style.opacity = String(interp(p, [e - 0.12, e], [1, 0]));
-          cleanEls[i].style.opacity = String(interp(p, [e - 0.1, e + 0.02], [0, 1]));
+          messyEls[i].style.opacity = String(interp(u, [0.3, 0.7], [1, 0]));
+          cleanEls[i].style.opacity = String(interp(u, [0.45, 0.9], [0, 1]));
         });
+        count.textContent = String(Math.round(scraps.length - tidy)).padStart(2, '0');
+        scan.style.transform = `translate3d(${clamp(f, 0, 1) * width}px, 0, 0)`;
+        scan.style.opacity = String(interp(f, [-0.06, 0.02], [0, 1]) * interp(f, [1, 1.1], [1, 0]));
       },
       { stiffness: 120, damping: 30, mass: 0.3 }
     );
     return () => {
+      ro.disconnect();
       stopTrack();
       stopPhysics();
     };
@@ -158,7 +172,7 @@
 
 <section bind:this={section} class="relative h-[260svh] bg-paper" aria-labelledby="chaos-title">
   <!-- the desk fades out as the papers get tidy; a static paper-coloured fade at the top blends the hero into it -->
-  <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk"></div>
+  <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk" style="background-image: radial-gradient(70% 55% at 50% 0%, rgb(var(--l-panel) / 0.6), transparent)"></div>
   <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-paper to-transparent sm:h-36"></div>
   <div class="sticky top-0 z-10 flex h-[100svh] flex-col justify-center overflow-hidden px-5 sm:px-8">
     <div class="mx-auto w-full max-w-6xl">
@@ -182,7 +196,11 @@
         </div>
       </div>
 
-      <ul class="mt-8 grid grid-cols-2 gap-2.5 sm:mt-12 sm:gap-4 lg:grid-cols-4">
+      <ul bind:this={ul} class="relative mt-8 grid grid-cols-2 gap-2.5 sm:mt-12 sm:gap-4 lg:grid-cols-4">
+        <div bind:this={scan} aria-hidden="true" class="pointer-events-none absolute -inset-y-8 left-0 z-20 w-0 opacity-0">
+          <div class="absolute inset-y-0 right-0 w-48 bg-gradient-to-r from-transparent to-mint/20"></div>
+          <div class="absolute inset-y-0 right-0 w-0.5 bg-mint shadow-[0_0_28px_6px_rgb(var(--l-mint)/0.5)]"></div>
+        </div>
         {#each scraps as s, i}
           <li bind:this={items[i]} class="relative h-[100px] cursor-grab will-change-transform sm:h-[120px]">
             <div bind:this={messyEls[i]} class="absolute inset-0 p-3 sm:p-4 {paper[s.kind]}" aria-hidden="true">

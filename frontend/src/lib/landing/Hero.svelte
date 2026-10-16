@@ -40,6 +40,8 @@
     { tone: 'bg-mint', title: 'Receta firmada', sub: 'Andrés Torres · Dra. Ruiz' }
   ];
   let story = $state(0);
+  let revenue = $state(0);
+  let tiltEl: HTMLDivElement;
   const hours = [8, 9, 10, 11, 12];
   const NOW = 10.6;
   const chip = 'rounded-2xl bg-panel/90 shadow-[0_24px_48px_-16px_rgba(11,37,64,0.3)] ring-1 ring-ink/10 backdrop-blur';
@@ -75,6 +77,8 @@
   function press(e: PointerEvent, a: Appt) {
     if (e.pointerType === 'touch' || e.button !== 0 || reducedMotion()) return;
     const el = e.currentTarget as HTMLElement;
+    touched = true;
+    if (ghostEl) ghostEl.dataset.on = '0';
     el.setPointerCapture(e.pointerId);
     el.classList.remove('slot-in');
     // grabbing a card that is still flying picks it up where it is (never from its target)
@@ -102,11 +106,16 @@
     paint(f);
   }
 
-  async function release(a: Appt) {
+  function release(a: Appt) {
     if (!drag || drag.id !== a.id) return;
-    const f = flying.get(a.id)!;
     const { vx, vy } = drag;
     drag = null;
+    return drop(a, vx, vy);
+  }
+
+  /** Lands a card on the nearest free slot (or sends it home on a clash) and lets the spring carry it there. */
+  async function drop(a: Appt, vx: number, vy: number) {
+    const f = flying.get(a.id)!;
     f.dragging = false;
     delete f.el.dataset.drag;
 
@@ -118,7 +127,7 @@
     const top0 = (a.start - HOUR) * rowH;
     const cx = left0 + colW / 2 + f.x.value;
     const col = cx > lr.width / 2 ? 1 : 0;
-    const start = clamp(Math.round((HOUR + (top0 + f.y.value) / rowH - HOUR) / STEP) * STEP, 0, DAY - a.len) + HOUR;
+    const start = clamp(Math.round((top0 + f.y.value) / rowH / STEP) * STEP, 0, DAY - a.len) + HOUR;
     const clash = appts.some((o) => o.id !== a.id && o.col === col && start < o.start + o.len && o.start < start + a.len);
 
     // new slot (or back to the old one on a clash); keep the card visually where it was and let the spring carry it home
@@ -139,6 +148,72 @@
     f.x.velocity = vx;
     f.y.velocity = vy;
     paint(f);
+  }
+
+  // Autoplay: a "teammate" cursor moves a card on its own, so the demo shows itself without anyone having to discover it.
+  let ghostEl: HTMLDivElement;
+  let touched = false;
+  let onScreen = false;
+  const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2);
+  const tween = (ms: number, fn: (e: number) => void) =>
+    new Promise<void>((done) => {
+      const t0 = performance.now();
+      const stop = onFrame(() => {
+        const u = clamp((performance.now() - t0) / ms, 0, 1);
+        fn(ease(u));
+        if (u >= 1) {
+          stop();
+          done();
+        }
+      });
+    });
+  const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  const place = (x: number, y: number) => (ghostEl.style.transform = `translate3d(${x}px, ${y}px, 0)`);
+
+  async function autoMove(id: number, toCol: number, toStart: number, from: { x: number; y: number }) {
+    const a = appts.find((o) => o.id === id)!;
+    const el = lane.querySelectorAll<HTMLElement>('.appt')[appts.indexOf(a)];
+    const lr = lane.getBoundingClientRect();
+    const gap = window.innerWidth >= 640 ? 12 : 8;
+    const colW = (lr.width - gap) / 2;
+    const rowH = lr.height / DAY;
+    const left0 = a.col * (colW + gap);
+    const top0 = (a.start - HOUR) * rowH;
+    const g0 = { x: left0 + colW * 0.35, y: top0 + rowH * 0.3 };
+    const dx = toCol * (colW + gap) - left0;
+    const dy = (toStart - HOUR) * rowH - top0;
+
+    ghostEl.dataset.on = '1';
+    await tween(900, (e) => place(from.x + (g0.x - from.x) * e, from.y + (g0.y - from.y) * e));
+    if (touched) return g0;
+    ghostEl.dataset.down = '1'; // press
+    const f: Fly = flying.get(id) ?? { el, x: new Spring(0, SPRING), y: new Spring(0, SPRING), dragging: true };
+    f.dragging = true;
+    flying.set(id, f);
+    el.classList.remove('slot-in');
+    el.dataset.drag = '1';
+    await tween(1200, (e) => {
+      f.x.value = dx * e;
+      f.y.value = dy * e;
+      paint(f);
+      place(g0.x + dx * e, g0.y + dy * e);
+    });
+    delete ghostEl.dataset.down; // release
+    await drop(a, 0, 0);
+    return { x: g0.x + dx, y: g0.y + dy };
+  }
+
+  async function story_loop() {
+    let pos = { x: 40, y: -30 };
+    const script: [number, number, number][] = [[1, 1, 9], [1, 0, 9.25]]; // Diego → Dr. Luis 09:00, then back home
+    await wait(2600);
+    for (let i = 0; !touched; i = (i + 1) % script.length) {
+      while (!onScreen && !touched) await wait(400);
+      if (touched) break;
+      pos = await autoMove(...script[i], pos);
+      await wait(2200);
+    }
+    ghostEl.dataset.on = '0';
   }
 
   // Pointer-following light on the product window.
@@ -180,6 +255,7 @@
       onFrame((dt) => {
         ctx.mx = sx.step(tx, dt);
         ctx.my = sy.step(ty, dt);
+        if (tiltEl && !reduce && window.innerWidth >= 1024) tiltEl.style.transform = `rotateY(${ctx.mx * 9}deg) rotateX(${-ctx.my * 6}deg)`;
       })
     );
     const mouse = (e: PointerEvent) => {
@@ -201,6 +277,23 @@
         }
       })
     );
+    // ghost-cursor demo, only while the product window is on screen
+    if (!reduce) {
+      const io = new IntersectionObserver(([en]) => (onScreen = en.isIntersecting), { threshold: 0.35 });
+      io.observe(stage);
+      stops.push(() => io.disconnect());
+      story_loop();
+      // revenue card: count up once the hero has settled
+      const t = setTimeout(() => {
+        const t0 = performance.now();
+        const stop = onFrame(() => {
+          const u = clamp((performance.now() - t0) / 1600, 0, 1);
+          revenue = Math.round(18450 * (1 - (1 - u) ** 4));
+          if (u >= 1) stop();
+        });
+      }, 2400);
+      stops.push(() => clearTimeout(t));
+    } else revenue = 18450;
     // a short story in the notification chip: confirmation, reminder, prescription
     if (!reduce) {
       const t = setInterval(() => {
@@ -216,9 +309,14 @@
 
 </script>
 
-<section id="inicio" bind:this={section} class="relative overflow-hidden pb-16 pt-28 sm:pb-20 sm:pt-32">
-  <!-- soft light behind the headline -->
-  <div aria-hidden="true" class="pointer-events-none absolute left-1/2 top-0 -z-10 h-[60rem] w-[90rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(var(--l-signal)/0.10),transparent)]"></div>
+<section id="inicio" bind:this={section} class="relative isolate overflow-hidden pb-16 pt-28 sm:pb-20 sm:pt-32">
+  <!-- aurora: slow-drifting colour fields + a fading grid, behind everything -->
+  <div aria-hidden="true" class="aurora pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="grid-lines"></span>
+  </div>
 
   <div bind:this={text} class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="enter-fade flex items-center justify-between border-b border-ink/15 pb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft" style="--d: 0.1s">
@@ -230,7 +328,7 @@
       tag="h1"
       text={'Menos papeleo,\n*más consulta.*'}
       class="mt-6 font-display text-[clamp(3.25rem,14vw,5rem)] font-normal leading-[0.96] tracking-[-0.025em] text-ink sm:text-[clamp(5rem,12vw,10rem)] sm:leading-[0.92] sm:tracking-[-0.035em]"
-      accent="italic text-signal"
+      accent="shimmer italic"
       delay={0}
       stagger={0.035}
       duration={0.6}
@@ -263,6 +361,7 @@
     </div>
 
     <div bind:this={window3d} class="relative z-10 will-change-transform [transform-origin:50%_0%]" aria-hidden="true">
+      <div bind:this={tiltEl} class="[transform-style:preserve-3d] will-change-transform" style="transition: transform 120ms linear">
       <div role="presentation" onpointermove={glow} class="glow-host relative overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
         <div aria-hidden="true" class="glow-spot pointer-events-none absolute inset-0 z-10"></div>
         <div class="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
@@ -316,6 +415,10 @@
                 {/each}
                 <span></span>
                 <div bind:this={lane} class="relative col-span-2 [--g:0.5rem] sm:[--g:0.75rem]">
+                  <div bind:this={ghostEl} aria-hidden="true" data-on="0" class="ghost pointer-events-none absolute left-0 top-0 z-40">
+                    <svg viewBox="0 0 24 24" class="h-7 w-7 drop-shadow-md" fill="rgb(var(--l-ink))" stroke="rgb(var(--l-panel))" stroke-width="1.5" stroke-linejoin="round"><path d="M5 3l14 7-6 2-2 6z" /></svg>
+                    <span class="ml-4 -mt-1 block whitespace-nowrap rounded-full bg-signal px-3 py-1 text-[11px] font-semibold text-white shadow-lg">Recepción</span>
+                  </div>
                   {#each appts as a (a.id)}
                     <div
                       role="presentation"
@@ -345,6 +448,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -391,6 +495,16 @@
       </div>
     </Float>
 
+    <Float depth={1.6} {ctx} delay={2.3} class="right-0 top-[40%] hidden xl:-right-14 xl:block">
+      <div class="{chip} w-56 p-4">
+        <p class="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">Ingresos de hoy</p>
+        <p class="mt-1 font-display text-3xl leading-none tabular-nums">${revenue.toLocaleString('es-MX')}</p>
+        <svg viewBox="0 0 120 36" class="mt-3 h-9 w-full" fill="none" aria-hidden="true">
+          <path class="spark" pathLength="1" d="M0 30 C12 28 16 22 28 23 S46 30 58 20 S76 8 88 12 S108 6 120 3" stroke="rgb(var(--l-signal))" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </div>
+    </Float>
+
     <Float depth={2.6} {ctx} delay={2.1} class="-bottom-6 right-6 hidden md:block lg:-right-6">
       <div class="w-52 rotate-[5deg] bg-[#F5E7A0] p-4 pb-6 font-hand text-[24px] leading-[1.05] text-ink shadow-[0_20px_40px_-14px_rgba(11,37,64,0.4)]">¡Adiós a la agenda de papel!</div>
     </Float>
@@ -398,13 +512,95 @@
 </section>
 
 <style>
+  .aurora .blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    will-change: transform;
+  }
+  .aurora .b1 {
+    left: -8%;
+    top: -12%;
+    width: 46rem;
+    height: 38rem;
+    background: rgb(var(--l-signal) / 0.32);
+  }
+  .aurora .b2 {
+    right: -10%;
+    top: 4%;
+    width: 40rem;
+    height: 34rem;
+    background: rgb(var(--l-mint) / 0.26);
+  }
+  .aurora .b3 {
+    left: 30%;
+    top: 46%;
+    width: 44rem;
+    height: 30rem;
+    background: rgb(var(--l-signal) / 0.14);
+  }
+  .aurora .grid-lines {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgb(var(--l-ink) / 0.05) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--l-ink) / 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(70% 60% at 50% 30%, black, transparent);
+  }
+  .ghost {
+    opacity: 0;
+    transition: opacity 400ms ease-out;
+  }
+  .ghost:global([data-on='1']) {
+    opacity: 1;
+  }
+  .ghost:global([data-down='1']) svg {
+    transform: scale(0.85);
+  }
+  .ghost svg {
+    transition: transform 120ms ease-out;
+  }
+  .spark {
+    stroke-dasharray: 1;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .aurora .b1 {
+      animation: drift-a 22s ease-in-out infinite alternate;
+    }
+    .aurora .b2 {
+      animation: drift-b 26s ease-in-out infinite alternate;
+    }
+    .aurora .b3 {
+      animation: drift-a 30s ease-in-out infinite alternate-reverse;
+    }
+    .spark {
+      animation: spark-draw 1.6s cubic-bezier(0.23, 1, 0.32, 1) 2.4s both;
+    }
+  }
+  @keyframes drift-a {
+    to {
+      transform: translate3d(8%, 10%, 0) scale(1.12);
+    }
+  }
+  @keyframes drift-b {
+    to {
+      transform: translate3d(-10%, 8%, 0) scale(1.08);
+    }
+  }
+  @keyframes spark-draw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
   .appt {
     cursor: grab;
     user-select: none;
     touch-action: pan-y;
     transition: box-shadow 160ms ease-out;
   }
-  .appt[data-drag='1'] {
+  .appt:global([data-drag='1']) {
     cursor: grabbing;
     z-index: 30;
     box-shadow:
