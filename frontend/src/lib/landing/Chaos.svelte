@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { clamp, interp, reducedMotion, track } from './motion';
+  import { clamp, interp, onFrame, reducedMotion, track } from './motion';
 
   type Kind = 'sticky' | 'card' | 'folder';
   interface Scrap {
@@ -32,17 +32,97 @@
   };
 
   let section: HTMLElement;
-  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement, desk: HTMLElement;
+  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement, desk: HTMLElement, hint: HTMLElement;
   const items: HTMLElement[] = [];
   const messyEls: HTMLElement[] = [];
   const cleanEls: HTMLElement[] = [];
+
+  // Papers can be grabbed and thrown while the desk is messy. The offset fades out as the scroll tidies them,
+  // so the final grid is always clean. Mouse only: touch keeps scrolling the page.
+  interface Toss {
+    x: number;
+    y: number;
+    r: number;
+    vx: number;
+    vy: number;
+    held: boolean;
+  }
+  const toss: Toss[] = scraps.map(() => ({ x: 0, y: 0, r: 0, vx: 0, vy: 0, held: false }));
+  const scatter: number[] = scraps.map(() => 1); // current 1 = scattered, 0 = tidy
+  let zTop = 10;
 
   onMount(() => {
     const k = reducedMotion() ? 0 : 1;
     const small = window.innerWidth < 640;
     const vh = window.innerHeight / 100;
     const capY = small ? 24 : 72;
-    return track(
+    const paint = (i: number) => {
+      const s = scraps[i];
+      const t = scatter[i];
+      const o = toss[i];
+      const dy = clamp(s.from[1] * vh, -capY, capY);
+      items[i].style.transform = `translate3d(${o.x * t}px, ${o.y * t}px, 0) translate3d(${s.from[0] * (small ? 0.5 : 1) * k * t}vw, ${dy * k * t}px, 0) rotate(${(s.from[2] * (small ? 0.65 : 1) * k + o.r) * t}deg)`;
+    };
+    // thrown papers glide and slow down with friction, bouncing softly off the edges of the desk
+    const stopPhysics = onFrame((dt) => {
+      toss.forEach((o, i) => {
+        if (o.held || (Math.abs(o.vx) < 6 && Math.abs(o.vy) < 6 && Math.abs(o.r) < 0.05)) return;
+        const f = Math.exp(-3.2 * dt);
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+        o.vx *= f;
+        o.vy *= f;
+        o.r *= Math.exp(-1.2 * dt);
+        if (Math.abs(o.x) > 520) {
+          o.x = Math.sign(o.x) * 520;
+          o.vx *= -0.4;
+        }
+        if (Math.abs(o.y) > 260) {
+          o.y = Math.sign(o.y) * 260;
+          o.vy *= -0.4;
+        }
+        paint(i);
+      });
+    });
+    const grab = (e: PointerEvent, i: number) => {
+      if (e.pointerType !== 'mouse' || k === 0 || scatter[i] < 0.4) return;
+      const el = e.currentTarget as HTMLElement;
+      el.setPointerCapture(e.pointerId);
+      const o = toss[i];
+      o.held = true;
+      o.vx = o.vy = 0;
+      el.style.zIndex = String(++zTop);
+      el.style.cursor = 'grabbing';
+      let lx = e.clientX;
+      let ly = e.clientY;
+      let lt = e.timeStamp;
+      const move = (m: PointerEvent) => {
+        const dt = Math.max((m.timeStamp - lt) / 1000, 0.001);
+        const dx = m.clientX - lx;
+        const dyy = m.clientY - ly;
+        o.x += dx;
+        o.y += dyy;
+        o.vx = o.vx * 0.6 + (dx / dt) * 0.4;
+        o.vy = o.vy * 0.6 + (dyy / dt) * 0.4;
+        o.r = clamp(o.vx * 0.012, -12, 12);
+        lx = m.clientX;
+        ly = m.clientY;
+        lt = m.timeStamp;
+        paint(i);
+      };
+      const up = () => {
+        o.held = false;
+        el.style.cursor = '';
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+      };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    };
+    items.forEach((el, i) => el.addEventListener('pointerdown', (e) => grab(e, i)));
+    const stopTrack = track(
       section,
       ['start start', 'end end'],
       (p) => {
@@ -50,6 +130,7 @@
         desk.style.opacity = String(1 - t0);
         const b = interp(p, [0.3, 0.42], [1, 0]);
         before.style.opacity = String(b);
+        hint.style.opacity = String(interp(p, [0.12, 0.3], [1, 0]));
         before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -12])}%)`;
         after.style.opacity = String(interp(p, [0.42, 0.55], [0, 1]));
         after.style.transform = `translateY(${interp(p, [0.42, 0.55], [12, 0])}%)`;
@@ -60,14 +141,18 @@
           const a = 0.12 + i * 0.025;
           const e = 0.55 + i * 0.025;
           const t = 1 - clamp((p - a) / (e - a), 0, 1); // 1 = scattered, 0 = tidy
-          const dy = clamp(s.from[1] * vh, -capY, capY);
-          items[i].style.transform = `translate3d(${s.from[0] * (small ? 0.5 : 1) * k * t}vw, ${dy * k * t}px, 0) rotate(${s.from[2] * (small ? 0.65 : 1) * k * t}deg)`;
+          scatter[i] = t;
+          paint(i);
           messyEls[i].style.opacity = String(interp(p, [e - 0.12, e], [1, 0]));
           cleanEls[i].style.opacity = String(interp(p, [e - 0.1, e + 0.02], [0, 1]));
         });
       },
       { stiffness: 120, damping: 30, mass: 0.3 }
     );
+    return () => {
+      stopTrack();
+      stopPhysics();
+    };
   });
 </script>
 
@@ -93,12 +178,13 @@
           <div class="mt-2 h-px w-full bg-ink/15 sm:mt-3">
             <div bind:this={bar} class="h-px origin-left scale-x-0 bg-ink"></div>
           </div>
+          <p bind:this={hint} class="mt-3 hidden font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint sm:block">Agarra un papel y lánzalo</p>
         </div>
       </div>
 
       <ul class="mt-8 grid grid-cols-2 gap-2.5 sm:mt-12 sm:gap-4 lg:grid-cols-4">
         {#each scraps as s, i}
-          <li bind:this={items[i]} class="relative h-[100px] will-change-transform sm:h-[120px]">
+          <li bind:this={items[i]} class="relative h-[100px] cursor-grab will-change-transform sm:h-[120px]">
             <div bind:this={messyEls[i]} class="absolute inset-0 p-3 sm:p-4 {paper[s.kind]}" aria-hidden="true">
               {#if s.kind === 'folder'}<span class="absolute -top-3 left-0 h-3 w-16 rounded-t-md bg-[#E4CF9E]"></span>{/if}
               <p class="font-hand text-[17px] leading-[1.05] text-[#0B2540]/85 sm:text-[22px]">{s.messy}</p>

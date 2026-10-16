@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import ButtonLabel from './ButtonLabel.svelte';
   import Ecg from './Ecg.svelte';
   import Float, { type FloatCtx } from './Float.svelte';
@@ -7,32 +7,39 @@
   import Mark from './Mark.svelte';
   import Split from './Split.svelte';
   import { demoHref } from './data';
-  import { btn, interp, onFrame, reducedMotion, Spring, track } from './motion';
+  import { btn, clamp, interp, onFrame, reducedMotion, Spring, track } from './motion';
 
   // Day view shown in the product window: two doctors, two specialties, one clinic
   const HOUR = 8; // first hour on the grid
   const doctors = [
-    {
-      name: 'Dra. Ana Ruiz',
-      area: 'Odontología',
-      tone: 'dental',
-      slots: [
-        { start: 8, len: 0.75, who: 'Mariana López', what: 'Limpieza dental' },
-        { start: 9.25, len: 1, who: 'Diego Hernández', what: 'Ajuste de ortodoncia' },
-        { start: 11, len: 1.25, who: 'Andrés Torres', what: 'Endodoncia · 2.ª sesión' }
-      ]
-    },
-    {
-      name: 'Dr. Luis Paredes',
-      area: 'Medicina general',
-      tone: 'medica',
-      slots: [
-        { start: 8.5, len: 0.5, who: 'Jorge Medina', what: 'Consulta general' },
-        { start: 10, len: 0.75, who: 'Sofía Ramírez', what: 'Control de presión' },
-        { start: 11.5, len: 0.5, who: 'Lucía Gómez', what: 'Certificado médico' }
-      ]
-    }
+    { name: 'Dra. Ana Ruiz', area: 'Odontología', tone: 'dental' },
+    { name: 'Dr. Luis Paredes', area: 'Medicina general', tone: 'medica' }
   ];
+
+  interface Appt {
+    id: number;
+    col: number;
+    start: number;
+    len: number;
+    who: string;
+    what: string;
+  }
+  // The day is live: appointments can be dragged to another time or doctor, and a clash springs back.
+  let appts = $state<Appt[]>([
+    { id: 0, col: 0, start: 8, len: 0.75, who: 'Mariana López', what: 'Limpieza dental' },
+    { id: 1, col: 0, start: 9.25, len: 1, who: 'Diego Hernández', what: 'Ajuste de ortodoncia' },
+    { id: 2, col: 0, start: 11, len: 1.25, who: 'Andrés Torres', what: 'Endodoncia · 2.ª sesión' },
+    { id: 3, col: 1, start: 8.5, len: 0.5, who: 'Jorge Medina', what: 'Consulta general' },
+    { id: 4, col: 1, start: 10, len: 0.75, who: 'Sofía Ramírez', what: 'Control de presión' },
+    { id: 5, col: 1, start: 11.5, len: 0.5, who: 'Lucía Gómez', what: 'Certificado médico' }
+  ]);
+  let status = $state('');
+  const stories = [
+    { tone: 'bg-mint', title: 'Cita confirmada', sub: 'Jorge Medina · 08:30' },
+    { tone: 'bg-signal', title: 'Recordatorio enviado', sub: 'Sofía Ramírez · mañana 11:15' },
+    { tone: 'bg-mint', title: 'Receta firmada', sub: 'Andrés Torres · Dra. Ruiz' }
+  ];
+  let story = $state(0);
   const hours = [8, 9, 10, 11, 12];
   const NOW = 10.6;
   const chip = 'rounded-2xl bg-panel/90 shadow-[0_24px_48px_-16px_rgba(11,37,64,0.3)] ring-1 ring-ink/10 backdrop-blur';
@@ -44,6 +51,103 @@
   let window3d: HTMLDivElement;
 
   const ctx: FloatCtx = { p: 0, mx: 0, my: 0 };
+
+  let lane: HTMLDivElement;
+  const STEP = 0.25; // snap to 15 minutes
+  const DAY = 5; // hours on the grid
+  const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+
+  // Visual offset of each card from its slot: dragged 1:1, then released into a spring that inherits the pointer velocity.
+  interface Fly {
+    el: HTMLElement;
+    x: Spring;
+    y: Spring;
+    dragging: boolean;
+  }
+  const flying = new Map<number, Fly>();
+  const SPRING = { stiffness: 260, damping: 26, mass: 1 }; // slightly under-damped: a thrown card overshoots a touch
+  const paint = (f: Fly) => {
+    f.el.style.transform = `translate3d(${f.x.value}px, ${f.y.value}px, 0) scale(${f.dragging ? 1.04 : 1})`;
+  };
+
+  let drag: { id: number; sx: number; sy: number; bx: number; by: number; vx: number; vy: number; t: number } | null = null;
+
+  function press(e: PointerEvent, a: Appt) {
+    if (e.pointerType === 'touch' || e.button !== 0 || reducedMotion()) return;
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    el.classList.remove('slot-in');
+    // grabbing a card that is still flying picks it up where it is (never from its target)
+    const f = flying.get(a.id) ?? { el, x: new Spring(0, SPRING), y: new Spring(0, SPRING), dragging: true };
+    f.dragging = true;
+    f.x.velocity = 0;
+    f.y.velocity = 0;
+    flying.set(a.id, f);
+    el.dataset.drag = '1';
+    drag = { id: a.id, sx: e.clientX, sy: e.clientY, bx: f.x.value, by: f.y.value, vx: 0, vy: 0, t: e.timeStamp };
+    status = '';
+  }
+
+  function move(e: PointerEvent, a: Appt) {
+    if (!drag || drag.id !== a.id) return;
+    const f = flying.get(a.id)!;
+    const x = drag.bx + e.clientX - drag.sx;
+    const y = drag.by + e.clientY - drag.sy;
+    const dt = Math.max((e.timeStamp - drag.t) / 1000, 0.001);
+    drag.vx = drag.vx * 0.7 + ((x - f.x.value) / dt) * 0.3; // smoothed release velocity (px/s)
+    drag.vy = drag.vy * 0.7 + ((y - f.y.value) / dt) * 0.3;
+    drag.t = e.timeStamp;
+    f.x.value = x;
+    f.y.value = y;
+    paint(f);
+  }
+
+  async function release(a: Appt) {
+    if (!drag || drag.id !== a.id) return;
+    const f = flying.get(a.id)!;
+    const { vx, vy } = drag;
+    drag = null;
+    f.dragging = false;
+    delete f.el.dataset.drag;
+
+    const lr = lane.getBoundingClientRect();
+    const gap = window.innerWidth >= 640 ? 12 : 8;
+    const colW = (lr.width - gap) / 2;
+    const rowH = lr.height / DAY;
+    const left0 = a.col * (colW + gap);
+    const top0 = (a.start - HOUR) * rowH;
+    const cx = left0 + colW / 2 + f.x.value;
+    const col = cx > lr.width / 2 ? 1 : 0;
+    const start = clamp(Math.round((HOUR + (top0 + f.y.value) / rowH - HOUR) / STEP) * STEP, 0, DAY - a.len) + HOUR;
+    const clash = appts.some((o) => o.id !== a.id && o.col === col && start < o.start + o.len && o.start < start + a.len);
+
+    // new slot (or back to the old one on a clash); keep the card visually where it was and let the spring carry it home
+    const nx = clash ? left0 : col * (colW + gap);
+    const ny = clash ? top0 : (start - HOUR) * rowH;
+    const ox = left0 + f.x.value - nx;
+    const oy = top0 + f.y.value - ny;
+    if (!clash) {
+      a.col = col;
+      a.start = start;
+      status = `${a.who} → ${hhmm(start)} · ${doctors[col].name}`;
+    } else {
+      status = 'Ese horario ya está ocupado · sin empalmes';
+    }
+    await tick();
+    f.x.value = ox;
+    f.y.value = oy;
+    f.x.velocity = vx;
+    f.y.velocity = vy;
+    paint(f);
+  }
+
+  // Pointer-following light on the product window.
+  function glow(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') return;
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    (e.currentTarget as HTMLElement).style.setProperty('--gx', `${e.clientX - r.left}px`);
+    (e.currentTarget as HTMLElement).style.setProperty('--gy', `${e.clientY - r.top}px`);
+  }
 
   onMount(() => {
     const reduce = reducedMotion();
@@ -78,15 +182,35 @@
         ctx.my = sy.step(ty, dt);
       })
     );
-    const move = (e: PointerEvent) => {
+    const mouse = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse') return;
       tx = e.clientX / window.innerWidth - 0.5;
       ty = e.clientY / window.innerHeight - 0.5;
     };
-    section.addEventListener('pointermove', move);
+    section.addEventListener('pointermove', mouse);
+    stops.push(
+      onFrame((dt) => {
+        for (const [id, f] of flying) {
+          if (f.dragging) continue;
+          f.x.step(0, dt);
+          f.y.step(0, dt);
+          if (f.x.settled && f.y.settled && Math.abs(f.x.value) < 0.3 && Math.abs(f.y.value) < 0.3) {
+            f.el.style.transform = '';
+            flying.delete(id);
+          } else paint(f);
+        }
+      })
+    );
+    // a short story in the notification chip: confirmation, reminder, prescription
+    if (!reduce) {
+      const t = setInterval(() => {
+        if (!document.hidden) story = (story + 1) % stories.length;
+      }, 3600);
+      stops.push(() => clearInterval(t));
+    }
     return () => {
       stops.forEach((s) => s());
-      section.removeEventListener('pointermove', move);
+      section.removeEventListener('pointermove', mouse);
     };
   });
 
@@ -139,7 +263,8 @@
     </div>
 
     <div bind:this={window3d} class="relative z-10 will-change-transform [transform-origin:50%_0%]" aria-hidden="true">
-      <div class="overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
+      <div role="presentation" onpointermove={glow} class="glow-host relative overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
+        <div aria-hidden="true" class="glow-spot pointer-events-none absolute inset-0 z-10"></div>
         <div class="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
@@ -166,6 +291,9 @@
                 <p class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-faint">Martes</p>
                 <p class="font-display text-2xl leading-none sm:text-3xl">14 de octubre</p>
               </div>
+              <span class="hidden min-w-0 flex-1 truncate text-center font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint md:block">
+                {#if status}{status}{:else}<span class="inline-flex items-center gap-1.5"><span class="now-pulse h-1.5 w-1.5 rounded-full bg-signal"></span>Prueba: arrastra una cita</span>{/if}
+              </span>
               <span class="rounded-full bg-ink px-3 py-1 text-[11px] font-medium text-paper">+ Nueva cita</span>
             </div>
             <div class="mt-4 grid grid-cols-[2.25rem_1fr_1fr] gap-x-2 sm:grid-cols-[3rem_1fr_1fr] sm:gap-x-3">
@@ -187,19 +315,27 @@
                   </div>
                 {/each}
                 <span></span>
-                {#each doctors as d, di}
-                  <div class="relative">
-                    {#each d.slots as s, si}
-                      <div
-                        class="slot-in absolute inset-x-0 overflow-hidden rounded-lg border-l-[3px] px-2 py-1 sm:px-2.5 sm:py-1.5 {d.tone === 'dental' ? 'border-mint bg-mint-soft' : 'border-signal bg-signal-soft'}"
-                        style="top: calc(var(--h) * {s.start - HOUR} + 2px); height: calc(var(--h) * {s.len} - 4px); animation-delay: {0.45 + (si * 2 + di) * 0.05}s"
-                      >
-                        <p class="truncate text-[10px] font-semibold sm:text-[12px]">{s.who}</p>
-                        <p class="truncate text-[9px] text-ink-soft sm:text-[11px]">{s.what}</p>
-                      </div>
-                    {/each}
-                  </div>
-                {/each}
+                <div bind:this={lane} class="relative col-span-2 [--g:0.5rem] sm:[--g:0.75rem]">
+                  {#each appts as a (a.id)}
+                    <div
+                      role="presentation"
+                      class="appt slot-in absolute overflow-hidden rounded-lg border-l-[3px] px-2 py-1 sm:px-2.5 sm:py-1.5 {doctors[a.col].tone === 'dental' ? 'border-mint bg-mint-soft' : 'border-signal bg-signal-soft'}"
+                      style="animation-delay: {0.45 + (a.id % 3 * 2 + Math.floor(a.id / 3)) * 0.05}s"
+                      style:top="calc(var(--h) * {a.start - HOUR} + 2px)"
+                      style:height="calc(var(--h) * {a.len} - 4px)"
+                      style:left="calc({a.col} * (50% + var(--g) / 2))"
+                      style:width="calc(50% - var(--g) / 2)"
+                      onpointerdown={(e) => press(e, a)}
+                      onpointermove={(e) => move(e, a)}
+                      onpointerup={() => release(a)}
+                      onpointercancel={() => release(a)}
+                      onanimationend={(e) => e.currentTarget.classList.remove('slot-in')}
+                    >
+                      <p class="truncate text-[10px] font-semibold sm:text-[12px]">{a.who}</p>
+                      <p class="truncate text-[9px] text-ink-soft sm:text-[11px]">{a.what}</p>
+                    </div>
+                  {/each}
+                </div>
                 <!-- current time -->
                 <div class="pointer-events-none absolute inset-x-0 flex items-center" style="top: calc(var(--h) * {NOW - HOUR})">
                   <span class="now-pulse h-2 w-2 -translate-x-1/2 rounded-full bg-signal"></span>
@@ -228,13 +364,17 @@
       </div>
     </Float>
 
-    <Float depth={2} {ctx} delay={1.7} class="-bottom-4 -right-1 top-auto sm:bottom-auto sm:right-2 sm:top-[18%] lg:-right-12">
+    <Float depth={2} {ctx} delay={1.7} class="-bottom-4 -right-1 top-auto sm:bottom-auto sm:right-2 sm:top-[3%] lg:-right-12">
       <div class="{chip} flex items-center gap-3 py-3 pl-3 pr-5">
-        <span class="grid h-9 w-9 place-items-center rounded-full bg-mint text-white"><Icon name="check" class="h-4 w-4" strokeWidth={2.4} /></span>
-        <span>
-          <span class="block text-[13px] font-semibold">Cita confirmada</span>
-          <span class="block text-[12px] text-ink-soft">Jorge Medina · 08:30</span>
-        </span>
+        {#key story}
+          <span class="story-in flex items-center gap-3">
+            <span class="grid h-9 w-9 place-items-center rounded-full {stories[story].tone} text-white"><Icon name="check" class="h-4 w-4" strokeWidth={2.4} /></span>
+            <span>
+              <span class="block text-[13px] font-semibold">{stories[story].title}</span>
+              <span class="block text-[12px] text-ink-soft">{stories[story].sub}</span>
+            </span>
+          </span>
+        {/key}
       </div>
     </Float>
 
@@ -256,3 +396,41 @@
     </Float>
   </div>
 </section>
+
+<style>
+  .appt {
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+    transition: box-shadow 160ms ease-out;
+  }
+  .appt[data-drag='1'] {
+    cursor: grabbing;
+    z-index: 30;
+    box-shadow:
+      0 1px 2px rgb(var(--l-shade) / 0.12),
+      0 18px 28px -10px rgb(var(--l-shade) / 0.4);
+  }
+  .glow-spot {
+    opacity: 0;
+    transition: opacity 300ms ease-out;
+    background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%), rgb(var(--l-signal) / 0.1), transparent 65%);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .glow-host:hover .glow-spot {
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .story-in {
+      animation: story-in 450ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    }
+  }
+  @keyframes story-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+      filter: blur(4px);
+    }
+  }
+</style>
