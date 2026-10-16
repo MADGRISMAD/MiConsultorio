@@ -1,8 +1,10 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import SectionHead from './SectionHead.svelte';
   import Split from './Split.svelte';
   import Carousel from './Carousel.svelte';
   import { reveal } from './motion';
+  import { specialties } from './data';
 
   const panels = [
     {
@@ -79,13 +81,10 @@
 
 </script>
 
-<section id="especialidades" class="mx-auto max-w-6xl px-5 py-28 sm:px-8 lg:py-40">
-  <div class="grid gap-6 border-b border-ink/15 pb-10 md:grid-cols-[1.7fr_1fr] md:items-end">
-    <Split text={'Una plataforma.\n*Cada especialidad*\ncon sus herramientas.'} class="font-display text-[clamp(2.75rem,6.5vw,5.25rem)] leading-[0.95] tracking-[-0.03em]" accent="italic text-signal" />
-    <p class="max-w-sm text-lg leading-relaxed text-ink-soft md:justify-self-end">Elige tu giro y Caresia ajusta formularios, secciones y reportes. Si atiendes más de uno, conviven en el mismo consultorio.</p>
-  </div>
+<section id="especialidades" class="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
+  <SectionHead title={'Herramientas para\n*tu especialidad.*'} blurb="Elige tu giro y Caresia ajusta formularios, secciones y reportes. Si atiendes más de uno, conviven en el mismo consultorio." />
   <div class="mt-10" use:reveal={{ y: 50 }}>
-    <Carousel items={panels} label={(p) => p.tab} name="Especialidades" id="esp">
+    <Carousel items={panels} label={(p) => p.tab} name="Especialidades" id="esp" autoplay={false}>
       {#snippet panel(p)}
         <div class="rounded-[28px] p-7 sm:p-9 {p.bg}">
           <div class="grid gap-8 md:grid-cols-[1fr_1fr] md:items-end">
@@ -107,4 +106,5 @@
       {/snippet}
     </Carousel>
   </div>
+  <p class="mt-8 text-[15px] leading-relaxed text-ink-soft"><span class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">También atiende</span><br />{specialties.join(' · ')}</p>
 </section>

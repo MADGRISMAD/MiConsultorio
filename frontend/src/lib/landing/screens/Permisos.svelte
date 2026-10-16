@@ -11,7 +11,7 @@
 <div>
   <p class={label}>Usuarios</p>
   <p class="font-display text-3xl leading-none">Permisos por rol</p>
-  <div class="mt-6 grid grid-cols-[1fr_repeat(3,3.5rem)] items-center gap-y-1 text-[12px] sm:grid-cols-[1fr_repeat(3,4.5rem)]">
+  <div class="mt-6 grid grid-cols-[1fr_repeat(3,3.5rem)] items-center gap-y-1 text-[12px] sm:grid-cols-[1fr_repeat(3,5.75rem)]">
     <span></span>
     {#each ['Agenda', 'Expedientes', 'Historial'] as h}<span class="{label} truncate text-center">{h}</span>{/each}
     {#each users as [name, role, perms], ui}

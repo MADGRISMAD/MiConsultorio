@@ -19,11 +19,18 @@
   let status = $state<'idle' | 'sending' | 'done' | 'error'>('idle');
   let error = $state('');
 
-  const ready = $derived(name.trim().length > 0 && /^\S+@\S+\.\S+$/.test(email.trim()));
+  let tried = $state(false); // los errores aparecen al intentar enviar, junto a cada campo
+  const nameOk = $derived(name.trim().length > 0);
+  const emailOk = $derived(/^\S+@\S+\.\S+$/.test(email.trim()));
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    if (!ready || status === 'sending') return;
+    if (status === 'sending') return;
+    tried = true;
+    if (!nameOk || !emailOk) {
+      (document.getElementById(nameOk ? 'd-email' : 'd-name') as HTMLElement | null)?.focus();
+      return;
+    }
     status = 'sending';
     error = '';
     try {
@@ -61,7 +68,7 @@
           Mira Caresia <em class="italic text-signal">en tu consultorio.</em>
         </h1>
         <p class="mt-6 max-w-md text-lg leading-relaxed text-ink-soft [text-wrap:pretty]">
-          Cuéntanos de tu consultorio y te mostramos cómo se vería con tu agenda, tus expedientes y tus cobros. Es una conversación corta y sin compromiso.
+          Déjanos tu correo y coordinamos una demo para tu especialidad. Es una conversación corta y sin compromiso.
         </p>
         <ul class="mt-8 space-y-3 text-[15px] text-ink-soft">
           <li class="flex gap-3"><span class="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-signal"></span>Te escribimos al correo que dejes aquí.</li>
@@ -81,33 +88,41 @@
           <form onsubmit={submit} novalidate class="space-y-5" aria-label="Solicitar una demostración">
             <div>
               <label class={label} for="d-name">Tu nombre</label>
-              <input id="d-name" class={field} bind:value={name} autocomplete="name" maxlength="120" required />
+              <input id="d-name" class={field} bind:value={name} autocomplete="name" maxlength="120" required aria-invalid={tried && !nameOk} aria-describedby={tried && !nameOk ? 'd-name-err' : undefined} />
+              {#if tried && !nameOk}<p id="d-name-err" class="mt-1.5 text-[13px] text-[#b42318]">Escribe tu nombre.</p>{/if}
             </div>
             <div>
               <label class={label} for="d-email">Correo</label>
-              <input id="d-email" class={field} type="email" bind:value={email} autocomplete="email" inputmode="email" maxlength="200" required />
-            </div>
-            <div class="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label class={label} for="d-phone">Teléfono <span class="normal-case tracking-normal text-ink-faint">(opcional)</span></label>
-                <input id="d-phone" class={field} type="tel" bind:value={phone} autocomplete="tel" inputmode="tel" maxlength="40" />
-              </div>
-              <div>
-                <label class={label} for="d-specialty">Especialidad</label>
-                <select id="d-specialty" class={field} bind:value={specialty}>
-                  <option value="">Elige una</option>
-                  {#each SPECIALTIES as s (s)}<option value={s}>{s}</option>{/each}
-                </select>
-              </div>
+              <input id="d-email" class={field} type="email" bind:value={email} autocomplete="email" inputmode="email" maxlength="200" required aria-invalid={tried && !emailOk} aria-describedby={tried && !emailOk ? 'd-email-err' : undefined} />
+              {#if tried && !emailOk}<p id="d-email-err" class="mt-1.5 text-[13px] text-[#b42318]">Escribe un correo válido, por ejemplo nombre@consultorio.mx.</p>{/if}
             </div>
             <div>
-              <label class={label} for="d-clinic">Nombre de tu consultorio <span class="normal-case tracking-normal text-ink-faint">(opcional)</span></label>
-              <input id="d-clinic" class={field} bind:value={clinic} autocomplete="organization" maxlength="160" />
+              <label class={label} for="d-specialty">Especialidad <span class="normal-case tracking-normal text-ink-faint">(opcional)</span></label>
+              <select id="d-specialty" class={field} bind:value={specialty}>
+                <option value="">Elige una</option>
+                {#each SPECIALTIES as s (s)}<option value={s}>{s}</option>{/each}
+              </select>
             </div>
-            <div>
-              <label class={label} for="d-message">¿Qué te gustaría resolver? <span class="normal-case tracking-normal text-ink-faint">(opcional)</span></label>
-              <textarea id="d-message" class="{field} min-h-28 resize-y" bind:value={message} maxlength="1500"></textarea>
-            </div>
+            <details class="group rounded-2xl ring-1 ring-ink/10">
+              <summary class="flex min-h-12 cursor-pointer select-none items-center justify-between px-4 text-[15px] font-medium">
+                Agregar detalles (opcional)
+                <span aria-hidden="true" class="text-ink-soft transition-transform duration-200 group-open:rotate-45">+</span>
+              </summary>
+              <div class="space-y-5 px-4 pb-5">
+                <div>
+                  <label class={label} for="d-phone">Teléfono</label>
+                  <input id="d-phone" class={field} type="tel" bind:value={phone} autocomplete="tel" inputmode="tel" maxlength="40" />
+                </div>
+                <div>
+                  <label class={label} for="d-clinic">Nombre de tu consultorio</label>
+                  <input id="d-clinic" class={field} bind:value={clinic} autocomplete="organization" maxlength="160" />
+                </div>
+                <div>
+                  <label class={label} for="d-message">¿Qué te gustaría resolver?</label>
+                  <textarea id="d-message" class="{field} min-h-28 resize-y" bind:value={message} maxlength="1500"></textarea>
+                </div>
+              </div>
+            </details>
 
             <!-- trampa para robots: fuera de la vista y del orden de tabulación -->
             <div aria-hidden="true" class="absolute -left-[9999px] h-0 w-0 overflow-hidden">
@@ -122,7 +137,7 @@
 
             <button
               type="submit"
-              disabled={!ready || status === 'sending'}
+              disabled={status === 'sending'}
               class="inline-flex h-14 w-full items-center justify-center rounded-full bg-ink text-[16px] font-medium text-paper transition-[background-color,transform] duration-200 hover:bg-signal active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {status === 'sending' ? 'Enviando…' : 'Solicitar demo'}

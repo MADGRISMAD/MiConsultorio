@@ -1,34 +1,22 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Wordmark from './Wordmark.svelte';
   import { contactEmail, demoHref, loginPath } from './data';
-  import { interp, reducedMotion, track } from './motion';
   import { cookieConsent } from '$lib/cookies.svelte';
 
   /** home="/" fuera de la portada: las anclas apuntan a la portada. */
   let { home = '' }: { home?: string } = $props();
   const cols: [string, [string, string][]][] = $derived([
-    ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#incluye`, 'Todo incluido'], [`${home}#especialidades`, 'Especialidades'], [`${home}#precios`, 'Precios']]],
-    ['Pacientes', [['/directorio', 'Buscar especialista'], ['/directorio/dentistas', 'Dentistas'], ['/directorio/psicologos', 'Psicólogos'], ['/directorio/nutriologos', 'Nutriólogos']]],
-    ['Soporte', [[`${home}#preguntas`, 'Preguntas frecuentes'], ['/blog', 'Blog'], [`mailto:${contactEmail}`, 'Contacto']]],
-    ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo']]]
+    ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#especialidades`, 'Especialidades'], [`${home}#incluye`, 'Más funciones'], [`${home}#precios`, 'Precios'], [`${home}#preguntas`, 'Preguntas frecuentes']]],
+    ['Pacientes', [['/directorio', 'Buscar especialista'], ['/blog', 'Blog']]],
+    ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo'], [`mailto:${contactEmail}`, 'Contacto']]]
   ]);
-
-  let footer: HTMLElement;
-  let big: HTMLParagraphElement;
-  onMount(() => {
-    const reduce = reducedMotion();
-    return track(footer, ['start end', 'end end'], (p) => {
-      big.style.transform = `translate3d(0, ${reduce ? 0 : interp(p, [0, 1], [55, 0])}%, 0)`;
-    });
-  });
 </script>
 
-<footer bind:this={footer} class="l-deep relative mt-3 overflow-hidden bg-ink text-paper">
-  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-10 pt-20 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
+<footer class="l-deep relative mt-3 overflow-hidden bg-ink text-paper">
+  <div class="mx-auto grid max-w-6xl gap-12 px-5 pb-8 pt-14 sm:px-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
     <div>
       <Wordmark light />
-      <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software de gestión para clínicas, consultorios, nutriólogos, veterinarias y más.</p>
+      <p class="mt-5 max-w-xs text-[15px] leading-relaxed text-paper/55">Software para consultorios y clínicas.</p>
     </div>
     {#each cols as [title, links]}
       <div>
@@ -46,8 +34,5 @@
       <span>© {new Date().getFullYear()} Caresia · Todos los derechos reservados</span>
       <span class="flex flex-wrap gap-x-5 gap-y-2"><a href="/privacidad" class="transition-colors hover:text-signal">Aviso de privacidad</a><a href="/terminos" class="transition-colors hover:text-signal">Términos de uso</a><button type="button" onclick={() => cookieConsent.reopen()} class="uppercase tracking-[0.12em] transition-colors hover:text-signal">Preferencias de cookies</button></span>
     </div>
-  </div>
-  <div aria-hidden="true" class="overflow-hidden">
-    <p bind:this={big} class="select-none text-center font-display text-[27vw] leading-[0.78] tracking-[-0.04em] text-paper/[0.07]">Caresia</p>
   </div>
 </footer>

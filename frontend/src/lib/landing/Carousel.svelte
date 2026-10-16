@@ -9,13 +9,15 @@
     name: string;
     id: string;
     interval?: number;
+    /** false = solo avanza quien lee (sin avance automático). */
+    autoplay?: boolean;
   }
   /**
    * Pestañas que avanzan solas. La barra de la pestaña activa es el reloj: al terminar su
    * animación pasa a la siguiente. Se detiene con el puntero o el foco encima, fuera de pantalla
    * y con "reducir movimiento". En celular también se desliza con el dedo.
    */
-  let { items, label, panel, name, id, interval = 6000 }: Props = $props();
+  let { items, label, panel, name, id, interval = 6000, autoplay = true }: Props = $props();
 
   let active = $state(0);
   let hovering = $state(false);
@@ -27,7 +29,7 @@
   const running = $derived(auto && visible && !hovering && !focused);
 
   onMount(() => {
-    auto = !reducedMotion();
+    auto = autoplay && !reducedMotion();
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { threshold: 0.35 });
     io.observe(root);
     return () => io.disconnect();

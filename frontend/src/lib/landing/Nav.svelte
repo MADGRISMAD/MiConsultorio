@@ -12,9 +12,8 @@
   let { home = '' }: { home?: string } = $props();
   const links = $derived([
     [`${home}#funciones`, 'Funciones'],
-    [`${home}#precios`, 'Precios'],
-    ['/directorio', 'Buscar especialista'],
-    ['/blog', 'Blog']
+    [`${home}#especialidades`, 'Especialidades'],
+    [`${home}#precios`, 'Precios']
   ]);
   const mobileLinks = $derived([...links, [loginPath, 'Iniciar sesión']]);
 
@@ -78,7 +77,7 @@
         <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
       </button>
       <a href={loginPath} class="hidden px-3 text-[15px] font-medium text-ink-soft hover:text-ink sm:block">Entrar</a>
-      <a href={demoHref} class="{btn} h-10 bg-ink px-5 text-sm text-paper hover:bg-signal">
+      <a href={demoHref} class="{btn} h-11 bg-ink px-5 text-sm text-paper hover:bg-signal">
         <ButtonLabel>Solicitar demo</ButtonLabel>
       </a>
       <button

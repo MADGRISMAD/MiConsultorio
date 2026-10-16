@@ -27,18 +27,14 @@
   <main>
   <Hero />
   <LazySection load={() => import('./Chaos.svelte')} height="90vh" />
-  <LazySection load={() => import('./Features.svelte')} id="funciones" height="120vh" />
-  <LazySection load={() => import('./Retention.svelte')} id="retencion" />
-  <LazySection load={() => import('./Modules.svelte')} id="incluye" height="100vh" />
-  <LazySection load={() => import('./Marquee.svelte')} height="20vh" />
-  <LazySection load={() => import('./Specialties.svelte')} id="especialidades" height="100vh" />
-  <LazySection load={() => import('./Security.svelte')} id="seguridad" />
-  <LazySection load={() => import('./Steps.svelte')} height="80vh" />
-  <div class="relative z-10 -mt-9 rounded-t-[36px] bg-paper">
-    <LazySection load={() => import('./Pricing.svelte')} id="precios" height="100vh" />
-    <LazySection load={() => import('./Faq.svelte')} id="preguntas" />
-  </div>
-  <LazySection load={() => import('./Cta.svelte')} id="contacto" height="70vh" />
+  <LazySection load={() => import('./Features.svelte')} id="funciones" height="90vh" />
+  <LazySection load={() => import('./Specialties.svelte')} id="especialidades" height="80vh" />
+  <LazySection load={() => import('./Retention.svelte')} id="retencion" height="60vh" />
+  <LazySection load={() => import('./Modules.svelte')} id="incluye" height="70vh" />
+  <LazySection load={() => import('./Security.svelte')} id="seguridad" height="70vh" />
+  <LazySection load={() => import('./Pricing.svelte')} id="precios" height="120vh" />
+  <LazySection load={() => import('./Faq.svelte')} id="preguntas" height="60vh" />
+  <LazySection load={() => import('./Cta.svelte')} id="contacto" height="55vh" />
   </main>
   <LazySection load={() => import('./Footer.svelte')} height="40vh" />
 </div>
