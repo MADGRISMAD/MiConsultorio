@@ -11,16 +11,11 @@
     { title: 'Empieza a atender', text: 'Registra pacientes y citas desde el primer día.' }
   ];
 
-  // The spotlight follows the pointer via --x / --y
-  function spotlight(e: PointerEvent) {
-    const el = e.currentTarget as HTMLElement;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--x', `${e.clientX - r.left}px`);
-    el.style.setProperty('--y', `${e.clientY - r.top}px`);
-  }
+
 </script>
 
-<section id="precios" class="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-8 lg:py-24">
+<section id="precios" class="relative isolate scroll-mt-24">
+  <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8 lg:py-24">
   <SectionHead title={'Planes claros,\n*sin letras chiquitas.*'} blurb="Pago mensual, sin plazo forzoso. Cancela cuando quieras." />
   <ul class="mt-12 grid gap-4 lg:grid-cols-3 lg:items-stretch">
     {#each plans as p, i}
@@ -29,14 +24,8 @@
         <div
           role="presentation"
           use:reveal={{ y: 40, delay: i * 0.08, margin: '0px 0px -10% 0px' }}
-          onpointermove={spotlight}
           class="group relative flex w-full flex-col overflow-hidden rounded-[26px] p-7 {dark ? 'l-deep bg-ink text-paper lg:-my-4 lg:py-11' : 'bg-panel ring-1 ring-ink/10'}"
         >
-          <span
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            style="background: radial-gradient(320px circle at var(--x) var(--y), {dark ? 'rgba(22,115,209,0.22)' : 'rgba(22,115,209,0.10)'}, transparent 70%)"
-          ></span>
           <div class="relative flex items-center justify-between">
             <h3 class="font-display text-3xl">{p.name}</h3>
             {#if p.featured}<span class="rounded-full bg-signal px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white">Recomendado</span>{/if}
@@ -81,4 +70,5 @@
       </li>
     {/each}
   </ol>
+  </div>
 </section>

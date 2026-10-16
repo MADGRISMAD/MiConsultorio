@@ -216,13 +216,7 @@
     ghostEl.dataset.on = '0';
   }
 
-  // Pointer-following light on the product window.
-  function glow(e: PointerEvent) {
-    if (e.pointerType !== 'mouse') return;
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    (e.currentTarget as HTMLElement).style.setProperty('--gx', `${e.clientX - r.left}px`);
-    (e.currentTarget as HTMLElement).style.setProperty('--gy', `${e.clientY - r.top}px`);
-  }
+
 
   onMount(() => {
     const reduce = reducedMotion();
@@ -310,13 +304,6 @@
 </script>
 
 <section id="inicio" bind:this={section} class="relative isolate overflow-hidden pb-16 pt-28 sm:pb-20 sm:pt-32">
-  <!-- aurora: slow-drifting colour fields + a fading grid, behind everything -->
-  <div aria-hidden="true" class="aurora pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-    <span class="blob b1"></span>
-    <span class="blob b2"></span>
-    <span class="blob b3"></span>
-    <span class="grid-lines"></span>
-  </div>
 
   <div bind:this={text} class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="enter-fade flex items-center justify-between border-b border-ink/15 pb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft" style="--d: 0.1s">
@@ -328,7 +315,7 @@
       tag="h1"
       text={'Menos papeleo,\n*más consulta.*'}
       class="mt-6 font-display text-[clamp(3.25rem,14vw,5rem)] font-normal leading-[0.96] tracking-[-0.025em] text-ink sm:text-[clamp(5rem,12vw,10rem)] sm:leading-[0.92] sm:tracking-[-0.035em]"
-      accent="shimmer italic"
+      accent="italic text-signal"
       delay={0}
       stagger={0.035}
       duration={0.6}
@@ -362,8 +349,7 @@
 
     <div bind:this={window3d} class="relative z-10 will-change-transform [transform-origin:50%_0%]" aria-hidden="true">
       <div bind:this={tiltEl} class="[transform-style:preserve-3d] will-change-transform" style="transition: transform 120ms linear">
-      <div role="presentation" onpointermove={glow} class="glow-host relative overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
-        <div aria-hidden="true" class="glow-spot pointer-events-none absolute inset-0 z-10"></div>
+      <div class="relative overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
         <div class="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
@@ -512,40 +498,6 @@
 </section>
 
 <style>
-  .aurora .blob {
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(90px);
-    will-change: transform;
-  }
-  .aurora .b1 {
-    left: -8%;
-    top: -12%;
-    width: 46rem;
-    height: 38rem;
-    background: rgb(var(--l-signal) / 0.32);
-  }
-  .aurora .b2 {
-    right: -10%;
-    top: 4%;
-    width: 40rem;
-    height: 34rem;
-    background: rgb(var(--l-mint) / 0.26);
-  }
-  .aurora .b3 {
-    left: 30%;
-    top: 46%;
-    width: 44rem;
-    height: 30rem;
-    background: rgb(var(--l-signal) / 0.14);
-  }
-  .aurora .grid-lines {
-    position: absolute;
-    inset: 0;
-    background-image: linear-gradient(rgb(var(--l-ink) / 0.05) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--l-ink) / 0.05) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(70% 60% at 50% 30%, black, transparent);
-  }
   .ghost {
     opacity: 0;
     transition: opacity 400ms ease-out;
@@ -563,27 +515,8 @@
     stroke-dasharray: 1;
   }
   @media (prefers-reduced-motion: no-preference) {
-    .aurora .b1 {
-      animation: drift-a 22s ease-in-out infinite alternate;
-    }
-    .aurora .b2 {
-      animation: drift-b 26s ease-in-out infinite alternate;
-    }
-    .aurora .b3 {
-      animation: drift-a 30s ease-in-out infinite alternate-reverse;
-    }
     .spark {
       animation: spark-draw 1.6s cubic-bezier(0.23, 1, 0.32, 1) 2.4s both;
-    }
-  }
-  @keyframes drift-a {
-    to {
-      transform: translate3d(8%, 10%, 0) scale(1.12);
-    }
-  }
-  @keyframes drift-b {
-    to {
-      transform: translate3d(-10%, 8%, 0) scale(1.08);
     }
   }
   @keyframes spark-draw {
@@ -606,16 +539,6 @@
     box-shadow:
       0 1px 2px rgb(var(--l-shade) / 0.12),
       0 18px 28px -10px rgb(var(--l-shade) / 0.4);
-  }
-  .glow-spot {
-    opacity: 0;
-    transition: opacity 300ms ease-out;
-    background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 50%), rgb(var(--l-signal) / 0.1), transparent 65%);
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .glow-host:hover .glow-spot {
-      opacity: 1;
-    }
   }
   @media (prefers-reduced-motion: no-preference) {
     .story-in {

@@ -172,8 +172,7 @@
 
 <section bind:this={section} class="relative h-[180svh] bg-paper" aria-labelledby="chaos-title">
   <!-- the desk fades out as the papers get tidy; a static paper-coloured fade at the top blends the hero into it -->
-  <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk" style="background-image: radial-gradient(70% 55% at 50% 0%, rgb(var(--l-panel) / 0.6), transparent)"></div>
-  <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-paper to-transparent sm:h-36"></div>
+  <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk"></div>
   <div class="sticky top-0 z-10 flex h-[100svh] flex-col justify-center overflow-hidden px-5 sm:px-8">
     <div class="mx-auto w-full max-w-6xl">
       <div class="flex items-start justify-between gap-4 sm:items-end sm:gap-6">
@@ -198,8 +197,8 @@
 
       <ul bind:this={ul} class="relative mt-8 grid grid-cols-2 gap-2.5 sm:mt-12 sm:gap-4 lg:grid-cols-4">
         <div bind:this={scan} aria-hidden="true" class="pointer-events-none absolute -inset-y-8 left-0 z-20 w-0 opacity-0">
-          <div class="absolute inset-y-0 right-0 w-48 bg-gradient-to-r from-transparent to-mint/20"></div>
-          <div class="absolute inset-y-0 right-0 w-0.5 bg-mint shadow-[0_0_28px_6px_rgb(var(--l-mint)/0.5)]"></div>
+          <div class="absolute inset-y-0 right-0 w-24 bg-mint/10"></div>
+          <div class="absolute inset-y-0 right-0 w-[3px] rounded-full bg-mint"></div>
         </div>
         {#each scraps as s, i}
           <li bind:this={items[i]} class="relative h-[100px] cursor-grab will-change-transform sm:h-[120px]">

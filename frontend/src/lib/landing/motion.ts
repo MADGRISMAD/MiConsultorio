@@ -212,3 +212,26 @@ export function whileInView(node: Element, opts: { margin: string; cb: (inView: 
   io.observe(node);
   return { destroy: () => io.disconnect() };
 }
+
+/**
+ * Svelte action: scroll parallax. The node drifts against the scroll by `speed` × its distance from the viewport centre
+ * (positive = slower than the page, negative = faster). Only runs while the node is near the viewport; off with reduced motion.
+ */
+export function parallax(node: HTMLElement, speed = 0.08) {
+  if (reducedMotion()) return {};
+  let visible = false;
+  const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { rootMargin: '20% 0px' });
+  io.observe(node);
+  const stop = onFrame(() => {
+    if (!visible) return;
+    const r = node.getBoundingClientRect();
+    const mid = r.top + r.height / 2 - innerHeight / 2;
+    node.style.transform = `translate3d(0, ${(-mid * speed).toFixed(1)}px, 0)`;
+  });
+  return {
+    destroy() {
+      stop();
+      io.disconnect();
+    }
+  };
+}
