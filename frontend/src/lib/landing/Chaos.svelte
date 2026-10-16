@@ -138,15 +138,15 @@
       (p) => {
         const t0 = clamp((p - 0.1) / 0.55, 0, 1); // 0 = messy desk, 1 = tidy paper
         desk.style.opacity = String(1 - t0);
-        const b = interp(p, [0.3, 0.42], [1, 0]);
+        const b = interp(p, [0.4, 0.5], [1, 0]);
         before.style.opacity = String(b);
-        hint.style.opacity = String(interp(p, [0.12, 0.3], [1, 0]));
-        before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -12])}%)`;
-        after.style.opacity = String(interp(p, [0.42, 0.55], [0, 1]));
-        after.style.transform = `translateY(${interp(p, [0.42, 0.55], [12, 0])}%)`;
+        hint.style.opacity = String(interp(p, [0.08, 0.22], [1, 0]));
+        before.style.transform = `translateY(${interp(p, [0.4, 0.5], [0, -12])}%)`;
+        after.style.opacity = String(interp(p, [0.5, 0.62], [0, 1]));
+        after.style.transform = `translateY(${interp(p, [0.5, 0.62], [12, 0])}%)`;
         bar.style.transform = `scaleX(${interp(p, [0.12, 0.75], [0, 1])})`;
 
-        const f = interp(p, [0.12, 0.6], [-0.1, 1.12]); // scan position across the desk (0..1)
+        const f = interp(p, [0.08, 0.5], [-0.1, 1.12]); // scan position across the desk (0..1)
         let tidy = 0;
         scraps.forEach((_, i) => {
           const u = clamp((f - slotX[i] + 0.04) / 0.22, 0, 1);
@@ -170,7 +170,7 @@
   });
 </script>
 
-<section bind:this={section} class="relative h-[260svh] bg-paper" aria-labelledby="chaos-title">
+<section bind:this={section} class="relative h-[180svh] bg-paper" aria-labelledby="chaos-title">
   <!-- the desk fades out as the papers get tidy; a static paper-coloured fade at the top blends the hero into it -->
   <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk" style="background-image: radial-gradient(70% 55% at 50% 0%, rgb(var(--l-panel) / 0.6), transparent)"></div>
   <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-paper to-transparent sm:h-36"></div>
