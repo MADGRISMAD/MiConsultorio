@@ -7,7 +7,7 @@
   import Mark from './Mark.svelte';
   import Split from './Split.svelte';
   import { demoHref } from './data';
-  import { btn, interp, magnetic, onFrame, reducedMotion, Spring, track } from './motion';
+  import { btn, interp, onFrame, reducedMotion, Spring, track } from './motion';
 
   // Day view shown in the product window: two doctors, two specialties, one clinic
   const HOUR = 8; // first hour on the grid
@@ -56,10 +56,11 @@
       }),
       track(
         stage,
-        ['start end', 'center 55%'],
+        ['start end', 'start 65%'],
         (p) => {
-          const rotate = reduce ? 0 : interp(p, [0, 1], [28, 0]);
-          const scale = reduce ? 1 : interp(p, [0, 1], [0.86, 1]);
+          const flat = reduce || window.innerWidth < 640;
+          const rotate = flat ? 0 : interp(p, [0, 1], [12, 0]);
+          const scale = flat ? 1 : interp(p, [0, 1], [0.97, 1]);
           window3d.style.transform = `rotateX(${rotate}deg) scale(${scale})`;
         },
         { stiffness: 90, damping: 24, mass: 0.4 }
@@ -91,9 +92,9 @@
 
 </script>
 
-<section id="inicio" bind:this={section} class="relative overflow-hidden pb-20 pt-32 sm:pt-40">
+<section id="inicio" bind:this={section} class="relative overflow-hidden pb-16 pt-28 sm:pb-20 sm:pt-32">
   <!-- soft light behind the headline -->
-  <div aria-hidden="true" class="pointer-events-none absolute left-1/2 top-0 -z-10 h-[60rem] w-[90rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(22,115,209,0.10),transparent)]"></div>
+  <div aria-hidden="true" class="pointer-events-none absolute left-1/2 top-0 -z-10 h-[60rem] w-[90rem] -translate-x-1/2 bg-[radial-gradient(closest-side,rgb(var(--l-signal)/0.10),transparent)]"></div>
 
   <div bind:this={text} class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="enter-fade flex items-center justify-between border-b border-ink/15 pb-4 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft" style="--d: 0.1s">
@@ -104,19 +105,19 @@
     <Split
       tag="h1"
       text={'Menos papeleo,\n*más consulta.*'}
-      class="mt-8 font-display text-[clamp(3.4rem,15vw,11rem)] font-normal leading-[0.88] tracking-[-0.035em] text-ink"
+      class="mt-6 font-display text-[clamp(3.25rem,14vw,5rem)] font-normal leading-[0.96] tracking-[-0.025em] text-ink sm:text-[clamp(5rem,12vw,10rem)] sm:leading-[0.92] sm:tracking-[-0.035em]"
       accent="italic text-signal"
       delay={0}
-      stagger={0.05}
-      duration={0.7}
+      stagger={0.035}
+      duration={0.6}
     />
 
-    <div class="mt-10 grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-end">
-      <p class="enter-up max-w-md text-lg leading-relaxed text-ink-soft [text-wrap:pretty] sm:text-xl" style="--d: 0.7s">
+    <div class="mt-7 grid gap-5 md:grid-cols-[1.1fr_1fr] md:items-start md:gap-10">
+      <p class="enter-up max-w-[34rem] text-base leading-[1.55] text-ink-soft [text-wrap:pretty] sm:text-lg" style="--d: 0.25s; --t: 0.6s">
         Agenda, expedientes, recetas, cobros y reportes para <span class="text-ink">clínicas dentales</span>, <span class="text-ink">consultorios médicos</span>, <span class="text-ink">nutriólogos</span>, <span class="text-ink">veterinarias</span> y más. Todo en un solo lugar, con IA donde ayuda.
       </p>
-      <div class="enter-up flex flex-wrap items-center gap-3 md:justify-end" style="--d: 0.85s">
-        <div class="inline-flex" use:magnetic>
+      <div class="enter-up flex flex-wrap items-center gap-3 md:justify-start md:pt-1" style="--d: 0.35s; --t: 0.6s">
+        <div class="inline-flex">
           <a href={demoHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-signal">
             <ButtonLabel>Solicitar demo gratis</ButtonLabel>
             <span class="ml-2 grid h-10 w-10 place-items-center rounded-full bg-paper text-ink transition-transform duration-500 ease-out-strong group-hover:rotate-[-45deg]">
@@ -124,7 +125,7 @@
             </span>
           </a>
         </div>
-        <a href="#precios" class="group px-3 py-2 text-[16px] font-medium text-ink">
+        <a href="#precios" class="group inline-flex min-h-11 items-center px-3 py-2 text-[16px] font-medium text-ink">
           <span class="bg-[linear-gradient(currentColor,currentColor)] bg-[length:100%_1px] bg-[position:0_100%] bg-no-repeat pb-0.5 transition-[background-size] duration-500 ease-out-strong group-hover:bg-[length:0%_1px] group-hover:bg-[position:100%_100%]">Ver precios</span>
         </a>
       </div>
@@ -132,13 +133,13 @@
   </div>
 
   <!-- Product stage -->
-  <div bind:this={stage} class="relative mx-auto mt-20 max-w-6xl px-3 sm:mt-24 sm:px-8 [perspective:1600px]">
+  <div bind:this={stage} class="relative mx-auto mt-10 max-w-6xl px-3 sm:mt-12 sm:px-8 [perspective:1600px]">
     <div bind:this={ecg} aria-hidden="true" class="pointer-events-none absolute inset-x-[-20vw] top-[30%] -z-10 h-32">
       <Ecg class="h-full w-full" beats={6} />
     </div>
 
     <div bind:this={window3d} class="relative z-10 will-change-transform [transform-origin:50%_0%]" aria-hidden="true">
-      <div class="overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgba(11,37,64,0.04),0_40px_80px_-24px_rgba(11,37,64,0.35)] ring-1 ring-ink/10">
+      <div class="overflow-hidden rounded-[22px] bg-panel shadow-[0_2px_4px_rgb(var(--l-shade)/0.06),0_16px_32px_-16px_rgb(var(--l-shade)/0.18),0_40px_72px_-28px_rgb(var(--l-shade)/0.24),inset_0_1px_0_rgb(var(--l-panel)/0.8)] ring-1 ring-ink/10">
         <div class="flex items-center gap-1.5 border-b border-ink/5 px-4 py-3">
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
           <span class="h-2.5 w-2.5 rounded-full bg-ink/10"></span>
@@ -191,7 +192,7 @@
                     {#each d.slots as s, si}
                       <div
                         class="slot-in absolute inset-x-0 overflow-hidden rounded-lg border-l-[3px] px-2 py-1 sm:px-2.5 sm:py-1.5 {d.tone === 'dental' ? 'border-mint bg-mint-soft' : 'border-signal bg-signal-soft'}"
-                        style="top: calc(var(--h) * {s.start - HOUR} + 2px); height: calc(var(--h) * {s.len} - 4px); animation-delay: {1.1 + (si * 2 + di) * 0.09}s"
+                        style="top: calc(var(--h) * {s.start - HOUR} + 2px); height: calc(var(--h) * {s.len} - 4px); animation-delay: {0.45 + (si * 2 + di) * 0.05}s"
                       >
                         <p class="truncate text-[10px] font-semibold sm:text-[12px]">{s.who}</p>
                         <p class="truncate text-[9px] text-ink-soft sm:text-[11px]">{s.what}</p>
@@ -211,7 +212,7 @@
       </div>
     </div>
 
-    <Float depth={1.3} {ctx} delay={1.5} class="-left-2 top-[-3rem] hidden md:block lg:-left-14">
+    <Float depth={1.3} {ctx} delay={1.5} class="-left-2 top-[-1.5rem] hidden md:block lg:-left-14">
       <div class="{chip} w-64 p-4">
         <div class="flex items-center gap-3">
           <span class="grid h-10 w-10 place-items-center rounded-full bg-mint-soft font-display text-lg text-mint">ML</span>
@@ -227,7 +228,7 @@
       </div>
     </Float>
 
-    <Float depth={2} {ctx} delay={1.7} class="-right-1 top-[18%] sm:right-2 lg:-right-12">
+    <Float depth={2} {ctx} delay={1.7} class="-bottom-4 -right-1 top-auto sm:bottom-auto sm:right-2 sm:top-[18%] lg:-right-12">
       <div class="{chip} flex items-center gap-3 py-3 pl-3 pr-5">
         <span class="grid h-9 w-9 place-items-center rounded-full bg-mint text-white"><Icon name="check" class="h-4 w-4" strokeWidth={2.4} /></span>
         <span>
@@ -250,7 +251,7 @@
       </div>
     </Float>
 
-    <Float depth={2.6} {ctx} delay={2.1} class="-bottom-10 right-6 hidden md:block lg:-right-6">
+    <Float depth={2.6} {ctx} delay={2.1} class="-bottom-6 right-6 hidden md:block lg:-right-6">
       <div class="w-52 rotate-[5deg] bg-[#F5E7A0] p-4 pb-6 font-hand text-[24px] leading-[1.05] text-ink shadow-[0_20px_40px_-14px_rgba(11,37,64,0.4)]">¡Adiós a la agenda de papel!</div>
     </Float>
   </div>

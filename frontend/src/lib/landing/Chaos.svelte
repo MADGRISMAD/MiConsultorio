@@ -26,29 +26,33 @@
   ];
 
   const paper: Record<Kind, string> = {
-    sticky: 'bg-[#F5E7A0] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.45)]',
-    card: 'bg-[#FBFAF6] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.4)] bg-[repeating-linear-gradient(transparent,transparent_23px,rgba(70,110,170,0.18)_24px)]',
-    folder: 'bg-[#E4CF9E] shadow-[0_14px_28px_-12px_rgba(11,37,64,0.45)] rounded-tr-xl'
+    sticky: 'bg-[#F5E7A0] shadow-[0_1px_2px_rgb(var(--l-shade)/0.10),0_12px_20px_-12px_rgb(var(--l-shade)/0.28)]',
+    card: 'bg-[#FBFAF6] shadow-[0_1px_2px_rgb(var(--l-shade)/0.10),0_12px_20px_-12px_rgb(var(--l-shade)/0.28)] bg-[repeating-linear-gradient(transparent,transparent_23px,rgba(70,110,170,0.18)_24px)]',
+    folder: 'bg-[#E4CF9E] shadow-[0_1px_2px_rgb(var(--l-shade)/0.10),0_12px_20px_-12px_rgb(var(--l-shade)/0.28),0_18px_28px_-16px_rgb(var(--l-shade)/0.32)] rounded-tr-xl'
   };
 
   let section: HTMLElement;
-  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement;
+  let before: HTMLElement, after: HTMLElement, count: HTMLElement, bar: HTMLElement, desk: HTMLElement;
   const items: HTMLElement[] = [];
   const messyEls: HTMLElement[] = [];
   const cleanEls: HTMLElement[] = [];
 
   onMount(() => {
     const k = reducedMotion() ? 0 : 1;
+    const small = window.innerWidth < 640;
+    const vh = window.innerHeight / 100;
+    const capY = small ? 24 : 72;
     return track(
       section,
       ['start start', 'end end'],
       (p) => {
-        section.style.setProperty('--t', String(clamp((p - 0.1) / 0.55, 0, 1))); // 0 = messy desk, 1 = tidy paper
+        const t0 = clamp((p - 0.1) / 0.55, 0, 1); // 0 = messy desk, 1 = tidy paper
+        desk.style.opacity = String(1 - t0);
         const b = interp(p, [0.3, 0.42], [1, 0]);
         before.style.opacity = String(b);
-        before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -30])}%)`;
+        before.style.transform = `translateY(${interp(p, [0.3, 0.42], [0, -12])}%)`;
         after.style.opacity = String(interp(p, [0.42, 0.55], [0, 1]));
-        after.style.transform = `translateY(${interp(p, [0.42, 0.55], [30, 0])}%)`;
+        after.style.transform = `translateY(${interp(p, [0.42, 0.55], [12, 0])}%)`;
         count.textContent = String(Math.round(interp(p, [0.12, 0.75], [scraps.length, 0]))).padStart(2, '0');
         bar.style.transform = `scaleX(${interp(p, [0.12, 0.75], [0, 1])})`;
 
@@ -56,7 +60,8 @@
           const a = 0.12 + i * 0.025;
           const e = 0.55 + i * 0.025;
           const t = 1 - clamp((p - a) / (e - a), 0, 1); // 1 = scattered, 0 = tidy
-          items[i].style.transform = `translate3d(${s.from[0] * k * t}vw, ${s.from[1] * k * t}vh, 0) rotate(${s.from[2] * k * t}deg)`;
+          const dy = clamp(s.from[1] * vh, -capY, capY);
+          items[i].style.transform = `translate3d(${s.from[0] * (small ? 0.5 : 1) * k * t}vw, ${dy * k * t}px, 0) rotate(${s.from[2] * (small ? 0.65 : 1) * k * t}deg)`;
           messyEls[i].style.opacity = String(interp(p, [e - 0.12, e], [1, 0]));
           cleanEls[i].style.opacity = String(interp(p, [e - 0.1, e + 0.02], [0, 1]));
         });
@@ -66,11 +71,14 @@
   });
 </script>
 
-<section bind:this={section} class="relative h-[300vh]" style="background-color: color-mix(in srgb, rgb(var(--l-paper)) calc(var(--t, 0) * 100%), rgb(var(--l-desk)))" aria-labelledby="chaos-title">
-  <div class="sticky top-0 flex h-screen flex-col justify-center overflow-hidden px-4 sm:px-8">
+<section bind:this={section} class="relative h-[260svh] bg-paper" aria-labelledby="chaos-title">
+  <!-- the desk fades out as the papers get tidy; a static paper-coloured fade at the top blends the hero into it -->
+  <div bind:this={desk} aria-hidden="true" class="pointer-events-none absolute inset-0 bg-desk"></div>
+  <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-paper to-transparent sm:h-36"></div>
+  <div class="sticky top-0 z-10 flex h-[100svh] flex-col justify-center overflow-hidden px-5 sm:px-8">
     <div class="mx-auto w-full max-w-6xl">
-      <div class="flex items-end justify-between gap-6">
-        <div class="relative h-[2.2em] flex-1 font-display text-[clamp(2.2rem,6vw,5rem)] leading-[1] tracking-[-0.02em]">
+      <div class="flex items-start justify-between gap-4 sm:items-end sm:gap-6">
+        <div class="relative h-[2.35em] flex-1 font-display text-[clamp(2rem,8.2vw,3.25rem)] leading-[1.02] tracking-[-0.025em] sm:text-[clamp(3.25rem,6vw,5rem)]">
           <h2 id="chaos-title" class="sr-only">Del papel al orden: así cambia tu consultorio con Caresia</h2>
           <p bind:this={before} aria-hidden="true" class="absolute inset-0">
             Así se ve un consultorio<br /><span class="italic text-signal">con papel.</span>
@@ -79,21 +87,21 @@
             Y así se ve<br /><span class="italic text-mint">con Caresia.</span>
           </p>
         </div>
-        <div class="hidden w-48 flex-none text-right sm:block" aria-hidden="true">
-          <p class="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-soft">Papeles sueltos</p>
-          <p bind:this={count} class="font-display text-6xl tabular-nums leading-none">{String(scraps.length).padStart(2, '0')}</p>
-          <div class="mt-3 h-px w-full bg-ink/15">
+        <div class="block w-16 flex-none text-right sm:w-40" aria-hidden="true">
+          <p class="font-mono text-[9px] uppercase leading-[1.4] tracking-[0.1em] text-ink-soft sm:text-[11px] sm:tracking-[0.14em]">Papeles sueltos</p>
+          <p bind:this={count} class="font-display text-5xl tabular-nums leading-none sm:text-7xl">{String(scraps.length).padStart(2, '0')}</p>
+          <div class="mt-2 h-px w-full bg-ink/15 sm:mt-3">
             <div bind:this={bar} class="h-px origin-left scale-x-0 bg-ink"></div>
           </div>
         </div>
       </div>
 
-      <ul class="mt-10 grid grid-cols-2 gap-2.5 sm:mt-14 sm:gap-4 lg:grid-cols-4">
+      <ul class="mt-8 grid grid-cols-2 gap-2.5 sm:mt-12 sm:gap-4 lg:grid-cols-4">
         {#each scraps as s, i}
-          <li bind:this={items[i]} class="relative h-[92px] will-change-transform sm:h-[112px]">
+          <li bind:this={items[i]} class="relative h-[100px] will-change-transform sm:h-[120px]">
             <div bind:this={messyEls[i]} class="absolute inset-0 p-3 sm:p-4 {paper[s.kind]}" aria-hidden="true">
               {#if s.kind === 'folder'}<span class="absolute -top-3 left-0 h-3 w-16 rounded-t-md bg-[#E4CF9E]"></span>{/if}
-              <p class="font-hand text-[17px] leading-[1.05] text-ink/85 sm:text-[22px]">{s.messy}</p>
+              <p class="font-hand text-[17px] leading-[1.05] text-[#0B2540]/85 sm:text-[22px]">{s.messy}</p>
             </div>
             <div bind:this={cleanEls[i]} class="absolute inset-0 flex flex-col justify-between rounded-2xl bg-panel p-3 ring-1 ring-ink/10 sm:p-4" style="opacity: 0">
               <span class="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-faint sm:text-[10px]">

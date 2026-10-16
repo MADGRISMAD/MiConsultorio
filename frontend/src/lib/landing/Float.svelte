@@ -26,7 +26,7 @@
   onMount(() => {
     const k = reducedMotion() ? 0 : depth;
     return onFrame(() => {
-      el.style.transform = `translate3d(${ctx.mx * k * 36}px, ${-ctx.p * k * 220 + ctx.my * k * 36}px, 0)`;
+      el.style.transform = `translate3d(${ctx.mx * k * 16}px, ${-ctx.p * k * 80 + ctx.my * k * 16}px, 0)`;
     });
   });
 </script>

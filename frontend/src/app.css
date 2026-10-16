@@ -55,6 +55,8 @@
   --l-signal-soft: 220 234 251;
   --l-mint: 15 158 142;
   --l-mint-soft: 211 240 236;
+  /* Color de las sombras: la tinta en claro, el fondo más oscuro en oscuro (una sombra clara no se ve como sombra) */
+  --l-shade: 11 37 64;
 }
 .landing[data-theme='dark'] {
   --l-paper: 7 22 40;
@@ -67,6 +69,7 @@
   --l-signal-soft: 14 41 70;
   --l-mint: 45 196 178;
   --l-mint-soft: 10 46 52;
+  --l-shade: 3 12 24;
   color-scheme: dark;
 }
 /* Sections that stay navy in both themes (steps, pricing highlight, call to action, footer) */
