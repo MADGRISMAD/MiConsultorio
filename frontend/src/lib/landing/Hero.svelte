@@ -313,7 +313,7 @@
 
     <Split
       tag="h1"
-      text={'Menos papeleo,\n*más consulta.*'}
+      text={'Atiende pacientes,\n*no papeles.*'}
       class="mt-6 font-display text-[clamp(3.25rem,14vw,5rem)] font-normal leading-[0.96] tracking-[-0.025em] text-ink sm:text-[clamp(5rem,12vw,10rem)] sm:leading-[0.92] sm:tracking-[-0.035em]"
       accent="italic text-signal"
       delay={0}
