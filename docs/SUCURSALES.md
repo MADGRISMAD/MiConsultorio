@@ -31,11 +31,13 @@ Se eligió **una cuenta de administrador propia de cada sucursal, vinculada al d
 
 ## Baja lógica
 
-`POST /org/branches/{id}/suspend` marca `clinics.branch_suspended_at`. La sucursal se bloquea igual que una clínica sin suscripción (`SUBSCRIPTION_REQUIRED`), deja de aceptar reservas en línea, portal y lista de espera, y **no se borra ningún dato**. No se puede dar de baja la matriz ni la sucursal en la que se está. Sigue apareciendo en los reportes. En el panel de plataforma la sucursal sale como **Sucursal suspendida** (estado `branch_suspended`, filtro propio y conteo en el resumen), distinto de «Suspendido» por cobro. `POST /org/branches/{id}/reactivate` la devuelve (sujeta al límite del plan).
+`POST /org/branches/{id}/suspend` marca `clinics.branch_suspended_at`. La sucursal se bloquea igual que una clínica sin suscripción (`SUBSCRIPTION_REQUIRED`), deja de aceptar reservas en línea, portal y lista de espera, y **no se borra ningún dato**. No se puede dar de baja la matriz ni la sucursal en la que se está. Sigue apareciendo en los reportes. En el panel de plataforma se ve en la pestaña Sucursales de su matriz como **Sucursal suspendida** (estado `branch_suspended`), distinto de «Suspendido» por cobro. `POST /org/branches/{id}/reactivate` la devuelve (sujeta al límite del plan).
 
 ## Panel de plataforma
 
-`GET /platform/clinics` y `/platform/overview` devuelven por clínica `is_matrix`, `branch_count`, `matrix_id`, `matrix_name` y `branch_suspended_at`; el detalle de una matriz (`GET /platform/clinics/{id}`) incluye `branches`. En la lista, las sucursales cuelgan indentadas de su matriz (con filtro o búsqueda la lista es plana y dice «Sucursal de …»), y el perfil de la matriz tiene la pestaña **Sucursales**. En una sucursal no se muestran Suspender/Reactivar de plataforma: se administra la matriz.
+Una sucursal se cobra con la suscripción de su matriz, así que **no es un cliente aparte**: la lista general de negocios, los conteos y los ingresos mensuales (MRR) del resumen la dejan fuera. La matriz sale en la lista con su cantidad de sucursales («Matriz · N sucursales») y también se encuentra buscando el nombre de una de ellas.
+
+`GET /platform/clinics` y `/platform/overview` devuelven solo matrices y negocios sin sucursales; por clínica traen `is_matrix` y `branch_count`. El detalle de una matriz (`GET /platform/clinics/{id}`) incluye `branches`, y el perfil tiene la pestaña **Sucursales** con el estado de cada una; una suspendida por su dueño sale como «Sucursal suspendida» (`branch_suspended`). Cada sucursal sigue abriéndose por su id (con un enlace a su matriz) y no muestra Suspender/Reactivar de plataforma: se administra la matriz.
 
 ## Reportes consolidados (solo dueño)
 

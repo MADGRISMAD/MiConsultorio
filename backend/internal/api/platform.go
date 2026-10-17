@@ -105,20 +105,40 @@ func (s *Server) platformPlans(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"plans": planCatalog})
 }
 
+// ownClients leaves out the branches: a branch is billed through its matrix, so it is not a client of its own and would
+// count twice in the lists, the totals and the monthly revenue. Each matrix lists its branches in its own profile.
+func ownClients(list []clinicRow) []clinicRow {
+	out := make([]clinicRow, 0, len(list))
+	for _, c := range list {
+		if c.MatrixID == nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func (s *Server) platformClinics(w http.ResponseWriter, r *http.Request) {
-	list, err := loadClinics(r.Context(), s.db, "")
+	all, err := loadClinics(r.Context(), s.db, "")
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
+	list := ownClients(all)
+	// a matrix is also found by the name of one of its branches
+	branchNames := map[string]string{}
+	for _, c := range all {
+		if c.MatrixID != nil {
+			branchNames[*c.MatrixID] += " " + c.Name
+		}
+	}
 	q := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	state := r.URL.Query().Get("state")
-	out := list[:0]
+	out := make([]clinicRow, 0, len(list))
 	for _, c := range list {
 		if state != "" && state != "all" && c.State != state {
 			continue
 		}
-		if q != "" && !strings.Contains(strings.ToLower(c.Name+" "+c.OwnerName+" "+c.OwnerEmail+" "+c.Email), q) {
+		if q != "" && !strings.Contains(strings.ToLower(c.Name+" "+c.OwnerName+" "+c.OwnerEmail+" "+c.Email+branchNames[c.ID]), q) {
 			continue
 		}
 		out = append(out, c)
@@ -573,22 +593,18 @@ type attentionItem struct {
 }
 
 func (s *Server) platformOverview(w http.ResponseWriter, r *http.Request) {
-	list, err := loadClinics(r.Context(), s.db, "")
+	all, err := loadClinics(r.Context(), s.db, "")
 	if err != nil {
 		serverError(w, r, err)
 		return
 	}
+	list := ownClients(all)
 	now := time.Now()
 	counts := map[string]int{"total": len(list), "trialing": 0, "trial_expired": 0, "active": 0, "past_due": 0, "suspended": 0}
 	mrr := 0
 	var attention []attentionItem
-	counts["branch_suspended"] = 0
 	for _, c := range list {
-		// the subscription is judged by its own state; a branch switched off is counted apart, in addition
 		counts[c.BillingState]++
-		if c.BranchSuspendedAt != nil {
-			counts["branch_suspended"]++
-		}
 		plan, _ := planByID(c.Plan)
 		switch c.BillingState {
 		case "active":
