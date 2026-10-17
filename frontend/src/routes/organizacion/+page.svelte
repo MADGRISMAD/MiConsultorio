@@ -101,7 +101,7 @@
             <div class="flex flex-none flex-wrap justify-end gap-1">
               {#if b.is_matrix}<Pill tone="info">Matriz</Pill>{/if}
               {#if b.current}<Pill tone="ok">Estás aquí</Pill>{/if}
-              {#if b.suspended}<Pill tone="bad">De baja</Pill>{/if}
+              {#if b.suspended}<Pill tone="bad">{b.suspended_by === 'license' ? 'Sin licencia' : 'De baja'}</Pill>{/if}
             </div>
           </div>
           <p class="text-xs text-app-muted">{b.people} {b.people === 1 ? 'persona' : 'personas'} en el equipo</p>
@@ -110,7 +110,9 @@
               <button type="button" class="btn-primary" disabled={act.phase === 'loading'} onclick={() => enter(b)}><Icon name="arrow-right" size={18} />Entrar</button>
             {/if}
             {#if !b.is_matrix && !b.current}
-              {#if b.suspended}
+              {#if b.suspended_by === 'license'}
+                <p class="text-xs text-app-muted">Tu plan ya no incluye sucursales. Se reactivará sola al contratar un plan con sucursales.</p>
+              {:else if b.suspended}
                 <button type="button" class="btn-secondary" onclick={() => (toggle = { b, off: false })}><Icon name="refresh" size={18} />Reactivar</button>
               {:else}
                 <button type="button" class="btn-secondary" onclick={() => (toggle = { b, off: true })}><Icon name="ban" size={18} />Dar de baja</button>

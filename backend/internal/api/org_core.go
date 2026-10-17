@@ -77,16 +77,18 @@ type branchRow struct {
 	IsMatrix    bool       `json:"is_matrix"`
 	Suspended   bool       `json:"suspended"`
 	SuspendedAt *time.Time `json:"suspended_at"`
-	Current     bool       `json:"current"`
-	People      int        `json:"people"`
-	CreatedAt   time.Time  `json:"created_at"`
+	// SuspendedBy is who took it out of service: the owner, or the license (the matrix's plan has no branches).
+	SuspendedBy string    `json:"suspended_by"`
+	Current     bool      `json:"current"`
+	People      int       `json:"people"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func loadBranches(ctx context.Context, q interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }, org *orgInfo, currentClinic string) ([]branchRow, error) {
 	rows, err := q.Query(ctx, `
-		SELECT c.id, c.name, c.kind, c.phone_number, c.address, c.id = $2::uuid, c.branch_suspended_at, c.id = $3::uuid, c.created_at,
+		SELECT c.id, c.name, c.kind, c.phone_number, c.address, c.id = $2::uuid, c.branch_suspended_at, coalesce(c.branch_suspended_by, ''), c.id = $3::uuid, c.created_at,
 		       (SELECT count(*) FROM users u WHERE u.clinic_id = c.id AND NOT u.disabled AND u.linked_owner_id IS NULL)
 		FROM clinics c WHERE c.organization_id = $1
 		ORDER BY c.id = $2::uuid DESC, c.created_at, c.id`, org.ID, org.MatrixID, currentClinic)
@@ -97,7 +99,7 @@ func loadBranches(ctx context.Context, q interface {
 	out := []branchRow{}
 	for rows.Next() {
 		var b branchRow
-		if err := rows.Scan(&b.ID, &b.Name, &b.Kind, &b.Phone, &b.Address, &b.IsMatrix, &b.SuspendedAt, &b.Current, &b.CreatedAt, &b.People); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.Kind, &b.Phone, &b.Address, &b.IsMatrix, &b.SuspendedAt, &b.SuspendedBy, &b.Current, &b.CreatedAt, &b.People); err != nil {
 			return nil, err
 		}
 		b.Suspended = b.SuspendedAt != nil

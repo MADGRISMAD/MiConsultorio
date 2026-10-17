@@ -28,7 +28,7 @@ export const CLINIC_ROLES: ClinicRole[] = ['admin', 'doctor', 'reception', 'cash
 export const PLATFORM_ROLES: PlatformRole[] = ['platform_admin', 'platform_support'];
 
 /** `branch_suspended`: el dueño de la matriz apagó la sucursal desde su panel (no es un estado de cobro). */
-export type BillingState = 'trialing' | 'trial_expired' | 'active' | 'past_due' | 'suspended' | 'branch_suspended';
+export type BillingState = 'trialing' | 'trial_expired' | 'active' | 'past_due' | 'suspended' | 'branch_suspended' | 'branch_license';
 
 export const BILLING_STATES: Record<BillingState, { label: string; tone: 'ok' | 'info' | 'warn' | 'bad' }> = {
   trialing: { label: 'En prueba', tone: 'info' },
@@ -36,7 +36,8 @@ export const BILLING_STATES: Record<BillingState, { label: string; tone: 'ok' | 
   active: { label: 'Activo', tone: 'ok' },
   past_due: { label: 'Pago atrasado', tone: 'warn' },
   suspended: { label: 'Suspendido', tone: 'bad' },
-  branch_suspended: { label: 'Sucursal suspendida', tone: 'bad' }
+  branch_suspended: { label: 'Sucursal suspendida', tone: 'bad' },
+  branch_license: { label: 'Sucursal sin licencia', tone: 'bad' }
 };
 
 export interface Billing {
@@ -163,6 +164,7 @@ export interface ClinicRow {
   matrix_name: string;
   branch_count: number;
   branch_suspended_at: string | null;
+  branch_suspended_by: '' | 'owner' | 'license';
 }
 
 /** usos de IA de un mes y los tokens que cobró el modelo (solo conteos) */

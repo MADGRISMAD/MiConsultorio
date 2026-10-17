@@ -179,7 +179,7 @@
           <p class="alert mb-5"><Icon name="ban" size={18} />Suspendido: {clinic.suspended_reason}</p>
         {/if}
         {#if clinic.matrix_id}
-          <p class="mb-5 text-sm text-app-muted">Sucursal de <a class="font-semibold text-app-primary hover:underline" href="/plataforma/negocios/{clinic.matrix_id}">{clinic.matrix_name}</a>.{#if clinic.state === 'branch_suspended'} El dueño la suspendió desde el panel de la matriz{#if clinic.branch_suspended_at} el {dateShort(clinic.branch_suspended_at)}{/if}; solo él puede reactivarla.{/if}</p>
+          <p class="mb-5 text-sm text-app-muted">Sucursal de <a class="font-semibold text-app-primary hover:underline" href="/plataforma/negocios/{clinic.matrix_id}">{clinic.matrix_name}</a>.{#if clinic.state === 'branch_license'} El plan de la matriz ya no incluye sucursales: se desactivó sola y vuelve sola al contratar un plan con sucursales.{:else if clinic.state === 'branch_suspended'} El dueño la suspendió desde el panel de la matriz{#if clinic.branch_suspended_at} el {dateShort(clinic.branch_suspended_at)}{/if}; solo él puede reactivarla.{/if}</p>
         {/if}
         <dl class="grid gap-x-8 gap-y-5 text-sm sm:grid-cols-2">
           <div><dt class="section-title">Dueño</dt><dd class="mt-1 font-semibold">{clinic.owner_name || '—'}</dd></div>

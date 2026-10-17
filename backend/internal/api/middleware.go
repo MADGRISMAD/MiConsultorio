@@ -79,17 +79,18 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	var policy string
 	var trialEnds, periodEnd *time.Time
 	var branchOff, ownerTOTP bool
+	var branchBy string
 	var extra, denied []string
 	err := q.QueryRow(ctx, `
 		SELECT u.id, coalesce(u.clinic_id::text, ''), u.username, u.name, coalesce(u.email, ''), u.role, u.disabled, u.token_version, u.cedula, u.cedula_institution, u.cedula_specialty, u.specialty_title,
 		       coalesce(c.plan, ''), coalesce(c.billing_status, ''), c.trial_ends_at, c.current_period_end, coalesce(c.suspended_reason, ''), coalesce(c.setup_completed_at IS NULL, false), u.totp_enabled, coalesce(c.require_2fa, 'none'),
-		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled OR o.role <> 'admin', false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false),
+		       coalesce(u.linked_owner_id::text, ''), coalesce(o.token_version, 0), coalesce(o.disabled OR o.role <> 'admin', false), coalesce(o.totp_enabled, false), coalesce(c.branch_suspended_at IS NOT NULL, false), coalesce(c.branch_suspended_by, ''),
 		       u.permissions_extra, u.permissions_denied, u.areas
 		FROM users u LEFT JOIN clinics c ON c.id = u.clinic_id LEFT JOIN users o ON o.id = u.linked_owner_id
 		WHERE u.id = $1`, id).
 		Scan(&p.UserID, &p.ClinicID, &p.Username, &p.Name, &p.Email, &p.Role, &p.Disabled, &p.TokenVersion, &p.Cedula, &p.CedulaInstitution, &p.CedulaSpecialty, &p.SpecialtyTitle,
 			&plan, &status, &trialEnds, &periodEnd, &reason, &setupOpen, &p.TwoFactorEnabled, &policy,
-			&p.LinkedOwnerID, &p.OwnerTV, &p.OwnerDisabled, &ownerTOTP, &branchOff, &extra, &denied, &p.Areas)
+			&p.LinkedOwnerID, &p.OwnerTV, &p.OwnerDisabled, &ownerTOTP, &branchOff, &branchBy, &extra, &denied, &p.Areas)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNoUser
 	}
@@ -103,8 +104,11 @@ func loadPrincipal(ctx context.Context, q queryRower, id string) (*Principal, er
 	p.SetupPending = setupOpen && p.Role == RoleAdmin
 	p.MustSetup2FA = p.ClinicID != "" && !p.TwoFactorEnabled && twoFactorRequired(policy, p.Role)
 	if p.ClinicID != "" {
-		if branchOff { // branch taken out of service by the owner: same lock as a suspended clinic
+		if branchOff { // branch out of service: same lock as a suspended clinic
 			status, reason = "suspended", "Esta sucursal fue dada de baja por el dueño de la organización."
+			if branchBy == "license" {
+				reason = "La licencia de la matriz ya no incluye sucursales. Se reactivará sola al contratar un plan con sucursales."
+			}
 		}
 		p.Billing = &Billing{Plan: plan, Status: status, TrialEndsAt: trialEnds, CurrentPeriodEnd: periodEnd, SuspendedReason: reason}
 		if pl, ok := planByID(plan); !ok || !pl.Cobros { // plans without cobros never get the POS capabilities

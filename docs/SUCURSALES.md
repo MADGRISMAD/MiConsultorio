@@ -26,7 +26,7 @@ Se eligió **una cuenta de administrador propia de cada sucursal, vinculada al d
 - **Una sola suscripción por organización: la de la matriz.** Un trigger de base de datos copia `plan`, `billing_status`, `trial_ends_at`, `current_period_end` y los campos de suspensión de la matriz a todas sus sucursales cuando cambian (los escriba plataforma, Mercado Pago o un pago manual), y una sucursal no puede conservar valores distintos. Así `requireCobros`, `requireSubscription`, los límites de lugares y el portal funcionan sin cambios.
 - **Los lugares (`seats`) se cuentan por sucursal**, con los límites del plan de la matriz (cada sucursal es una clínica con su equipo). La cuenta vinculada no consume lugar.
 - **Sucursales por plan** (`Plan.MaxBranches`, incluyendo la matriz): Básico 1, Crecimiento 1, Pro 10. Se cuentan las sucursales *en servicio*; al llegar al tope, `POST /org/branches` y la reactivación responden 409 con código `BRANCH_LIMIT`. En Básico ni siquiera se crea la organización.
-- El pago del plan se hace desde la matriz: `/billing/checkout` desde una sucursal responde 409, y bajar de plan por debajo de las sucursales en servicio responde `BRANCH_LIMIT`. Si la plataforma baja el plan a mano con sucursales de más, estas siguen funcionando pero no se pueden crear ni reactivar otras.
+- El pago del plan se hace desde la matriz: `/billing/checkout` desde una sucursal responde 409, y bajar de plan por debajo de las sucursales en servicio responde `BRANCH_LIMIT`. Si el plan de la matriz deja de incluir sucursales (la plataforma lo baja, o el pago cambia el plan), ver «Licencia de la matriz».
 - Limitación conocida: suspender o cambiar el plan de una sucursal individual desde el panel de plataforma no tiene efecto (el trigger lo reemplaza con los valores de la matriz); se administra la matriz.
 
 ## Baja lógica
@@ -38,6 +38,19 @@ Se eligió **una cuenta de administrador propia de cada sucursal, vinculada al d
 Una sucursal se cobra con la suscripción de su matriz, así que **no es un cliente aparte**: la lista general de negocios, los conteos y los ingresos mensuales (MRR) del resumen la dejan fuera. La matriz sale en la lista con su cantidad de sucursales («Matriz · N sucursales») y también se encuentra buscando el nombre de una de ellas.
 
 `GET /platform/clinics` y `/platform/overview` devuelven solo matrices y negocios sin sucursales; por clínica traen `is_matrix` y `branch_count`. El detalle de una matriz (`GET /platform/clinics/{id}`) incluye `branches`, y el perfil tiene la pestaña **Sucursales** con el estado de cada una; una suspendida por su dueño sale como «Sucursal suspendida» (`branch_suspended`). Cada sucursal sigue abriéndose por su id (con un enlace a su matriz) y no muestra Suspender/Reactivar de plataforma: se administra la matriz.
+
+## Licencia de la matriz
+
+Las sucursales solo funcionan mientras el plan de la matriz las incluye (`plan_allows_branches`, hoy solo Pro). Un trigger de base de datos (`org_matrix_billing_to_branches`, migración 062) lo aplica en cuanto cambia el plan de la matriz, sin importar quién lo cambie (plataforma, Mercado Pago o pago manual):
+
+- Cada sucursal en servicio pasa a **fuera de servicio por licencia** (`branch_suspended_by = 'license'`). Queda bloqueada igual que una baja del dueño (`SUBSCRIPTION_REQUIRED`, sin reservas en línea ni portal) y no se borra ningún dato. La matriz sigue funcionando.
+- Una sucursal que el dueño ya había dado de baja (`'owner'`) no cambia de motivo.
+- Al volver a un plan con sucursales, **las que quitó la licencia se reactivan solas**; las dadas de baja por el dueño siguen de baja.
+- Con una sucursal de licencia, el dueño no puede reactivarla a mano mientras el plan no tenga sucursales (`BRANCH_LIMIT`).
+- El dueño que estaba dentro de una sucursal cuando se desactivó puede salir de ella: `GET /org` y `POST /org/switch` no pasan por el bloqueo de suscripción (el resto de `/org/*` sí).
+- Una prueba compara la regla de SQL con el catálogo de planes para que no se desfasen.
+
+En el panel de plataforma la sucursal sale como «Sucursal sin licencia» (`branch_license`) en el perfil de su matriz, y en `/organizacion` como «Sin licencia».
 
 ## Reportes consolidados (solo dueño)
 

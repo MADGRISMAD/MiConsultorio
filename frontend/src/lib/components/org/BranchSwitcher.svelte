@@ -16,10 +16,11 @@
   let root = $state<HTMLDivElement>();
   let button = $state<HTMLButtonElement>();
 
-  const active = $derived(session.status === 'authenticated' && !session.isPlatform && !session.locked);
+  const active = $derived(session.status === 'authenticated' && !session.isPlatform);
   const usable = $derived(branches.filter((b) => !b.suspended));
-  const visible = $derived(active && isOwner && usable.length > 1);
   const current = $derived(branches.find((b) => b.current));
+  // a locked session shows it only to leave a branch that went out of service (by its owner or by the license)
+  const visible = $derived(active && isOwner && (session.locked ? !!current?.suspended && usable.length > 0 : usable.length > 1));
 
   let loadedFor = '';
   $effect(() => {

@@ -7,6 +7,8 @@ export interface OrgBranch {
   is_matrix: boolean;
   suspended: boolean;
   suspended_at: string | null;
+  /** who took it out of service: its owner, or the license (the plan of the matrix has no branches) */
+  suspended_by: '' | 'owner' | 'license';
   /** the clinic the current session is working in */
   current: boolean;
   people: number;

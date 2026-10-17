@@ -8,17 +8,23 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// mountOrg: Branches and consolidated reports.
+// mountOrg: Branches and consolidated reports. It is mounted outside the subscription gate on purpose: the owner must be
+// able to see his branches and leave one that went out of service (or lapsed) for another. Everything else is gated here.
 func (s *Server) mountOrg(r chi.Router) {
 	r.Route("/org", func(r chi.Router) {
 		r.Get("/", s.orgOverview)
-		r.With(require(PermAdminUsers)).Put("/", s.orgRename)
-		r.With(require(PermAdminUsers)).Post("/branches", s.orgBranchCreate)
-		r.With(require(PermAdminUsers)).Post("/branches/{id}/suspend", s.orgBranchSuspend(true))
-		r.With(require(PermAdminUsers)).Post("/branches/{id}/reactivate", s.orgBranchSuspend(false))
-		r.With(require(PermAdminUsers)).Post("/switch", s.orgSwitch)
-		r.With(require(PermAdminUsers)).Get("/reports/summary", s.orgReportSummary)
-		r.With(require(PermAdminUsers)).Get("/reports/summary.csv", s.orgReportCSV)
+		r.With(requireTwoFactorSetup, require(PermAdminUsers)).Post("/switch", s.orgSwitch)
+
+		r.Group(func(r chi.Router) {
+			r.Use(s.requireSubscription)
+			r.Use(requireTwoFactorSetup)
+			r.With(require(PermAdminUsers)).Put("/", s.orgRename)
+			r.With(require(PermAdminUsers)).Post("/branches", s.orgBranchCreate)
+			r.With(require(PermAdminUsers)).Post("/branches/{id}/suspend", s.orgBranchSuspend(true))
+			r.With(require(PermAdminUsers)).Post("/branches/{id}/reactivate", s.orgBranchSuspend(false))
+			r.With(require(PermAdminUsers)).Get("/reports/summary", s.orgReportSummary)
+			r.With(require(PermAdminUsers)).Get("/reports/summary.csv", s.orgReportCSV)
+		})
 	})
 }
 
@@ -158,7 +164,7 @@ func (s *Server) orgBranchSuspend(off bool) http.HandlerFunc {
 				if id == p.ClinicID {
 					return fail(http.StatusConflict, "Estás dentro de esta sucursal. Cambia a otra antes de darla de baja.")
 				}
-				if _, err := tx.Exec(r.Context(), `UPDATE clinics SET branch_suspended_at = coalesce(branch_suspended_at, now()), updated_at = now() WHERE id = $1`, id); err != nil {
+				if _, err := tx.Exec(r.Context(), `UPDATE clinics SET branch_suspended_at = coalesce(branch_suspended_at, now()), branch_suspended_by = coalesce(branch_suspended_by, 'owner'), updated_at = now() WHERE id = $1`, id); err != nil {
 					return err
 				}
 				audit(r.Context(), tx, org.MatrixID, p, "branch_suspended", "Dio de baja la sucursal "+name, map[string]any{"branch_id": id})
@@ -178,7 +184,7 @@ func (s *Server) orgBranchSuspend(off bool) http.HandlerFunc {
 					return branchLimitError(pl.Name, pl.MaxBranches)
 				}
 			}
-			if _, err := tx.Exec(r.Context(), `UPDATE clinics SET branch_suspended_at = NULL, updated_at = now() WHERE id = $1`, id); err != nil {
+			if _, err := tx.Exec(r.Context(), `UPDATE clinics SET branch_suspended_at = NULL, branch_suspended_by = NULL, updated_at = now() WHERE id = $1`, id); err != nil {
 				return err
 			}
 			audit(r.Context(), tx, org.MatrixID, p, "branch_reactivated", "Reactivó la sucursal "+name, map[string]any{"branch_id": id})

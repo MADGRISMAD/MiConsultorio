@@ -48,9 +48,10 @@ type clinicRow struct {
 	MatrixName        string     `json:"matrix_name" db:"matrix_name"`   // of a branch: its matrix
 	BranchCount       int        `json:"branch_count" db:"branch_count"` // of a matrix: how many branches hang from it
 	BranchSuspendedAt *time.Time `json:"branch_suspended_at" db:"branch_suspended_at"`
+	BranchSuspendedBy string     `json:"branch_suspended_by" db:"branch_suspended_by"` // owner | license
 
 	PlanName      string `json:"plan_name" db:"-"`
-	State         string `json:"state" db:"-"`         // trialing | trial_expired | active | past_due | suspended | branch_suspended
+	State         string `json:"state" db:"-"`         // trialing | trial_expired | active | past_due | suspended | branch_suspended | branch_license
 	BillingState  string `json:"billing_state" db:"-"` // the same without the branch's own suspension
 	TrialDaysLeft *int   `json:"trial_days_left" db:"-"`
 }
@@ -66,7 +67,7 @@ const clinicCols = `c.id, c.name, c.kind, c.email, c.phone_number, c.address, c.
 	(SELECT o.matrix_clinic_id::text FROM organizations o WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id) AS matrix_id,
 	coalesce((SELECT m.name FROM organizations o JOIN clinics m ON m.id = o.matrix_clinic_id WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id), '') AS matrix_name,
 	(SELECT count(*) FROM clinics b WHERE b.organization_id = c.organization_id AND b.id <> c.id AND EXISTS (SELECT 1 FROM organizations o WHERE o.matrix_clinic_id = c.id))::int AS branch_count,
-	c.branch_suspended_at`
+	c.branch_suspended_at, coalesce(c.branch_suspended_by, '') AS branch_suspended_by`
 
 func (c *clinicRow) billing() Billing {
 	return Billing{Plan: c.Plan, Status: c.BillingStatus, TrialEndsAt: c.TrialEndsAt, CurrentPeriodEnd: c.CurrentPeriodEnd, SuspendedReason: c.SuspendedReason}
@@ -76,10 +77,14 @@ func (c *clinicRow) finish(now time.Time) {
 	b := c.billing()
 	plan, _ := planByID(c.Plan)
 	c.PlanName, c.BillingState, c.TrialDaysLeft = plan.Name, b.State(now), b.TrialDaysLeft(now)
-	// a branch its owner switched off is shown as such, whatever the shared subscription says
+	// a branch out of service is shown as such, whatever the shared subscription says: switched off by its owner, or
+	// without license because the plan of its matrix has no branches
 	c.State = c.BillingState
 	if c.BranchSuspendedAt != nil {
 		c.State = "branch_suspended"
+		if c.BranchSuspendedBy == "license" {
+			c.State = "branch_license"
+		}
 	}
 }
 

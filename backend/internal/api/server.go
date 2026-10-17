@@ -96,6 +96,8 @@ func (s *Server) router() http.Handler {
 					r.Post("/subscription/cancel", s.cancelSubscription)
 				})
 
+				s.mountOrg(r) // sucursales: la lista y el cambio funcionan aunque la sucursal esté fuera de servicio
+
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireSubscription)
 					r.Use(requireTwoFactorSetup)
@@ -229,7 +231,6 @@ func (s *Server) router() http.Handler {
 					s.mountNotifications(r)  // avisos internos y lista de espera
 					s.mountLab(r)            // laboratorio y crecimiento
 					s.mountArco(r)           // solicitudes ARCO
-					s.mountOrg(r)            // sucursales y reportes consolidados
 					s.mountPortalAdmin(r)
 					s.mountProfile(r)    // perfil público y encuesta de satisfacción
 					s.mountIndicators(r) // panel de indicadores
