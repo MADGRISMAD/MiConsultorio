@@ -48,6 +48,7 @@ Las sucursales solo funcionan mientras el plan de la matriz las incluye (`plan_a
 - Al volver a un plan con sucursales, **las que quitó la licencia se reactivan solas**; las dadas de baja por el dueño siguen de baja.
 - Con una sucursal de licencia, el dueño no puede reactivarla a mano mientras el plan no tenga sucursales (`BRANCH_LIMIT`).
 - El dueño que estaba dentro de una sucursal cuando se desactivó puede salir de ella: `GET /org` y `POST /org/switch` no pasan por el bloqueo de suscripción (el resto de `/org/*` sí).
+- **Red de seguridad para datos viejos:** `reconcile_branch_licenses()` (migración 063) pone las banderas al día para todas las sucursales según el plan de su matriz. El servidor la corre al arrancar y cada 10 minutos, así que una sucursal que quedó funcionando por un cambio de plan anterior al trigger, un respaldo restaurado o un arreglo manual se desactiva sola. Además, el acceso no espera a la bandera: una sucursal de una matriz sin licencia queda bloqueada en cuanto se carga su sesión, no se puede entrar a ella desde el cambio de sucursal y plataforma la muestra como «Sucursal sin licencia».
 - Una prueba compara la regla de SQL con el catálogo de planes para que no se desfasen.
 
 En el panel de plataforma la sucursal sale como «Sucursal sin licencia» (`branch_license`) en el perfil de su matriz, y en `/organizacion` como «Sin licencia».

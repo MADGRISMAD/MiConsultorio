@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -272,4 +273,23 @@ func (s *Server) orgCreateBranch(ctx context.Context, p *Principal, req branchRe
 		return nil
 	})
 	return out, err
+}
+
+// branchLicensePass keeps the branches in line with the license of their matrix (see migration 063). The trigger does it at
+// the moment the plan changes; this catches whatever it could not (old data, a restore) at start and every few minutes.
+func (s *Server) branchLicensePass(ctx context.Context) {
+	var n int
+	if err := s.db.QueryRow(ctx, `SELECT reconcile_branch_licenses()`).Scan(&n); err != nil {
+		log.Printf("branch licenses: %v", err)
+		return
+	}
+	if n > 0 {
+		log.Printf("branch licenses: %d branch(es) brought in line with the plan of their matrix", n)
+	}
+}
+
+// branchNoLicenseSQL is true for a branch whose matrix plan has no branches: it stays locked even if its flag was not set yet.
+// alias is the clinics alias with its dot ("c."); a branch carries the plan of its matrix.
+func branchNoLicenseSQL(alias string) string {
+	return `(` + alias + `organization_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM organizations og WHERE og.matrix_clinic_id = ` + alias + `id) AND NOT plan_allows_branches(` + alias + `plan))`
 }

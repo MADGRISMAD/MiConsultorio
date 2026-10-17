@@ -86,6 +86,9 @@ func (c *clinicRow) finish(now time.Time) {
 			c.State = "branch_license"
 		}
 	}
+	if c.MatrixID != nil && plan.MaxBranches <= 1 && c.BranchSuspendedBy != "owner" { // the flag may not be set yet
+		c.State = "branch_license"
+	}
 }
 
 func loadClinics(ctx context.Context, q interface {

@@ -224,7 +224,7 @@ func (s *Server) orgSwitch(w http.ResponseWriter, r *http.Request) {
 	}
 	var name string
 	var suspended bool
-	err := s.db.QueryRow(r.Context(), `SELECT name, branch_suspended_at IS NOT NULL FROM clinics WHERE id = $1 AND organization_id = $2`, req.BranchID, org.ID).Scan(&name, &suspended)
+	err := s.db.QueryRow(r.Context(), `SELECT c.name, c.branch_suspended_at IS NOT NULL OR `+branchNoLicenseSQL("c.")+` FROM clinics c WHERE c.id = $1 AND c.organization_id = $2`, req.BranchID, org.ID).Scan(&name, &suspended)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "Sucursal no encontrada.")
 		return

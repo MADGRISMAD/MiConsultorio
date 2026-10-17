@@ -101,9 +101,9 @@ func clinicBillingUsableSQL(alias string) string {
 		OR ` + alias + `billing_status = 'active' AND (` + alias + `current_period_end IS NULL OR ` + alias + `current_period_end + make_interval(days => ` + strconv.Itoa(pastDueGraceDays) + `) >= now()))`
 }
 
-// clinicUsableSQL adds that the branch is not suspended.
+// clinicUsableSQL adds that the branch is not suspended and has the license of its matrix.
 func clinicUsableSQL(alias string) string {
-	return `(` + clinicBillingUsableSQL(alias) + ` AND ` + alias + `branch_suspended_at IS NULL)`
+	return `(` + clinicBillingUsableSQL(alias) + ` AND ` + alias + `branch_suspended_at IS NULL AND NOT ` + branchNoLicenseSQL(alias) + `)`
 }
 
 // Usable reports whether the clinic may use the product right now.
