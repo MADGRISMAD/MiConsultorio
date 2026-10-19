@@ -2,7 +2,7 @@
   import ButtonLabel from './ButtonLabel.svelte';
   import Icon from './Icon.svelte';
   import SectionHead from './SectionHead.svelte';
-  import { demoHref, plans } from './data';
+  import { plans, registerFor } from './data';
   import { btn, reveal } from './motion';
 
   const steps = [
@@ -50,7 +50,7 @@
               {#each p.features as f}<li class="flex gap-2"><span aria-hidden="true">·</span>{f}</li>{/each}
             </ul>
           </details>
-          <a href={demoHref} class="{btn} relative mt-7 h-12 px-6 text-[15px] {dark ? 'bg-signal text-white hover:bg-paper hover:text-ink focus-visible:ring-offset-ink' : 'bg-ink text-paper hover:bg-signal'}">
+          <a href={registerFor(p.id)} class="{btn} relative mt-7 h-12 px-6 text-[15px] {dark ? 'bg-signal text-white hover:bg-paper hover:text-ink focus-visible:ring-offset-ink' : 'bg-ink text-paper hover:bg-signal'}">
             <ButtonLabel>{p.cta}</ButtonLabel>
           </a>
         </div>

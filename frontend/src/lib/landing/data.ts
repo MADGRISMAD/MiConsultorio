@@ -4,13 +4,14 @@
 
 export const loginPath = '/login';
 export const contactEmail = 'caresia-info@caresia.mx';
-/** Página con el formulario de demo: el aviso le llega al equipo por correo (con copia a quien corresponda). */
-export const demoHref = '/demo';
-/** Plan B si el formulario no está disponible. */
-export const demoMailto = `mailto:${contactEmail}?subject=${encodeURIComponent('Quiero una demo de Caresia')}`;
+/** Registro: todos los botones de demo y de prueba llevan aquí. La cuenta empieza siempre en el plan Básico. */
+export const registerHref = '/register';
+/** Registro con el plan de la tarjeta que se pulsó: llega al equipo por correo para activárselo. */
+export const registerFor = (plan: string) => `/register?plan=${plan}`;
 
 export const plans = [
   {
+    id: 'basico',
     name: 'Básico',
     highlights: ['2 especialistas y 1 recepcionista', '2 giros y 1 sucursal', 'Agenda, expedientes y recetas', 'Sin asistente de IA', '2 GB de archivos · Soporte por correo'],
     price: '$499',
@@ -34,6 +35,7 @@ export const plans = [
     featured: false
   },
   {
+    id: 'crecimiento',
     name: 'Crecimiento',
     highlights: ['Hasta 5 especialistas, 2 recepcionistas y 2 cajeros', 'Hasta 3 giros y 1 sucursal', 'Cobros: punto de venta, caja y CFDI', 'Asistente de IA: 500 usos al mes', '20 GB · Soporte prioritario y alta asistida'],
     price: '$999',
@@ -56,6 +58,7 @@ export const plans = [
     featured: true
   },
   {
+    id: 'pro',
     name: 'Pro',
     highlights: ['Cuentas sin límite y todos los giros', 'Hasta 10 sucursales con reportes del grupo', 'Todo lo de Crecimiento', 'Asistente de IA: 1,500 usos al mes', '100 GB · Capacitación y soporte dedicado'],
     price: '$1,899',

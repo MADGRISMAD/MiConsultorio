@@ -6,7 +6,7 @@
   import { ago, dateShort, moneyCents } from '$lib/format';
   import { Op } from '$lib/op.svelte';
   import { toast } from '$lib/toast.svelte';
-  import { CLINIC_KINDS, ROLES, type ActivityItem, type AiMonth, type ClinicKind, type ClinicRow, type Payment, type Person, type Plan, type Seats } from '$lib/types';
+  import { CLINIC_KINDS, PLAN_NAMES, ROLES, type ActivityItem, type AiMonth, type ClinicKind, type ClinicRow, type Payment, type Person, type Plan, type Seats } from '$lib/types';
   import ConfirmModal from '../ConfirmModal.svelte';
   import Modal from '../Modal.svelte';
   import Avatar from '../ui/Avatar.svelte';
@@ -155,7 +155,7 @@
       <div class="min-w-0 flex-1 basis-56">
         <h2 class="display truncate text-3xl leading-tight">{clinic.name}</h2>
         <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-app-muted">
-          <StatePill state={clinic.state} /><Pill tone="info">{clinic.plan_name}</Pill><Pill tone={plans.find((x) => x.id === clinic?.plan)?.cobros ? 'ok' : 'muted'}>{plans.find((x) => x.id === clinic?.plan)?.cobros ? 'Con cobros' : 'Sin cobros'}</Pill><span>{kindLabel}</span>
+          <StatePill state={clinic.state} /><Pill tone="info">{clinic.plan_name}</Pill>{#if clinic.requested_plan}<Pill tone="warn">Solicitó: {PLAN_NAMES[clinic.requested_plan] ?? clinic.requested_plan}</Pill>{/if}<Pill tone={plans.find((x) => x.id === clinic?.plan)?.cobros ? 'ok' : 'muted'}>{plans.find((x) => x.id === clinic?.plan)?.cobros ? 'Con cobros' : 'Sin cobros'}</Pill><span>{kindLabel}</span>
         </p>
       </div>
       {#if canEdit && !clinic.matrix_id}

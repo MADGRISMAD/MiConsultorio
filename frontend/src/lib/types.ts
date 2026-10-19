@@ -40,6 +40,9 @@ export const BILLING_STATES: Record<BillingState, { label: string; tone: 'ok' | 
   branch_license: { label: 'Sucursal sin licencia', tone: 'bad' }
 };
 
+/** Nombres de los planes que se ofrecen en el sitio (el id es el de la tarjeta que se pulsó). */
+export const PLAN_NAMES: Record<string, string> = { basico: 'Básico', crecimiento: 'Crecimiento', pro: 'Pro' };
+
 export interface Billing {
   plan: string;
   plan_name: string;
@@ -165,6 +168,8 @@ export interface ClinicRow {
   branch_count: number;
   branch_suspended_at: string | null;
   branch_suspended_by: '' | 'owner' | 'license';
+  /** el plan que la persona pidió probar al registrarse (todas empiezan en Básico); vacío si no pidió o ya se le activó */
+  requested_plan: string;
 }
 
 /** usos de IA de un mes y los tokens que cobró el modelo (solo conteos) */

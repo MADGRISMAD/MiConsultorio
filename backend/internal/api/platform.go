@@ -49,6 +49,8 @@ type clinicRow struct {
 	BranchCount       int        `json:"branch_count" db:"branch_count"` // of a matrix: how many branches hang from it
 	BranchSuspendedAt *time.Time `json:"branch_suspended_at" db:"branch_suspended_at"`
 	BranchSuspendedBy string     `json:"branch_suspended_by" db:"branch_suspended_by"` // owner | license
+	// RequestedPlan is the plan the person asked to try when signing up (every trial starts on Básico); empty if none or done.
+	RequestedPlan string `json:"requested_plan" db:"requested_plan"`
 
 	PlanName      string `json:"plan_name" db:"-"`
 	State         string `json:"state" db:"-"`         // trialing | trial_expired | active | past_due | suspended | branch_suspended | branch_license
@@ -67,7 +69,8 @@ const clinicCols = `c.id, c.name, c.kind, c.email, c.phone_number, c.address, c.
 	(SELECT o.matrix_clinic_id::text FROM organizations o WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id) AS matrix_id,
 	coalesce((SELECT m.name FROM organizations o JOIN clinics m ON m.id = o.matrix_clinic_id WHERE o.id = c.organization_id AND o.matrix_clinic_id <> c.id), '') AS matrix_name,
 	(SELECT count(*) FROM clinics b WHERE b.organization_id = c.organization_id AND b.id <> c.id AND EXISTS (SELECT 1 FROM organizations o WHERE o.matrix_clinic_id = c.id))::int AS branch_count,
-	c.branch_suspended_at, coalesce(c.branch_suspended_by, '') AS branch_suspended_by`
+	c.branch_suspended_at, coalesce(c.branch_suspended_by, '') AS branch_suspended_by,
+	coalesce(c.requested_plan, '') AS requested_plan`
 
 func (c *clinicRow) billing() Billing {
 	return Billing{Plan: c.Plan, Status: c.BillingStatus, TrialEndsAt: c.TrialEndsAt, CurrentPeriodEnd: c.CurrentPeriodEnd, SuspendedReason: c.SuspendedReason}
@@ -77,6 +80,9 @@ func (c *clinicRow) finish(now time.Time) {
 	b := c.billing()
 	plan, _ := planByID(c.Plan)
 	c.PlanName, c.BillingState, c.TrialDaysLeft = plan.Name, b.State(now), b.TrialDaysLeft(now)
+	if c.RequestedPlan == c.Plan {
+		c.RequestedPlan = "" // already activated: nothing left to do
+	}
 	// a branch out of service is shown as such, whatever the shared subscription says: switched off by its owner, or
 	// without license because the plan of its matrix has no branches
 	c.State = c.BillingState

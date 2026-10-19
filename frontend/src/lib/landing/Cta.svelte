@@ -4,7 +4,7 @@
   import Ecg from './Ecg.svelte';
   import Icon from './Icon.svelte';
   import Split from './Split.svelte';
-  import { demoHref } from './data';
+  import { registerHref } from './data';
   import { btn, interp, reducedMotion, track } from './motion';
 
   let section: HTMLElement;
@@ -25,7 +25,7 @@
     <Split text={'Conoce Caresia\n*en una demo.*'} class="mx-auto max-w-4xl font-display text-[clamp(2.5rem,6vw,5rem)] leading-[0.95] tracking-[-0.035em]" accent="italic" />
     <p class="mx-auto mt-5 max-w-md text-lg leading-relaxed text-white/85">Te mostramos cómo funciona para tu especialidad.</p>
     <div class="mt-9 flex justify-center">
-      <a href={demoHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-paper hover:text-ink focus-visible:ring-offset-signal">
+      <a href={registerHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-paper hover:text-ink focus-visible:ring-offset-signal">
         <ButtonLabel>Solicitar demo</ButtonLabel>
         <span class="ml-2 grid h-10 w-10 place-items-center rounded-full bg-signal text-white transition-transform duration-500 ease-out-strong group-hover:rotate-[-45deg]">
           <Icon name="arrow" class="h-4 w-4" />

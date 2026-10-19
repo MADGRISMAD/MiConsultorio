@@ -1,6 +1,6 @@
 <script lang="ts">
   import Wordmark from './Wordmark.svelte';
-  import { contactEmail, demoHref, loginPath } from './data';
+  import { contactEmail, loginPath, registerHref } from './data';
   import { cookieConsent } from '$lib/cookies.svelte';
 
   /** home="/" fuera de la portada: las anclas apuntan a la portada. */
@@ -8,7 +8,7 @@
   const cols: [string, [string, string][]][] = $derived([
     ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#especialidades`, 'Especialidades'], [`${home}#incluye`, 'Más funciones'], [`${home}#precios`, 'Precios'], [`${home}#preguntas`, 'Preguntas frecuentes']]],
     ['Pacientes', [['/directorio', 'Buscar especialista'], ['/blog', 'Blog']]],
-    ['Cuenta', [[loginPath, 'Iniciar sesión'], [demoHref, 'Solicitar demo'], [`mailto:${contactEmail}`, 'Contacto']]]
+    ['Cuenta', [[loginPath, 'Iniciar sesión'], [registerHref, 'Solicitar demo'], [`mailto:${contactEmail}`, 'Contacto']]]
   ]);
 </script>
 

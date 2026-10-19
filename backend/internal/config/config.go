@@ -30,7 +30,7 @@ type Config struct {
 
 	// Public addresses: the web app (return pages) and this API (webhooks, OAuth callbacks).
 	AppURL, APIPublicURL string
-	// DemoTo recibe el aviso de cada solicitud de demo del sitio y DemoCC las copias (DEMO_TO, DEMO_CC separados por comas).
+	// DemoTo recibe el aviso de cada registro nuevo del sitio (con el plan que pidió probar) y DemoCC las copias (DEMO_TO, DEMO_CC separados por comas).
 	DemoTo string
 	DemoCC []string
 

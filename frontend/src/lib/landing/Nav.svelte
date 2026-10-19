@@ -4,7 +4,7 @@
   import { theme } from '$lib/theme.svelte';
   import ButtonLabel from './ButtonLabel.svelte';
   import Wordmark from './Wordmark.svelte';
-  import { demoHref, loginPath } from './data';
+  import { loginPath, registerHref } from './data';
   import { btn, EASE, onFrame, pageProgress, reducedMotion, Spring } from './motion';
 
   // Solo lo básico; el resto de secciones (todo incluido, especialidades, seguridad, preguntas) se descubre con scroll y desde el pie.
@@ -77,8 +77,8 @@
         <Icon name={theme.mode === 'dark' ? 'sun' : 'moon'} size={20} />
       </button>
       <a href={loginPath} class="hidden px-3 text-[15px] font-medium text-ink-soft hover:text-ink sm:block">Entrar</a>
-      <a href={demoHref} class="{btn} h-11 bg-ink px-5 text-sm text-paper hover:bg-signal">
-        <ButtonLabel>Solicitar demo</ButtonLabel>
+      <a href={registerHref} class="{btn} h-11 bg-ink px-5 text-sm text-paper hover:bg-signal">
+        <ButtonLabel>Probar gratis</ButtonLabel>
       </a>
       <button
         type="button"

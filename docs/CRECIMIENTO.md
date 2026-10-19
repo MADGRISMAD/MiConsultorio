@@ -86,3 +86,13 @@ Solo los administradores del consultorio pueden cargar tablas. Las tablas son po
 Con LMS, el Z-score de una medición `x` es `((x/M)^L - 1) / (L·S)` (o `ln(x/M) / S` cuando `L = 0`), con L, M y S interpolados linealmente entre las dos edades vecinas de la tabla. El percentil es el de la distribución normal estándar de ese Z. Las curvas P3, P15, P50, P85 y P97 se obtienen invirtiendo la misma fórmula. Si la edad del paciente queda fuera del rango de la tabla no se calcula nada: no se extrapola.
 
 Este cálculo no aplica el ajuste de la OMS para valores extremos (más allá de ±3 desviaciones estándar en peso y talla), así que en esos casos el Z puede diferir ligeramente del que publica la OMS. El percentil y el Z son una ayuda para la valoración; la interpretación clínica corresponde al profesional.
+
+## Probar gratis y solicitar demo
+
+Todos los botones de prueba y de demo del sitio llevan directo a `/register` (como «Empezar gratis» de MiTiendita); ya no hay formulario aparte (`/demo` redirige al registro).
+
+- **Botón «Probar gratis»** (junto a «Entrar») y los botones de la portada y del pie: `/register`, sin plan.
+- **Tarjeta de cada plan** («Solicitar demo»): `/register?plan=basico|crecimiento|pro`. El registro avisa «Tu solicitud de demo del plan X se enviará al crear tu cuenta».
+- **La cuenta empieza siempre en Básico** con 14 días de prueba, sin importar el plan pedido. El servidor nunca aplica el plan solicitado: lo guarda en `clinics.requested_plan` (un valor que no sea un plan del catálogo se ignora).
+- **Aviso al equipo:** cada registro manda un correo a `DEMO_TO` (o, si está vacío, a la dirección desde la que sale el correo de la plataforma) con copia a `DEMO_CC`. Dice «Plan solicitado: Crecimiento» (o «Ninguno (Probar gratis)»), el plan activado (Básico), nombre, consultorio, correo y teléfono, y un enlace al negocio en plataforma. «Responder» escribe a la persona.
+- **Activar el plan pedido:** desde Plataforma > Negocios > Licencia. El negocio muestra «Solicitó: Crecimiento» en su perfil y en la lista hasta que el plan activo coincide con el pedido.

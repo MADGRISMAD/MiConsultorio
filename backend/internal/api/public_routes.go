@@ -10,7 +10,6 @@ func (s *Server) mountPublic(r chi.Router) {
 	s.mountPublicArco(r)     // ARCO request form
 	s.mountPublicWaitlist(r) // waitlist sign-up and offers
 	s.mountPublicSurvey(r)   // clinic public page and satisfaction survey
-	s.mountPublicDemo(r)     // demo requests from the public site
 	s.mountPublicCalendar(r) // private appointment feed of each professional
 	s.mountPublicBlog(r)     // artículos del blog
 }

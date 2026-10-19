@@ -18,6 +18,9 @@ type registerRequest struct {
 	Password   string `json:"password"`
 	// AcceptedTerms is the box ticked on the form: it is recorded with the version of the texts, not enforced here.
 	AcceptedTerms bool `json:"accepted_terms"`
+	// RequestedPlan is the plan of the card pressed on the site ("Solicitar demo"). It is never applied: every account starts
+	// on Básico and the platform team activates the plan asked for.
+	RequestedPlan string `json:"requested_plan"`
 }
 
 // register creates a clinic (14-day trial) with its first administrator and signs them in.
@@ -86,9 +89,17 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	}
 	audit(r.Context(), s.db, clinicID, p, "clinic_created", "Creó el consultorio "+req.ClinicName, map[string]any{"kind": req.Kind})
 	_, _ = s.db.Exec(r.Context(), `UPDATE users SET last_login_at = now() WHERE id = $1`, id)
+	req.RequestedPlan = strings.ToLower(strings.TrimSpace(req.RequestedPlan))
+	if _, ok := planByID(req.RequestedPlan); !ok {
+		req.RequestedPlan = "" // a value nobody offers is ignored
+	}
+	if req.RequestedPlan != "" {
+		_, _ = s.db.Exec(r.Context(), `UPDATE clinics SET requested_plan = $2 WHERE id = $1`, clinicID, req.RequestedPlan)
+	}
 	if req.AcceptedTerms {
 		_, _ = s.db.Exec(r.Context(), `UPDATE users SET terms_accepted_at = now(), terms_version = $2 WHERE id = $1`, id, NoticeVersion)
 	}
 	s.welcomeEmail(req.Email, req.Name, req.ClinicName)
+	s.signupNotice(req, req.RequestedPlan, clinicID)
 	s.startSession(w, r, p)
 }

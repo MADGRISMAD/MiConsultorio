@@ -2,6 +2,8 @@
   import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { PLAN_NAMES } from '$lib/types';
   import { session } from '$lib/session.svelte';
   import { Op } from '$lib/op.svelte';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -19,6 +21,9 @@
   let accepted = $state(false);
   let touched = $state(false);
   const op = new Op();
+  // the card pressed on the site ("Solicitar demo"): the account starts on Básico and the team activates the plan asked for
+  const requestedPlan = $derived(page.url.searchParams.get('plan') ?? '');
+  const requestedName = $derived(Object.hasOwn(PLAN_NAMES, requestedPlan) ? PLAN_NAMES[requestedPlan] : '');
 
   $effect(() => {
     if (session.status === 'authenticated') goto(session.home, { replaceState: true });
@@ -53,7 +58,7 @@
       return;
     }
     await op.run(() =>
-      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password, accepted_terms: accepted })
+      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password, accepted_terms: accepted, requested_plan: requestedName ? requestedPlan : '' })
     );
   }
 </script>
@@ -72,6 +77,13 @@
       <h1 class="display text-[2.2rem] leading-none">Crea tu <em class="italic text-app-primary">consultorio</em></h1>
       <p class="mt-2 text-sm text-app-muted">Toma menos de un minuto. Después te ayudamos a configurar todo lo demás.</p>
     </header>
+
+    {#if requestedName}
+      <p class="mb-4 flex items-start gap-2 rounded-xl bg-app-primary/10 px-3.5 py-3 text-sm" role="status">
+        <Icon name="check" size={18} class="mt-0.5 flex-none text-app-primary" />
+        <span>Tu solicitud de demo del plan <strong>{requestedName}</strong> se enviará al crear tu cuenta. Crea tu cuenta para continuar: empiezas con 14 días de prueba y te activamos el plan que pediste.</span>
+      </p>
+    {/if}
 
     <form class="grid gap-3.5" novalidate onsubmit={submit}>
       {#if op.phase === 'error'}

@@ -7,7 +7,7 @@
   import { api } from '$lib/api';
   import { ago } from '$lib/format';
   import { session } from '$lib/session.svelte';
-  import { CLINIC_KINDS, type ClinicRow, type Plan } from '$lib/types';
+  import { CLINIC_KINDS, PLAN_NAMES, type ClinicRow, type Plan } from '$lib/types';
   import Avatar from '../ui/Avatar.svelte';
   import EmptyState from '../ui/EmptyState.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -94,7 +94,7 @@
                 <span class="block truncate font-semibold">{c.name}</span>
                 <span class="block truncate text-sm text-app-muted">{c.owner_name || 'Sin dueño'}</span>
                 <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill>{#if plans.find((x) => x.id === c.plan)?.cobros}<Pill tone="ok">Cobros</Pill>{/if}<Pill>{kind(c)}</Pill>{#if c.is_matrix}<Pill tone="info">Matriz · {c.branch_count} {c.branch_count === 1 ? 'sucursal' : 'sucursales'}</Pill>{/if}
+                  <StatePill state={c.state} /><Pill>{c.plan_name}</Pill>{#if c.requested_plan}<Pill tone="warn">Solicitó: {PLAN_NAMES[c.requested_plan] ?? c.requested_plan}</Pill>{/if}{#if plans.find((x) => x.id === c.plan)?.cobros}<Pill tone="ok">Cobros</Pill>{/if}<Pill>{kind(c)}</Pill>{#if c.is_matrix}<Pill tone="info">Matriz · {c.branch_count} {c.branch_count === 1 ? 'sucursal' : 'sucursales'}</Pill>{/if}
                   <span class="text-xs text-app-muted">{c.last_seen ? ago(c.last_seen) : 'sin entrar'}</span>
                 </span>
               </span>

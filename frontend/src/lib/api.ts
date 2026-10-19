@@ -84,7 +84,7 @@ function noteReused(r: { patient: Patient; reused?: boolean }): Patient {
 }
 
 export const api = {
-  register: (r: { clinic_name: string; phone: string; name: string; email: string; username: string; password: string; accepted_terms: boolean }) =>
+  register: (r: { clinic_name: string; phone: string; name: string; email: string; username: string; password: string; accepted_terms: boolean; requested_plan: string }) =>
     request<{ session: SessionInfo }>('POST', '/register', r).then((x) => x.session),
   logout: () => request<void>('POST', '/logout'),
   forgotPassword: (identifier: string) => request<{ ok: boolean }>('POST', '/forgot', { identifier }),

@@ -6,7 +6,7 @@
   import Icon from './Icon.svelte';
   import Mark from './Mark.svelte';
   import Split from './Split.svelte';
-  import { demoHref } from './data';
+  import { registerHref } from './data';
   import { btn, clamp, interp, onFrame, reducedMotion, Spring, track } from './motion';
 
   // Day view shown in the product window: two doctors, two specialties, one clinic
@@ -327,7 +327,7 @@
       </p>
       <div class="enter-up flex flex-wrap items-center gap-3 md:justify-start md:pt-1" style="--d: 0.35s; --t: 0.6s">
         <div class="inline-flex">
-          <a href={demoHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-signal">
+          <a href={registerHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-signal">
             <ButtonLabel>Solicitar demo gratis</ButtonLabel>
             <span class="ml-2 grid h-10 w-10 place-items-center rounded-full bg-paper text-ink transition-transform duration-500 ease-out-strong group-hover:rotate-[-45deg]">
               <Icon name="arrow" class="h-4 w-4" />

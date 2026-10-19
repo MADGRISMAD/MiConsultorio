@@ -48,6 +48,7 @@ const server = spawn(bin, [], {
     SMTP_HOST: '127.0.0.1',
     SMTP_PORT: String(SMTP_PORT),
     MAIL_FROM: 'Caresia <no-reply@caresia.test>',
+    DEMO_TO: 'ventas@caresia.test', // the notice of every sign-up, with the plan asked for
     MP_API_BASE: `http://localhost:${MP_PORT}`,
     GEMINI_API_KEY: 'e2e-key',
     GEMINI_MODEL: 'e2e-model',
