@@ -13,7 +13,8 @@
   const links = $derived([
     [`${home}#funciones`, 'Funciones'],
     [`${home}#especialidades`, 'Especialidades'],
-    [`${home}#precios`, 'Precios']
+    [`${home}#precios`, 'Precios'],
+    ['/blog', 'Blog']
   ]);
   const mobileLinks = $derived([...links, [loginPath, 'Iniciar sesión']]);
 
