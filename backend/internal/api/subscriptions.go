@@ -102,7 +102,7 @@ func (s *Server) syncSubscription(ctx context.Context, preapprovalID string) err
 	if !ok || !validUUID(ref) {
 		return nil // de otro producto con la misma cuenta (por ejemplo MiTiendita)
 	}
-	var clinicID, plan, period, oldSub string
+	var clinicID, plan, period, oldSub, failedRef string
 	var months int
 	var notify func()
 	err := inTx(ctx, s.db, func(tx pgx.Tx) error {
@@ -123,9 +123,9 @@ func (s *Server) syncSubscription(ctx context.Context, preapprovalID string) err
 		if _, err := tx.Exec(ctx, `UPDATE billing_checkouts SET preapproval_id=$2, preapproval_status=$3 WHERE id=$1`, ref, pre.ID, pre.Status); err != nil {
 			return err
 		}
-		var current string
+		var current, billingStatus string
 		var cur *time.Time
-		if err := tx.QueryRow(ctx, `SELECT mp_preapproval_id, current_period_end FROM clinics WHERE id=$1 FOR UPDATE`, clinicID).Scan(&current, &cur); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT mp_preapproval_id, current_period_end, billing_status FROM clinics WHERE id=$1 FOR UPDATE`, clinicID).Scan(&current, &cur, &billingStatus); err != nil {
 			return err
 		}
 		switch pre.Status {
@@ -157,6 +157,12 @@ func (s *Server) syncSubscription(ctx context.Context, preapprovalID string) err
 				if _, err := tx.Exec(ctx, `UPDATE clinics SET billing_status='past_due', updated_at=now() WHERE id=$1`, clinicID); err != nil {
 					return err
 				}
+				if billingStatus != "past_due" { // the charge failed: the team is told once per period
+					failedRef = pre.ID
+					if cur != nil {
+						failedRef += ":" + cur.Format("2006-01-02")
+					}
+				}
 			}
 		case "cancelled":
 			if current == pre.ID {
@@ -180,6 +186,9 @@ func (s *Server) syncSubscription(ctx context.Context, preapprovalID string) err
 		if err := s.mpCall(ctx, s.cfg.MPAccessToken, http.MethodPut, "/preapproval/"+url.PathEscape(oldSub), map[string]any{"status": "cancelled"}, nil); err != nil {
 			log.Printf("subscription: no se pudo cancelar la anterior %s: %v", oldSub, err)
 		}
+	}
+	if failedRef != "" {
+		s.missedPaymentNotice(ctx, clinicID, "payment_failed", failedRef, "Falló el cobro de su suscripción en Mercado Pago (la suscripción quedó en pausa)")
 	}
 	if clinicID != "" {
 		notify = s.recordSubscriptionCharges(ctx, clinicID, plan, months, pre.ID)
@@ -212,11 +221,13 @@ func (s *Server) recordSubscriptionCharges(ctx context.Context, clinicID, plan s
 		return nil
 	}
 	var notify func()
+	var teamNotices []func()
 	for _, c := range found.Results {
 		if c.Status != "processed" || (c.Payment.Status != "" && c.Payment.Status != "approved") {
 			continue
 		}
 		amount := int(c.TransactionAmount*100 + 0.5)
+		before := paidBefore(ctx, s.db, clinicID)
 		tag, err := s.db.Exec(ctx, `
 			INSERT INTO payments (clinic_id, amount_cents, plan, months, note, period_end, provider, provider_ref)
 			VALUES ($1,$2,$3,$4,'Cobro de la suscripción (Mercado Pago)',$5,'mercadopago',$6) ON CONFLICT DO NOTHING`,
@@ -231,8 +242,19 @@ func (s *Server) recordSubscriptionCharges(ctx context.Context, clinicID, plan s
 		}
 		a := amount
 		notify = func() { s.paymentReceivedEmail(ctx, clinicID, planName, months, a, end) }
+		teamNotices = append(teamNotices, func() { s.paymentTeamNotice(ctx, clinicID, planName, months, a, end, before) })
 	}
-	return notify
+	if len(teamNotices) == 0 {
+		return notify
+	}
+	return func() { // the receipt is the latest charge's; the team hears about every one
+		if notify != nil {
+			notify()
+		}
+		for _, t := range teamNotices {
+			t()
+		}
+	}
 }
 
 // syncFromAuthorizedPayment atiende el aviso de un cobro: busca su suscripción y la sincroniza.

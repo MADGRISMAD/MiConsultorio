@@ -13,12 +13,7 @@ import (
 // card they pressed) so it can be activated for them: every trial starts on Básico. It goes to DEMO_TO (or the address the
 // platform mail is sent from) with copy to DEMO_CC, and answering it writes to the person.
 func (s *Server) signupNotice(req registerRequest, requestedPlan, clinicID string) {
-	to := s.cfg.DemoTo
-	if to == "" {
-		if from, err := netmail.ParseAddress(s.cfg.MailFrom); err == nil {
-			to = from.Address
-		}
-	}
+	to, cc := s.teamRecipients()
 	if to == "" {
 		return
 	}
@@ -47,7 +42,7 @@ func (s *Server) signupNotice(req registerRequest, requestedPlan, clinicID strin
 	if req.ClinicName != "" {
 		subject += " · " + strings.TrimSpace(req.ClinicName)
 	}
-	m := mail.Message{To: []string{to}, Cc: s.cfg.DemoCC, Subject: subject, Text: text, HTML: body}
+	m := mail.Message{To: []string{to}, Cc: cc, Subject: subject, Text: text, HTML: body}
 	if addr, err := netmail.ParseAddress(req.Email); err == nil {
 		m.ReplyTo = addr.String()
 	}

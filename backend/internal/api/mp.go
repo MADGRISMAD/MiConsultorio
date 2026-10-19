@@ -550,6 +550,7 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 		return nil
 	}
 	var notify func()
+	var before paidHistory
 	err := inTx(ctx, s.db, func(tx pgx.Tx) error {
 		var clinicID, plan, period, status string
 		var amount int
@@ -582,6 +583,7 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 		}
 		end := base.AddDate(0, months, 0)
 		pid := strconv.FormatInt(pay.ID, 10)
+		before = paidBefore(ctx, tx, clinicID)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO payments (clinic_id, amount_cents, plan, months, note, period_end, provider, provider_ref)
 			VALUES ($1,$2,$3,$4,$5,$6,'mercadopago',$7) ON CONFLICT DO NOTHING`,
@@ -601,7 +603,10 @@ func (s *Server) settleCheckout(ctx context.Context, paymentID string) error {
 		if pl, ok := planByID(plan); ok {
 			planName = pl.Name
 		}
-		notify = func() { s.paymentReceivedEmail(ctx, clinicID, planName, months, amount, end) }
+		notify = func() {
+			s.paymentReceivedEmail(ctx, clinicID, planName, months, amount, end)
+			s.paymentTeamNotice(ctx, clinicID, planName, months, amount, end, before)
+		}
 		return nil
 	})
 	if err == nil && notify != nil {

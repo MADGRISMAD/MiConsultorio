@@ -96,3 +96,18 @@ Todos los botones de prueba y de demo del sitio llevan directo a `/register` (co
 - **La cuenta empieza siempre en Básico** con 14 días de prueba, sin importar el plan pedido. El servidor nunca aplica el plan solicitado: lo guarda en `clinics.requested_plan` (un valor que no sea un plan del catálogo se ignora).
 - **Aviso al equipo:** cada registro manda un correo a `DEMO_TO` (o, si está vacío, a la dirección desde la que sale el correo de la plataforma) con copia a `DEMO_CC`. Dice «Plan solicitado: Crecimiento» (o «Ninguno (Probar gratis)»), el plan activado (Básico), nombre, consultorio, correo y teléfono, y un enlace al negocio en plataforma. «Responder» escribe a la persona.
 - **Activar el plan pedido:** desde Plataforma > Negocios > Licencia. El negocio muestra «Solicitó: Crecimiento» en su perfil y en la lista hasta que el plan activo coincide con el pedido.
+
+## Avisos al equipo sobre pagos
+
+Además del aviso de cada registro, el equipo recibe un correo (a `DEMO_TO`, con copia a `DEMO_CC`) cuando:
+
+- **Hay un primer pago** («Primer pago · Consultorio · Plan»): un cliente nuevo.
+- **Hay un pago de renovación** («Pago mensual» o «Pago anual»): cada cobro de la suscripción de Mercado Pago o pago en línea.
+- **No llega un pago** («No pagó · Consultorio · Plan»), una sola vez por evento:
+  - falló el cobro de la suscripción (Mercado Pago la dejó en pausa);
+  - terminó el periodo pagado y pasaron los 3 días de gracia sin un nuevo pago (o canceló y terminó su periodo);
+  - terminó la prueba sin pagar.
+
+Cada correo trae nombre y correo del administrador, consultorio, plan, monto, meses que pagó, meses pagados en total, hasta cuándo está pagado (en los pagos) y la **antigüedad** desde su primer pago: «Cliente nuevo (menos de 1 mes)», «Lleva 2 meses con nosotros», «Lleva 1 año y 2 meses con nosotros». Un negocio que nunca ha pagado dice «Nunca ha pagado». Incluye un enlace al negocio en plataforma.
+
+Los pagos que registra una persona de la plataforma a mano («Registrar un pago») no mandan correo: ya los conoce quien los captura (sí cuentan para la antigüedad). Las sucursales no mandan avisos: se cobran con su matriz. Los avisos de «no pagó» se revisan cada 30 minutos y solo miran los últimos 3 días, para no mandar el historial viejo al desplegar (tabla `billing_notices`).

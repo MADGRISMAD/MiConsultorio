@@ -18,7 +18,8 @@ func (s *Server) StartBackground(ctx context.Context) {
 	go every(ctx, "notifications", time.Hour, s.notificationPass, nil)
 	go every(ctx, "subscriptions", 6*time.Hour, s.subscriptionPass, nil)
 	go every(ctx, "branch licenses", 10*time.Minute, s.branchLicensePass, nil)
-	go every(ctx, "blog", time.Hour, s.blogPass, nil) // artículo nuevo los lunes y jueves
+	go every(ctx, "billing notices", 30*time.Minute, s.billingNoticePass, nil) // pagos que no llegaron
+	go every(ctx, "blog", time.Hour, s.blogPass, nil)                          // artículo nuevo los lunes y jueves
 }
 
 // every runs pass now and then each interval until ctx ends. A panic in one pass is logged and never ends the loop.
