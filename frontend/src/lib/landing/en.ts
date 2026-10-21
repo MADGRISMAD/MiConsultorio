@@ -1,4 +1,4 @@
-// Landing en inglés: clave = texto exacto en español (como aparece en la página), valor = inglés.
+// Landing en inglés: clave = texto exacto en español (como aparece en la página), valor = inglés. Vive aquí y no en i18n/dict/ porque no hay versión es-MX: el español es el propio texto de los componentes.
 // Los titulares animados van palabra por palabra (cada palabra es su propia clave): el inglés conserva el mismo número de palabras.
 export const en: Record<string, string> = {
   // Aviso de cookies

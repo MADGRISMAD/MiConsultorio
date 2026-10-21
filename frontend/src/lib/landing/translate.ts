@@ -1,7 +1,7 @@
 // Traducción de la landing al inglés. Los textos están escritos en español en los componentes; aquí se cambian
 // en el navegador por su equivalente de `i18n/dict/landing.ts` (clave = el texto en español, sin espacios sobrantes).
 // Un MutationObserver traduce también lo que aparece después (secciones que cargan al hacer scroll, pestañas, preguntas).
-import { en } from '$lib/i18n/dict/landing';
+import { en } from './en';
 
 const ATTRS = ['title', 'aria-label', 'alt', 'placeholder'];
 const texts = new WeakMap<Text, { es: string; en: string }>();
