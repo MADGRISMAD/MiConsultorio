@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { i18n, LOCALES, t } from '$lib/i18n/index.svelte';
   import { theme } from '$lib/theme.svelte';
   import ButtonLabel from './ButtonLabel.svelte';
   import Wordmark from './Wordmark.svelte';
@@ -9,7 +10,7 @@
 
   // Solo lo básico; el resto de secciones (todo incluido, especialidades, seguridad, preguntas) se descubre con scroll y desde el pie.
   /** home="/" cuando el menú se usa fuera de la portada (páginas legales): las anclas apuntan a la portada. */
-  let { home = '' }: { home?: string } = $props();
+  let { home = '', lang = false }: { home?: string; lang?: boolean } = $props();
   const links = $derived([
     [`${home}#funciones`, 'Funciones'],
     [`${home}#especialidades`, 'Especialidades'],
@@ -68,6 +69,20 @@
       </div>
     </div>
     <div class="flex items-center gap-1.5">
+      {#if lang}
+        <div class="mr-1 inline-flex rounded-full p-0.5 text-xs ring-1 ring-ink/20" role="group" aria-label={t('lang.label')}>
+          {#each LOCALES as l (l.code)}
+            <button
+              type="button"
+              lang={l.code === 'en' ? 'en' : 'es'}
+              aria-pressed={i18n.locale === l.code}
+              aria-label={l.label}
+              onclick={() => i18n.set(l.code)}
+              class="min-h-8 min-w-9 rounded-full px-2.5 font-mono font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal {i18n.locale === l.code ? 'bg-ink text-paper' : 'text-ink-soft hover:text-ink'}">{l.short}</button
+            >
+          {/each}
+        </div>
+      {/if}
       <button
         type="button"
         class="grid h-10 w-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal"

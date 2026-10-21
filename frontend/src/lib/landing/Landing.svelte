@@ -5,7 +5,25 @@
   import LazySection from './LazySection.svelte';
   import Nav from './Nav.svelte';
   import { theme } from '$lib/theme.svelte';
+  import { i18n } from '$lib/i18n/index.svelte';
+  import { translateToEnglish } from './translate';
   import { reducedMotion } from './motion';
+
+  let ready = $state(false);
+  // La landing está en español; en inglés solo si la persona lo eligió con el botón ES/EN (se recuerda).
+  onMount(() => {
+    try {
+      if (localStorage.getItem('caresia_ui_lang') === 'en') i18n.set('en');
+    } catch {
+      /* sin almacenamiento: queda en español */
+    }
+    ready = true;
+    return () => i18n.restoreDocumentLang();
+  });
+  $effect(() => {
+    if (!ready || i18n.locale !== 'en') return;
+    return translateToEnglish(document.body); // el body entero: incluye el aviso de cookies, que vive fuera de la landing
+  });
 
   /** Inertial smooth scrolling. Off when the user prefers reduced motion. */
   onMount(() => {
@@ -23,7 +41,7 @@
 </script>
 
 <div class="landing grain min-h-screen overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white [-webkit-tap-highlight-color:transparent]" data-theme={theme.mode}>
-  <Nav />
+  <Nav lang />
   <main>
   <Hero />
   <LazySection load={() => import('./Chaos.svelte')} height="90vh" />
