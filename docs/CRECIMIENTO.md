@@ -111,3 +111,15 @@ Además del aviso de cada registro, el equipo recibe un correo (a `DEMO_TO`, con
 Cada correo trae nombre y correo del administrador, consultorio, plan, monto, meses que pagó, meses pagados en total, hasta cuándo está pagado (en los pagos) y la **antigüedad** desde su primer pago: «Cliente nuevo (menos de 1 mes)», «Lleva 2 meses con nosotros», «Lleva 1 año y 2 meses con nosotros». Un negocio que nunca ha pagado dice «Nunca ha pagado». Incluye un enlace al negocio en plataforma.
 
 Los pagos que registra una persona de la plataforma a mano («Registrar un pago») no mandan correo: ya los conoce quien los captura (sí cuentan para la antigüedad). Las sucursales no mandan avisos: se cobran con su matriz. Los avisos de «no pagó» se revisan cada 30 minutos y solo miran los últimos 3 días, para no mandar el historial viejo al desplegar (tabla `billing_notices`).
+
+## Verificación del correo al registrarse
+
+Para evitar correos falsos y altas masivas, la cuenta solo se crea con un **código de 6 dígitos** que llega al correo (como en MiTiendita):
+
+1. Al enviar el formulario de `/register`, `POST /api/register/code` manda el código y la pantalla pide escribirlo (con «Reenviar código» a los 60 s). Si el correo ya tiene cuenta, responde 409.
+2. `POST /api/register` pide `email_code`. Sin código, con uno equivocado o vencido responde 400 (`EMAIL_CODE_REQUIRED`, `EMAIL_CODE_WRONG`, `EMAIL_CODE_EXPIRED`). Los errores de otros campos se revisan antes y no gastan el código: si el usuario ya existe se corrige y se reintenta con el mismo.
+3. El código vence a los **10 minutos**, se invalida tras **5 intentos fallidos**, se guarda solo como HMAC (tabla `email_codes`) y se borra al crear la cuenta.
+4. Límites: 60 s entre envíos al mismo correo, 5 por hora por correo y 10 por hora por red.
+5. Si el correo del servidor no está configurado, o `SIGNUP_VERIFY=off`, no se pide código (sin correo saliente no habría cómo mandarlo).
+
+Cambiar el correo en el formulario obliga a pedir un código nuevo.

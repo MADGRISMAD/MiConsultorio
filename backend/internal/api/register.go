@@ -21,6 +21,8 @@ type registerRequest struct {
 	// RequestedPlan is the plan of the card pressed on the site ("Solicitar demo"). It is never applied: every account starts
 	// on Básico and the platform team activates the plan asked for.
 	RequestedPlan string `json:"requested_plan"`
+	// EmailCode is the 6-digit code mailed to the address (asked for when the server can send mail).
+	EmailCode string `json:"email_code"`
 }
 
 // register creates a clinic (14-day trial) with its first administrator and signs them in.
@@ -63,6 +65,12 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if s.signupVerifyRequired() { // the code comes before anything is created; it stays valid if the sign-up fails on a taken user name
+		if err := s.checkSignupCode(r.Context(), req.Email, req.EmailCode); err != nil {
+			writeFailure(w, r, err)
+			return
+		}
+	}
 	s.signups.fail(ip) // every attempt that reaches the database counts
 	clinicID, err := db.CreateClinic(r.Context(), s.db, db.ClinicParams{
 		Name: req.ClinicName, Kind: req.Kind, Phone: req.Phone, Plan: "basico", Status: "trialing",
@@ -77,6 +85,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.spendSignupCode(r.Context(), req.Email) // the account exists: the code is spent
 	var id string
 	if err := s.db.QueryRow(r.Context(), `SELECT id FROM users WHERE clinic_id = $1 AND role = 'admin'`, clinicID).Scan(&id); err != nil {
 		serverError(w, r, err)

@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"regexp"
 	"strings"
@@ -16,6 +17,7 @@ import (
 type fakeMailer struct {
 	mu      sync.Mutex
 	enabled bool
+	failing bool // Send returns an error (the mail server is down)
 	sent    []mail.Message
 }
 
@@ -23,6 +25,9 @@ func (f *fakeMailer) Enabled() bool { return f.enabled }
 func (f *fakeMailer) Send(_ context.Context, m mail.Message) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.failing {
+		return errors.New("smtp down")
+	}
 	f.sent = append(f.sent, m)
 	return nil
 }

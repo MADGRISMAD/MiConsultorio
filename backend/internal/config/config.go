@@ -32,7 +32,9 @@ type Config struct {
 	AppURL, APIPublicURL string
 	// DemoTo recibe el aviso de cada registro nuevo del sitio (con el plan que pidió probar) y DemoCC las copias (DEMO_TO, DEMO_CC separados por comas).
 	DemoTo string
-	DemoCC []string
+	// SignupVerify asks new accounts for the code mailed to their address (SIGNUP_VERIFY=off turns it off). It also needs outgoing mail.
+	SignupVerify bool
+	DemoCC       []string
 
 	// Mercado Pago. Subscriptions are charged to the platform's own account (MPAccessToken);
 	// each clinic connects its own account with OAuth to charge its patients.
@@ -134,6 +136,7 @@ func Load() (*Config, error) {
 		c.MailFrom = "Caresia <" + c.SMTPUser + ">"
 	}
 	c.DemoTo = strings.TrimSpace(os.Getenv("DEMO_TO"))
+	c.SignupVerify = env("SIGNUP_VERIFY", "on") != "off"
 	for _, a := range strings.Split(os.Getenv("DEMO_CC"), ",") {
 		if a = strings.TrimSpace(a); a != "" {
 			c.DemoCC = append(c.DemoCC, a)

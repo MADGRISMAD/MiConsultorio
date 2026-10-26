@@ -21,6 +21,7 @@ type Server struct {
 	cfg     *config.Config
 	limiter *rateLimiter // failed logins
 	signups *rateLimiter // registrations per IP
+	codeIP  *rateLimiter // sign-up e-mail codes requested per IP
 
 	mailer      mail.Sender  // outgoing e-mail; nil or disabled when SMTP is not configured
 	forgots     *rateLimiter // recovery requests per IP and per account
@@ -50,7 +51,7 @@ func NewRouterWithMailer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sende
 
 func newServer(db *pgxpool.Pool, cfg *config.Config, mailer mail.Sender) *Server {
 	installVault(db, cfg.TokenEncKey)
-	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour),
+	return &Server{db: db, cfg: cfg, limiter: newRateLimiter(8, 15*time.Minute), signups: newRateLimiter(5, time.Hour), codeIP: newRateLimiter(codeResendLimit, time.Hour),
 		mailer: mailer, forgots: newRateLimiter(5, time.Hour), mailLimiter: newRateLimiter(30, time.Hour), portal: newPortalLimits(), blog: &blogState{}}
 }
 
@@ -65,6 +66,7 @@ func (s *Server) router() http.Handler {
 		r.Post("/login", s.login)
 		r.Post("/login/2fa", s.loginTwoFactor)
 		r.Post("/register", s.register)
+		r.Post("/register/code", s.sendSignupCode)
 		r.Post("/logout", s.logout)
 		r.Post("/forgot", s.forgotPassword)
 		r.Post("/reset-password", s.resetPassword)

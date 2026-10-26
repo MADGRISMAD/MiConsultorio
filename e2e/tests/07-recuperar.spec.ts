@@ -1,4 +1,4 @@
-import { ANON_STATE, BASE, expect, mailbox, test, ui, uid, waitForMail } from '../support/app';
+import { ANON_STATE, BASE, expect, mailbox, registerApi, test, ui, uid, waitForMail } from '../support/app';
 
 test.use({ storageState: ANON_STATE });
 
@@ -7,9 +7,7 @@ test('recuperación de contraseña con correo', async ({ page, request }) => {
   const id = uid();
   const user = `rec${id}`;
   const email = `${user}@e2e.test`;
-  const reg = await request.post('/api/register', {
-    data: { clinic_name: `Rec ${id}`, phone: '', name: 'Persona Recupera', email, username: user, password: 'clave-original-1' }
-  });
+  const reg = await registerApi(request, { clinic_name: `Rec ${id}`, phone: '', name: 'Persona Recupera', email, username: user, password: 'clave-original-1' });
   expect(reg.ok()).toBeTruthy();
   mailbox.clear();
 

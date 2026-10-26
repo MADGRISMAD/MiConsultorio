@@ -102,6 +102,32 @@ export const mailbox = {
   }
 };
 
+/** The 6-digit code of the e-mail verification that was mailed to an address (the latest one). */
+export async function verificationCode(email: string, timeout = 15_000): Promise<string> {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    // split into messages first: undoing the quoted-printable line breaks would also eat the "=====" that separates them
+    let raw = '';
+    try {
+      raw = fs.readFileSync(MAIL_FILE, 'utf8');
+    } catch {
+      /* no mail yet */
+    }
+    const mine = raw.split('\n=====\n').filter((m) => m.includes(email) && /^\d{6}\r?$/m.test(m));
+    const last = mine[mine.length - 1];
+    if (last) return /^(\d{6})\r?$/m.exec(last)![1];
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`no llegó el código de verificación a ${email}`);
+}
+
+/** Registers a clinic through the API: asks for the code of the e-mail, reads it from the mailbox and signs up with it. */
+export async function registerApi(api: APIRequestContext, data: Record<string, unknown>) {
+  await apiJson(await api.post('/api/register/code', { data: { email: data.email } }));
+  const email_code = await verificationCode(String(data.email));
+  return api.post('/api/register', { data: { ...data, email_code } });
+}
+
 export async function waitForMail(match: RegExp, timeout = 15_000): Promise<string> {
   const end = Date.now() + timeout;
   while (Date.now() < end) {

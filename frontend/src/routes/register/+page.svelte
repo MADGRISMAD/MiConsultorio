@@ -2,6 +2,8 @@
   import { PASSWORD_MAX, PASSWORD_MIN } from '$lib/limits';
   import Alert from '$lib/components/ui/Alert.svelte';
   import { goto } from '$app/navigation';
+  import { api } from '$lib/api';
+  import { tick } from 'svelte';
   import { page } from '$app/state';
   import { PLAN_NAMES } from '$lib/types';
   import { session } from '$lib/session.svelte';
@@ -21,6 +23,35 @@
   let accepted = $state(false);
   let touched = $state(false);
   const op = new Op();
+  // the e-mail is verified before the account is created: a code of 6 digits arrives in the mailbox
+  let codeStep = $state(false);
+  let emailCode = $state('');
+  let resendIn = $state(0);
+  let resendTimer: ReturnType<typeof setInterval> | undefined;
+  const code = $derived(emailCode.replace(/\D/g, ''));
+  $effect(() => () => clearInterval(resendTimer));
+
+  function startResendWait() {
+    clearInterval(resendTimer);
+    resendIn = 60;
+    resendTimer = setInterval(() => {
+      resendIn -= 1;
+      if (resendIn <= 0) clearInterval(resendTimer);
+    }, 1000);
+  }
+  async function askForCode() {
+    codeStep = true;
+    emailCode = '';
+    startResendWait();
+    await tick();
+    document.getElementById('r-code')?.focus();
+  }
+  async function resend() {
+    let required = true;
+    if (await op.run(async () => (required = (await api.sendRegisterCode(email.trim())).required))) {
+      if (required) await askForCode();
+    }
+  }
   // the card pressed on the site ("Solicitar demo"): the account starts on Básico and the team activates the plan asked for
   const requestedPlan = $derived(page.url.searchParams.get('plan') ?? '');
   const requestedName = $derived(Object.hasOwn(PLAN_NAMES, requestedPlan) ? PLAN_NAMES[requestedPlan] : '');
@@ -57,8 +88,24 @@
       op.fail('Revisa los campos marcados.');
       return;
     }
+    if (!codeStep) {
+      // step 1: the code is mailed (a server that cannot send mail does not ask for it)
+      let required = false;
+      if (!(await op.run(async () => (required = (await api.sendRegisterCode(email.trim())).required)))) return;
+      if (required) {
+        await askForCode();
+        return;
+      }
+    } else if (code.length !== 6) {
+      op.fail('Escribe el código de 6 dígitos que te enviamos al correo.');
+      document.getElementById('r-code')?.focus();
+      return;
+    }
     await op.run(() =>
-      session.register({ clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password, accepted_terms: accepted, requested_plan: requestedName ? requestedPlan : '' })
+      session.register({
+        clinic_name: clinicName.trim(), phone: phone.trim(), name: personName.trim(), email: email.trim(), username: username.trim(), password,
+        accepted_terms: accepted, requested_plan: requestedName ? requestedPlan : '', email_code: codeStep ? code : undefined
+      })
     );
   }
 </script>
@@ -110,7 +157,7 @@
         </div>
         <div>
           <label class="label" for="r-email">Correo electrónico</label>
-          <input id="r-email" class="field" type="email" bind:value={email} placeholder="consultorio@correo.com" autocomplete="email" autocapitalize="none" aria-invalid={touched && !!problems.email} />
+          <input id="r-email" class="field" type="email" bind:value={email} oninput={() => (codeStep = false)} placeholder="consultorio@correo.com" autocomplete="email" autocapitalize="none" aria-invalid={touched && !!problems.email} />
           {@render err('email')}
         </div>
         <div>
@@ -151,8 +198,21 @@
         {@render err('accepted')}
       </div>
 
+      {#if codeStep}
+        <div>
+          <label class="label" for="r-code">Código de verificación</label>
+          <input id="r-code" class="field text-center text-2xl font-semibold tracking-[0.5em]" bind:value={emailCode} inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" />
+          <p class="mt-2 text-sm text-app-muted">
+            Te enviamos un código de 6 dígitos a <strong class="text-app-ink">{email.trim()}</strong>. Revisa también la carpeta de spam.
+            <button type="button" class="font-semibold text-app-primary hover:underline disabled:text-app-muted disabled:no-underline" disabled={resendIn > 0 || op.phase === 'loading'} onclick={resend}>
+              {resendIn > 0 ? `Reenviar en ${resendIn} s` : 'Reenviar código'}
+            </button>
+          </p>
+        </div>
+      {/if}
+
       <button type="submit" class="btn-primary btn-lg" disabled={op.phase === 'loading'}>
-        {#if op.phase === 'loading'}<span class="spin"></span>Creando…{:else}Crear mi consultorio{/if}
+        {#if op.phase === 'loading'}<span class="spin"></span>{codeStep ? 'Verificando…' : 'Enviando código…'}{:else if codeStep}Verificar y crear mi consultorio{:else}Crear mi consultorio{/if}
       </button>
     </form>
 

@@ -1,4 +1,4 @@
-import { ANON_STATE, PLATFORM, apiAnon, apiJson, apiLogin, expect, login, test, uid } from '../support/app';
+import { ANON_STATE, PLATFORM, apiAnon, apiJson, apiLogin, registerApi, expect, login, test, uid } from '../support/app';
 
 test.use({ storageState: ANON_STATE });
 
@@ -10,7 +10,7 @@ test('plataforma: las sucursales no salen en la lista general; la matriz las lis
 
   // a clinic of its own with the Pro plan (the branches come with it)
   const api = await apiAnon();
-  const session = (await apiJson(await api.post('/api/register', { data: { clinic_name: owner.clinic, phone: '5511111111', name: `Dueño ${id}`, email: `${owner.username}@e2e.test`, username: owner.username, password: owner.password, accepted_terms: true } }))).session;
+  const session = (await apiJson(await registerApi(api, { clinic_name: owner.clinic, phone: '5511111111', name: `Dueño ${id}`, email: `${owner.username}@e2e.test`, username: owner.username, password: owner.password, accepted_terms: true }))).session;
   await apiJson(await platform.patch(`/api/platform/clinics/${session.clinicId}`, { data: { plan: 'pro', billing_status: 'active' } }));
 
   const branchName = `Sucursal Norte ${id}`;

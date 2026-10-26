@@ -1,4 +1,4 @@
-import { ANON_STATE, CLINIC, expect, login, logout, test, ui, uid } from '../support/app';
+import { ANON_STATE, CLINIC, expect, login, logout, test, ui, uid, verificationCode } from '../support/app';
 
 test.use({ storageState: ANON_STATE });
 
@@ -17,6 +17,9 @@ test('un consultorio nuevo se registra, cierra sesión y vuelve a entrar', async
   await page.fill(ui.register.confirm, pass);
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Crear mi consultorio' }).click();
+  // the e-mail is verified first: a code arrives in the mailbox and the account is created with it
+  await page.fill('#r-code', await verificationCode(`${user}@e2e.test`));
+  await page.getByRole('button', { name: 'Verificar y crear mi consultorio' }).click();
   // a new clinic goes through the welcome wizard before anything else
   await page.waitForURL('**/bienvenida');
   await expect(page.getByRole('heading', { name: /Bienvenido/ })).toBeVisible();

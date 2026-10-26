@@ -1,4 +1,4 @@
-import { ANON_STATE, apiJson, apiLogin, expect, PLATFORM, test, ui, uid, waitForMail } from '../support/app';
+import { ANON_STATE, apiJson, apiLogin, expect, PLATFORM, test, ui, uid, verificationCode, waitForMail } from '../support/app';
 
 test.use({ storageState: ANON_STATE });
 
@@ -28,6 +28,8 @@ test('cada tarjeta de plan lleva al registro con su plan; la cuenta empieza en B
   await page.fill(ui.register.confirm, 'clave-registro-1');
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Crear mi consultorio' }).click();
+  await page.fill('#r-code', await verificationCode(`${user}@e2e.test`));
+  await page.getByRole('button', { name: 'Verificar y crear mi consultorio' }).click();
   await page.waitForURL('**/bienvenida');
 
   // the team gets the plan asked for, and the account is Básico on trial

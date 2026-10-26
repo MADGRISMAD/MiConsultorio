@@ -51,6 +51,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       DEMO_TO: ${DEMO_TO:-}
       DEMO_CC: ${DEMO_CC:-}
+      SIGNUP_VERIFY: ${SIGNUP_VERIFY:-}
       API_PUBLIC_URL: ${API_PUBLIC_URL:-}
       MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
       MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
