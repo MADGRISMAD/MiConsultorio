@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import type { Snippet } from 'svelte';
   import { theme } from '$lib/theme.svelte';
   import Footer from '$lib/landing/Footer.svelte';
@@ -15,7 +16,11 @@
   const pendiente = Object.values(OPERATOR).some(isPending);
 </script>
 
-<svelte:head><title>{title} · Caresia</title></svelte:head>
+<svelte:head>
+  <title>{title} · Caresia</title>
+  <meta name="description" content={intro} />
+  <link rel="canonical" href="https://caresia.mx{page.url.pathname}" />
+</svelte:head>
 
 <div class="landing grain min-h-screen overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white" data-theme={theme.mode}>
   <Nav home="/" />

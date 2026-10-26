@@ -5,7 +5,8 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 export default {
   preprocess: vitePreprocess(),
   kit: {
-    // Single-page app: the Go server falls back to index.html for client-side routes.
-    adapter: adapter({ fallback: 'index.html' })
+    // App de una sola página; las rutas públicas de arriba se prerenderizan para buscadores.
+    // spa.html es la página de entrada del resto de las rutas; / , /privacidad y /terminos se generan con su HTML completo.
+    adapter: adapter({ fallback: 'spa.html' })
   }
 };

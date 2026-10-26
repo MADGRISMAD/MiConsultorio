@@ -43,6 +43,7 @@
 
 <svelte:head>
   <title>{c ? `${c.name} · ${c.tagline || 'Consultorio'}` : 'Consultorio'}</title>
+  {#if view === 'invalid' || (view !== 'loading' && !c)}<meta name="robots" content="noindex" />{/if}
   {#if c}
     <meta name="description" content={c.tagline || `Agenda tu cita en ${c.name}`} />
     <meta property="og:title" content={c.name} />

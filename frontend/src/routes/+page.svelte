@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { session, maybeSignedIn } from '$lib/session.svelte';
   import { CLINIC_KINDS, PERMISSIONS } from '$lib/types';
@@ -10,6 +11,9 @@
   import AttentionStrip from '$lib/components/home/AttentionStrip.svelte';
   import TodayPanel from '$lib/components/home/TodayPanel.svelte';
 
+  // La primera pintura (servidor y navegador) es siempre la landing; si hubo sesión, se cambia al montar.
+  let hint = $state(false);
+  onMount(() => (hint = maybeSignedIn()));
   const canAppointments = $derived(session.has(PERMISSIONS.navAppointments) || session.has(PERMISSIONS.adminAppointments));
   const canPatients = $derived(session.has(PERMISSIONS.navHistorials) || session.has(PERMISSIONS.adminHistorials));
   $effect(() => {
@@ -38,7 +42,7 @@
   <title>{session.status === 'authenticated' ? 'Inicio · Caresia' : 'Caresia · Software para clínicas dentales y consultorios médicos'}</title>
 </svelte:head>
 
-{#if session.status === 'loading' && maybeSignedIn()}
+{#if session.status === 'loading' && hint}
   <Spinner />
 {:else if session.status === 'authenticated'}
   <Guard title="Inicio">

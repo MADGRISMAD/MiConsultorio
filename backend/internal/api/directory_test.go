@@ -129,7 +129,7 @@ func TestPublicDirectory(t *testing.T) {
 	}
 	xmlBody, _ := io.ReadAll(res2.Body)
 	res2.Body.Close()
-	for _, want := range []string{"http://app.test/directorio", "http://app.test/directorio/dentistas/tijuana", "http://app.test/clinica-a"} {
+	for _, want := range []string{"http://app.test/", "http://app.test/privacidad", "http://app.test/terminos", "http://app.test/directorio", "http://app.test/directorio/dentistas/tijuana", "http://app.test/clinica-a"} {
 		if !strings.Contains(string(xmlBody), "<loc>"+want+"</loc>") {
 			t.Fatalf("el mapa del sitio debe incluir %s:\n%s", want, xmlBody)
 		}

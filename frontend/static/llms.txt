@@ -1,0 +1,19 @@
+# Caresia
+
+> Software mexicano de expediente clínico, agenda, recetas y cobros para consultorios y clínicas: dentales, médicos, nutrición, veterinaria y de varias especialidades. Precios publicados en pesos mexicanos.
+
+Caresia no está certificado bajo la NOM-024-SSA3-2012 y no firma electrónicamente notas ni recetas. Ofrece cifrado de datos, bitácora de accesos y derechos ARCO. La información de salud es del consultorio que la captura.
+
+## Planes (MXN al mes, más IVA)
+- Básico, $499: 2 especialistas y 1 recepcionista, agenda, expedientes y recetas. Sin asistente de IA.
+- Crecimiento, $999: hasta 5 especialistas, 2 recepcionistas y 2 cajeros, cobros (punto de venta, caja y CFDI) y asistente de IA con 500 usos al mes.
+- Pro, $1,899: hasta 10 sucursales, cuentas y giros sin límite, asistente de IA con 1,500 usos al mes y 100 GB.
+Detalle y comparación: https://caresia.mx/#precios
+
+## Páginas
+- [Inicio](https://caresia.mx/): funciones, especialidades, precios y preguntas frecuentes
+- [Blog](https://caresia.mx/blog): guías para administrar un consultorio
+- [Directorio de consultorios](https://caresia.mx/directorio)
+- [Aviso de privacidad](https://caresia.mx/privacidad)
+- [Términos y condiciones](https://caresia.mx/terminos)
+- Contacto: caresia-info@caresia.mx

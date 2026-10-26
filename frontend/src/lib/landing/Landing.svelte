@@ -8,6 +8,24 @@
   import { i18n } from '$lib/i18n/index.svelte';
   import { translateToEnglish } from './translate';
   import { reducedMotion } from './motion';
+  import { plans } from './data';
+
+  const SITE = 'https://caresia.mx';
+  const title = 'Caresia · Software para clínicas dentales y consultorios médicos';
+  const description = 'Agenda, expedientes, recetas, cobros, reportes e inteligencia artificial en un solo lugar. Para clínicas dentales, consultorios médicos, nutriólogos, veterinarias y clínicas con varias especialidades.';
+  // Precios y datos de la empresa en el HTML (sin JavaScript): buscadores y asistentes de IA los leen directo.
+  const jsonld = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png`, email: 'caresia-info@caresia.mx', areaServed: 'MX' },
+      { '@type': 'WebSite', '@id': `${SITE}/#web`, name: 'Caresia', url: `${SITE}/`, inLanguage: 'es-MX', publisher: { '@id': `${SITE}/#org` } },
+      {
+        '@type': 'SoftwareApplication', '@id': `${SITE}/#app`, name: 'Caresia', applicationCategory: 'HealthApplication', operatingSystem: 'Web', inLanguage: 'es-MX', url: `${SITE}/`, description,
+        publisher: { '@id': `${SITE}/#org` },
+        offers: plans.map((p) => ({ '@type': 'Offer', name: p.name, price: p.price.replace(/[^0-9.]/g, ''), priceCurrency: 'MXN', url: `${SITE}/#precios`, description: p.tagline }))
+      }
+    ]
+  }).replace(/</g, '\\u003c');
 
   let ready = $state(false);
   // La landing está en español; en inglés solo si la persona lo eligió con el botón ES/EN (se recuerda).
@@ -39,6 +57,21 @@
     };
   });
 </script>
+
+<svelte:head>
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="canonical" href="{SITE}/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Caresia" />
+  <meta property="og:locale" content="es_MX" />
+  <meta property="og:url" content="{SITE}/" />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content="{SITE}/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  {@html `<script type="application/ld+json">${jsonld}<` + `/script>`}
+</svelte:head>
 
 <div class="landing grain min-h-screen overflow-x-clip bg-paper font-body text-ink antialiased selection:bg-signal selection:text-white [-webkit-tap-highlight-color:transparent]" data-theme={theme.mode}>
   <Nav lang />

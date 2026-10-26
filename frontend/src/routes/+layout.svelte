@@ -10,6 +10,8 @@
   import { session } from '$lib/session.svelte';
   import { pwa } from '$lib/pwa/pwa.svelte';
   import CookieBanner from '$lib/components/CookieBanner.svelte';
+  import { page } from '$app/state';
+  import { isPrivateRoute } from '$lib/seo';
 
   let { children } = $props();
 
@@ -21,6 +23,7 @@
 
 <svelte:head>
   <title>Caresia · Software para clínicas dentales y consultorios médicos</title>
+  {#if isPrivateRoute(page.url.pathname)}<meta name="robots" content="noindex, nofollow" />{/if}
 </svelte:head>
 
 {@render children()}

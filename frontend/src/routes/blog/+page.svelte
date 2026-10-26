@@ -73,6 +73,9 @@
 <svelte:head>
   <title>{title}</title>
   <meta name="description" content={description} />
+  <link rel="canonical" href="https://caresia.mx/blog" />
+  <meta property="og:url" content="https://caresia.mx/blog" />
+  <meta property="og:image" content="https://caresia.mx/og.png" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />

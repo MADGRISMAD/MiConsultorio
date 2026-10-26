@@ -12,6 +12,17 @@
       "destination": "https://miconsultorio.15-235-62-27.sslip.io/api/$1"
     },
     {
+      "source": "/blog/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(googlebot|bingbot|duckduckbot|yandex|baiduspider|applebot|gptbot|oai-searchbot|chatgpt-user|claudebot|claude-searchbot|claude-user|perplexitybot|perplexity-user|google-extended|ccbot|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot).*"
+        }
+      ],
+      "destination": "https://faro.hyperionmkt.com/x/caresia.mx/:slug"
+    },
+    {
       "source": "/(.*)",
       "destination": "/spa.html"
     }
@@ -35,6 +46,14 @@
         {
           "key": "Cross-Origin-Opener-Policy",
           "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "interest-cohort=(), payment=(), usb=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000"
         }
       ]
     },
@@ -64,6 +83,19 @@
           "value": "public, max-age=604800"
         }
       ]
+    }
+  ],
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/precios",
+      "destination": "/#precios",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
     }
   ]
 }

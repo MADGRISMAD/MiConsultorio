@@ -399,7 +399,10 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	type u struct {
 		Loc string `xml:"loc"`
 	}
-	urls := []u{{base + "/directorio"}, {base + "/blog"}}
+	urls := []u{{base + "/"}, {base + "/privacidad"}, {base + "/terminos"}, {base + "/directorio"}, {base + "/blog"}}
+	for _, p := range faroSitemapURLs(r.Context(), base) {
+		urls = append(urls, u{p})
+	}
 	posts, err := s.blogSitemapURLs(r.Context(), base)
 	if err != nil {
 		serverError(w, r, err)
