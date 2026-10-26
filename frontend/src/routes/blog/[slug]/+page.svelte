@@ -15,6 +15,10 @@
   $effect(() => theme.init());
 
   const slug = $derived(page.params.slug ?? '');
+  // /blog?post=<slug> (dirección anterior) llega redirigido con el parámetro pegado: se limpia
+  $effect(() => {
+    if (page.url.searchParams.has('post')) goto(page.url.pathname, { replaceState: true });
+  });
   let post = $state<BlogPost | null>(null);
   let related = $state<BlogCard[]>([]);
   let view = $state<'loading' | 'ready' | 'missing' | 'error'>('loading');
