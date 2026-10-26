@@ -1,6 +1,7 @@
 <script lang="ts">
   // Artículo del blog de Caresia: propio (escrito con IA y revisado desde el panel de plataforma) o de FaroContenido.
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import { theme } from '$lib/theme.svelte';
   import Footer from '$lib/landing/Footer.svelte';
   import Nav from '$lib/landing/Nav.svelte';
@@ -34,6 +35,11 @@
       })
       .then((r) => {
         if (s !== slug) return;
+        // Faro responde también a direcciones anteriores del artículo: se lleva a la actual
+        if (r.post.slug && r.post.slug !== s) {
+          goto(`/blog/${r.post.slug}`, { replaceState: true });
+          return;
+        }
         post = r.post;
         related = r.related;
         view = 'ready';

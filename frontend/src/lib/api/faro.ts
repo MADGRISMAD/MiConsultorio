@@ -15,7 +15,7 @@ interface FaroPost {
 }
 interface FaroFull extends FaroPost {
   seo: { description: string };
-  content: { intro: string; sections: { heading: string; paragraphs: string[]; bullets: string[] }[]; faq: { question: string; answer: string }[] };
+  content: { intro: string; sections: { heading: string; level?: number; paragraphs: string[]; bullets: string[] }[]; faq: { question: string; answer: string }[] };
 }
 
 const card = (p: FaroPost): BlogCard => ({
@@ -49,7 +49,7 @@ export async function faroPost(slug: string): Promise<{ post: BlogPost; related:
     const p = (await r.json()) as FaroFull;
     const body: BlogBlock[] = [{ type: 'p', text: p.content.intro }];
     for (const s of p.content.sections) {
-      body.push({ type: 'h2', text: s.heading });
+      body.push({ type: s.level === 3 ? 'h3' : 'h2', text: s.heading });
       for (const t of s.paragraphs) body.push({ type: 'p', text: t });
       if (s.bullets.length) body.push({ type: 'ul', items: s.bullets });
     }

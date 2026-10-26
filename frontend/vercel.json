@@ -88,6 +88,18 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/blog",
+      "has": [
+        {
+          "type": "query",
+          "key": "post",
+          "value": "(?<slug>[a-z0-9-]+)"
+        }
+      ],
+      "destination": "/blog/:slug",
+      "permanent": true
+    },
+    {
       "source": "/precios",
       "destination": "/#precios",
       "permanent": true

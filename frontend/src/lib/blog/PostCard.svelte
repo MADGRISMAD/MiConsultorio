@@ -5,7 +5,7 @@
 </script>
 
 {#if post.image}
-  <!-- Con portada (artículos de FaroContenido): fila con miniatura, igual que las de Soro -->
+  <!-- Con portada (artículos de Faro): fila con miniatura -->
   <a
     href="/blog/{post.slug}"
     class="group flex h-full flex-col gap-5 overflow-hidden rounded-[26px] border border-ink/10 bg-panel/70 p-4 transition-[border-color,transform,box-shadow] duration-300 ease-out-strong hover:-translate-y-0.5 hover:border-ink/25 hover:shadow-[0_24px_48px_-28px_rgba(11,37,64,0.35)] sm:flex-row sm:items-center sm:gap-6 sm:p-5"
