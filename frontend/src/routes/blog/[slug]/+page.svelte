@@ -58,6 +58,7 @@
         mainEntityOfPage: url,
         articleSection: post.category,
         keywords: post.keyword,
+        ...(post.image ? { image: post.image.url } : {}),
         author: { '@type': 'Organization', name: 'Caresia', url: page.url.origin },
         publisher: { '@type': 'Organization', name: 'Caresia', logo: { '@type': 'ImageObject', url: `${page.url.origin}/apple-touch-icon.png` } }
       },
@@ -92,7 +93,8 @@
     <meta property="og:site_name" content="Caresia" />
     <meta property="og:locale" content="es_MX" />
     {#if post.published_at}<meta property="article:published_time" content={post.published_at} />{/if}
-    <meta name="twitter:card" content="summary" />
+    {#if post.image}<meta property="og:image" content={post.image.url} />{/if}
+    <meta name="twitter:card" content={post.image ? 'summary_large_image' : 'summary'} />
     {@html jsonLd}
   {:else if view === 'missing'}
     <title>Artículo no encontrado · Caresia</title>
@@ -139,6 +141,10 @@
           <h1 class="mt-6 font-display text-[clamp(2.6rem,7vw,5.2rem)] font-normal leading-[0.95] tracking-[-0.03em] [text-wrap:balance]">{post.title}</h1>
           <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft [text-wrap:pretty] sm:text-xl">{post.excerpt}</p>
         </header>
+
+        {#if post.image}
+          <img src={post.image.url} alt={post.image.alt} width="1376" height="768" class="mt-10 aspect-video w-full max-w-4xl rounded-[26px] border border-ink/10 bg-ink/5 object-cover" />
+        {/if}
 
         <div class="mt-12 grid gap-12 border-t border-ink/10 pt-12 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-16">
           <div class="max-w-[44rem]">

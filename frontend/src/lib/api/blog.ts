@@ -16,6 +16,8 @@ export interface BlogCard {
   status: 'draft' | 'published';
   published_at: string | null;
   created_at: string;
+  /** Portada (artículos de FaroContenido). Los propios no la tienen. */
+  image?: { url: string; alt: string } | null;
 }
 
 export interface BlogPost extends BlogCard {

@@ -11,6 +11,7 @@ interface FaroPost {
   summary: string;
   published_at: string;
   reading_minutes: number;
+  image: { url: string; alt: string } | null;
 }
 interface FaroFull extends FaroPost {
   seo: { description: string };
@@ -26,7 +27,8 @@ const card = (p: FaroPost): BlogCard => ({
   reading_minutes: p.reading_minutes,
   status: 'published',
   published_at: p.published_at,
-  created_at: p.published_at
+  created_at: p.published_at,
+  image: p.image ? { url: p.image.url, alt: p.image.alt } : null
 });
 
 /** Lista de artículos de Faro. Si Faro no responde, devuelve [] y el blog sigue mostrando el resto. */

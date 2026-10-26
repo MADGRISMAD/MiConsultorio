@@ -90,21 +90,21 @@
     </h1>
     <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft [text-wrap:pretty]">{description}</p>
 
-    <div class="mt-14 border-t border-ink/10 pt-12">
+    <div class="mx-auto mt-14 max-w-[44rem] border-t border-ink/10 pt-12">
       {#if posts === null}
         <div class="grid gap-4 md:grid-cols-2" aria-hidden="true">
           {#each [0, 1, 2] as i}<div class="h-64 animate-pulse rounded-[26px] bg-ink/5 {i === 0 ? 'md:col-span-2' : ''}"></div>{/each}
         </div>
       {:else if posts.length}
-        <ul class="grid gap-4 md:grid-cols-2">
+        <ul class="grid gap-4">
           {#each posts as post, i (post.id)}
-            <li class={i === 0 ? 'md:col-span-2' : ''}><PostCard {post} featured={i === 0} /></li>
+            <li><PostCard {post} featured={i === 0} /></li>
           {/each}
         </ul>
       {/if}
     </div>
 
-    <div class="mt-12">
+    <div class="mx-auto mt-4 max-w-[44rem]">
       <div id="soro-blog" bind:this={box} class="scroll-mt-28"></div>
       <noscript><p class="text-ink-soft">Activa JavaScript para leer el blog.</p></noscript>
     </div>
