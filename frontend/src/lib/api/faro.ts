@@ -1,8 +1,8 @@
 import type { BlogBlock, BlogCard, BlogPost } from './blog';
 
-// Artículos que escribe y publica FaroContenido (faro.15-235-62-27.sslip.io). Se leen por su API pública y se pintan con
+// Artículos que escribe y publica FaroContenido (faro.hyperionmkt.com). Se leen por su API pública y se pintan con
 // los componentes del blog de Caresia: Faro solo entrega los datos. Contrato: docs/API.md del repo FaroContenido.
-const FARO = 'https://faro.15-235-62-27.sslip.io/api/v1/caresia.mx';
+const FARO = 'https://faro.hyperionmkt.com/api/v1/caresia.mx';
 
 interface FaroPost {
   id: string;
