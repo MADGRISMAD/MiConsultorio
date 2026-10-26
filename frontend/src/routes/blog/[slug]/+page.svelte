@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Artículo del blog propio de Caresia (escrito con IA y revisado desde el panel de plataforma).
+  // Artículo del blog de Caresia: propio (escrito con IA y revisado desde el panel de plataforma) o de FaroContenido.
   import { page } from '$app/state';
   import { theme } from '$lib/theme.svelte';
   import Footer from '$lib/landing/Footer.svelte';
@@ -9,6 +9,7 @@
   import PostCard from '$lib/blog/PostCard.svelte';
   import { blogApi, blogDate, type BlogCard, type BlogPost } from '$lib/api/blog';
   import { ApiError } from '$lib/api';
+  import { faroPost } from '$lib/api/faro';
 
   $effect(() => theme.init());
 
@@ -23,6 +24,14 @@
     view = 'loading';
     blogApi
       .post(s)
+      // si no es un artículo propio, puede ser uno de FaroContenido
+      .catch(async (e) => {
+        if (e instanceof ApiError && e.status === 404) {
+          const f = await faroPost(s);
+          if (f) return f;
+        }
+        throw e;
+      })
       .then((r) => {
         if (s !== slug) return;
         post = r.post;

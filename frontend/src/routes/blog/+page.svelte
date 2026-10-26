@@ -7,6 +7,7 @@
   import Nav from '$lib/landing/Nav.svelte';
   import PostCard from '$lib/blog/PostCard.svelte';
   import { blogApi, type BlogCard } from '$lib/api/blog';
+  import { faroList } from '$lib/api/faro';
 
   const SORO_KEY = 'f89f47a2-4b3e-4fd4-8dbc-e856c6ebb5a6';
   const SORO_SRC = `https://app.trysoro.com/api/embed/${SORO_KEY}`;
@@ -26,10 +27,13 @@
   let box: HTMLDivElement;
   let roots = $state<ShadowRoot[]>([]);
 
-  // Artículos propios (escritos con IA y revisados desde el panel de plataforma)
+  // Artículos propios (escritos con IA y revisados desde el panel de plataforma) y los de FaroContenido, del más nuevo al más viejo.
+  // Soro sigue debajo mientras dure la transición.
   let posts = $state<BlogCard[] | null>(null);
   onMount(() => {
-    blogApi.list().then((p) => (posts = p)).catch(() => (posts = []));
+    Promise.all([blogApi.list().catch(() => [] as BlogCard[]), faroList()]).then(([own, faro]) => {
+      posts = [...own, ...faro].sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
+    });
   });
 
   onMount(() => {
