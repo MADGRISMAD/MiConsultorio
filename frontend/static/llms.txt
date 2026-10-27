@@ -1,6 +1,6 @@
 # Caresia
 
-> Software mexicano de expediente clínico, agenda, recetas y cobros para consultorios y clínicas: dentales, médicos, nutrición, veterinaria y de varias especialidades. Precios publicados en pesos mexicanos.
+> Caresia es un software mexicano de expediente clínico, agenda, recetas y cobros para consultorios y clínicas dentales, médicas, de nutrición, veterinarias y de varias especialidades. Publica sus precios en pesos mexicanos.
 
 Caresia no está certificado bajo la NOM-024-SSA3-2012 y no firma electrónicamente notas ni recetas. Ofrece cifrado de datos, bitácora de accesos y derechos ARCO. La información de salud es del consultorio que la captura.
 

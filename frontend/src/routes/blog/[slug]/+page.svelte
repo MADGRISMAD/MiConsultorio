@@ -50,12 +50,12 @@
         dateModified: post.updated_at,
         inLanguage: 'es-MX',
         mainEntityOfPage: url,
-        articleSection: post.category,
-        keywords: post.keyword,
+        ...(post.category ? { articleSection: post.category } : {}),
+        ...(post.keyword ? { keywords: post.keyword } : {}),
         ...(post.image ? { image: post.image.url } : {}),
         isPartOf: { '@id': `${SITE}/blog#blog` },
         author: { '@type': 'Organization', name: 'Caresia', url: SITE },
-        publisher: { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', logo: { '@type': 'ImageObject', url: `${SITE}/apple-touch-icon.png` } }
+        publisher: { '@id': `${SITE}/#org` }
       },
       {
         '@type': 'BreadcrumbList',

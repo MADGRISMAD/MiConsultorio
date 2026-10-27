@@ -393,6 +393,9 @@ func (s *surveyPublic) directoryOptions(w http.ResponseWriter, r *http.Request) 
 // legalUpdated: fecha de la última edición del aviso de privacidad y los términos (git log de frontend/src/routes/{privacidad,terminos} y frontend/src/lib/legal). Se actualiza a mano al cambiarlos.
 const legalUpdated = "2026-10-26"
 
+// landingsUpdated: fecha de la última edición de las páginas por especialidad (frontend/src/lib/landing/especialidades.ts).
+const landingsUpdated = "2026-10-27"
+
 // sitemap lista para Google el directorio, cada combinación especialidad + ciudad con resultados y cada perfil.
 func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	if !limit(w, s.reads, "sitemap|"+clientIP(r)) {
@@ -413,7 +416,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	}
 	urls := []u{{base + "/", newest}, {base + "/privacidad", legalUpdated}, {base + "/terminos", legalUpdated}, {base + "/directorio", ""}, {base + "/blog", newest}}
 	for _, e := range []string{"software-dental", "software-medico", "software-nutricion", "software-veterinaria"} {
-		urls = append(urls, u{base + "/" + e, ""})
+		urls = append(urls, u{base + "/" + e, landingsUpdated})
 	}
 	for _, p := range faro {
 		urls = append(urls, u{p.Loc, p.Lastmod})

@@ -4,8 +4,8 @@
   import Footer from './Footer.svelte';
   import Nav from './Nav.svelte';
   import Icon from './Icon.svelte';
-  import { faqs, plans, registerHref } from './data';
-  import { especialidades, type Especialidad } from './especialidades';
+  import { plans, registerHref } from './data';
+  import { avisoNormas, especialidades, type Especialidad } from './especialidades';
 
   let { e }: { e: Especialidad } = $props();
 
@@ -13,7 +13,7 @@
   const url = $derived(SITE + e.path);
   // Lo que incluye todo plan, tomado de la lista del plan Básico (no se repite aquí lo que es solo de otros planes)
   const incluye = plans[0].features.slice(2, 9);
-  const preguntas = faqs.slice(0, 6);
+  // preguntas propias del giro (sin repetir las generales de la portada)
   const otras = $derived(especialidades.filter((x) => x.path !== e.path));
 
   const ld = $derived(
@@ -35,6 +35,7 @@
             return { '@type': 'Offer', name: p.name, price, priceCurrency: 'MXN', availability: 'https://schema.org/InStock', url: `${SITE}/#precios`, priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'MXN', unitText: 'MONTH', valueAddedTaxIncluded: false } };
           })
         },
+        { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity: e.faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
         {
           '@type': 'BreadcrumbList',
           itemListElement: [
@@ -86,6 +87,12 @@
           <li class="flex gap-4 rounded-[24px] bg-panel p-6 ring-1 ring-ink/10"><Icon name="check" class="mt-1 h-5 w-5 flex-none text-signal" strokeWidth={2.4} /><span class="text-[17px] font-medium leading-snug">{c}</span></li>
         {/each}
       </ul>
+      <div class="mt-4 grid gap-4 md:grid-cols-2">
+        {#each e.extras as x}
+          <div class="rounded-[24px] bg-panel p-6 ring-1 ring-ink/10"><h3 class="font-display text-[1.6rem] leading-tight">{x.titulo}</h3><p class="mt-3 text-[16px] leading-relaxed text-ink-soft [text-wrap:pretty]">{x.texto}</p></div>
+        {/each}
+      </div>
+      <p class="mt-6 max-w-3xl rounded-2xl bg-ink/[0.04] px-5 py-4 text-[14px] leading-relaxed text-ink-soft ring-1 ring-ink/10" role="note">{avisoNormas}</p>
     </section>
 
     <section aria-labelledby="incluye" class="mt-20 border-t border-ink/10 pt-12">
@@ -113,7 +120,7 @@
     <section aria-labelledby="preguntas" class="mt-20 border-t border-ink/10 pt-12">
       <h2 id="preguntas" class="font-display text-[clamp(2rem,5vw,3.25rem)] font-normal leading-none tracking-[-0.02em]">Preguntas frecuentes</h2>
       <dl class="mt-8 max-w-3xl divide-y divide-ink/10">
-        {#each preguntas as f}
+        {#each e.faqs as f}
           <div class="py-6"><dt class="text-[18px] font-medium text-ink">{f.q}</dt><dd class="mt-2 text-[16px] leading-relaxed text-ink-soft [text-wrap:pretty]">{f.a}</dd></div>
         {/each}
       </dl>

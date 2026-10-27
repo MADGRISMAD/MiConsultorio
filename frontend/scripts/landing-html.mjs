@@ -84,3 +84,16 @@ for (const [id, name] of Object.entries(SECCIONES)) {
 }
 fs.writeFileSync('build/index.html', landing);
 console.log(`secciones de la portada con su texto en el HTML: ${inyectadas}`);
+
+// llms.txt: se agrega la lista de artículos del blog al compilar (viene de la API pública de Faro, así que siempre está al día).
+try {
+  const r = await fetch('https://faro.hyperionmkt.com/api/v1/caresia.mx/posts?limit=50');
+  const posts = r.ok ? (await r.json()).posts : [];
+  if (posts.length) {
+    const lista = posts.map((p) => `- [${p.title}](https://caresia.mx/blog/${p.slug}): ${p.summary}`).join('\n');
+    fs.appendFileSync('build/llms.txt', `\n## Artículos del blog\n${lista}\n`);
+    console.log(`llms.txt: ${posts.length} artículos`);
+  }
+} catch (e) {
+  console.warn('llms.txt sin artículos (Faro no respondió):', e.message);
+}

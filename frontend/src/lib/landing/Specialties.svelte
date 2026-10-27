@@ -71,7 +71,8 @@
             </button>
           {/each}
         </div>
-        <p class="mt-7 hidden text-[13px] leading-relaxed text-paper/50 lg:block"><span class="font-mono text-[10px] uppercase tracking-[0.14em] text-paper/40">También atiende</span><br />{specialties.join(' · ')}</p>
+        <p class="mt-7 text-[14px] leading-relaxed text-paper/70"><span class="font-mono text-[10px] uppercase tracking-[0.14em] text-paper/45">Páginas por especialidad</span><br />{#each especialidades as sp, i}<a href={sp.path} class="underline decoration-paper/25 underline-offset-4 transition-colors hover:text-paper hover:decoration-paper">{sp.tab}</a>{i < especialidades.length - 1 ? ' · ' : ''}{/each}</p>
+        <p class="mt-5 hidden text-[13px] leading-relaxed text-paper/50 lg:block"><span class="font-mono text-[10px] uppercase tracking-[0.14em] text-paper/40">También atiende</span><br />{specialties.join(' · ')}</p>
       </div>
 
       <div id="sp-panel" role="tabpanel" tabindex="0" aria-labelledby="sp-tab-{active}" class="relative focus-visible:outline-none" onpointermove={aim} style="--mx: 0; --my: 0">
