@@ -5,7 +5,8 @@
   import Nav from '$lib/landing/Nav.svelte';
   import PostCard from '$lib/blog/PostCard.svelte';
   import { blogApi, type BlogCard } from '$lib/api/blog';
-  import { faroList } from '$lib/api/faro';
+
+  let { data }: { data: { faro: BlogCard[] } } = $props();
 
   const title = 'Blog · Caresia';
   const description = 'Guías y consejos para administrar tu clínica dental, consultorio médico, nutrición, veterinaria y más: agenda, expedientes, pacientes y crecimiento.';
@@ -13,11 +14,12 @@
   $effect(() => theme.init());
 
   // Artículos propios (escritos con IA y revisados desde el panel de plataforma) y los que publica Faro, del más nuevo al más viejo.
-  let posts = $state<BlogCard[] | null>(null);
+  const newest = (list: BlogCard[]) => [...list].sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
+  // Los de Faro ya vienen en el HTML; al montar se suman los propios.
+  let own = $state<BlogCard[] | null>(null);
+  const posts = $derived(own === null && !data.faro.length ? null : newest([...(own ?? []), ...data.faro]));
   onMount(() => {
-    Promise.all([blogApi.list().catch(() => [] as BlogCard[]), faroList()]).then(([own, faro]) => {
-      posts = [...own, ...faro].sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
-    });
+    blogApi.list().catch(() => [] as BlogCard[]).then((l) => (own = l));
   });
 </script>
 
@@ -58,8 +60,7 @@
       {/if}
     </div>
 
-    <noscript><p class="mx-auto mt-4 max-w-[44rem] text-ink-soft">Activa JavaScript para ver la lista de artículos.</p></noscript>
-  </main>
+      </main>
 
   <Footer home="/" />
 </div>

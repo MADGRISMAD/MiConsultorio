@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Artículo del blog de Caresia: propio (escrito con IA y revisado desde el panel de plataforma) o de FaroContenido.
+  // Artículo del blog de Caresia: propio (escrito con IA y revisado desde el panel de plataforma) o de Faro.
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { theme } from '$lib/theme.svelte';
@@ -8,52 +8,29 @@
   import { registerHref } from '$lib/landing/data';
   import ArticleBody from '$lib/blog/ArticleBody.svelte';
   import PostCard from '$lib/blog/PostCard.svelte';
-  import { blogApi, blogDate, type BlogCard, type BlogPost } from '$lib/api/blog';
-  import { ApiError } from '$lib/api';
-  import { faroPost } from '$lib/api/faro';
+  import { blogDate } from '$lib/api/blog';
+  import type { ArticleData } from './+page';
 
   $effect(() => theme.init());
 
+  let { data }: { data: ArticleData } = $props();
   const slug = $derived(page.params.slug ?? '');
+  const post = $derived(data.post);
+  const related = $derived(data.related);
+  const view = $derived(data.view);
+
   // /blog?post=<slug> (dirección anterior) llega redirigido con el parámetro pegado: se limpia
   $effect(() => {
     if (page.url.searchParams.has('post')) goto(page.url.pathname, { replaceState: true });
   });
-  let post = $state<BlogPost | null>(null);
-  let related = $state<BlogCard[]>([]);
-  let view = $state<'loading' | 'ready' | 'missing' | 'error'>('loading');
-
-  // al pasar de un artículo a otro (relacionados) se vuelve a cargar
+  // Faro responde también a direcciones anteriores del artículo: se lleva a la actual
   $effect(() => {
-    const s = slug;
-    view = 'loading';
-    blogApi
-      .post(s)
-      // si no es un artículo propio, puede ser uno de FaroContenido
-      .catch(async (e) => {
-        if (e instanceof ApiError && e.status === 404) {
-          const f = await faroPost(s);
-          if (f) return f;
-        }
-        throw e;
-      })
-      .then((r) => {
-        if (s !== slug) return;
-        // Faro responde también a direcciones anteriores del artículo: se lleva a la actual
-        if (r.post.slug && r.post.slug !== s) {
-          goto(`/blog/${r.post.slug}`, { replaceState: true });
-          return;
-        }
-        post = r.post;
-        related = r.related;
-        view = 'ready';
-      })
-      .catch((e) => {
-        if (s === slug) view = e instanceof ApiError && e.status === 404 ? 'missing' : 'error';
-      });
+    if (post && post.slug && post.slug !== slug) goto(`/blog/${post.slug}`, { replaceState: true });
   });
 
-  const url = $derived(page.url.origin + page.url.pathname);
+  // al prerenderizar el origen real no existe: la dirección canónica usa el dominio fijo
+  const SITE = 'https://caresia.mx';
+  const url = $derived(SITE + page.url.pathname);
   // Datos estructurados para Google: artículo, migas de pan y preguntas frecuentes
   const jsonLd = $derived.by(() => {
     if (!post) return '';
@@ -69,14 +46,14 @@
         articleSection: post.category,
         keywords: post.keyword,
         ...(post.image ? { image: post.image.url } : {}),
-        author: { '@type': 'Organization', name: 'Caresia', url: page.url.origin },
-        publisher: { '@type': 'Organization', name: 'Caresia', logo: { '@type': 'ImageObject', url: `${page.url.origin}/apple-touch-icon.png` } }
+        author: { '@type': 'Organization', name: 'Caresia', url: SITE },
+        publisher: { '@type': 'Organization', name: 'Caresia', logo: { '@type': 'ImageObject', url: `${SITE}/apple-touch-icon.png` } }
       },
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Inicio', item: page.url.origin + '/' },
-          { '@type': 'ListItem', position: 2, name: 'Blog', item: page.url.origin + '/blog' },
+          { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE + '/' },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: SITE + '/blog' },
           { '@type': 'ListItem', position: 3, name: post.title, item: url }
         ]
       }
@@ -123,14 +100,7 @@
       Todos los artículos
     </a>
 
-    {#if view === 'loading'}
-      <div class="mt-10 max-w-3xl space-y-5" aria-busy="true" aria-label="Cargando artículo">
-        <div class="h-4 w-40 animate-pulse rounded bg-ink/10"></div>
-        <div class="h-16 w-full animate-pulse rounded-2xl bg-ink/10"></div>
-        <div class="h-16 w-3/4 animate-pulse rounded-2xl bg-ink/10"></div>
-        <div class="mt-10 h-40 w-full animate-pulse rounded-2xl bg-ink/5"></div>
-      </div>
-    {:else if view === 'missing' || view === 'error'}
+    {#if view === 'missing' || view === 'error'}
       <div class="mt-10 max-w-2xl">
         <h1 class="font-display text-[clamp(2.6rem,7vw,4.5rem)] font-normal leading-[0.95] tracking-[-0.03em]">
           {view === 'missing' ? 'Este artículo no existe.' : 'No pudimos cargar el artículo.'}

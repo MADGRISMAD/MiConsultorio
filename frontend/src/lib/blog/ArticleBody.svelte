@@ -51,7 +51,8 @@
                 <span class="absolute h-3 w-[1.5px] bg-current transition-transform duration-300 {isOpen ? 'rotate-90' : ''}"></span>
               </span>
             </button>
-            {#if isOpen}<p class="pb-5 pr-10 [text-wrap:pretty]">{f.a}</p>{/if}
+            <!-- la respuesta siempre está en el HTML (buscadores y asistentes de IA la leen); solo se oculta mientras la pregunta está cerrada -->
+            <p class="pb-5 pr-10 [text-wrap:pretty]" hidden={!isOpen}>{f.a}</p>
           </li>
         {/each}
       </ul>

@@ -17,7 +17,7 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": "(?i).*(googlebot|bingbot|duckduckbot|yandex|baiduspider|applebot|gptbot|oai-searchbot|chatgpt-user|claudebot|claude-searchbot|claude-user|perplexitybot|perplexity-user|google-extended|ccbot|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot).*"
+          "value": "(?i).*(googlebot|google-inspectiontool|googleother|bingbot|bingpreview|duckduckbot|duckassistbot|yandex|baiduspider|applebot|bravebot|amazonbot|gptbot|oai-searchbot|chatgpt-user|claudebot|claude-searchbot|claude-user|anthropic-ai|perplexitybot|perplexity-user|mistralai-user|cohere-ai|youbot|diffbot|ccbot|bytespider|meta-externalagent|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot|discordbot).*"
         }
       ],
       "destination": "https://faro.hyperionmkt.com/x/caresia.mx/:slug"

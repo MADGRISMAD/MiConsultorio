@@ -8,7 +8,7 @@
   import { i18n } from '$lib/i18n/index.svelte';
   import { translateToEnglish } from './translate';
   import { reducedMotion } from './motion';
-  import { plans } from './data';
+  import { faqs, plans } from './data';
 
   const SITE = 'https://caresia.mx';
   const title = 'Caresia · Software para clínicas dentales y consultorios médicos';
@@ -17,13 +17,18 @@
   const jsonld = JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png`, email: 'caresia-info@caresia.mx', areaServed: 'MX' },
+      { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png`, email: 'caresia-info@caresia.mx', areaServed: 'MX', description: 'Software mexicano de agenda, expediente clínico, recetas y cobros para consultorios y clínicas.', contactPoint: { '@type': 'ContactPoint', contactType: 'ventas y soporte', email: 'caresia-info@caresia.mx', availableLanguage: 'es' } },
       { '@type': 'WebSite', '@id': `${SITE}/#web`, name: 'Caresia', url: `${SITE}/`, inLanguage: 'es-MX', publisher: { '@id': `${SITE}/#org` } },
       {
         '@type': 'SoftwareApplication', '@id': `${SITE}/#app`, name: 'Caresia', applicationCategory: 'HealthApplication', operatingSystem: 'Web', inLanguage: 'es-MX', url: `${SITE}/`, description,
         publisher: { '@id': `${SITE}/#org` },
-        offers: plans.map((p) => ({ '@type': 'Offer', name: p.name, price: p.price.replace(/[^0-9.]/g, ''), priceCurrency: 'MXN', url: `${SITE}/#precios`, description: p.tagline }))
-      }
+        offers: plans.map((p) => {
+          const price = p.price.replace(/[^0-9.]/g, '');
+          // precios mensuales y sin IVA (así los publica la sección de precios)
+          return { '@type': 'Offer', name: p.name, price, priceCurrency: 'MXN', availability: 'https://schema.org/InStock', url: `${SITE}/#precios`, description: p.tagline, priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'MXN', unitText: 'MONTH', valueAddedTaxIncluded: false } };
+        })
+      },
+      { '@type': 'FAQPage', '@id': `${SITE}/#faq`, mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }
     ]
   }).replace(/</g, '\\u003c');
 

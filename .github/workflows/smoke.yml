@@ -1,0 +1,34 @@
+name: Prueba de humo (caresia.mx)
+# Pide las páginas clave como lo haría una persona y como un rastreador; si algo no responde 200, el aviso de GitHub llega por correo.
+# Existe porque un cambio de vercel.json dejó /login y los artículos en 404 unos minutos sin que nadie lo notara.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Esperar a que Vercel termine de publicar
+        if: github.event_name == 'workflow_run'
+        run: sleep 150
+      - name: Páginas clave
+        run: |
+          fallo=0
+          check() { # $1 ruta, $2 user-agent, $3 texto esperado (opcional)
+            body=$(curl -s -L -A "$2" -w '\n%{http_code}' "https://caresia.mx$1")
+            code=${body##*$'\n'}
+            if [ "$code" != "200" ] || { [ -n "$3" ] && ! printf '%s' "$body" | grep -q "$3"; }; then
+              echo "::error::$1 ($2) respondió $code o no trae «$3»"; fallo=1
+            else echo "ok $1 ($2)"; fi
+          }
+          for ruta in / /login /register /directorio /privacidad /terminos /blog /blog/software-gestion-clinica; do check "$ruta" "Mozilla/5.0 (smoke)" ""; done
+          check /blog/software-gestion-clinica "GPTBot/1.0" "<h1"
+          check / "Googlebot/2.1" "SoftwareApplication"
+          check /sitemap.xml "Mozilla/5.0 (smoke)" "<loc>https://caresia.mx/blog/"
+          check /llms.txt "Mozilla/5.0 (smoke)" "Caresia"
+          exit $fallo
