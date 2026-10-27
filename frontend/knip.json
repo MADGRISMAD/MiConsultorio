@@ -3,5 +3,8 @@
   "rules": {
     "types": "off",
     "exports": "off"
-  }
+  },
+  "ignoreDependencies": [
+    "@fontsource/instrument-serif"
+  ]
 }
