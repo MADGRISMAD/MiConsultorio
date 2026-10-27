@@ -129,10 +129,14 @@ func TestPublicDirectory(t *testing.T) {
 	}
 	xmlBody, _ := io.ReadAll(res2.Body)
 	res2.Body.Close()
-	for _, want := range []string{"http://app.test/", "http://app.test/privacidad", "http://app.test/terminos", "http://app.test/directorio", "http://app.test/directorio/dentistas/tijuana", "http://app.test/clinica-a"} {
+	for _, want := range []string{"http://app.test/software-dental", "http://app.test/software-medico", "http://app.test/software-nutricion", "http://app.test/software-veterinaria", "http://app.test/", "http://app.test/privacidad", "http://app.test/terminos", "http://app.test/directorio", "http://app.test/directorio/dentistas/tijuana", "http://app.test/clinica-a"} {
 		if !strings.Contains(string(xmlBody), "<loc>"+want+"</loc>") {
 			t.Fatalf("el mapa del sitio debe incluir %s:\n%s", want, xmlBody)
 		}
+	}
+	// las páginas legales llevan fecha de última edición
+	if !strings.Contains(string(xmlBody), "<loc>http://app.test/privacidad</loc><lastmod>") {
+		t.Fatalf("el mapa del sitio debe llevar lastmod en las páginas legales:\n%s", xmlBody)
 	}
 	// quien se oculta sale del directorio y del mapa del sitio
 	b.login("admin_b").expect(200, "PUT", "/api/clinic/profile", map[string]any{"enabled": true, "survey_delay_hours": 3, "maps_min_rating": 4, "show_reviews": true, "city": "Tijuana", "state": "Baja California", "directory_hidden": true})

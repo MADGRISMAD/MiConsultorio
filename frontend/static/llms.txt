@@ -12,6 +12,10 @@ Detalle y comparación: https://caresia.mx/#precios
 
 ## Páginas
 - [Inicio](https://caresia.mx/): funciones, especialidades, precios y preguntas frecuentes
+- [Software para clínicas dentales](https://caresia.mx/software-dental)
+- [Software para consultorio médico](https://caresia.mx/software-medico)
+- [Software para nutriólogos](https://caresia.mx/software-nutricion)
+- [Software para clínicas veterinarias](https://caresia.mx/software-veterinaria)
 - [Blog](https://caresia.mx/blog): guías para administrar un consultorio
 - [Directorio de consultorios](https://caresia.mx/directorio)
 - [Aviso de privacidad](https://caresia.mx/privacidad)

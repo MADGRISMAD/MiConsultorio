@@ -10,7 +10,7 @@
     href="/blog/{post.slug}"
     class="group flex h-full flex-col gap-5 overflow-hidden rounded-[26px] border border-ink/10 bg-panel/70 p-4 transition-[border-color,transform,box-shadow] duration-300 ease-out-strong hover:-translate-y-0.5 hover:border-ink/25 hover:shadow-[0_24px_48px_-28px_rgba(11,37,64,0.35)] sm:flex-row sm:items-center sm:gap-6 sm:p-5"
   >
-    <img src={post.image.url} alt={post.image.alt} width="1376" height="768" loading="lazy" class="aspect-video w-full flex-none rounded-[18px] bg-ink/5 object-cover sm:w-60" />
+    <img src={post.image.url} alt={post.image.alt} width="1376" height="768" loading={featured ? 'eager' : 'lazy'} fetchpriority={featured ? 'high' : 'auto'} decoding="async" class="aspect-video w-full flex-none rounded-[18px] bg-ink/5 object-cover sm:w-60" />
     <div class="min-w-0">
       <p class="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
         <span class="text-signal">{post.category || 'Blog'}</span>

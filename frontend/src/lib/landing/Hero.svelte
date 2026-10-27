@@ -322,7 +322,8 @@
     />
 
     <div class="mt-7 grid gap-5 md:grid-cols-[1.1fr_1fr] md:items-start md:gap-10">
-      <p class="enter-up max-w-[34rem] text-base leading-[1.55] text-ink-soft [text-wrap:pretty] sm:text-lg" style="--d: 0.25s; --t: 0.6s">
+      <!-- Este párrafo es el elemento más grande al abrir la página (LCP): sin animación de entrada para que pinte de inmediato -->
+      <p class="max-w-[34rem] text-base leading-[1.55] text-ink-soft [text-wrap:pretty] sm:text-lg">
         Agenda, expedientes, recetas, cobros y reportes para <span class="text-ink">clínicas dentales</span>, <span class="text-ink">consultorios médicos</span>, <span class="text-ink">nutriólogos</span>, <span class="text-ink">veterinarias</span> y más. Todo en un solo lugar, con IA donde ayuda.
       </p>
       <div class="enter-up flex flex-wrap items-center gap-3 md:justify-start md:pt-1" style="--d: 0.35s; --t: 0.6s">

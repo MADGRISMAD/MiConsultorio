@@ -6,7 +6,7 @@
   /** home="/" fuera de la portada: las anclas apuntan a la portada. */
   let { home = '' }: { home?: string } = $props();
   const cols: [string, [string, string][]][] = $derived([
-    ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#especialidades`, 'Especialidades'], [`${home}#incluye`, 'Más funciones'], [`${home}#precios`, 'Precios'], [`${home}#preguntas`, 'Preguntas frecuentes']]],
+    ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#especialidades`, 'Especialidades'], ['/software-dental', 'Software dental'], ['/software-medico', 'Software médico'], ['/software-nutricion', 'Software para nutrición'], ['/software-veterinaria', 'Software veterinario'], [`${home}#incluye`, 'Más funciones'], [`${home}#precios`, 'Precios'], [`${home}#preguntas`, 'Preguntas frecuentes']]],
     ['Pacientes', [['/directorio', 'Buscar especialista'], ['/blog', 'Blog']]],
     ['Cuenta', [[loginPath, 'Iniciar sesión'], [registerHref, 'Solicitar demo'], [`mailto:${contactEmail}`, 'Contacto']]]
   ]);

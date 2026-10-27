@@ -40,3 +40,47 @@ if (!html.includes('</head>')) throw new Error('index.html sin </head>');
 
 fs.writeFileSync('build/index.html', html.replace('</head>', `\t\t${tags}\n  </head>`));
 console.log(`index.html (landing) y spa.html: ${nuevos.length} módulos, ${nuevosCss.length} estilos y ${fuentes.length} fuentes precargados (nodo ${node})`);
+
+// Las tres fuentes de la marca se precargan en TODAS las páginas generadas (no solo la portada): si el título grande
+// cambia de tipografía después de pintar, mueve todo lo de abajo (salto de diseño, CLS) en artículos, blog y legales.
+const fontTags = fuentes.map((f) => `<link rel="preload" href="/_app/immutable/assets/${f}" as="font" type="font/woff2" crossorigin>`).join('\n\t\t');
+const pages = [];
+(function walk(dir) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = `${dir}/${e.name}`;
+    if (e.isDirectory()) { if (e.name !== '_app') walk(full); }
+    else if (e.name.endsWith('.html')) pages.push(full);
+  }
+})('build');
+let conFuentes = 0;
+for (const f of pages) {
+  const h = fs.readFileSync(f, 'utf8');
+  if (!h.includes('</head>') || h.includes(`href="/_app/immutable/assets/${fuentes[0]}"`)) continue;
+  fs.writeFileSync(f, h.replace('</head>', `\t\t${fontTags}\n  </head>`));
+  conFuentes++;
+}
+console.log(`fuentes precargadas en ${conFuentes} páginas más`);
+
+// ── Texto de las secciones de la portada en el HTML ──────────────────────────────────────────────────────────────
+// Landing.svelte carga Funciones, Precios, Preguntas… con LazySection (import dinámico, por velocidad), así que el HTML
+// prerenderizado solo traía el hero y los buscadores/asistentes de IA sin JavaScript no veían precios ni preguntas.
+// Aquí se renderiza cada sección con el mismo componente (render de servidor de Svelte, ya compilado por el build) y se
+// deja dentro del marcador de su LazySection: al montar, el componente real reemplaza el marcador completo.
+import { render } from 'svelte/server';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+
+const SECCIONES = { funciones: 'Features', especialidades: 'Specialties', retencion: 'Retention', incluye: 'Modules', seguridad: 'Security', precios: 'Pricing', preguntas: 'Faq', contacto: 'Cta' };
+let landing = fs.readFileSync('build/index.html', 'utf8');
+let inyectadas = 0;
+for (const [id, name] of Object.entries(SECCIONES)) {
+  const marcador = new RegExp(`(<div id="${id}" style="min-height: [^"]+" aria-hidden="true">)(</div>)`);
+  if (!marcador.test(landing)) throw new Error(`No encontré el marcador de la sección #${id} en index.html`);
+  const mod = await import(pathToFileURL(path.resolve(`.svelte-kit/output/server/chunks/${name}.js`)).href);
+  const fn = mod.default ?? Object.values(mod).find((v) => typeof v === 'function');
+  const { body } = render(fn, { props: {} });
+  landing = landing.replace(marcador, (_, a, b) => a + body + b);
+  inyectadas++;
+}
+fs.writeFileSync('build/index.html', landing);
+console.log(`secciones de la portada con su texto en el HTML: ${inyectadas}`);

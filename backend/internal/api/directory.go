@@ -390,6 +390,9 @@ func (s *surveyPublic) directoryOptions(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"areas": areas, "states": mxStates, "cities": cities, "payment_methods": paymentMethods})
 }
 
+// legalUpdated: fecha de la última edición del aviso de privacidad y los términos (git log de frontend/src/routes/{privacidad,terminos} y frontend/src/lib/legal). Se actualiza a mano al cambiarlos.
+const legalUpdated = "2026-10-26"
+
 // sitemap lista para Google el directorio, cada combinación especialidad + ciudad con resultados y cada perfil.
 func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	if !limit(w, s.reads, "sitemap|"+clientIP(r)) {
@@ -397,11 +400,23 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	}
 	base := strings.TrimRight(s.cfg.AppURL, "/")
 	type u struct {
-		Loc string `xml:"loc"`
+		Loc     string `xml:"loc"`
+		Lastmod string `xml:"lastmod,omitempty"`
 	}
-	urls := []u{{base + "/"}, {base + "/privacidad"}, {base + "/terminos"}, {base + "/directorio"}, {base + "/blog"}}
-	for _, p := range faroSitemapURLs(r.Context(), base) {
-		urls = append(urls, u{p})
+	faro := faroSitemapURLs(r.Context(), base)
+	// «última edición» de la portada y del blog = el artículo más reciente de Faro; las páginas legales, la fecha de su última edición en el repo
+	newest := ""
+	for _, p := range faro {
+		if p.Lastmod > newest {
+			newest = p.Lastmod
+		}
+	}
+	urls := []u{{base + "/", newest}, {base + "/privacidad", legalUpdated}, {base + "/terminos", legalUpdated}, {base + "/directorio", ""}, {base + "/blog", newest}}
+	for _, e := range []string{"software-dental", "software-medico", "software-nutricion", "software-veterinaria"} {
+		urls = append(urls, u{base + "/" + e, ""})
+	}
+	for _, p := range faro {
+		urls = append(urls, u{p.Loc, p.Lastmod})
 	}
 	posts, err := s.blogSitemapURLs(r.Context(), base)
 	if err != nil {
@@ -409,7 +424,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, p := range posts {
-		urls = append(urls, u{p})
+		urls = append(urls, u{p, ""})
 	}
 	rows, err := s.db.Query(r.Context(), `SELECT lower(a.booking_slug), cp.city, c.kind, c.specialties `+pageBase+` ORDER BY 1`)
 	if err != nil {
@@ -432,7 +447,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 				for _, p := range []string{"/directorio/" + a, "/directorio/" + a + "/" + placeSlug(city)} {
 					if !seen[p] {
 						seen[p] = true
-						urls = append(urls, u{base + p})
+						urls = append(urls, u{base + p, ""})
 					}
 				}
 			}
@@ -440,7 +455,7 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 	}
 	rows.Close()
 	for _, p := range profiles {
-		urls = append(urls, u{p})
+		urls = append(urls, u{p, ""})
 	}
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.Write([]byte(xml.Header))

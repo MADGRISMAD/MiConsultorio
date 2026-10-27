@@ -27,6 +27,9 @@ jobs:
             else echo "ok $1 ($2)"; fi
           }
           for ruta in / /login /register /directorio /privacidad /terminos /blog /blog/software-gestion-clinica; do check "$ruta" "Mozilla/5.0 (smoke)" ""; done
+          for ruta in /software-dental /software-medico /software-nutricion /software-veterinaria; do check "$ruta" "Mozilla/5.0 (smoke)" "<h1"; done
+          check / "Mozilla/5.0 (smoke)" '$499'
+          check /blog "Mozilla/5.0 (smoke)" 'href="/blog/'
           check /blog/software-gestion-clinica "GPTBot/1.0" "<h1"
           check / "Googlebot/2.1" "SoftwareApplication"
           check /sitemap.xml "Mozilla/5.0 (smoke)" "<loc>https://caresia.mx/blog/"

@@ -10,6 +10,7 @@
   import PostCard from '$lib/blog/PostCard.svelte';
   import { blogDate } from '$lib/api/blog';
   import type { ArticleData } from './+page';
+  import { especialidades } from '$lib/landing/especialidades';
 
   $effect(() => theme.init());
 
@@ -31,6 +32,12 @@
   // al prerenderizar el origen real no existe: la dirección canónica usa el dominio fijo
   const SITE = 'https://caresia.mx';
   const url = $derived(SITE + page.url.pathname);
+  // Enlaces internos del artículo: la página de la especialidad de la que habla (por palabras del título) y los precios
+  const giro = $derived.by(() => {
+    const t = `${post?.slug ?? ''} ${post?.title ?? ''}`.toLowerCase();
+    const path = /dental|odont/.test(t) ? '/software-dental' : /veterinar|mascota/.test(t) ? '/software-veterinaria' : /nutri/.test(t) ? '/software-nutricion' : '/software-medico';
+    return especialidades.find((e) => e.path === path)!;
+  });
   // Datos estructurados para Google: artículo, migas de pan y preguntas frecuentes
   const jsonLd = $derived.by(() => {
     if (!post) return '';
@@ -46,8 +53,9 @@
         articleSection: post.category,
         keywords: post.keyword,
         ...(post.image ? { image: post.image.url } : {}),
+        isPartOf: { '@id': `${SITE}/blog#blog` },
         author: { '@type': 'Organization', name: 'Caresia', url: SITE },
-        publisher: { '@type': 'Organization', name: 'Caresia', logo: { '@type': 'ImageObject', url: `${SITE}/apple-touch-icon.png` } }
+        publisher: { '@type': 'Organization', '@id': `${SITE}/#org`, name: 'Caresia', logo: { '@type': 'ImageObject', url: `${SITE}/apple-touch-icon.png` } }
       },
       {
         '@type': 'BreadcrumbList',
@@ -80,7 +88,9 @@
     <meta property="og:site_name" content="Caresia" />
     <meta property="og:locale" content="es_MX" />
     {#if post.published_at}<meta property="article:published_time" content={post.published_at} />{/if}
-    {#if post.image}<meta property="og:image" content={post.image.url} />{/if}
+    {#if post.image}<meta property="og:image" content={post.image.url} />
+      <!-- la portada es el elemento más grande del artículo (LCP): se pide desde el principio -->
+      <link rel="preload" as="image" href={post.image.url} fetchpriority="high" />{/if}
     <meta name="twitter:card" content={post.image ? 'summary_large_image' : 'summary'} />
     {@html jsonLd}
   {:else if view === 'missing'}
@@ -123,7 +133,7 @@
         </header>
 
         {#if post.image}
-          <img src={post.image.url} alt={post.image.alt} width="1376" height="768" class="mt-10 aspect-video w-full max-w-4xl rounded-[26px] border border-ink/10 bg-ink/5 object-cover" />
+          <img src={post.image.url} alt={post.image.alt} width="1376" height="768" loading="eager" fetchpriority="high" decoding="async" class="mt-10 aspect-video w-full max-w-4xl rounded-[26px] border border-ink/10 bg-ink/5 object-cover" />
         {/if}
 
         <div class="mt-12 grid gap-12 border-t border-ink/10 pt-12 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-16">
@@ -138,6 +148,11 @@
               <a href={registerHref} class="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-signal text-[14px] font-medium text-white transition-colors hover:bg-paper hover:text-ink">Solicitar demo</a>
               <a href="/" class="mt-2 inline-flex h-11 w-full items-center justify-center rounded-full text-[14px] font-medium text-paper ring-1 ring-inset ring-paper/25 transition-colors hover:bg-paper/10">Conocer Caresia</a>
             </div>
+            <nav aria-label="Enlaces de interés" class="mt-5 grid gap-2 text-[15px]">
+              <a href="/#precios" class="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">Ver precios</a>
+              <a href={giro.path} class="text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">{giro.h1}</a>
+              <a href="/blog" class="text-ink-soft underline decoration-ink/20 underline-offset-4 hover:text-ink">Todos los artículos</a>
+            </nav>
           </aside>
         </div>
       </article>

@@ -13,6 +13,26 @@
 
   $effect(() => theme.init());
 
+  // Datos estructurados del blog con la lista de artículos (los de Faro vienen en el HTML al compilar)
+  const SITE = 'https://caresia.mx';
+  const blogLd = $derived(JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    '@id': `${SITE}/blog#blog`,
+    name: 'Blog de Caresia',
+    url: `${SITE}/blog`,
+    description,
+    inLanguage: 'es-MX',
+    publisher: { '@id': `${SITE}/#org` },
+    blogPost: data.faro.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      url: `${SITE}/blog/${p.slug}`,
+      datePublished: p.published_at ?? p.created_at,
+      ...(p.image ? { image: p.image.url } : {})
+    }))
+  }).replace(/</g, '\\u003c'));
+
   // Artículos propios (escritos con IA y revisados desde el panel de plataforma) y los que publica Faro, del más nuevo al más viejo.
   const newest = (list: BlogCard[]) => [...list].sort((a, b) => (b.published_at ?? b.created_at).localeCompare(a.published_at ?? a.created_at));
   // Los de Faro ya vienen en el HTML; al montar se suman los propios.
@@ -30,6 +50,8 @@
   <meta property="og:url" content="https://caresia.mx/blog" />
   <meta property="og:image" content="https://caresia.mx/og.png" />
   <meta property="og:type" content="website" />
+  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+  {@html `<script type="application/ld+json">${blogLd}<` + `/script>`}
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
 </svelte:head>

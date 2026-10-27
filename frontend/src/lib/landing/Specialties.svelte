@@ -5,6 +5,7 @@
   import Split from './Split.svelte';
   import SpecialtyArt from './SpecialtyArt.svelte';
   import { specialties } from './data';
+  import { especialidades } from './especialidades';
   import { parallax, reducedMotion } from './motion';
 
   // Cada especialidad: una maqueta de producto propia (SpecialtyArt) y sus dos funciones distintivas.
@@ -20,6 +21,8 @@
 
   let active = $state(0);
   const cur = $derived(items[active]);
+  // páginas propias de cuatro giros (enlace real, para personas y buscadores)
+  const page = $derived(especialidades.find((x) => x.tab === cur.tab));
   const reduce = reducedMotion();
   const btns: HTMLButtonElement[] = [];
 
@@ -92,6 +95,7 @@
             </div>
           {/key}
           <p class="mt-14 text-center text-[15px] leading-relaxed text-paper/60 lg:text-left">{cur.text}</p>
+          {#if page}<p class="mt-3 text-center lg:text-left"><a href={page.path} class="text-[15px] font-medium text-paper underline decoration-paper/30 underline-offset-4 transition-colors hover:decoration-paper">{page.h1} →</a></p>{/if}
         </div>
       </div>
     </div>

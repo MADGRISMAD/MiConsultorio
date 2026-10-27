@@ -3,8 +3,7 @@
   // Fuentes propias (sin Google Fonts): se sirven desde el mismo dominio.
   import '@fontsource-variable/instrument-sans/wght.css';
   import '@fontsource/jetbrains-mono/400.css';
-  import '@fontsource/instrument-serif/400.css';
-  import '@fontsource/instrument-serif/400-italic.css';
+  import '$lib/fonts.css'; // Instrument Serif (400 y cursiva) con font-display: optional
   import '@fontsource/caveat/400.css';
   import { onMount } from 'svelte';
   import { session } from '$lib/session.svelte';
