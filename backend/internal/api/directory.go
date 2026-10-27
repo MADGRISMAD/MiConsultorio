@@ -393,6 +393,9 @@ func (s *surveyPublic) directoryOptions(w http.ResponseWriter, r *http.Request) 
 // legalUpdated: fecha de la última edición del aviso de privacidad y los términos (git log de frontend/src/routes/{privacidad,terminos} y frontend/src/lib/legal). Se actualiza a mano al cambiarlos.
 const legalUpdated = "2026-10-26"
 
+// sitemapExcluded: consultorios de prueba que tienen página pública pero no deben ir al mapa del sitio.
+var sitemapExcluded = map[string]bool{"consultorioxd": true, "manuelsabino": true}
+
 // landingsUpdated: fecha de la última edición de las páginas por especialidad (frontend/src/lib/landing/especialidades.ts).
 const landingsUpdated = "2026-10-27"
 
@@ -443,6 +446,9 @@ func (s *surveyPublic) sitemap(w http.ResponseWriter, r *http.Request) {
 			rows.Close()
 			serverError(w, r, err)
 			return
+		}
+		if sitemapExcluded[slug] {
+			continue
 		}
 		profiles = append(profiles, base+"/"+slug)
 		for _, k := range clinicKindsOf(kind, specs) {

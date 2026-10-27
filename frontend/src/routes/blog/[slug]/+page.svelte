@@ -145,7 +145,7 @@
             <div class="l-deep rounded-[24px] bg-ink p-6 text-paper">
               <p class="font-display text-[26px] leading-[1.05]">Tu consultorio, <span class="italic text-signal">en orden.</span></p>
               <p class="mt-3 text-[14px] leading-relaxed text-paper/70">Agenda, expedientes, recordatorios y cobros en un solo lugar. Para dentistas, médicos, nutriólogos, veterinarias y más.</p>
-              <a href={registerHref} class="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-signal text-[14px] font-medium text-white transition-colors hover:bg-paper hover:text-ink">Solicitar demo</a>
+              <a href={registerHref} class="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-signal text-[14px] font-medium text-white transition-colors hover:bg-paper hover:text-ink">Probar gratis</a>
               <a href="/" class="mt-2 inline-flex h-11 w-full items-center justify-center rounded-full text-[14px] font-medium text-paper ring-1 ring-inset ring-paper/25 transition-colors hover:bg-paper/10">Conocer Caresia</a>
             </div>
             <nav aria-label="Enlaces de interés" class="mt-5 grid gap-2 text-[15px]">

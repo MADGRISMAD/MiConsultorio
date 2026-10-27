@@ -8,7 +8,7 @@
   const cols: [string, [string, string][]][] = $derived([
     ['Producto', [[`${home}#funciones`, 'Funciones'], [`${home}#especialidades`, 'Especialidades'], ['/software-dental', 'Software dental'], ['/software-medico', 'Software médico'], ['/software-nutricion', 'Software para nutrición'], ['/software-veterinaria', 'Software veterinario'], [`${home}#incluye`, 'Más funciones'], [`${home}#precios`, 'Precios'], [`${home}#preguntas`, 'Preguntas frecuentes']]],
     ['Pacientes', [['/directorio', 'Buscar especialista'], ['/blog', 'Blog']]],
-    ['Cuenta', [[loginPath, 'Iniciar sesión'], [registerHref, 'Solicitar demo'], [`mailto:${contactEmail}`, 'Contacto']]]
+    ['Cuenta', [[loginPath, 'Iniciar sesión'], [registerHref, 'Probar gratis'], [`mailto:${contactEmail}`, 'Contacto']]]
   ]);
 </script>
 

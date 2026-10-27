@@ -2,7 +2,7 @@ import { ANON_STATE, apiJson, apiLogin, expect, PLATFORM, test, ui, uid, verific
 
 test.use({ storageState: ANON_STATE });
 
-// The "Solicitar demo" card says which plan the person wants to try: every account starts on Básico and the team is told
+// The "Probar gratis" card says which plan the person wants to try: every account starts on Básico and the team is told
 // which plan to activate.
 test('cada tarjeta de plan lleva al registro con su plan; la cuenta empieza en Básico y el equipo recibe el plan pedido', async ({ page }) => {
   // the cards (and the button next to "Entrar") lead to the sign-up

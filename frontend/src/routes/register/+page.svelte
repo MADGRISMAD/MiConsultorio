@@ -52,7 +52,7 @@
       if (required) await askForCode();
     }
   }
-  // the card pressed on the site ("Solicitar demo"): the account starts on Básico and the team activates the plan asked for
+  // the card pressed on the site ("Probar gratis"): the account starts on Básico and the team activates the plan asked for
   const requestedPlan = $derived(page.url.searchParams.get('plan') ?? '');
   const requestedName = $derived(Object.hasOwn(PLAN_NAMES, requestedPlan) ? PLAN_NAMES[requestedPlan] : '');
 

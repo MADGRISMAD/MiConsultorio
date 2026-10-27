@@ -393,6 +393,8 @@ export const en: Record<string, string> = {
   'Acompañamiento y soporte dedicado': 'Hands-on guidance and dedicated support',
   'Precios en pesos mexicanos · IVA no incluido': 'Prices in Mexican pesos · VAT not included',
   'Solicita una demo': 'Request a demo',
+  'Prueba Caresia gratis': 'Try Caresia free',
+  'Crea tu cuenta: empiezas en el plan Básico y cambias de plan cuando lo necesites.': 'Create your account: you start on the Basic plan and switch plans whenever you need.',
   'Te mostramos Caresia con ejemplos de tu especialidad.': 'We show you Caresia with examples from your specialty.',
   'Configura tu consultorio': 'Set up your practice',
   'En Crecimiento y Pro te acompañamos en el alta, tus usuarios y sus permisos.': 'On Growth and Pro we guide you through setup, your users and their permissions.',

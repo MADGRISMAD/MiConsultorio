@@ -6,7 +6,7 @@
   import { btn, reveal } from './motion';
 
   const steps = [
-    { title: 'Solicita una demo', text: 'Te mostramos Caresia con ejemplos de tu especialidad.' },
+    { title: 'Prueba Caresia gratis', text: 'Crea tu cuenta: empiezas en el plan Básico y cambias de plan cuando lo necesites.' },
     { title: 'Configura tu consultorio', text: 'En Crecimiento y Pro te acompañamos en el alta, tus usuarios y sus permisos.' },
     { title: 'Empieza a atender', text: 'Registra pacientes y citas desde el primer día.' }
   ];

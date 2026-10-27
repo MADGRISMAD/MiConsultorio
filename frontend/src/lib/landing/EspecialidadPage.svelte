@@ -75,7 +75,7 @@
     <h1 class="mt-6 font-display text-[clamp(2.75rem,8vw,6rem)] font-normal leading-[0.95] tracking-[-0.03em] [text-wrap:balance]">{e.h1}</h1>
     <p class="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft [text-wrap:pretty] sm:text-xl">{e.lead}</p>
     <div class="mt-8 flex flex-wrap items-center gap-3">
-      <a href={registerHref} class="inline-flex h-12 items-center rounded-full bg-ink px-7 text-[15px] font-medium text-paper transition-colors hover:bg-signal">Solicitar demo gratis</a>
+      <a href={registerHref} class="inline-flex h-12 items-center rounded-full bg-ink px-7 text-[15px] font-medium text-paper transition-colors hover:bg-signal">Probar gratis</a>
       <a href="/#precios" class="inline-flex h-12 items-center rounded-full px-6 text-[15px] font-medium text-ink ring-1 ring-inset ring-ink/20 transition-colors hover:bg-ink/5">Ver precios</a>
     </div>
 

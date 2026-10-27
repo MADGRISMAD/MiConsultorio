@@ -26,7 +26,7 @@
     <p class="mx-auto mt-5 max-w-md text-lg leading-relaxed text-white/85">Te mostramos cómo funciona para tu especialidad.</p>
     <div class="mt-9 flex justify-center">
       <a href={registerHref} class="{btn} h-14 bg-ink pl-7 pr-2 text-[16px] text-paper hover:bg-paper hover:text-ink focus-visible:ring-offset-signal">
-        <ButtonLabel>Solicitar demo</ButtonLabel>
+        <ButtonLabel>Probar gratis</ButtonLabel>
         <span class="ml-2 grid h-10 w-10 place-items-center rounded-full bg-signal text-white transition-transform duration-500 ease-out-strong group-hover:rotate-[-45deg]">
           <Icon name="arrow" class="h-4 w-4" />
         </span>

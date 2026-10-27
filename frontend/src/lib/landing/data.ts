@@ -31,7 +31,7 @@ export const plans = [
       'Panel de indicadores y tus citas en Google Calendar',
       '2 GB de archivos · Soporte por correo'
     ],
-    cta: 'Solicitar demo',
+    cta: 'Probar gratis',
     featured: false
   },
   {
@@ -54,7 +54,7 @@ export const plans = [
       'Asistente de IA con 500 usos al mes',
       '20 GB de archivos · Soporte prioritario y alta asistida'
     ],
-    cta: 'Solicitar demo',
+    cta: 'Probar gratis',
     featured: true
   },
   {
@@ -68,7 +68,7 @@ export const plans = [
     blurb: 'Para varias sucursales y equipos grandes: sin límites de personas ni de giros, con atención dedicada.',
     includes: 'Todo lo del plan Crecimiento, más:',
     features: ['Cuentas sin límite y todos los giros', 'Hasta 10 sucursales con reportes del grupo', 'Asistente de IA con 1,500 usos al mes', '100 GB de archivos', 'Capacitación al equipo', 'Acompañamiento y soporte dedicado'],
-    cta: 'Solicitar demo',
+    cta: 'Probar gratis',
     featured: false
   }
 ];
