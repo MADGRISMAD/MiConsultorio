@@ -70,7 +70,7 @@ import { render } from 'svelte/server';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
-const SECCIONES = { funciones: 'Features', especialidades: 'Specialties', retencion: 'Retention', incluye: 'Modules', seguridad: 'Security', precios: 'Pricing', preguntas: 'Faq', contacto: 'Cta' };
+const SECCIONES = { funciones: 'Features', especialidades: 'Specialties', retencion: 'Retention', incluye: 'Modules', seguridad: 'Security', precios: 'Pricing', preguntas: 'Faq', contacto: 'Cta', pie: 'Footer' };
 let landing = fs.readFileSync('build/index.html', 'utf8');
 let inyectadas = 0;
 for (const [id, name] of Object.entries(SECCIONES)) {

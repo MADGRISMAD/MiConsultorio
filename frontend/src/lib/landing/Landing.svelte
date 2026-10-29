@@ -92,5 +92,5 @@
   <LazySection load={() => import('./Faq.svelte')} id="preguntas" height="60vh" />
   <LazySection load={() => import('./Cta.svelte')} id="contacto" height="55vh" />
   </main>
-  <LazySection load={() => import('./Footer.svelte')} height="40vh" />
+  <LazySection load={() => import('./Footer.svelte')} id="pie" height="40vh" />
 </div>
