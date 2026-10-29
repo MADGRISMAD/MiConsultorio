@@ -31,7 +31,7 @@
   </div>
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
     <div class="flex flex-wrap justify-between gap-3 border-t border-paper/10 py-6 font-mono text-[11px] uppercase tracking-[0.12em] text-paper/60">
-      <span>© {new Date().getFullYear()} Caresia · Todos los derechos reservados</span>
+      <span>© {new Date().getFullYear()} Caresia · Un producto de <a href="https://www.hyperionmkt.com/" class="underline transition-colors hover:text-signal">Hyperion Software</a></span>
       <span class="flex flex-wrap gap-x-5 gap-y-2"><a href="/privacidad" class="transition-colors hover:text-signal">Aviso de privacidad</a><a href="/terminos" class="transition-colors hover:text-signal">Términos de uso</a><button type="button" onclick={() => cookieConsent.reopen()} class="uppercase tracking-[0.12em] transition-colors hover:text-signal">Preferencias de cookies</button></span>
     </div>
   </div>

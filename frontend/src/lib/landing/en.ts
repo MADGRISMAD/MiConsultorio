@@ -28,7 +28,7 @@ export const en: Record<string, string> = {
   'Buscar especialista': 'Find a specialist',
   Cuenta: 'Account',
   Contacto: 'Contact',
-  '© 2026 Caresia · Todos los derechos reservados': '© 2026 Caresia · All rights reserved',
+  '© 2026 Caresia · Un producto de': '© 2026 Caresia · A product of',
   'Aviso de privacidad': 'Privacy notice',
   'Términos de uso': 'Terms of use',
   'Preferencias de cookies': 'Cookie preferences',
