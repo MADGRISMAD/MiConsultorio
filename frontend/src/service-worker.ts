@@ -14,7 +14,11 @@ sw.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      await cache.addAll([...STATIC]);
+      // Uno por uno y validando: si el servidor contesta HTML por un script (p. ej. a mitad de un despliegue), no se guarda.
+      await Promise.all([...STATIC].map(async (path) => {
+        const res = await fetch(path, { cache: 'reload' }).catch(() => null);
+        if (res && cacheable(res, path)) await cache.put(path, res);
+      }));
       // The server answers client-side routes with the SPA shell; /offline is rendered by it.
       const shell = await fetch(SHELL, { cache: 'reload', credentials: 'omit' });
       if (shell.ok && !shell.redirected) await cache.put(SHELL, shell);
@@ -56,8 +60,17 @@ async function cacheFirst(request: Request, key: string): Promise<Response> {
   const hit = await cache.match(key);
   if (hit) return hit;
   const res = await fetch(request);
-  if (res.ok && !res.redirected && res.status === 200) await cache.put(key, res.clone());
+  if (cacheable(res, key)) await cache.put(key, res.clone());
   return res;
+}
+
+// Solo se guarda una respuesta correcta y del tipo que corresponde: nunca la página (HTML) en lugar de un script o un estilo.
+function cacheable(res: Response, path: string): boolean {
+  if (!res.ok || res.redirected || res.status !== 200) return false;
+  const type = res.headers.get('content-type') || '';
+  if (/\.(m?js)$/.test(path)) return type.includes('javascript');
+  if (path.endsWith('.css')) return type.includes('css');
+  return !type.includes('text/html') || path.endsWith('.html');
 }
 
 async function navigate(request: Request, url: URL): Promise<Response> {

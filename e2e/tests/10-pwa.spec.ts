@@ -43,7 +43,7 @@ test('service worker: precachea el shell, /offline sin red y /api nunca se guard
   });
   expect(cached.keys.some((k) => k.startsWith('caresia-static-'))).toBe(true);
   expect(cached.paths).toContain('/offline');
-  expect(cached.paths.some((p) => p.startsWith('/_app/immutable/'))).toBe(true);
+  expect(cached.paths.some((p) => p.startsWith('/_caresia/immutable/'))).toBe(true);
 
   // a clinical request while online works and is not stored
   const online = await page.evaluate(async () => (await fetch('/api/patients/')).status);

@@ -23,7 +23,7 @@
       "destination": "https://faro.hyperionmkt.com/x/caresia.mx/:slug"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!_caresia/|_app/).*)",
       "destination": "/spa"
     }
   ],
@@ -62,7 +62,7 @@
       ]
     },
     {
-      "source": "/_app/immutable/(.*)",
+      "source": "/_caresia/immutable/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

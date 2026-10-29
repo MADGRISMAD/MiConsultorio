@@ -28,11 +28,11 @@ const css = new Set();
 
 const nuevos = [...files].filter((f) => !html.includes(`href="/${f}"`));
 const nuevosCss = [...css].filter((f) => !html.includes(`href="/${f}"`));
-const assets = fs.readdirSync('build/_app/immutable/assets');
+const assets = fs.readdirSync('build/_caresia/immutable/assets');
 const FUENTES = ['instrument-serif-latin-400-normal', 'instrument-serif-latin-400-italic', 'instrument-sans-latin-wght-normal'];
 const fuentes = FUENTES.map((n) => assets.find((f) => f.startsWith(n) && f.endsWith('.woff2'))).filter(Boolean);
 const tags = [
-  ...fuentes.map((f) => `<link rel="preload" href="/_app/immutable/assets/${f}" as="font" type="font/woff2" crossorigin>`),
+  ...fuentes.map((f) => `<link rel="preload" href="/_caresia/immutable/assets/${f}" as="font" type="font/woff2" crossorigin>`),
   ...nuevos.map((f) => `<link href="/${f}" rel="modulepreload">`),
   ...nuevosCss.map((f) => `<link href="/${f}" rel="stylesheet">`)
 ].join('\n\t\t');
@@ -43,19 +43,19 @@ console.log(`index.html (landing) y spa.html: ${nuevos.length} módulos, ${nuevo
 
 // Las tres fuentes de la marca se precargan en TODAS las páginas generadas (no solo la portada): si el título grande
 // cambia de tipografía después de pintar, mueve todo lo de abajo (salto de diseño, CLS) en artículos, blog y legales.
-const fontTags = fuentes.map((f) => `<link rel="preload" href="/_app/immutable/assets/${f}" as="font" type="font/woff2" crossorigin>`).join('\n\t\t');
+const fontTags = fuentes.map((f) => `<link rel="preload" href="/_caresia/immutable/assets/${f}" as="font" type="font/woff2" crossorigin>`).join('\n\t\t');
 const pages = [];
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = `${dir}/${e.name}`;
-    if (e.isDirectory()) { if (e.name !== '_app') walk(full); }
+    if (e.isDirectory()) { if (e.name !== '_caresia') walk(full); }
     else if (e.name.endsWith('.html')) pages.push(full);
   }
 })('build');
 let conFuentes = 0;
 for (const f of pages) {
   const h = fs.readFileSync(f, 'utf8');
-  if (!h.includes('</head>') || h.includes(`href="/_app/immutable/assets/${fuentes[0]}"`)) continue;
+  if (!h.includes('</head>') || h.includes(`href="/_caresia/immutable/assets/${fuentes[0]}"`)) continue;
   fs.writeFileSync(f, h.replace('</head>', `\t\t${fontTags}\n  </head>`));
   conFuentes++;
 }
